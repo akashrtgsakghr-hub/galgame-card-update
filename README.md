@@ -1,0 +1,1 @@
+# galgame-card-update
