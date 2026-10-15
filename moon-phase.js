@@ -18,6 +18,7 @@
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
   const MOON_FORMULA_VERSION = '4.1.0';
+  const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
   const AUTORELOAD_KEY = 'moon_phase_autoreload_pending';
@@ -66,6 +67,7 @@
   let isFirstScanRunning = false;
   const sessionPromptedChats = {};
   let lastWriteError = '';
+  let _cachedUpdateInfo = null; // { version, info, url }
 
   const MOON_FORMULA_PARAMS = {
     version: MOON_FORMULA_VERSION, emotionDice: 4,
@@ -1736,13 +1738,13 @@ async function _collectAllWorldbooks(includeDisabled) {
     const lib = getBioLibrary();
     const b = lib.bios[id];
     if (!b) { toast('找不到这份小抄', 'warning'); return; }
-    if (!b.versions) b.versions = {};
-    if (!b.versions.current) {
-      b.versions.current = {
-        content: b.versions.original ? b.versions.original.content : '（空白小抄，请在此输入）',
-        generatedAt: Date.now(), rValue: null, wordLimit: b.wordLimit || 260
-      };
-    }
+if (!b.versions) b.versions = {};
+if (!b.versions.current) {
+  b.versions.current = {
+    content: b.versions.original ? b.versions.original.content : '（空白小抄，请在此输入）',
+    generatedAt: Date.now(), rValue: null, wordLimit: b.wordLimit || 260
+  };
+}
     const currentContent = String(b.versions.current.content || '');
     const wordLimit = b.wordLimit || 260;
     const history = (b.versions && Array.isArray(b.versions.history)) ? b.versions.history : [];
@@ -1806,8 +1808,8 @@ async function _collectAllWorldbooks(includeDisabled) {
       const hasOriginal = !!original && original !== current;
       const history = (b.versions && Array.isArray(b.versions.history)) ? b.versions.history : [];
       const timeAgo = (function() { const diff = Date.now() - (b.updatedAt || b.createdAt || 0); const days = Math.floor(diff / 86400000); if (days >= 1) return days + '天前'; const hours = Math.floor(diff / 3600000); if (hours >= 1) return hours + '小时前'; return '刚刚'; })();
-      return '<div class="moon-bio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#05070e;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(148,163,184,0.15)') + ';border-radius:10px;overflow:hidden;">' +
-        '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);">' +
+      return '<div class="moon-bio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#05070e;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(251,191,36,0.35)') + ';border-radius:10px;overflow:hidden;">' +
+        '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);">' +(!enabled ? '<div style="padding:5px 12px;background:rgba(251,191,36,0.08);color:#fbbf24;font-size:10px;border-bottom:1px solid rgba(251,191,36,0.2);">⚠️ 未启用 · 不影响查看/编辑/删除，点击右上角圆点或「启用所选」才会应用此小抄</div>' : '') +
         '<input type="checkbox" class="moon-bio-lib-check" data-id="' + b.id + '" style="flex-shrink:0;">' +
         '<div style="flex:1;min-width:0;">' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
@@ -1874,20 +1876,29 @@ async function _collectAllWorldbooks(includeDisabled) {
             btn.textContent = isOpen ? '▼' : '▲';
           });
         });
-        mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
-          btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id'); const b = lib.bios[id];
-            if (!b || !b.versions || !b.versions.current) return;
-            const content = b.versions.current.content; const aud = b.audition && b.audition.latest ? b.audition.latest.content : '';
-            showModalDialog('👁 ' + String(b.charName || '未命名').replace(/</g, '&lt;'),
-              '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">当前版本</div>' +
-              '<textarea readonly style="width:100%;box-sizing:border-box;min-height:180px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(content).replace(/</g, '&lt;') + '</textarea>' +
-              (aud ? '<div style="font-size:10.5px;color:#94a3b8;margin:10px 0 4px 0;">🎬 最近一次试镜片段</div>' +
-                '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(aud).replace(/</g, '&lt;') + '</textarea>' : ''),
-              null, { confirmText: '关闭' });
-          });
-        });
+mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const id = btn.getAttribute('data-id');
+    const currentLib = getBioLibrary(); // 实时读取，避免快照
+    const b = currentLib.bios[id];
+    if (!b) { toast('找不到这份小抄', 'warning'); return; }
+    if (!b.versions) b.versions = {};
+    const content = (b.versions.current && b.versions.current.content)
+      ? b.versions.current.content
+      : (b.versions.original && b.versions.original.content)
+        ? b.versions.original.content
+        : '（暂无内容）';
+    const aud = b.audition && b.audition.latest ? b.audition.latest.content : '';
+    showModalDialog('👁 ' + String(b.charName || '未命名').replace(/</g, '&lt;'),
+      '<div style="font-size:10.5px;color:' + (b.enabled ? '#6ee7b7' : '#fbbf24') + ';margin-bottom:4px;">' +
+        (b.enabled ? '● 已启用' : '○ 未启用（仅查看，不影响编辑）') + '</div>' +
+      '<textarea readonly style="width:100%;box-sizing:border-box;min-height:180px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(content).replace(/</g, '&lt;') + '</textarea>' +
+      (aud ? '<div style="font-size:10.5px;color:#94a3b8;margin:10px 0 4px 0;">🎬 最近一次试镜片段</div>' +
+        '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(aud).replace(/</g, '&lt;') + '</textarea>' : ''),
+      null, { confirmText: '关闭' });
+  });
+});
         mask.querySelectorAll('.moon-bio-edit-btn').forEach(function(btn) { btn.addEventListener('click', function(e) { e.stopPropagation(); openEditBioDialog(btn.getAttribute('data-id'), panel); }); });
         mask.querySelectorAll('.moon-bio-del-btn').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
@@ -2067,14 +2078,19 @@ function getUpdateConfig() {
     const raw = mainWin.localStorage.getItem(UPDATE_CONFIG_KEY);
     if (raw) {
       const o = JSON.parse(raw);
-      return { url: String(o.url || ''), autoCheck: o.autoCheck !== false };
+      return {
+        url: String(o.url || DEFAULT_UPDATE_URL),
+        autoCheck: o.autoCheck !== false
+      };
     }
   } catch (e) {}
-  return { url: '', autoCheck: true };
+  return { url: DEFAULT_UPDATE_URL, autoCheck: true };
 }
+
 function saveUpdateConfig(cfg) {
   try { mainWin.localStorage.setItem(UPDATE_CONFIG_KEY, JSON.stringify(cfg)); } catch (e) {}
 }
+
 function compareVersions(a, b) {
   const pa = String(a).split('.').map(function(x) { return parseInt(x, 10) || 0; });
   const pb = String(b).split('.').map(function(x) { return parseInt(x, 10) || 0; });
@@ -2099,15 +2115,27 @@ async function checkForUpdates(silent) {
     let remoteVersion = '', remoteInfo = '';
     try {
       const json = JSON.parse(text);
-      if (json && json.version) { remoteVersion = String(json.version); remoteInfo = String(json.info || json.changelog || ''); }
+      if (json && json.version) {
+        remoteVersion = String(json.version);
+        remoteInfo = String(json.info || json.changelog || '');
+      }
     } catch (e) {}
     if (!remoteVersion) {
       const m = text.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
       if (m) remoteVersion = m[1];
     }
-    if (!remoteVersion) { if (!silent) toast('无法解析远程版本号', 'warning'); return null; }
+    if (!remoteVersion) {
+      if (!silent) toast('无法解析远程版本号', 'warning');
+      return null;
+    }
     const cmp = compareVersions(remoteVersion, MOON_FORMULA_VERSION);
-    if (cmp > 0) { showUpdateAvailableDialog({ version: remoteVersion, info: remoteInfo, url: cfg.url }); return { version: remoteVersion }; }
+    if (cmp > 0) {
+      _cachedUpdateInfo = { version: remoteVersion, info: remoteInfo, url: cfg.url };
+      try { refreshPanel(); } catch (e) {}
+      return _cachedUpdateInfo;
+    }
+    _cachedUpdateInfo = null;
+    try { refreshPanel(); } catch (e) {}
     if (!silent) toast('已是最新版本 v' + MOON_FORMULA_VERSION, 'success');
     return null;
   } catch (e) {
@@ -2117,28 +2145,223 @@ async function checkForUpdates(silent) {
 }
 
 function showUpdateAvailableDialog(remote) {
-  const html = '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
-    '发现新版本：<b style="color:#fde047;">v' + remote.version + '</b><br>' +
-    '当前版本：<span style="color:#94a3b8;">v' + MOON_FORMULA_VERSION + '</span></div>' +
-    (remote.info ? '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11px;color:#94a3b8;line-height:1.7;max-height:200px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">' + String(remote.info).replace(/</g, '&lt;') + '</div>' : '') +
-    '<div style="font-size:10.5px;color:#64748b;line-height:1.6;">点「打开下载页」后手动更新脚本；脚本检测到版本变化会自动刷新一次页面。</div>';
+  const html =
+    '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
+      '发现新版本：<b style="color:#fde047;">v' + remote.version + '</b><br>' +
+      '当前版本：<span style="color:#94a3b8;">v' + MOON_FORMULA_VERSION + '</span>' +
+    '</div>' +
+    (remote.info
+      ? '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11px;color:#94a3b8;line-height:1.7;max-height:240px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">' + String(remote.info).replace(/</g, '&lt;') + '</div>'
+      : '') +
+    '<div style="font-size:10.5px;color:#64748b;line-height:1.6;">点「✅ 确定更新」后，脚本会自动下载新版本并写入，然后刷新页面。<br>若自动写入失败，会降级为「复制到剪贴板 + 提示手动替换」。</div>';
   showModalDialogCancelable('🔄 发现新版本 v' + remote.version, html,
-    function() {
-      try { (mainWin.open || window.open)(remote.url, '_blank'); } catch (e) { toast('请手动访问：' + remote.url, 'info'); }
-    },
+    function() { doAutoUpdate(remote); },
     function() { toast('已取消更新', 'info'); },
-    { confirmText: '打开下载页', cancelText: '稍后再说' });
+    { confirmText: '✅ 确定更新', cancelText: '稍后再说' });
+}
+
+async function doAutoUpdate(remote) {
+  if (!remote || !remote.url) { toast('无更新源', 'warning'); return; }
+
+  showLoadingDialog('正在下载新版本...');
+  let code = '';
+  try {
+    const res = await fetch(remote.url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    code = await res.text();
+  } catch (e) {
+    closeLoadingDialog();
+    toast('下载失败：' + (e.message || e), 'warning');
+    return;
+  }
+
+  // 若是 JSON 包装，尝试取出脚本正文
+  try {
+    const json = JSON.parse(code);
+    if (json && typeof json.content === 'string') code = json.content;
+    else if (json && typeof json.script === 'string') code = json.script;
+    else if (json && typeof json.code === 'string') code = json.code;
+  } catch (e) {}
+
+  code = String(code || '').trim();
+  if (!code || code.length < 500) {
+    closeLoadingDialog();
+    toast('下载到的脚本内容异常（长度不足）', 'warning');
+    return;
+  }
+  const verMatch = code.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
+  if (!verMatch || compareVersions(verMatch[1], remote.version) < 0) {
+    closeLoadingDialog();
+    toast('下载内容与声明版本不符，已中止更新', 'warning');
+    return;
+  }
+
+  showLoadingDialog('正在写入更新...');
+  const okLS = tryApplyUpdateToStorage(code);
+  let okIDB = false;
+  try { okIDB = await tryApplyUpdateToIndexedDB(code); } catch (e) {}
+  closeLoadingDialog();
+
+  if (okLS || okIDB) {
+    _cachedUpdateInfo = null;
+    toast('更新成功，即将刷新页面...', 'success');
+    setTimeout(function() {
+      try {
+        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
+        else location.reload();
+      } catch (e) { try { location.reload(); } catch (e2) {} }
+    }, 1200);
+    return;
+  }
+
+  // 降级：复制到剪贴板
+  let copied = false;
+  try {
+    if (mainWin.navigator && mainWin.navigator.clipboard) {
+      await mainWin.navigator.clipboard.writeText(code);
+      copied = true;
+    }
+  } catch (e) {}
+  showModalDialog('⚠️ 自动写入失败',
+    '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.7;">' +
+      '未能定位到脚本存储位置。' +
+      (copied ? '<br><b style="color:#6ee7b7;">新脚本已复制到剪贴板。</b>' : '') +
+      '<br>请打开「酒馆助手 → 脚本管理」，找到本脚本，把新内容粘贴进去并保存。<br>' +
+      '<span style="color:#fbbf24;">保存后本脚本会在下次加载时自动刷新页面。</span></div>',
+    null, { confirmText: '知道了' });
+}
+
+// 尝试在 localStorage 里找到包含本脚本 id 的管理数据并替换 content
+function tryApplyUpdateToStorage(code) {
+  const ST_ID = 'e22f244b-70e1-448e-b24e-5a9b36c48484';
+  let applied = false;
+  try {
+    const ls = mainWin.localStorage || localStorage;
+    for (let i = 0; i < ls.length; i++) {
+      const key = ls.key(i);
+      if (!key) continue;
+      let raw = null;
+      try { raw = ls.getItem(key); } catch (e) { continue; }
+      if (!raw || raw.indexOf(ST_ID) < 0) continue;
+      try {
+        const data = JSON.parse(raw);
+        if (_replaceScriptInNode(data, ST_ID, code)) {
+          ls.setItem(key, JSON.stringify(data));
+          applied = true;
+          try { console.log('[Moon] 已更新 localStorage key:', key); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+  return applied;
+}
+
+function _replaceScriptInNode(node, id, newContent) {
+  if (!node || typeof node !== 'object') return false;
+  let changed = false;
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      if (_replaceScriptInNode(node[i], id, newContent)) changed = true;
+    }
+  } else {
+    if (node.id === id && typeof node.content === 'string') {
+      node.content = newContent;
+      changed = true;
+    }
+    for (const k in node) {
+      if (k === 'content') continue;
+      if (_replaceScriptInNode(node[k], id, newContent)) changed = true;
+    }
+  }
+  return changed;
+}
+
+// 尝试从 IndexedDB 里找脚本管理数据（不同酒馆版本库名不同，尽力而为）
+async function tryApplyUpdateToIndexedDB(code) {
+  const IDB = mainWin.indexedDB;
+  if (!IDB) return false;
+  const ST_ID = 'e22f244b-70e1-448e-b24e-5a9b36c48484';
+  const CANDIDATES = [
+    { db: 'tavern_helper', store: 'scripts' },
+    { db: 'tavern_helper', store: 'script' },
+    { db: 'SillyTavern', store: 'scripts' },
+    { db: 'SillyTavern', store: 'script' },
+    { db: 'TavernHelper', store: 'scripts' },
+    { db: 'TavernHelper', store: 'script' },
+    { db: 'SillyTavern_scripts', store: 'scripts' }
+  ];
+  for (let i = 0; i < CANDIDATES.length; i++) {
+    const c = CANDIDATES[i];
+    try {
+      const db = await _openIDB(IDB, c.db);
+      if (!db) continue;
+      if (!db.objectStoreNames.contains(c.store)) { try { db.close(); } catch (e) {} continue; }
+
+      const tx = db.transaction(c.store, 'readwrite');
+      const store = tx.objectStore(c.store);
+      const all = await new Promise(function(resolve) {
+        let done = false;
+        const fin = function(v) { if (!done) { done = true; resolve(v); } };
+        const r = store.getAll();
+        r.onsuccess = function() { fin(r.result || []); };
+        r.onerror = function() { fin([]); };
+        setTimeout(function() { fin([]); }, 1500);
+      });
+
+      let changed = false;
+      for (let j = 0; j < all.length; j++) {
+        const row = all[j];
+        if (!row || typeof row !== 'object') continue;
+        if (row.id !== ST_ID) continue;
+        if (typeof row.content !== 'string') continue;
+        try {
+          row.content = code;
+          store.put(row);
+          changed = true;
+        } catch (e) {}
+      }
+      await new Promise(function(resolve) {
+        let done = false;
+        const fin = function() { if (!done) { done = true; resolve(); } };
+        tx.oncomplete = fin; tx.onerror = fin; tx.onabort = fin;
+        setTimeout(fin, 1500);
+      });
+      try { db.close(); } catch (e) {}
+      if (changed) return true;
+    } catch (e) {}
+  }
+  return false;
+}
+
+function _openIDB(IDB, name) {
+  return new Promise(function(resolve) {
+    try {
+      const req = IDB.open(name);
+      let done = false;
+      const finish = function(v) { if (!done) { done = true; resolve(v); } };
+      req.onsuccess = function() { finish(req.result); };
+      req.onerror = function() { finish(null); };
+      req.onblocked = function() { finish(null); };
+      setTimeout(function() { finish(null); }, 1500);
+    } catch (e) { resolve(null); }
+  });
 }
 
 function openUpdateConfigDialog(panel) {
   const cfg = getUpdateConfig();
-  const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
-    '填一个返回 JSON 的更新源地址（例如 GitHub raw）：<br>' +
-    '<code style="color:#7dd3fc;font-size:10.5px;">{"version":"4.2.0","info":"更新说明"}</code><br>' +
-    '或者直接填脚本源码文件地址（会自动从 MOON_FORMULA_VERSION 里提取版本号）。</div>' +
-    '<div style="margin-bottom:8px;"><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">更新源 URL</div>' +
-    '<input id="moon-upd-url" type="text" value="' + String(cfg.url).replace(/"/g, '&quot;') + '" placeholder="https://raw.githubusercontent.com/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;"></div>' +
-    '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;"><input type="checkbox" id="moon-upd-auto" ' + (cfg.autoCheck ? 'checked' : '') + '> 启动时自动检查更新</label>';
+  const html =
+    '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
+      '填脚本源码文件的直链（推荐 jsDelivr 加速）。<br>' +
+      '<code style="color:#7dd3fc;font-size:10.5px;">https://cdn.jsdelivr.net/gh/用户名/仓库@main/moon-phase.js</code><br>' +
+      '脚本会从中解析 <code style="color:#7dd3fc;font-size:10.5px;">MOON_FORMULA_VERSION</code> 作为版本号。' +
+    '</div>' +
+    '<div style="margin-bottom:8px;">' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">更新源 URL（留空则使用内置默认地址）</div>' +
+      '<input id="moon-upd-url" type="text" value="' + String(cfg.url || DEFAULT_UPDATE_URL).replace(/"/g, '&quot;') + '" placeholder="https://cdn.jsdelivr.net/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' +
+    '</div>' +
+    '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;">' +
+      '<input type="checkbox" id="moon-upd-auto" ' + (cfg.autoCheck ? 'checked' : '') + '> 启动时自动检查更新' +
+    '</label>';
   showModalDialogCancelable('⚙️ 更新设置', html,
     function() {
       const mask = mainDoc.getElementById('moon-modal-mask');
@@ -2713,7 +2936,11 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-head"><div class="mp-title-group" style="display:flex;align-items:center;gap:8px;">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
       '<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
-      '<span class="mp-badge">v' + MOON_FORMULA_VERSION + '</span>' +
+'<span class="mp-badge" id="moon-version-badge" style="cursor:pointer;' +
+  (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
+  '">v' + MOON_FORMULA_VERSION +
+  (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW</b>' : '') +
+'</span>' +
       '</div><button class="mp-close" id="moon-phase-close">✕</button></div>' +
       '<div class="mp-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
@@ -2774,10 +3001,29 @@ function openUpdateConfigDialog(panel) {
      '<button class="mp-btn" id="moon-phase-faq" style="grid-column:span 2;">❓ 常见问题</button></div>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div>';
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
-    panel.querySelector('#moon-phase-update').addEventListener('click', function() {
+const _badgeEl = panel.querySelector('#moon-version-badge');
+if (_badgeEl) {
+  _badgeEl.addEventListener('click', function() {
+    if (_cachedUpdateInfo) {
+      showUpdateAvailableDialog(_cachedUpdateInfo);
+      return;
+    }
+    const cfg = getUpdateConfig();
+    if (!cfg.url) { openUpdateConfigDialog(panel); return; }
+    toast('正在检查更新...', 'info');
+    checkForUpdates(false).then(function(r) {
+      if (!r) toast('当前已是最新版本 v' + MOON_FORMULA_VERSION, 'success');
+    });
+  });
+}
+
+panel.querySelector('#moon-phase-update').addEventListener('click', function() {
+  if (_cachedUpdateInfo) { showUpdateAvailableDialog(_cachedUpdateInfo); return; }
   const cfg = getUpdateConfig();
   if (!cfg.url) openUpdateConfigDialog(panel);
-  else checkForUpdates(false);
+  else checkForUpdates(false).then(function(r) {
+    if (!r) toast('当前已是最新版本 v' + MOON_FORMULA_VERSION, 'success');
+  });
 });
     panel.querySelectorAll('.mp-mode-btn').forEach(function(btn) { btn.addEventListener('click', function() { const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel(); }); });
     panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s = getSettings(); s.antisl = !(s.antisl === true); saveSettings(s); refreshPanel(); });
