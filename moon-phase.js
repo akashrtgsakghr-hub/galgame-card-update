@@ -3080,28 +3080,28 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-lcd-card>div[style*="margin-top:8px"]{color:#b8ccb0 !important;}' +
       '#moon-phase-panel .mp-lcd-card{padding:9px !important;background:#101610 !important;border:3px solid #374a37 !important;box-shadow:inset 0 0 0 2px #080d08,0 0 0 2px #080d08 !important;color:#18271a !important;}' +
       '#moon-phase-panel .mp-lcd-card:before{display:none !important;}' +
-      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:10px;background-color:#b8d39a;background-image:radial-gradient(#18271a .55px,transparent .7px);background-size:4px 4px;color:#18271a;border:3px inset #647b51;box-shadow:inset 0 0 14px rgba(24,39,26,.24);font:10px "Courier New",monospace;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:10px;background-color:#b8d39a;background-image:radial-gradient(#18271a .55px,transparent .7px);background-size:4px 4px;color:#18271a;border:3px solid #18271a;box-shadow:none;font:10px "Courier New",monospace;image-rendering:pixelated;}' +
       '#moon-phase-panel .mp-lcd-screen>*{position:relative;z-index:1;color:#18271a !important;text-shadow:none !important;}' +
-      '#moon-phase-panel .mp-lcd-screen-head,#moon-phase-panel .mp-lcd-character-head{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-bottom:5px;border-bottom:1px solid #526a43;font-size:8px;font-weight:bold;letter-spacing:.5px;}' +
-      '#moon-phase-panel .mp-lcd-screen-head b{padding:2px 4px;border:1px solid #526a43;font-size:7px;}' +
-      '#moon-phase-panel .mp-lcd-world-time{padding:7px 0 5px;border-bottom:1px dotted #526a43;font-weight:bold;}' +
-      '#moon-phase-panel .mp-lcd-selection{padding:6px 0;border-bottom:1px dotted #526a43;line-height:1.6;}' +
+      '#moon-phase-panel .mp-lcd-screen-head,#moon-phase-panel .mp-lcd-character-head{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-bottom:5px;border-bottom:1px solid #18271a;font-size:8px;font-weight:bold;letter-spacing:.5px;}' +
+      '#moon-phase-panel .mp-lcd-screen-head b{padding:2px 4px;border:1px solid #18271a;font-size:7px;}' +
+      '#moon-phase-panel .mp-lcd-world-time{padding:7px 0 5px;border-bottom:1px dotted #18271a;font-weight:bold;}' +
+      '#moon-phase-panel .mp-lcd-selection{padding:6px 0;border-bottom:1px dotted #18271a;line-height:1.6;}' +
       '#moon-phase-panel .mp-lcd-selection b{display:block;margin-bottom:2px;}' +
       '#moon-phase-panel .mp-lcd-selection span{display:block;font-size:8px;}' +
       '#moon-phase-panel .mp-lcd-character-head{margin-top:6px;padding-bottom:4px;}' +
-      '#moon-phase-panel .mp-lcd-character-select{max-width:48%;padding:2px 4px;background:#b8d39a;border:1px solid #526a43;color:#18271a;font:8px "Courier New",monospace;}' +
+      '#moon-phase-panel .mp-lcd-character-select{max-width:48%;padding:2px 4px;background:#b8d39a;border:1px solid #18271a;color:#18271a;font:8px "Courier New",monospace;}' +
       '#moon-phase-panel .mp-lcd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:6px 0 4px;}' +
-      '#moon-phase-panel .mp-lcd-stats span{padding:3px 2px;border:1px solid #657c53;text-align:center;font-size:8px;}' +
+      '#moon-phase-panel .mp-lcd-stats span{padding:3px 2px;border:1px solid #18271a;text-align:center;font-size:8px;}' +
       '#moon-phase-panel .mp-lcd-stats b{display:block;font-size:10px;}' +
       '#moon-phase-panel .mp-lcd-mood-row{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:8px;}' +
       '#moon-phase-panel .mp-lcd-pixel-face{display:grid;grid-template-columns:repeat(5,4px);grid-auto-rows:4px;gap:1px;padding:3px;background:#b8d39a;image-rendering:pixelated;}' +
       '#moon-phase-panel .mp-lcd-pixel-face i{display:block;width:4px;height:4px;background:transparent;}' +
       '#moon-phase-panel .mp-lcd-pixel-face i.on{background:#18271a;}' +
-      '#moon-phase-panel .mp-lcd-voice{padding:4px 0;border-top:1px dotted #526a43;line-height:1.5;}' +
+      '#moon-phase-panel .mp-lcd-voice{padding:4px 0;border-top:1px dotted #18271a;line-height:1.5;}' +
       '#moon-phase-panel .mp-lcd-voice small{font-size:7px;font-weight:bold;}' +
       '#moon-phase-panel .mp-lcd-voice div{max-height:54px;overflow:auto;overflow-wrap:anywhere;}' +
       '#moon-phase-panel .mp-lcd-empty{padding:16px 4px;text-align:center;line-height:1.8;font-size:8px;}' +
-      '#moon-phase-panel .mp-lcd-screen-foot{padding-top:5px;border-top:1px dotted #526a43;text-align:right;font-size:7px;letter-spacing:.5px;}' +
+      '#moon-phase-panel .mp-lcd-screen-foot{padding-top:5px;border-top:1px dotted #18271a;text-align:right;font-size:7px;letter-spacing:.5px;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#526a43 !important;background:#111a12 !important;color:#b8d39a !important;box-shadow:2px 2px 0 #080d08 !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#b8d39a !important;color:#18271a !important;border-color:#b8d39a !important;}' +
       '#moon-phase-panel .mp-label,#moon-phase-panel .mp-toggle-title{color:#ffd1f1 !important;}' +
@@ -3279,6 +3279,7 @@ function openUpdateConfigDialog(panel) {
 
   function renderPanel(panel) {
     if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
+    if (panel._lcdStateTimer) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; }
     const mode = getCurrentMode();
     const antisl = getAntiSL();
     const extraSetting = getExtraModelMode();
@@ -3362,6 +3363,17 @@ function openUpdateConfigDialog(panel) {
       '<details class="mp-action-fold"><summary><span>AI 行为设置</span><small>提示词编辑 · 副模型配置</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词设置</button><button class="mp-btn" id="moon-phase-custom-ai">⚙️ 副模型设置</button></div></details>' +
       '<details class="mp-action-fold"><summary><span>版本与帮助</span><small>更新游戏系统 · 查阅帮助</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 发现新版本 · 查看更新' : '🔄 检查版本更新') + '</button><button class="mp-btn" id="moon-phase-faq">❓ 帮助与说明</button></div></details></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div>';
+    panel._lcdStateTimer = setInterval(function() {
+      if (!panel.isConnected) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; return; }
+      const latest = readMvuLatest();
+      const latestStat = latest && latest.stat_data || {};
+      const timeEl = panel.querySelector('.mp-lcd-world-time');
+      if (timeEl) timeEl.textContent = 'WORLD TIME　' + String((latestStat.世界 && latestStat.世界.时间) || '等待游戏时间');
+      const selectedName = panel.dataset.lcdCharacter || '';
+      const latestCharacter = latestStat.角色 && latestStat.角色[selectedName];
+      const characterView = panel.querySelector('.mp-lcd-character-view');
+      if (characterView) characterView.innerHTML = renderLcdCharacterDetails(latestCharacter);
+    }, 2500);
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');
