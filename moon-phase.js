@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.7';
-  const MOON_FORMULA_CHANGELOG = "街机最高分现在按聊天窗口分别保存在聊天元数据中，并记录达成时的现实本地时间。";
+  const MOON_FORMULA_VERSION = '4.3.8';
+  const MOON_FORMULA_CHANGELOG = "优化低亮度液晶屏与移动端文字显示；街机难度与系统月相统一命名；修复跳跃碰撞和自动更新脚本定位。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -703,21 +703,37 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     if (!canvas || !canvas.getContext) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    let raf = 0, score = 0, speed = 3, tick = 0, dead = false, jumpY = 0, jumpV = 0;
+    const difficulty = options.difficulty || 'normal';
+    const levels = {
+      easy: { startSpeed: 2.4, maxSpeed: 4.2, growth: 220, firstX: 325, secondX: 560, gap: 135 },
+      normal: { startSpeed: 3, maxSpeed: 6, growth: 140, firstX: 290, secondX: 480, gap: 90 },
+      hard: { startSpeed: 3.8, maxSpeed: 7.2, growth: 100, firstX: 260, secondX: 420, gap: 55 },
+      hell: { startSpeed: 4.4, maxSpeed: 8, growth: 80, firstX: 235, secondX: 370, gap: 38 }
+    };
+    const level = levels[difficulty] || levels.normal;
+    let raf = 0, score = 0, speed = level.startSpeed, tick = 0, dead = false, jumpY = 0, jumpV = 0;
     let highScore = getArcadeHighScore(), shownScore = -1, stopped = false;
     const recordTimeEl = root.querySelector('#moon-arcade-record-time');
-    let obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }];
+    let obstacles = [{ x: level.firstX, w: 10, h: 18 }, { x: level.secondX, w: 12, h: 25 }];
     if (highScoreEl) highScoreEl.textContent = String(highScore).padStart(5, '0');
-    function jump() { if (dead) { score = 0; shownScore = -1; dead = false; speed = 3; obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }]; stateEl.textContent = 'PRESS SPACE / TAP TO JUMP'; return; } if (jumpY === 0) jumpV = -8; }
+    function resetRound() { score = 0; shownScore = -1; dead = false; speed = level.startSpeed; tick = 0; jumpY = 0; jumpV = 0; obstacles = [{ x: level.firstX, w: 10, h: 18 }, { x: level.secondX, w: 12, h: 25 }]; stateEl.textContent = 'PRESS SPACE / TAP TO JUMP'; }
+    function jump() { if (dead) { resetRound(); return; } if (jumpY === 0) jumpV = -8; }
     function keydown(e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } }
     function draw() {
       const w = canvas.width, h = canvas.height, floor = h - 18;
-      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#b8d39a'; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#18271a'; for (let x = 3; x < w; x += 4) ctx.fillRect(x, 0, 1, h); for (let y = 3; y < h; y += 4) ctx.fillRect(0, y, w, 1);
+      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#7d896f'; ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = '#18271a'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
       ctx.fillStyle = '#18271a'; ctx.fillRect(0, floor, w, 2);
-      if (!dead) { tick++; score += 0.08; speed = Math.min(6, 3 + score / 140); jumpY += jumpV; jumpV += 0.42; if (jumpY > 0) { jumpY = 0; jumpV = 0; }
-        obstacles.forEach(function(o) { o.x -= speed; if (o.x < -o.w) { o.x = w + 65 + Math.random() * 100; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); } if (o.x < 46 && o.x + o.w > 30 && floor - (o.h - 2) > floor + jumpY - 23) { dead = true; stateEl.textContent = 'GAME OVER · TAP TO RETRY'; flushArcadeMetadataSave(); } }); }
+      if (!dead) { tick++; score += 0.08; speed = Math.min(level.maxSpeed, level.startSpeed + score / level.growth); jumpY += jumpV; jumpV += 0.42; if (jumpY > 0) { jumpY = 0; jumpV = 0; }
+        obstacles.forEach(function(o) {
+          o.x -= speed;
+          if (o.x < -o.w) { o.x = w + level.gap + Math.random() * 110; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); }
+          const playerX = 30, playerWidth = 14, playerY = floor - 21 + jumpY, playerHeight = 21;
+          const obstacleY = floor - o.h;
+          if (!dead && playerX < o.x + o.w && playerX + playerWidth > o.x && playerY + playerHeight > obstacleY && playerY < floor) {
+            dead = true; jumpY = 0; jumpV = 0; stateEl.textContent = 'GAME OVER · TAP / SPACE TO RETRY'; flushArcadeMetadataSave();
+          }
+        }); }
       ctx.fillStyle = '#18271a'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
       ctx.fillStyle = '#18271a'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
       const scoreNow = Math.floor(score);
@@ -2387,7 +2403,7 @@ async function doAutoUpdate(remote) {
 
   showLoadingDialog('正在写入更新...');
   let okTH = false;
-  try { okTH = await tryApplyUpdateViaTavernHelper(code); } catch (e) { try { console.warn('[Moon] TavernHelper 脚本更新接口失败:', e); } catch (e2) {} }
+  try { okTH = await tryApplyUpdateViaTavernHelper(code); } catch (e) { _autoUpdateScriptWriteDiagnostic = '酒馆助手脚本写入接口报错：' + String(e && e.message || e); try { console.warn('[Moon] TavernHelper 脚本更新接口失败:', e); } catch (e2) {} }
   const okLS = okTH ? false : tryApplyUpdateToStorage(code);
   let okIDB = false;
   if (!okTH) { try { okIDB = await tryApplyUpdateToIndexedDB(code); } catch (e) {} }
@@ -2415,7 +2431,8 @@ async function doAutoUpdate(remote) {
   } catch (e) {}
   showModalDialog('⚠️ 自动写入失败',
     '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.7;">' +
-      '未能定位到脚本存储位置。' +
+      '未能确认新脚本已经写入。' +
+      (_autoUpdateScriptWriteDiagnostic ? '<br><span style="color:#fbbf24;">原因：' + String(_autoUpdateScriptWriteDiagnostic).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' : '') +
       (copied ? '<br><b style="color:#6ee7b7;">新脚本已复制到剪贴板。</b>' : '') +
       '<br>请打开「酒馆助手 → 脚本管理」，找到本脚本，把新内容粘贴进去并保存。<br>' +
       '<span style="color:#fbbf24;">保存后本脚本会在下次加载时自动刷新页面。</span></div>',
@@ -2423,47 +2440,91 @@ async function doAutoUpdate(remote) {
 }
 
 // 通过酒馆助手公开脚本树接口更新自身，避免依赖酒馆内部 localStorage/IndexedDB 结构。
+let _autoUpdateScriptWriteDiagnostic = '';
 async function tryApplyUpdateViaTavernHelper(code) {
-  const helper = mainWin && mainWin.TavernHelper;
-  if (!helper || typeof helper.getScriptTrees !== 'function' || typeof helper.updateScriptTreesWith !== 'function') return false;
-  const scriptId = 'e22f244b-70e1-448e-b24e-5a9b36c48484';
+  const fixedScriptId = 'e22f244b-70e1-448e-b24e-5a9b36c48484';
   const types = ['global', 'preset', 'character'];
-  const containsTarget = function(nodes) {
-    return Array.isArray(nodes) && nodes.some(function(node) {
-      return !!node && (node.id === scriptId && node.type === 'script' || node.type === 'folder' && containsTarget(node.scripts));
-    });
+  const scopes = [];
+  try { scopes.push(window); } catch (e) {}
+  try { if (mainWin && scopes.indexOf(mainWin) < 0) scopes.push(mainWin); } catch (e) {}
+  try { if (mainWin && mainWin.top && scopes.indexOf(mainWin.top) < 0) scopes.push(mainWin.top); } catch (e) {}
+  const apis = [];
+  const addApi = function(owner, api) {
+    if (!api || typeof api.getScriptTrees !== 'function' || typeof api.updateScriptTreesWith !== 'function') return;
+    if (apis.some(function(item) { return item.api === api; })) return;
+    apis.push({ owner: owner, api: api });
   };
-  const rewrite = function(nodes, state) {
+  scopes.forEach(function(scope) {
+    try { addApi(scope, scope); } catch (e) {}
+    try { addApi(scope.TavernHelper, scope.TavernHelper); } catch (e) {}
+  });
+  if (!apis.length) {
+    _autoUpdateScriptWriteDiagnostic = '当前页面没有找到酒馆助手公开的脚本树读写接口。';
+    return false;
+  }
+
+  let runtimeScriptId = '', runtimeScriptName = '';
+  scopes.forEach(function(scope) {
+    try { if (!runtimeScriptId && typeof scope.getScriptId === 'function') runtimeScriptId = String(scope.getScriptId() || ''); } catch (e) {}
+    try { if (!runtimeScriptName && typeof scope.getScriptName === 'function') runtimeScriptName = String(scope.getScriptName() || ''); } catch (e) {}
+  });
+  const scriptIds = [runtimeScriptId, fixedScriptId].filter(function(id, index, all) { return id && all.indexOf(id) === index; });
+  const scriptNames = [runtimeScriptName, 'Galgame攻略系统'].filter(function(name, index, all) { return name && all.indexOf(name) === index; });
+  const listScripts = function(nodes, out) {
+    (nodes || []).forEach(function(node) {
+      if (!node || typeof node !== 'object') return;
+      if (node.type === 'script') out.push(node);
+      else if (node.type === 'folder') listScripts(node.scripts, out);
+    });
+    return out;
+  };
+  const rewrite = function(nodes, targetId, targetName, state) {
     return (nodes || []).map(function(node) {
       if (!node || typeof node !== 'object') return node;
-      if (node.type === 'script' && node.id === scriptId) {
+      if (node.type === 'script' && (node.id === targetId || !targetId && node.name === targetName)) {
         state.count++;
         return Object.assign({}, node, { content: code });
       }
-      if (node.type === 'folder' && Array.isArray(node.scripts)) return Object.assign({}, node, { scripts: rewrite(node.scripts, state) });
+      if (node.type === 'folder' && Array.isArray(node.scripts)) return Object.assign({}, node, { scripts: rewrite(node.scripts, targetId, targetName, state) });
       return Object.assign({}, node);
     });
   };
-  for (let i = 0; i < types.length; i++) {
-    const type = types[i];
-    let trees;
-    try { trees = helper.getScriptTrees({ type: type }); } catch (e) { continue; }
-    if (!containsTarget(trees)) continue;
-    const state = { count: 0 };
-    await helper.updateScriptTreesWith(function(currentTrees) { return rewrite(currentTrees, state); }, { type: type });
-    if (!state.count) return false;
-    const saved = helper.getScriptTrees({ type: type });
-    let verified = false;
-    const verify = function(nodes) {
-      (nodes || []).forEach(function(node) {
-        if (!node) return;
-        if (node.type === 'script' && node.id === scriptId && node.content === code) verified = true;
-        if (node.type === 'folder') verify(node.scripts);
-      });
-    };
-    verify(saved);
-    if (verified) return true;
+
+  let sawReadableTree = false, sawMatchingScript = false, lastError = '';
+  for (let a = 0; a < apis.length; a++) {
+    const api = apis[a].api;
+    for (let i = 0; i < types.length; i++) {
+      const type = types[i];
+      let trees;
+      try { trees = api.getScriptTrees.call(apis[a].owner, { type: type }); sawReadableTree = true; } catch (e) { lastError = String(e && e.message || e); continue; }
+      const scripts = listScripts(trees, []);
+      let target = scripts.find(function(script) { return scriptIds.indexOf(String(script.id || '')) >= 0; });
+      if (!target) {
+        const sameName = scripts.filter(function(script) { return scriptNames.indexOf(String(script.name || '')) >= 0; });
+        if (sameName.length === 1) target = sameName[0];
+      }
+      if (!target) continue;
+      sawMatchingScript = true;
+      const targetId = String(target.id || '');
+      const targetName = String(target.name || '');
+      const state = { count: 0 };
+      try {
+        const updated = await api.updateScriptTreesWith.call(apis[a].owner, function(currentTrees) { return rewrite(currentTrees, targetId, targetName, state); }, { type: type });
+        if (!state.count) { lastError = '脚本树更新函数没有找到目标脚本。'; continue; }
+        const updatedScripts = listScripts(updated, []);
+        let verified = updatedScripts.some(function(script) { return String(script.id || '') === targetId && script.content === code; });
+        if (!verified) {
+          const saved = api.getScriptTrees.call(apis[a].owner, { type: type });
+          verified = listScripts(saved, []).some(function(script) { return String(script.id || '') === targetId && script.content === code; });
+        }
+        if (verified) { _autoUpdateScriptWriteDiagnostic = ''; return true; }
+        lastError = '酒馆助手没有返回已写入的新脚本内容。';
+      } catch (e) { lastError = String(e && e.message || e); }
+    }
   }
+  if (sawMatchingScript) _autoUpdateScriptWriteDiagnostic = lastError || '找到了本脚本，但酒馆助手没有确认保存结果。';
+  else if (!sawReadableTree) _autoUpdateScriptWriteDiagnostic = lastError || '酒馆助手脚本库读取接口无法访问。';
+  else _autoUpdateScriptWriteDiagnostic = '接口正常，但当前全局、预设和角色卡脚本库中都没有匹配到本脚本的 ID 或唯一名称。';
   return false;
 }
 
@@ -3136,30 +3197,41 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-lcd-card>div[style*="margin-top:8px"]{color:#b8ccb0 !important;}' +
       '#moon-phase-panel .mp-lcd-card{padding:9px !important;background:#101610 !important;border:3px solid #374a37 !important;box-shadow:inset 0 0 0 2px #080d08,0 0 0 2px #080d08 !important;color:#18271a !important;}' +
       '#moon-phase-panel .mp-lcd-card:before{display:none !important;}' +
-      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:10px;background-color:#b8d39a;background-image:radial-gradient(#18271a .55px,transparent .7px);background-size:4px 4px;color:#18271a;border:3px solid #18271a;box-shadow:none;font:10px "Courier New",monospace;image-rendering:pixelated;}' +
-      '#moon-phase-panel .mp-lcd-screen>*{position:relative;z-index:1;color:#18271a !important;text-shadow:none !important;}' +
-      '#moon-phase-panel .mp-lcd-screen-head,#moon-phase-panel .mp-lcd-character-head{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-bottom:5px;border-bottom:1px solid #18271a;font-size:8px;font-weight:bold;letter-spacing:.5px;}' +
-      '#moon-phase-panel .mp-lcd-screen-head b{padding:2px 4px;border:1px solid #18271a;font-size:7px;}' +
-      '#moon-phase-panel .mp-lcd-world-time{padding:7px 0 5px;border-bottom:1px dotted #18271a;font-weight:bold;}' +
-      '#moon-phase-panel .mp-lcd-selection{padding:6px 0;border-bottom:1px dotted #18271a;line-height:1.6;}' +
+      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:12px;background:#7d896f;color:#182019;border:3px solid #182019;box-shadow:none;font:14px/1.7 ui-monospace,"Microsoft YaHei",monospace;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-lcd-screen>*{position:relative;z-index:1;color:#182019 !important;text-shadow:none !important;}' +
+      '#moon-phase-panel .mp-lcd-screen-head,#moon-phase-panel .mp-lcd-character-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-bottom:7px;border-bottom:1px solid #182019;font-size:12px;font-weight:bold;letter-spacing:.3px;}' +
+      '#moon-phase-panel .mp-lcd-screen-head b{padding:3px 5px;border:1px solid #182019;font-size:10px;}' +
+      '#moon-phase-panel .mp-lcd-world-time{padding:9px 0 7px;border-bottom:1px solid #182019;font-weight:bold;font-size:13px;}' +
+      '#moon-phase-panel .mp-lcd-selection{padding:8px 0;border-bottom:1px solid #182019;line-height:1.7;}' +
       '#moon-phase-panel .mp-lcd-selection b{display:block;margin-bottom:2px;}' +
-      '#moon-phase-panel .mp-lcd-selection span{display:block;font-size:8px;}' +
-      '#moon-phase-panel .mp-lcd-character-head{margin-top:6px;padding-bottom:4px;}' +
-      '#moon-phase-panel .mp-lcd-character-select{max-width:48%;padding:2px 4px;background:#b8d39a;border:1px solid #18271a;color:#18271a;font:8px "Courier New",monospace;}' +
-      '#moon-phase-panel .mp-lcd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:6px 0 4px;}' +
-      '#moon-phase-panel .mp-lcd-stats span{padding:3px 2px;border:1px solid #18271a;text-align:center;font-size:8px;}' +
-      '#moon-phase-panel .mp-lcd-stats b{display:block;font-size:10px;}' +
-      '#moon-phase-panel .mp-lcd-mood-row{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:8px;}' +
-      '#moon-phase-panel .mp-lcd-pixel-face{display:grid;grid-template-columns:repeat(5,4px);grid-auto-rows:4px;gap:1px;padding:3px;background:#b8d39a;image-rendering:pixelated;}' +
-      '#moon-phase-panel .mp-lcd-pixel-face i{display:block;width:4px;height:4px;background:transparent;}' +
-      '#moon-phase-panel .mp-lcd-pixel-face i.on{background:#18271a;}' +
-      '#moon-phase-panel .mp-lcd-voice{padding:4px 0;border-top:1px dotted #18271a;line-height:1.5;}' +
-      '#moon-phase-panel .mp-lcd-voice small{font-size:7px;font-weight:bold;}' +
-      '#moon-phase-panel .mp-lcd-voice div{max-height:54px;overflow:auto;overflow-wrap:anywhere;}' +
-      '#moon-phase-panel .mp-lcd-empty{padding:16px 4px;text-align:center;line-height:1.8;font-size:8px;}' +
-      '#moon-phase-panel .mp-lcd-screen-foot{padding-top:5px;border-top:1px dotted #18271a;text-align:right;font-size:7px;letter-spacing:.5px;}' +
-      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#526a43 !important;background:#111a12 !important;color:#b8d39a !important;box-shadow:2px 2px 0 #080d08 !important;}' +
-      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#b8d39a !important;color:#18271a !important;border-color:#b8d39a !important;}' +
+      '#moon-phase-panel .mp-lcd-selection span{display:block;font-size:13px;}' +
+      '#moon-phase-panel .mp-lcd-character-head{margin-top:9px;padding-bottom:6px;}' +
+      '#moon-phase-panel .mp-lcd-character-select{max-width:55%;padding:4px 6px;background:#7d896f;border:1px solid #182019;color:#182019;font:12px "Courier New",monospace;}' +
+      '#moon-phase-panel .mp-lcd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:8px 0 5px;}' +
+      '#moon-phase-panel .mp-lcd-stats span{padding:5px 3px;border:1px solid #182019;text-align:center;font-size:12px;}' +
+      '#moon-phase-panel .mp-lcd-stats b{display:block;font-size:14px;}' +
+      '#moon-phase-panel .mp-lcd-mood-row{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13px;}' +
+      '#moon-phase-panel .mp-lcd-pixel-face{display:grid;grid-template-columns:repeat(5,6px);grid-auto-rows:6px;gap:1px;padding:4px;background:#7d896f;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-lcd-pixel-face i{display:block;width:6px;height:6px;background:transparent;}' +
+      '#moon-phase-panel .mp-lcd-pixel-face i.on{background:#182019;}' +
+      '#moon-phase-panel .mp-lcd-voice{padding:6px 0;border-top:1px solid #182019;line-height:1.7;font-size:13px;}' +
+      '#moon-phase-panel .mp-lcd-voice small{font-size:11px;font-weight:bold;}' +
+      '#moon-phase-panel .mp-lcd-voice div{max-height:72px;overflow:auto;overflow-wrap:anywhere;}' +
+      '#moon-phase-panel .mp-lcd-empty{padding:20px 6px;text-align:center;line-height:1.8;font-size:13px;}' +
+      '#moon-phase-panel .mp-lcd-screen-foot{padding-top:7px;border-top:1px solid #182019;text-align:right;font-size:10px;letter-spacing:.3px;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#30392b !important;background:#151a14 !important;color:#aab69a !important;box-shadow:2px 2px 0 #080d08 !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#7d896f !important;color:#182019 !important;border-color:#7d896f !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{min-height:68px;font-size:13px !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:first-child{font-size:18px !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:last-child{font-size:10px !important;}' +
+      '#moon-phase-panel .mp-mode-select-card>div[style*="margin-top:8px"]{font-size:13px !important;line-height:1.7 !important;}' +
+      '#moon-phase-panel .mp-mode-select-card>div[style*="margin-top:8px"] b{font-size:14px !important;}' +
+      '#moon-phase-panel .mp-arcade-difficulty-card .mp-label{font-size:13px !important;letter-spacing:.4px;}' +
+      '#moon-phase-panel .mp-arcade-levels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}' +
+      '#moon-phase-panel .mp-arcade-level{min-height:58px;padding:7px 4px;border:1px solid #3c4a38;background:#171d16;color:#bec9b5;font:13px/1.4 ui-monospace,"Microsoft YaHei",monospace;cursor:pointer;}' +
+      '#moon-phase-panel .mp-arcade-level.active{background:#7d896f;color:#182019;border-color:#7d896f;}' +
+      '#moon-phase-panel .mp-arcade-level small{display:block;font-size:10px;opacity:.9;}' +
+      '#moon-phase-panel .mp-arcade-hint{margin-top:7px;color:#aab69a;font-size:12px;line-height:1.5;}' +
       '#moon-phase-panel .mp-label,#moon-phase-panel .mp-toggle-title{color:#ffd1f1 !important;}' +
       '#moon-phase-panel .mp-btn,#moon-phase-panel .mp-mode-btn,#moon-phase-panel .mp-antisl,#moon-phase-panel .mp-extra-btn,#moon-phase-panel .mp-cardmode-btn,#moon-phase-panel .mp-fanfic-btn,#moon-phase-panel .mp-safelock-btn,#moon-phase-panel .mp-pacing-btn{border-radius:2px !important;font-family:"Courier New",monospace !important;box-shadow:2px 2px 0 #35152f;transition:transform .08s,filter .08s;}' +
       '#moon-phase-panel .mp-btn{background:#170d1a !important;border-color:#643052 !important;color:#f8d8ee !important;}' +
@@ -3181,24 +3253,24 @@ function openUpdateConfigDialog(panel) {
       '.mp-loading-box{padding:20px 28px;border-radius:3px;background:#100914;border:2px solid #f472d0;color:#ffe1f5;font-size:13px;text-align:center;min-width:260px;max-width:360px;box-sizing:border-box;box-shadow:0 0 0 3px #2a1029,0 0 26px rgba(244,114,208,.2);}' +
       '.mp-loading-track{height:5px;border:1px solid #74305f;background:#1a101b;overflow:hidden;position:relative;}' +
       '.mp-loading-bar{position:absolute;top:0;height:100%;width:38%;background:#f472d0;animation:moon-progress-slide 1.25s ease-in-out infinite;}' +
-      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:#b8d39a;border:3px solid #647b51;outline:3px solid #080d08;color:#18271a;text-align:center;box-shadow:inset 0 0 0 2px #8cae70,inset 0 0 18px rgba(24,39,26,.16),0 5px 0 #080d08;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
-      '.mp-arcade-brand{font-size:10px;letter-spacing:2px;color:#c0d4a9;text-shadow:1px 1px #344733;margin-bottom:8px;}' +
-      '.mp-arcade-title{font-size:11px;line-height:1.6;color:#e1edcf;margin:0 auto 8px;max-width:320px;}' +
-      '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:9px;color:#bdcdaa;margin:0 auto 5px;max-width:320px;}' +
+      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:#7d896f;border:3px solid #182019;outline:3px solid #080d08;color:#182019;text-align:center;box-shadow:0 5px 0 #080d08;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
+      '.mp-arcade-brand{font-size:12px;letter-spacing:1px;color:#18271a;margin-bottom:8px;}' +
+      '.mp-arcade-title{font-size:13px;line-height:1.6;color:#18271a;margin:0 auto 8px;max-width:320px;}' +
+      '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:12px;color:#18271a;margin:0 auto 5px;max-width:320px;}' +
       '.mp-arcade-hud b{color:#f0ffdb;font-weight:700;margin-left:4px;text-shadow:0 0 5px rgba(200,230,171,.24);}' +
       '.mp-arcade-record-time{margin:-1px auto 5px;color:#18271a;font-size:8px;letter-spacing:.4px;}' +
       '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:2px solid #64775e;background:#17241b;box-shadow:inset 0 0 12px rgba(8,16,10,.5);image-rendering:pixelated;touch-action:manipulation;}' +
-      '.mp-arcade-state{min-height:15px;margin-top:8px;color:#d8e9be;font-size:9px;letter-spacing:1px;}' +
-      '.mp-arcade-foot{margin-top:6px;color:#aebd9e;font-size:9px;line-height:1.5;}' +
+      '.mp-arcade-state{min-height:18px;margin-top:8px;color:#18271a;font-size:12px;letter-spacing:.5px;}' +
+      '.mp-arcade-foot{margin-top:6px;color:#18271a;font-size:12px;line-height:1.5;}' +
       '.mp-arcade-exit{margin-top:8px;padding:5px 10px;background:#27352a;border:1px solid #71866b;color:#dce9cc;font:10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #101812;}' +
       '.mp-arcade-brand,.mp-arcade-title,.mp-arcade-hud,.mp-arcade-hud b,.mp-arcade-state,.mp-arcade-foot{color:#18271a !important;text-shadow:none !important;}' +
-      '#moon-arcade-canvas{border-color:#526a43 !important;background:#b8d39a !important;box-shadow:inset 0 0 10px rgba(24,39,26,.2) !important;}' +
-      '.mp-arcade-exit{background:#b8d39a !important;border-color:#526a43 !important;color:#18271a !important;}' +
+      '#moon-arcade-canvas{border-color:#182019 !important;background:#7d896f !important;box-shadow:none !important;}' +
+      '.mp-arcade-exit{background:#7d896f !important;border-color:#182019 !important;color:#182019 !important;}' +
       '.mp-lcd-game{padding:8px !important;}' +
       '.mp-lcd-game .mp-arcade-box{width:100%;padding:9px 7px 8px;border-width:2px;outline:2px solid #101912;}' +
-      '.mp-lcd-game .mp-arcade-brand{margin-bottom:5px;font-size:9px;}' +
-      '.mp-lcd-game .mp-arcade-hud{font-size:8px;}' +
-      '.mp-lcd-game .mp-arcade-foot{font-size:8px;}' +
+      '.mp-lcd-game .mp-arcade-brand{margin-bottom:5px;font-size:12px;}' +
+      '.mp-lcd-game .mp-arcade-hud{font-size:11px;}' +
+      '.mp-lcd-game .mp-arcade-foot{font-size:11px;}' +
       '#moon-loading-mask.mp-pixel-loading{font-family:"Courier New",monospace !important;}' +
       '.mp-settings-fold{margin:-2px 0 10px;}' +
       '.mp-settings-fold>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 11px;background:#180d1a;border:1px solid #70345f;color:#ffc4e9;font:700 11px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
@@ -3240,7 +3312,8 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-update-hitbox .mp-title-orb{flex:0 0 auto;}' +
       '#moon-phase-panel .mp-update-hitbox .mp-title{display:block;flex:1 1 170px;min-width:0;max-width:none;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.35;}' +
       '#moon-phase-panel .mp-update-hitbox .mp-badge{display:inline-block;flex:0 0 auto;}' +
-      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}';
+      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}#moon-phase-panel .mp-lcd-screen{padding:9px;font-size:13px;line-height:1.65;}#moon-phase-panel .mp-lcd-stats{grid-template-columns:repeat(2,1fr);}#moon-phase-panel .mp-arcade-levels{grid-template-columns:repeat(2,minmax(0,1fr));}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}' +
+      '@media(min-width:700px){#moon-phase-panel .mp-lcd-screen{font-size:15px;}}';
   }
 // ===== 第 16 份 =====
   function renderEventStatusCard() {
@@ -3368,6 +3441,11 @@ function openUpdateConfigDialog(panel) {
       }).join('') + '</div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
       '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail + '</div></div>' +
+      '<div class="mp-card mp-arcade-difficulty-card" style="display:none"><div class="mp-label">街机难度 / ARCADE LEVEL</div><div class="mp-arcade-levels">' +
+      [['easy', '速度较慢'], ['normal', '推荐节奏'], ['hard', '速度更快'], ['hell', '高速挑战']].map(function(level) {
+        const meta = LUNAR_META[level[0]];
+        return '<button type="button" class="mp-arcade-level' + (level[0] === 'normal' ? ' active' : '') + '" data-arcade-difficulty="' + level[0] + '">' + meta.glyph + ' ' + meta.title + '<small>' + meta.name + ' · ' + level[1] + '</small></button>';
+      }).join('') + '</div><div class="mp-arcade-hint">切换难度会重新开始当前一局</div></div>' +
       '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 游戏难度与规则 <span>▼</span></summary><div class="mp-toggle-row">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">冷战期或好感度为负时锚定</div></div>' +
       '<button class="mp-antisl ' + (antisl ? 'on' : '') + '" id="moon-phase-antisl">' + (antisl ? '锚定: ON' : '锚定: OFF') + '</button></div>' +
@@ -3455,13 +3533,33 @@ function openUpdateConfigDialog(panel) {
       const lcdCard = panel.querySelector('.mp-lcd-card');
       if (!lcdCard) return;
       const savedDisplay = lcdCard.innerHTML;
+      const arcadeDifficultyCard = panel.querySelector('.mp-arcade-difficulty-card');
+      if (arcadeDifficultyCard) arcadeDifficultyCard.style.display = 'block';
+      let arcadeDifficulty = panel.dataset.arcadeDifficulty || 'normal';
+      const arcadeLevels = panel.querySelectorAll('[data-arcade-difficulty]');
+      arcadeLevels.forEach(function(button) { button.classList.toggle('active', button.getAttribute('data-arcade-difficulty') === arcadeDifficulty); });
+      if (arcadeDifficultyCard && arcadeDifficultyCard._arcadeLevelHandler) arcadeDifficultyCard.removeEventListener('click', arcadeDifficultyCard._arcadeLevelHandler);
       lcdCard.classList.add('mp-lcd-game');
       lcdCard.innerHTML = '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore()) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 撞到障碍后点击重开</div><button class="mp-arcade-exit" type="button">◀ 返回模式选择</button></div>';
-      panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true });
+      function startArcadeRound() { panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true, difficulty: arcadeDifficulty }); }
+      startArcadeRound();
+      if (arcadeDifficultyCard) {
+        arcadeDifficultyCard._arcadeLevelHandler = function(event) {
+          const button = event.target.closest('[data-arcade-difficulty]');
+          if (!button) return;
+          arcadeDifficulty = button.getAttribute('data-arcade-difficulty') || 'normal';
+          panel.dataset.arcadeDifficulty = arcadeDifficulty;
+          arcadeLevels.forEach(function(levelButton) { levelButton.classList.toggle('active', levelButton === button); });
+          if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
+          startArcadeRound();
+        };
+        arcadeDifficultyCard.addEventListener('click', arcadeDifficultyCard._arcadeLevelHandler);
+      }
       lcdCard.querySelector('.mp-arcade-exit').addEventListener('click', function() {
         if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
         lcdCard.classList.remove('mp-lcd-game');
         lcdCard.innerHTML = savedDisplay;
+        if (arcadeDifficultyCard) { arcadeDifficultyCard.style.display = 'none'; if (arcadeDifficultyCard._arcadeLevelHandler) { arcadeDifficultyCard.removeEventListener('click', arcadeDifficultyCard._arcadeLevelHandler); arcadeDifficultyCard._arcadeLevelHandler = null; } }
       });
       try { lcdCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
     });
