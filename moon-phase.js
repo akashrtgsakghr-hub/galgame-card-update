@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.5.0';
-  const MOON_FORMULA_CHANGELOG = "LCD 状态屏新增左右翻页，集中查看系统状态、角色档案、事件进度与内存占用（Token）；难度区改为游戏难度并使用对应月相的黑白像素图标；重整掌机菜单分组名称。";
+  const MOON_FORMULA_VERSION = '4.5.1';
+  const MOON_FORMULA_CHANGELOG = "修复游戏难度面板文字对比度；保持 LCD 内部单色显示，并为 LCD 页内的事件状态使用单色符号。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -3258,14 +3258,15 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-moon-pixel i.shadow{background:#182019;}' +
       '#moon-phase-panel .mp-mode-moon{display:flex;justify-content:center;align-items:center;height:23px;margin-bottom:3px;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn .mp-mode-moon{font-size:0 !important;}' +
-      '#moon-phase-panel .mp-difficulty-fold>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #344132;color:#182019;font-size:13px;font-weight:bold;cursor:pointer;list-style:none;}' +
+      '#moon-phase-panel .mp-difficulty-fold>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:#180d1a;border:1px solid #70345f;border-bottom-color:#f472d0;color:#ffc4e9;font-size:13px;font-weight:bold;cursor:pointer;list-style:none;}' +
       '#moon-phase-panel .mp-difficulty-fold>summary::-webkit-details-marker{display:none;}' +
-      '#moon-phase-panel .mp-difficulty-fold>summary i{font-style:normal;transition:transform .12s;}' +
+      '#moon-phase-panel .mp-difficulty-fold>summary i{color:#f472d0;font-style:normal;transition:transform .12s;}' +
+      '#moon-phase-panel .mp-difficulty-fold[open]>summary{border-color:#f472d0;background:#251024;}' +
       '#moon-phase-panel .mp-difficulty-fold[open]>summary i{transform:rotate(180deg);}' +
       '#moon-phase-panel .mp-difficulty-content{padding:8px;}' +
       '#moon-phase-panel .mp-settings-fold>summary{color:#ffd1f1 !important;}' +
-      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#30392b !important;background:#151a14 !important;color:#aab69a !important;box-shadow:2px 2px 0 #080d08 !important;}' +
-      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#7d896f !important;color:#182019 !important;border-color:#7d896f !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#643052 !important;background:#170d1a !important;color:#f8d8ee !important;box-shadow:2px 2px 0 #35152f !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#32112b !important;color:#ffc4e9 !important;border-color:#f472d0 !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{min-height:68px;font-size:13px !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:first-child{font-size:18px !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:last-child{font-size:10px !important;}' +
@@ -3371,8 +3372,8 @@ function openUpdateConfigDialog(panel) {
       html += '<div class="mp-lcd-event-entry"><b>' + lcdEscape(name) + '</b>';
       const days = Number(es && es._距离主线天数);
       if (!isNaN(days) && isFinite(days)) {
-        if (days <= 0) html += '<div>📜 主线已触发</div>';
-        else html += '<div>📜 主线倒计时：约 ' + Math.floor(days) + ' 天</div>';
+        if (days <= 0) html += '<div>▣ 主线已触发</div>';
+        else html += '<div>▣ 主线倒计时：约 ' + Math.floor(days) + ' 天</div>';
       }
       if (!es) html += '<div>· 状态未初始化</div>';
       else {
