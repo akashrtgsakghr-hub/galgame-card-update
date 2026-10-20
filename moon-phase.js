@@ -1414,17 +1414,17 @@ async function _collectAllWorldbooks(includeDisabled) {
       const found = getLatestAiMessage();
       if (!found || !found.msg || typeof found.msg.mes !== 'string') return false;
       const mes = found.msg.mes;
-      const tagRe = /\\[Sylveina\\|[LMH]\\|[+-]\\|\\d+(?:\\.\\d+)?\\]/g;
+      const tagRe = /\[Sylveina\|[LMH]\|[+-]\|\d+(?:\.\d+)?\]/g;
       let match, last = null;
       while ((match = tagRe.exec(mes)) !== null) last = { index: match.index, text: match[0], end: tagRe.lastIndex };
       if (!last) return false;
       const suffix = mes.slice(last.end);
       // 只有检测到明确的后台变量/占位符格式时才清理，避免误删正常剧情。
-      const backendPattern = /(?:^|\\r?\\n)\\s*(?:角色\\.[^\\r\\n=]+=[^\\r\\n]*|世界\\.时间=[^\\r\\n]*|<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>|<StatusPlaceHolderImpl\\s*\\/>)/i;
+      const backendPattern = /(?:^|\r?\n)\s*(?:角色\.[^\r\n=]+=[^\r\n]*|世界\.时间=[^\r\n]*|<UpdateVariable>[\s\S]*?<\/UpdateVariable>|<StatusPlaceHolderImpl\s*\/>)/i;
       if (!backendPattern.test(suffix)) return false;
-      const cleanPrefix = mes.slice(0, last.end).replace(/[ \\t]+$/, '');
-      found.msg.mes = cleanPrefix + '\\ns';
-      try { if (typeof found.msg.mes === 'string') found.msg.mes = found.msg.mes.replace(/\\n{3,}/g, '\\n\\n'); } catch (e) {}
+      const cleanPrefix = mes.slice(0, last.end).replace(/[ \t]+$/, '');
+      found.msg.mes = cleanPrefix + '\ns';
+      try { if (typeof found.msg.mes === 'string') found.msg.mes = found.msg.mes.replace(/\n{3,}/g, '\n\n'); } catch (e) {}
       return true;
     } catch (e) { return false; }
   }
