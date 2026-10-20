@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.5.1';
-  const MOON_FORMULA_CHANGELOG = "修复游戏难度面板文字对比度；保持 LCD 内部单色显示，并为 LCD 页内的事件状态使用单色符号。";
+  const MOON_FORMULA_VERSION = '4.6.0';
+  const MOON_FORMULA_CHANGELOG = "新增按聊天独立保存的成就与回忆画廊、可选生图渠道、终局结算卡和后日谈；重大事件及彩蛋解锁支持去重。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -32,6 +32,11 @@
   const SELF_CHECK_ARCADE_SEEN_KEY = 'moon_phase_self_check_arcade_seen_v1';
   const ARCADE_CHAT_RECORD_KEY = 'moon_phase_arcade_record_v1';
   const LEGACY_ARCADE_HIGH_SCORE_KEY = 'moon_phase_arcade_high_score_v1';
+  const GALLERY_STORAGE_KEY = 'moon_phase_cg_gallery_v1';
+  const ENDING_STORAGE_KEY = 'moon_phase_endings_v1';
+  const ACHIEVEMENT_TRIGGER_KEY = 'moon_phase_achievement_triggers_v1';
+  const IMAGE_CONFIG_KEY = 'moon_phase_image_gen_config_v1';
+  const GALLERY_DB_NAME = 'moon_phase_gallery_images_v1';
   const BIO_ASKED_CHATS_KEY = 'moon_phase_bio_asked_chats';
   const USER_BIO_LIBRARY_KEY = 'moon_phase_user_bio_library';
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
@@ -59,7 +64,7 @@
   const DEFAULT_SETTINGS = {
     mode: 'hell', antisl: true, extraModel: 'auto', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
-    panelAutoOpened: false, autoReload: true
+    panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0
   };
 
   let cachedVars = null;
@@ -1223,6 +1228,11 @@ async function _collectAllWorldbooks(includeDisabled) {
       const changedChars = [];
       const gateLogs = [];
       const eventLogs = [];
+      const achievementRequests = [];
+      const endingRequests = [];
+      const latestAi = getLatestAiMessage();
+      const latestAiText = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
+      const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText) : stableFeatureHash(String(currentTime));
       let wbEntries = [];
       try { wbEntries = await getAllWorldbookEntries(); } catch (e) {}
       for (const name in chars) {
@@ -1240,6 +1250,9 @@ async function _collectAllWorldbooks(includeDisabled) {
         } catch (e) {}
         const lastRoll = readLastRoll(ch);
         if (lastRoll && lastRoll.主维度) {
+          if (lastRoll.事件类型 === '重大') {
+            achievementRequests.push({ charName: name, eventType: '重大事件', reason: String(lastRoll.主维度) + '向剧烈转折', key: turnSignature + '::' + name + '::major' });
+          }
           const result = computeCharDelta(ch, lastRoll, mode);
           if (result && result.delta !== 0) {
             const oldR = Number(ch.阶段值) || 0;
@@ -1254,11 +1267,27 @@ async function _collectAllWorldbooks(includeDisabled) {
         try { computePlayerConfession(ch, mode, currentTime); } catch (e) {}
         try {
           const evt = await processEventSystem(name, ch, currentTime, world, wbEntries);
-          if (evt) eventLogs.push({ char: name, event: evt });
+          if (evt) {
+            eventLogs.push({ char: name, event: evt });
+            if (evt.isMajor || evt.isEgg || evt.dice === 20) {
+              const isEggUnlock = evt.isEgg || evt.dice === 20;
+              achievementRequests.push({ charName: name, eventType: isEggUnlock ? '彩蛋事件' : '重大事件', reason: isEggUnlock ? '事件骰掷出 1d20=20' : (evt.name || '世界线重大转折'), key: turnSignature + '::' + name + (isEggUnlock ? '::egg' : '::major') });
+            }
+          }
+        } catch (e) {}
+        try {
+          const ending = isEndingTriggerCondition(name, ch, latestAiText);
+          if (ending.triggered) endingRequests.push({ charName: name, charData: ch, ending: ending });
         } catch (e) {}
       }
       const ok = await writeMvuLatest(statData);
       if (!ok) { try { console.warn('[Doki] 变量写回失败：', lastWriteError); } catch (e) {} return; }
+      achievementRequests.forEach(function(request) {
+        if (markAchievementTrigger(request.key)) triggerAchievementUnlock(request.charName, request.eventType, request.reason, request.key).catch(function(e) { try { console.warn('[Doki] 成就记录失败：', e); } catch (ignore) {} });
+      });
+      endingRequests.forEach(function(request) {
+        if (markEndingPrompted(request.charName, request.ending.type)) setTimeout(function() { promptEndingDialog(request.charName, request.charData, request.ending, false); }, 250);
+      });
       if (gateLogs.length) { try { injectGateNotice(gateLogs); } catch (e) {} }
       if (eventLogs.length) { try { injectGateNotice(eventLogs.map(function(x) { return { type: 'event_update', char: x.char, event: x.event }; })); } catch (e) {} }
       if (changedChars.length) {
@@ -1359,7 +1388,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         eventState.剩余回合 = isEgg ? 5 : (isMajor ? rule.major : rule.daily);
         eventState.上次投掷内部天数 = worldInternalDays;
         ch._quota._eventState = eventState;
-        resolve({ type: 'new_event', name: eventName, isMajor: isMajor, isEgg: isEgg, rounds: eventState.剩余回合, forbidMajor: forbidMajor });
+        resolve({ type: 'new_event', name: eventName, isMajor: isMajor, isEgg: isEgg, dice: dice, rounds: eventState.剩余回合, forbidMajor: forbidMajor });
       } catch (e) { resolve(null); }
     });
   }
@@ -3437,6 +3466,479 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' + lcdEscape(ch.心声 || '暂无心声记录') + '</div></div></div>';
   }
 
+  /* =========================================================
+   * 回忆档案、成就与周目结算
+   * ========================================================= */
+  let _galleryImageDbPromise = null;
+  let _galleryPreviewObjectUrl = '';
+
+  function escapeFeatureHtml(value) {
+    return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function featureFallbackKey(key) { return getChatStateKey() + '__' + key; }
+  function readChatFeatureValue(key, fallback) {
+    try {
+      const raw = mainWin.localStorage.getItem(featureFallbackKey(key));
+      if (raw != null) return JSON.parse(raw);
+    } catch (e) {}
+    try {
+      const ctx = getSTCtx();
+      if (ctx && ctx.chatMetadata && Object.prototype.hasOwnProperty.call(ctx.chatMetadata, key)) return ctx.chatMetadata[key];
+    } catch (e) {}
+    return fallback;
+  }
+  function writeChatFeatureValue(key, value) {
+    let saved = false;
+    try {
+      const ctx = getSTCtx();
+      if (ctx && ctx.chatMetadata) {
+        ctx.chatMetadata[key] = value;
+        saved = true;
+        if (typeof ctx.saveMetadata === 'function') {
+          const result = ctx.saveMetadata();
+          if (result && typeof result.catch === 'function') result.catch(function() {});
+        }
+      }
+    } catch (e) {}
+    try { mainWin.localStorage.setItem(featureFallbackKey(key), JSON.stringify(value)); saved = true; } catch (e) {}
+    return saved;
+  }
+  function getGalleryList() {
+    const value = readChatFeatureValue(GALLERY_STORAGE_KEY, []);
+    return Array.isArray(value) ? value.filter(function(item) { return item && typeof item === 'object' && item.id; }) : [];
+  }
+  function saveGalleryList(list) {
+    const current = getGalleryList();
+    const next = Array.isArray(list) ? list.slice(0, 100) : [];
+    const keep = new Set(next.map(function(item) { return item && item.id; }));
+    current.forEach(function(item) { if (!keep.has(item.id) && item.imageKey) deleteGalleryImage(item); });
+    return writeChatFeatureValue(GALLERY_STORAGE_KEY, next);
+  }
+  function getEndingArchive() {
+    const value = readChatFeatureValue(ENDING_STORAGE_KEY, null);
+    if (!value || typeof value !== 'object') return { records: [], prompted: {} };
+    return { records: Array.isArray(value.records) ? value.records : [], prompted: value.prompted && typeof value.prompted === 'object' ? value.prompted : {} };
+  }
+  function saveEndingArchive(value) {
+    value.records = (Array.isArray(value.records) ? value.records : []).slice(0, 80);
+    return writeChatFeatureValue(ENDING_STORAGE_KEY, value);
+  }
+  function newFeatureId(prefix) { return prefix + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000000); }
+  function getGalleryImageKey(id) { return getChatStateKey() + '::' + String(id || ''); }
+  function openGalleryImageDb() {
+    if (_galleryImageDbPromise) return _galleryImageDbPromise;
+    const idb = mainWin.indexedDB;
+    if (!idb) return Promise.resolve(null);
+    _galleryImageDbPromise = new Promise(function(resolve) {
+      let request;
+      try { request = idb.open(GALLERY_DB_NAME, 1); } catch (e) { resolve(null); return; }
+      request.onupgradeneeded = function() {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'key' });
+      };
+      request.onsuccess = function() { resolve(request.result); };
+      request.onerror = function() { _galleryImageDbPromise = null; resolve(null); };
+      request.onblocked = function() { _galleryImageDbPromise = null; resolve(null); };
+    });
+    return _galleryImageDbPromise;
+  }
+  function galleryImageTransaction(mode, action) {
+    return openGalleryImageDb().then(function(db) {
+      if (!db) throw new Error('浏览器不支持本地图片归档');
+      return new Promise(function(resolve, reject) {
+        let tx;
+        try { tx = db.transaction('images', mode); } catch (e) { reject(e); return; }
+        const store = tx.objectStore('images');
+        let result;
+        try { result = action(store); } catch (e) { reject(e); return; }
+        tx.oncomplete = function() { resolve(result && result.result); };
+        tx.onerror = function() { reject(tx.error || new Error('图片归档失败')); };
+        tx.onabort = function() { reject(tx.error || new Error('图片归档中断')); };
+        if (result && result.onerror) result.onerror = function() { reject(result.error || new Error('图片数据读取失败')); };
+      });
+    });
+  }
+  async function persistGalleryImage(id, imageUrl) {
+    const url = String(imageUrl || '');
+    if (!/^https?:\/\//i.test(url) && !/^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(url) && !/^blob:/i.test(url)) throw new Error('图片地址格式无效');
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('图片下载失败');
+      const blob = await response.blob();
+      if (!blob || !blob.size || blob.size > 15 * 1024 * 1024) throw new Error('图片为空或超过 15 MB');
+      const key = getGalleryImageKey(id);
+      await galleryImageTransaction('readwrite', function(store) { return store.put({ key: key, blob: blob, savedAt: Date.now() }); });
+      return { imageKey: key, imageUrl: '' };
+    } catch (e) {
+      if (/^https?:\/\//i.test(url)) return { imageKey: '', imageUrl: url };
+      throw new Error('本机图片归档失败：' + (e && e.message || e));
+    }
+  }
+  async function loadGalleryImage(item) {
+    if (!item) return '';
+    if (item.imageKey) {
+      try {
+        const record = await galleryImageTransaction('readonly', function(store) { return store.get(item.imageKey); });
+        if (record && record.blob) return (mainWin.URL || URL).createObjectURL(record.blob);
+      } catch (e) {}
+    }
+    return /^https?:\/\//i.test(String(item.imageUrl || '')) ? item.imageUrl : '';
+  }
+  async function deleteGalleryImage(item) {
+    if (!item || !item.imageKey) return;
+    try { await galleryImageTransaction('readwrite', function(store) { return store.delete(item.imageKey); }); } catch (e) {}
+  }
+  async function cleanExpiredGalleryImages() {
+    const days = Math.max(0, Number(getSettings().galleryRetentionDays) || 0);
+    if (!days) return;
+    const now = Date.now(), list = getGalleryList();
+    let changed = false;
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i];
+      if (item.createdAt && now - Number(item.createdAt) > days * 86400000 && (item.imageKey || item.imageUrl)) {
+        await deleteGalleryImage(item);
+        item.imageKey = ''; item.imageUrl = ''; item.isExpired = true; changed = true;
+      }
+    }
+    if (changed) saveGalleryList(list);
+  }
+  function getImageGenConfig() {
+    const defaults = { imageProvider: 'pollinations', imageApiKey: '', imageApiUrl: '', imageModel: 'nai-diffusion-3', imageNegativePrompt: 'lowres, bad anatomy, bad hands, text, worst quality, low quality, jpeg artifacts, watermark, blurry' };
+    try { return Object.assign(defaults, JSON.parse(mainWin.localStorage.getItem(IMAGE_CONFIG_KEY) || '{}')); } catch (e) { return defaults; }
+  }
+  function saveImageGenConfig(config) {
+    const allowed = ['pollinations', 'novelai', 'sdwebui', 'openai', 'midjourney'];
+    if (!config || allowed.indexOf(config.imageProvider) < 0) return false;
+    try { mainWin.localStorage.setItem(IMAGE_CONFIG_KEY, JSON.stringify(config)); return true; } catch (e) { return false; }
+  }
+  function blobToDataUrl(blob) {
+    return new Promise(function(resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function() { resolve(String(reader.result || '')); };
+      reader.onerror = function() { reject(new Error('图片读取失败')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+  async function callImageGenerationApi(prompt, customNegativePrompt) {
+    const config = getImageGenConfig();
+    const provider = config.imageProvider || 'pollinations';
+    const negative = customNegativePrompt || config.imageNegativePrompt || '';
+    const input = String(prompt || '').trim().slice(0, 2500);
+    if (!input) throw new Error('缺少图片提示词');
+    if (provider === 'novelai') {
+      if (!config.imageApiKey) throw new Error('请先填写 NovelAI API Key');
+      const response = await fetch(config.imageApiUrl || 'https://image.novelai.net/ai/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + config.imageApiKey.trim() }, body: JSON.stringify({ input: input, model: config.imageModel || 'nai-diffusion-3', action: 'generate', parameters: { width: 1216, height: 832, scale: 5, sampler: 'k_euler', steps: 28, n_samples: 1, negative_prompt: negative } }) });
+      if (!response.ok) throw new Error('NovelAI HTTP ' + response.status + '；也可能是浏览器跨域限制');
+      return await blobToDataUrl(await response.blob());
+    }
+    if (provider === 'sdwebui') {
+      let url = (config.imageApiUrl || 'http://127.0.0.1:7860').replace(/\/+$/, '');
+      if (!url.endsWith('/sdapi/v1/txt2img')) url += '/sdapi/v1/txt2img';
+      const headers = { 'Content-Type': 'application/json' };
+      if (config.imageApiKey) headers.Authorization = 'Bearer ' + config.imageApiKey.trim();
+      const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ prompt: input, negative_prompt: negative, width: 1024, height: 576, steps: 25, cfg_scale: 7 }) });
+      if (!response.ok) throw new Error('SD WebUI HTTP ' + response.status + '；请检查地址、服务状态和跨域设置');
+      const json = await response.json();
+      if (json.images && json.images[0]) return 'data:image/png;base64,' + json.images[0];
+      throw new Error('SD WebUI 未返回有效图片');
+    }
+    if (provider === 'openai') {
+      if (!config.imageApiKey) throw new Error('请先填写图像 API Key');
+      let url = (config.imageApiUrl || 'https://api.openai.com').replace(/\/+$/, '');
+      if (!/\/images\/generations$/i.test(url)) url += url.endsWith('/v1') ? '/images/generations' : '/v1/images/generations';
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + config.imageApiKey.trim() }, body: JSON.stringify({ model: config.imageModel || 'dall-e-3', prompt: input, size: '1792x1024', response_format: 'b64_json' }) });
+      if (!response.ok) throw new Error('图像 API HTTP ' + response.status + '；请检查服务商、模型和跨域设置');
+      const json = await response.json(), row = json.data && json.data[0];
+      if (row && row.b64_json) return 'data:image/png;base64,' + row.b64_json;
+      if (row && /^https?:\/\//i.test(row.url || '')) return row.url;
+      throw new Error('图像 API 未返回可用图片');
+    }
+    if (provider === 'midjourney') {
+      const base = String(config.imageApiUrl || '').replace(/\/+$/, '');
+      if (!base) throw new Error('请先填写 Midjourney Proxy 地址');
+      const headers = { 'Content-Type': 'application/json' };
+      if (config.imageApiKey) headers['mj-api-secret'] = config.imageApiKey.trim();
+      const response = await fetch(base + '/mj/submit/imagine', { method: 'POST', headers: headers, body: JSON.stringify({ prompt: input + ' --ar 16:9' }) });
+      if (!response.ok) throw new Error('Midjourney Proxy HTTP ' + response.status);
+      const task = await response.json(), taskId = task.result;
+      if (!taskId) throw new Error('Midjourney 任务提交失败');
+      for (let i = 0; i < 40; i++) {
+        await new Promise(function(resolve) { setTimeout(resolve, 3000); });
+        const check = await fetch(base + '/mj/task/' + encodeURIComponent(taskId) + '/fetch', { headers: headers });
+        if (!check.ok) continue;
+        const result = await check.json();
+        if (result.status === 'SUCCESS' && /^https?:\/\//i.test(result.imageUrl || '')) return result.imageUrl;
+        if (result.status === 'FAILED') throw new Error('Midjourney 生成失败：' + String(result.failReason || '未知原因').slice(0, 120));
+      }
+      throw new Error('Midjourney 生成超时');
+    }
+    const encoded = encodeURIComponent(input.slice(0, 300));
+    return 'https://image.pollinations.ai/prompt/' + encoded + '?width=1280&height=720&nologo=true&seed=' + Math.floor(Math.random() * 100000);
+  }
+  function getAchievementTriggerLedger() {
+    const list = readChatFeatureValue(ACHIEVEMENT_TRIGGER_KEY, []);
+    return Array.isArray(list) ? list : [];
+  }
+  function markAchievementTrigger(key) {
+    const list = getAchievementTriggerLedger();
+    if (list.indexOf(key) >= 0) return false;
+    list.push(key);
+    writeChatFeatureValue(ACHIEVEMENT_TRIGGER_KEY, list.slice(-160));
+    return true;
+  }
+  function stableFeatureHash(value) {
+    const text = String(value || ''); let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+    return (hash >>> 0).toString(36);
+  }
+  function triggerAchievementUnlock(charName, eventType, triggerReason, triggerKey) {
+    return (async function() {
+      const list = getGalleryList();
+      if (list.some(function(item) { return item.triggerKey === triggerKey; })) return;
+      const systemPrompt = '你是日系视觉小说的成就策划。只输出 JSON 对象，字段为 title、desc、prompt、uc。title 不超过 24 字，desc 为 15 至 40 字，prompt 是简洁的横构图动漫场景描述，uc 是负面提示词。不要输出 HTML。';
+      const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n事件：' + String(eventType).slice(0, 40) + '\n契机：' + String(triggerReason).slice(0, 160) + '\n请将此刻写成一枚值得收藏的恋爱剧情成就。';
+      let result = null;
+      try { result = extractJson(await callOpeningModel(getSettings().extraModel === 'on' ? 'extra' : 'main', systemPrompt, userPrompt)); } catch (e) {}
+      result = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+      const item = {
+        id: newFeatureId('ach'), triggerKey: triggerKey, char: String(charName),
+        title: String(result.title || '与' + charName + '的命定回响').slice(0, 80),
+        desc: String(result.desc || '在这个重要的瞬间，彼此的羁绊留下了新的印记。').slice(0, 300),
+        prompt: String(result.prompt || ('romantic anime visual novel CG, ' + charName + ', tender emotional scene, cinematic horizontal composition')).slice(0, 2500),
+        uc: String(result.uc || 'worst quality, low quality, blurry, watermark').slice(0, 500),
+        imageKey: '', imageUrl: '', createdAt: Date.now(), isEnding: false
+      };
+      list.unshift(item);
+      saveGalleryList(list);
+      const html = '<div style="text-align:center;padding:8px 0"><div style="font-size:30px">🏆</div><b>成就解锁</b><div style="font-size:15px;color:#f9a8d4;margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊；需要时可手动生成 CG。</div></div>';
+      showModalDialog('🏆 成就记录', html, null, { confirmText: '收入回忆' });
+    })();
+  }
+  async function developCGItem(item) {
+    if (!item || !item.prompt) { toast('这条回忆没有图片提示词', 'warning'); return; }
+    showLoadingDialog('正在显影这段回忆 CG…');
+    try {
+      const generated = await callImageGenerationApi(item.prompt, item.uc);
+      const stored = await persistGalleryImage(item.id, generated);
+      const list = getGalleryList();
+      const index = list.findIndex(function(row) { return row.id === item.id; });
+      if (index < 0) throw new Error('回忆记录已不存在');
+      list[index].imageKey = stored.imageKey; list[index].imageUrl = stored.imageUrl; list[index].isExpired = false;
+      if (!saveGalleryList(list)) throw new Error('图片已生成，但无法保存回忆索引');
+      closeLoadingDialog();
+      const previewUrl = /^https?:\/\//i.test(stored.imageUrl) ? stored.imageUrl : generated;
+      showModalDialog('✨ 回忆 CG 已显影', '<div id="moon-cg-preview" style="margin:8px 0"></div><div>已归档到当前聊天的回忆画廊。</div>', null, { confirmText: '知道了', onOpen: function(mask) { const image = mainDoc.createElement('img'); image.src = previewUrl; image.alt = item.title; image.style.cssText = 'width:100%;display:block;border:1px solid #693253'; mask.querySelector('#moon-cg-preview').appendChild(image); } });
+    } catch (err) {
+      closeLoadingDialog();
+      toast('CG 显影失败：' + String(err && err.message || err).slice(0, 180), 'warning');
+    }
+  }
+  function downloadFileViaBrowser(url, filename) {
+    try {
+      const anchor = mainDoc.createElement('a');
+      const rawName = String(filename || 'Moon Pocket');
+      const hasExt = /\.[a-z0-9]{2,5}$/i.test(rawName);
+      anchor.href = url;
+      anchor.download = rawName + (hasExt ? '' : (/^data:image\/jpeg/i.test(String(url)) ? '.jpg' : '.png'));
+      mainDoc.body.appendChild(anchor); anchor.click(); setTimeout(function() { try { anchor.remove(); } catch (e) {} }, 250);
+    } catch (e) { toast('下载失败：' + String(e && e.message || e), 'warning'); }
+  }
+  function closeFeatureModal(mask) {
+    const button = mask && mask.querySelector('#moon-modal-confirm');
+    if (button) button.click();
+  }
+  async function openMemoryGalleryDialog() {
+    await cleanExpiredGalleryImages();
+    const list = getGalleryList();
+    if (!list.length) {
+      showModalDialog('📚 回忆画廊', '<div style="text-align:center;padding:20px 4px">这里还没有成就或周目结局。经历重大事件或彩蛋后，成就会自动入档。</div>', null, { confirmText: '返回' });
+      return;
+    }
+    const rows = list.map(function(item) {
+      return '<article style="padding:9px;margin:7px 0;background:#100a13;border:1px solid #693253">' +
+        '<b>《' + escapeFeatureHtml(item.title || '未命名回忆') + '》</b><div style="font-size:10px;color:#9ca3af">' + escapeFeatureHtml(item.char || '') + (item.isEnding ? ' · 周目结局' : ' · 成就') + ' · ' + new Date(Number(item.createdAt) || Date.now()).toLocaleString() + '</div>' +
+        '<div style="margin:5px 0">' + escapeFeatureHtml(item.desc || '') + '</div>' +
+        '<div style="display:flex;gap:5px;flex-wrap:wrap"><button type="button" data-gallery-view="' + escapeFeatureHtml(item.id) + '">查看</button><button type="button" data-gallery-generate="' + escapeFeatureHtml(item.id) + '"' + (!item.prompt ? ' disabled' : '') + '>显影 CG</button><button type="button" data-gallery-download="' + escapeFeatureHtml(item.id) + '"' + (!(item.imageKey || item.imageUrl) ? ' disabled' : '') + '>下载</button><button type="button" data-gallery-delete="' + escapeFeatureHtml(item.id) + '">移除</button></div></article>';
+    }).join('');
+    const html = '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:8px">本档案只属于当前聊天。图片保存在本机浏览器，外链图片由服务方提供。</div><div style="max-height:36vh;overflow:auto">' + rows + '</div><div id="moon-gallery-preview" style="margin-top:10px"></div>';
+    showModalDialog('📚 回忆画廊 · ' + list.length + ' 项', html, null, { confirmText: '关闭', onOpen: function(mask) {
+      mask.querySelectorAll('[data-gallery-view]').forEach(function(button) {
+        button.addEventListener('click', async function() {
+          const item = getGalleryList().find(function(row) { return row.id === button.getAttribute('data-gallery-view'); });
+          const preview = mask.querySelector('#moon-gallery-preview'); if (!item || !preview) return;
+          if (_galleryPreviewObjectUrl) { try { (mainWin.URL || URL).revokeObjectURL(_galleryPreviewObjectUrl); } catch (e) {} _galleryPreviewObjectUrl = ''; }
+          preview.textContent = '正在读取回忆…';
+          const imageUrl = await loadGalleryImage(item);
+          preview.replaceChildren();
+          const title = mainDoc.createElement('b'); title.textContent = '《' + String(item.title || '未命名回忆') + '》'; preview.appendChild(title);
+          const desc = mainDoc.createElement('div'); desc.textContent = String(item.desc || ''); preview.appendChild(desc);
+          if (imageUrl) {
+            if (imageUrl.indexOf('blob:') === 0) _galleryPreviewObjectUrl = imageUrl;
+            const image = mainDoc.createElement('img'); image.src = imageUrl; image.alt = String(item.title || '回忆 CG'); image.style.cssText = 'width:100%;display:block;margin-top:7px;border:1px solid #693253'; preview.appendChild(image);
+          } else {
+            const note = mainDoc.createElement('div'); note.style.color = '#9ca3af'; note.textContent = item.isExpired ? '图片已按保留设置清理，可重新显影。' : '尚未生成 CG。'; preview.appendChild(note);
+          }
+        });
+      });
+      mask.querySelectorAll('[data-gallery-generate]').forEach(function(button) { button.addEventListener('click', function() {
+        const item = getGalleryList().find(function(row) { return row.id === button.getAttribute('data-gallery-generate'); });
+        closeFeatureModal(mask); setTimeout(function() { developCGItem(item); }, 180);
+      }); });
+      mask.querySelectorAll('[data-gallery-download]').forEach(function(button) { button.addEventListener('click', async function() {
+        const item = getGalleryList().find(function(row) { return row.id === button.getAttribute('data-gallery-download'); });
+        const imageUrl = await loadGalleryImage(item); if (imageUrl) downloadFileViaBrowser(imageUrl, 'MoonPocket_' + String(item.title || 'CG').replace(/[\\/:*?"<>|]/g, '_')); else toast('没有可下载的图片', 'info');
+      }); });
+      mask.querySelectorAll('[data-gallery-delete]').forEach(function(button) { button.addEventListener('click', function() {
+        const item = getGalleryList().find(function(row) { return row.id === button.getAttribute('data-gallery-delete'); });
+        closeFeatureModal(mask);
+        setTimeout(function() { showModalDialogCancelable('移除回忆', '<div>确定移除《' + escapeFeatureHtml(item && item.title || '未命名回忆') + '》及其本地图片吗？</div>', async function() {
+          if (!item) return;
+          await deleteGalleryImage(item);
+          saveGalleryList(getGalleryList().filter(function(row) { return row.id !== item.id; }));
+          openMemoryGalleryDialog();
+        }, null, { confirmText: '移除', cancelText: '保留' }); }, 180);
+      }); });
+    } });
+  }
+  function openImageGenerationSettingsDialog(panel) {
+    const config = getImageGenConfig(), settings = getSettings();
+    const providers = [['pollinations', 'Pollinations（免 Key）'], ['novelai', 'NovelAI'], ['sdwebui', 'Stable Diffusion WebUI'], ['openai', 'OpenAI 兼容接口'], ['midjourney', 'Midjourney Proxy']];
+    const providerOptions = providers.map(function(row) { return '<option value="' + row[0] + '"' + (config.imageProvider === row[0] ? ' selected' : '') + '>' + row[1] + '</option>'; }).join('');
+    const html = '<div style="line-height:1.7;margin-bottom:8px;color:#f9a8d4">点击“显影 CG”时，提示词会发送给所选图片服务。API Key 只保存在本机浏览器；默认不会自动生成图片。</div>' +
+      '<label>生图渠道<select id="moon-image-provider" style="width:100%;padding:8px;background:#100a13;color:#fce7f3">' + providerOptions + '</select></label>' +
+      '<label style="display:block;margin-top:8px">接口地址<input id="moon-image-url" value="' + escapeFeatureHtml(config.imageApiUrl) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
+      '<label style="display:block;margin-top:8px">API Key<input id="moon-image-key" type="password" value="' + escapeFeatureHtml(config.imageApiKey) + '" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
+      '<label style="display:block;margin-top:8px">模型<input id="moon-image-model" value="' + escapeFeatureHtml(config.imageModel) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
+      '<label style="display:block;margin-top:8px">负面提示词<textarea id="moon-image-negative" style="width:100%;box-sizing:border-box;min-height:50px;padding:8px;background:#100a13;color:#fce7f3">' + escapeFeatureHtml(config.imageNegativePrompt) + '</textarea></label>' +
+      '<label style="display:block;margin-top:8px">CG 保留天数（0 = 永不自动清理）<input id="moon-image-retention" type="number" min="0" max="3650" value="' + Math.max(0, Number(settings.galleryRetentionDays) || 0) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
+      '<label style="display:block;margin-top:8px">后日谈目标字数（1500–8000）<input id="moon-epilogue-words" type="number" min="1500" max="8000" step="500" value="' + Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000)) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>';
+    showModalDialogCancelable('⚙️ 回忆与生图设定', html, function() {
+      const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
+      const provider = mask.querySelector('#moon-image-provider').value;
+      const saved = saveImageGenConfig({ imageProvider: provider, imageApiUrl: mask.querySelector('#moon-image-url').value.trim(), imageApiKey: mask.querySelector('#moon-image-key').value.trim(), imageModel: mask.querySelector('#moon-image-model').value.trim(), imageNegativePrompt: mask.querySelector('#moon-image-negative').value.trim() });
+      const nextSettings = getSettings();
+      nextSettings.galleryRetentionDays = Math.max(0, Math.min(3650, parseInt(mask.querySelector('#moon-image-retention').value, 10) || 0));
+      nextSettings.epilogueTargetWords = Math.max(1500, Math.min(8000, parseInt(mask.querySelector('#moon-epilogue-words').value, 10) || 8000));
+      saveSettings(nextSettings);
+      toast(saved ? '回忆设定已保存' : '图片配置未能保存，请检查本机存储空间', saved ? 'success' : 'warning');
+    }, null, { confirmText: '保存设定', cancelText: '取消' });
+  }
+  function isEndingTriggerCondition(charName, ch, recentText) {
+    const E = Number(ch && ch.好感度) || 0, R = Number(ch && ch.阶段值) || 0, I = Number(ch && ch.嫉妒值) || 0;
+    const quota = ch && ch._quota || {}, special = String(quota.对用户特殊状态 || '');
+    const textPool = String(recentText || '') + ' ' + String(ch && ch.心声 || '');
+    if (/(你|user|玩家)(已|彻底|已经)?(死了|停止了呼吸|失去心跳|永远闭上|咽下了最后一口气|倒在血泊中|牺牲了|殒命|离世)/i.test(textPool) || /(?:user已死|玩家死亡)/i.test(special)) return { triggered: true, type: 'UserDeathEnd', reason: '玩家在此刻迎来了生命的终点' };
+    const escapedName = String(charName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if ((new RegExp('(' + (escapedName || '角色') + '|他|她)(已|彻底|已经)?(死了|停止了呼吸|自尽|牺牲|殒命|断气|永远离开)', 'i').test(textPool)) || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
+    if (E >= 100 && R >= 5) return { triggered: true, type: 'HE', reason: '情感羁绊达到圆满境界' };
+    if (E <= -80 && R <= -4) return { triggered: true, type: 'BE', reason: '关系跌入无法挽回的仇视深渊' };
+    if (special.indexOf('囚禁') >= 0 || (I >= 90 && !getSafetyLock())) return { triggered: true, type: 'CageEnd', reason: '关系进入囚禁终局条件' };
+    return { triggered: false };
+  }
+  function markEndingPrompted(charName, endingType) {
+    const archive = getEndingArchive(), key = String(charName) + '::' + String(endingType);
+    if (archive.prompted[key]) return false;
+    archive.prompted[key] = { at: Date.now() };
+    saveEndingArchive(archive);
+    return true;
+  }
+  function promptEndingDialog(charName, ch, endingInfo, isManual) {
+    const html = '<div style="text-align:center;padding:8px 0"><div style="font-size:28px">🌌</div><b style="color:#f9a8d4">世界线收束 · 终局契机</b><div style="margin-top:8px">' + (isManual ? '为角色《' + escapeFeatureHtml(charName) + '》生成本周目的结局结算。' : '《' + escapeFeatureHtml(charName) + '》达成了终局条件：' + escapeFeatureHtml(endingInfo.type) + ' · ' + escapeFeatureHtml(endingInfo.reason) + '。') + '<br>确认后会调用当前 AI 生成结算卡；是否生成 CG 与后日谈由你在结算后选择。</div></div>';
+    showModalDialogCancelable('✦ 终局确认', html, function() { runEndingSettlement(charName, ch, endingInfo.type || 'CustomEnd'); }, null, { confirmText: '生成结局结算', cancelText: '继续游玩' });
+  }
+  function manualTriggerEnding(panel) {
+    const data = readMvuLatest(), chars = data && data.stat_data && data.stat_data.角色 || {};
+    const names = Object.keys(chars).filter(function(name) { return !isCharSkeleton(chars[name]); });
+    if (!names.length) { toast('当前聊天没有可结算的角色档案', 'warning'); return; }
+    if (names.length === 1) { promptEndingDialog(names[0], chars[names[0]], { type: 'TE', reason: '玩家主动选择结算周目' }, true); return; }
+    const options = names.map(function(name) { return '<option value="' + escapeFeatureHtml(name) + '">' + escapeFeatureHtml(name) + '</option>'; }).join('');
+    showModalDialog('选择结算角色', '<label>角色档案<select id="moon-ending-char-select" style="width:100%;padding:8px;background:#100a13;color:#fce7f3">' + options + '</select></label>', function() {
+      const mask = mainDoc.getElementById('moon-modal-mask'); const selected = mask && mask.querySelector('#moon-ending-char-select') && mask.querySelector('#moon-ending-char-select').value;
+      if (selected && chars[selected]) promptEndingDialog(selected, chars[selected], { type: 'TE', reason: '玩家主动选择结算周目' }, true);
+    }, { confirmText: '继续' });
+  }
+  async function runEndingSettlement(charName, ch, endingType) {
+    showLoadingDialog('正在整理本周目历程…');
+    const history = collectChatHistoryContext(6000);
+    const systemPrompt = '你是日系视觉小说的剧本监督。请根据提供的当前角色和聊天脉络，写一张简洁、尊重玩家设定的周目结算卡。只输出 JSON：title（结局名，最多40字）、summary（复盘，最多160字）、monologue（角色第一人称独白，最多100字）、cgPrompt（横构图图片提示词，最多800字）、keyMoment（核心转折，最多120字）。不要替玩家补写行动或台词。';
+    const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局类型：' + String(endingType).slice(0, 40) + '\n四维：好感 ' + (Number(ch.好感度) || 0) + '，肉体 ' + (Number(ch.肉体值) || 0) + '，阶段 ' + (Number(ch.阶段值) || 0) + '，嫉妒 ' + (Number(ch.嫉妒值) || 0) + '\n游戏时间：' + String(readVar('世界.时间', '未记录')) + '\n\n聊天脉络：\n' + String(history && history.chat || '').slice(-6000);
+    let result = null;
+    try { result = extractJson(await callOpeningModel(getSettings().extraModel === 'on' ? 'extra' : 'main', systemPrompt, userPrompt)); } catch (e) {}
+    result = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+    const title = String(result.title || charName + '之篇 · 终末之约').slice(0, 80);
+    const summary = String(result.summary || '漫长的相遇与抉择，在此刻成为这一周目的最终注脚。').slice(0, 500);
+    const monologue = String(result.monologue || '倘若时光倒流，我仍会记得与你相遇的这一刻。').slice(0, 300);
+    const prompt = String(result.cgPrompt || ('anime visual novel ending, ' + charName + ', emotional cinematic horizontal scene')).slice(0, 2500);
+    const keyMoment = String(result.keyMoment || '命运交叉点上的最终抉择').slice(0, 300);
+    const id = newFeatureId('ending');
+    const record = { id: id, title: title, endingType: String(endingType || 'TE'), charName: charName, totalTime: String(readVar('世界.时间', '未记录')), E: Number(ch.好感度) || 0, P: Number(ch.肉体值) || 0, R: Number(ch.阶段值) || 0, I: Number(ch.嫉妒值) || 0, summary: summary, monologue: monologue, keyMoment: keyMoment, cgPrompt: prompt, createdAt: Date.now() };
+    const archive = getEndingArchive(); archive.records.unshift(record); saveEndingArchive(archive);
+    const item = { id: id, char: charName, title: title, desc: summary, prompt: prompt, uc: getImageGenConfig().imageNegativePrompt, imageKey: '', imageUrl: '', createdAt: record.createdAt, isEnding: true, endingType: record.endingType };
+    const gallery = getGalleryList(); gallery.unshift(item); saveGalleryList(gallery);
+    closeLoadingDialog();
+    openGalgameEndingClearDialog(record, item);
+  }
+  function openGalgameEndingClearDialog(record, galleryItem) {
+    const html = '<div style="text-align:center"><div style="font-size:22px;color:#f9a8d4;font-weight:700">✦ CLEAR · 周目结算 ✦</div><div style="font-size:16px;margin:6px 0;font-weight:700">《' + escapeFeatureHtml(record.title) + '》</div><div style="font-size:11px;color:#94a3b8">' + escapeFeatureHtml(record.endingType) + ' · ' + escapeFeatureHtml(record.charName) + '</div><div style="padding:10px;background:#100a13;margin-top:9px;text-align:left;line-height:1.7">' + escapeFeatureHtml(record.summary) + '<hr><b>历经时间：</b>' + escapeFeatureHtml(record.totalTime) + '<br><b>终局数值：</b>E' + record.E + ' / P' + record.P + ' / R' + record.R + ' / I' + record.I + '<br><b>关键时刻：</b>' + escapeFeatureHtml(record.keyMoment) + '<br><b>角色心声：</b>“' + escapeFeatureHtml(record.monologue) + '”</div><div style="display:flex;gap:6px;margin-top:10px"><button id="moon-ending-cg" style="flex:1">显影结局 CG</button><button id="moon-ending-share" style="flex:1">导出结算卡</button><button id="moon-ending-epilogue" style="flex:1">生成后日谈</button></div></div>';
+    showModalDialog('🏆 周目结算', html, null, { confirmText: '收下结局卡', onOpen: function(mask) {
+      mask.querySelector('#moon-ending-cg').addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { developCGItem(galleryItem); }, 180); });
+      mask.querySelector('#moon-ending-share').addEventListener('click', function() { generateSteamShareCard(record); });
+      mask.querySelector('#moon-ending-epilogue').addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { startEpilogueGenerationEngine(record.charName, record); }, 180); });
+    } });
+  }
+  async function generateSteamShareCard(record) {
+    try {
+      const canvas = mainDoc.createElement('canvas'); canvas.width = 1200; canvas.height = 675;
+      const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
+      const gradient = ctx.createLinearGradient(0, 0, 1200, 675); gradient.addColorStop(0, '#211020'); gradient.addColorStop(1, '#09070d'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1200, 675);
+      ctx.strokeStyle = '#c94b9f'; ctx.lineWidth = 4; ctx.strokeRect(18, 18, 1164, 639);
+      ctx.fillStyle = '#f9a8d4'; ctx.font = 'bold 30px sans-serif'; ctx.fillText('MOON POCKET · 周目结算', 60, 80);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 42px sans-serif'; ctx.fillText(String(record.title || '终局').slice(0, 24), 60, 155);
+      ctx.fillStyle = '#e9c3dc'; ctx.font = '22px sans-serif'; ctx.fillText(String(record.endingType || 'TE') + ' · ' + String(record.charName || '角色').slice(0, 30), 60, 205);
+      ctx.fillStyle = '#e5d8e2'; ctx.font = '20px sans-serif';
+      const lines = String(record.summary || '').match(/.{1,38}/g) || [];
+      lines.slice(0, 4).forEach(function(line, index) { ctx.fillText(line, 60, 270 + index * 34); });
+      ctx.fillStyle = '#f9a8d4'; ctx.font = '18px sans-serif'; ctx.fillText('E ' + record.E + '  P ' + record.P + '  R ' + record.R + '  I ' + record.I, 60, 440);
+      ctx.fillStyle = '#c4b5c1'; ctx.font = 'italic 22px sans-serif'; ctx.fillText('“' + String(record.monologue || '').slice(0, 38) + '”', 60, 505);
+      ctx.fillStyle = '#957f91'; ctx.font = '16px monospace'; ctx.fillText('GALGAME CARD SYSTEM · MEMORY ARCHIVE', 60, 610);
+      downloadFileViaBrowser(canvas.toDataURL('image/png'), '周目结算卡_' + String(record.title || '结算').replace(/[\\/:*?"<>|]/g, '_'));
+    } catch (e) { toast('结算卡导出失败：' + String(e && e.message || e), 'warning'); }
+  }
+  async function startEpilogueGenerationEngine(charName, record) {
+    const settings = getSettings(), targetWords = Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000));
+    const chapters = [
+      { title: '第一幕 · 离去之日', focus: '结局之后最初的数月，角色如何面对离别、失常与生活留下的痕迹。' },
+      { title: '第二幕 · 岁月风蚀', focus: '数年流逝，角色如何带着两人共同经历的记忆继续生活。' },
+      { title: '第三幕 · 终局回响', focus: '多年后的回望、最终的释怀，以及角色如何理解这段关系。' }
+    ];
+    let novel = '# 《' + record.title + ' · 后日谈》\n\n> 结局：' + record.endingType + ' · 角色：' + charName + '\n\n';
+    showLoadingDialog('正在生成后日谈（目标约 ' + targetWords + ' 字）…');
+    try {
+      for (let i = 0; i < chapters.length; i++) {
+        const chapter = chapters[i]; updateLoadingDialogText('正在撰写 ' + chapter.title + '（' + (i + 1) + '/' + chapters.length + '）…');
+        const systemPrompt = '你是擅长克制抒情的日系视觉小说作者。写一段约 ' + Math.ceil(targetWords / 3) + ' 字的后日谈正文。只写角色与世界，不代替玩家发言或行动。';
+        const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局：' + String(record.title).slice(0, 80) + '\n核心转折：' + String(record.keyMoment || '').slice(0, 200) + '\n角色心声：' + String(record.monologue || '').slice(0, 200) + '\n本章：' + chapter.title + '\n重点：' + chapter.focus;
+        let body = await callOpeningModel('main', systemPrompt, userPrompt);
+        if (typeof body !== 'string') body = body && body.content ? body.content : String(body || '');
+        if (!body.trim()) throw new Error(chapter.title + '没有生成正文');
+        novel += '\n\n## ' + chapter.title + '\n\n' + body.trim();
+      }
+      closeLoadingDialog(); openEpilogueReaderDialog(record.title, novel);
+    } catch (e) { closeLoadingDialog(); toast('后日谈生成中断：' + String(e && e.message || e).slice(0, 180), 'warning'); }
+  }
+  function openEpilogueReaderDialog(title, text) {
+    const safeTitle = escapeFeatureHtml(title);
+    const html = '<div id="moon-epilogue-text" style="max-height:55vh;overflow:auto;padding:12px;background:#100a13;border:1px solid #693253;font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div><div style="margin-top:9px;text-align:right"><button id="moon-export-epilogue">导出 TXT</button></div>';
+    showModalDialog('📖 后日谈 · 《' + safeTitle + '》', html, null, { confirmText: '阅读完毕', onOpen: function(mask) {
+      mask.querySelector('#moon-export-epilogue').addEventListener('click', function() {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = (mainWin.URL || URL).createObjectURL(blob);
+        downloadFileViaBrowser(url, '后日谈_' + String(title || '结局').replace(/[\\/:*?"<>|]/g, '_') + '.txt');
+        setTimeout(function() { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
+      });
+    } });
+  }
+
   function renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn) {
     const data = readMvuLatest();
     const stat = data && data.stat_data || {};
@@ -3606,7 +4108,8 @@ function openUpdateConfigDialog(panel) {
       '<details class="mp-action-fold"><summary><span>新周目与存档转移</span><small>开局适配 · 打包迁移</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt">🚀 开局适配</button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate">📦 存档迁移</button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="characters" style="display:none"><div class="mp-sub-label">角色档案 / CHARACTER FILES</div>' +
       '<details class="mp-action-fold"><summary><span>角色档案与试演</span><small>角色试镜 · 角色小抄</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-bio">🎬 角色试镜</button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib">📚 角色小抄库</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>玩家档案</span><small>玩家档案 · 小抄收藏</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio">👤 玩家档案</button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib">📂 玩家资料库</button></div></details></div>' +
+      '<details class="mp-action-fold"><summary><span>玩家档案</span><small>玩家档案 · 小抄收藏</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio">👤 玩家档案</button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib">📂 玩家资料库</button></div></details>' +
+      '<details class="mp-action-fold"><summary><span>回忆与周目</span><small>成就收藏 · 结局记录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery">🏆 回忆画廊</button><button class="mp-btn" id="moon-phase-ending">🌌 周目结算</button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:none"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
       '<details class="mp-action-fold"><summary><span>时间线侦察</span><small>扫描世界条目 · 生成时间线</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-scan-timeline">🔎 扫描时间线</button><button class="mp-btn" id="moon-phase-tl-gen">📝 生成时间线</button></div></details>' +
       '<details class="mp-action-fold"><summary><span>时间线整理</span><small>标签管理 · 手动补录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag">🏷️ 时间线标签</button><button class="mp-btn" id="moon-phase-manual-tl">✍️ 手动补录</button></div></details></div>' +
@@ -3615,6 +4118,7 @@ function openUpdateConfigDialog(panel) {
       '<details class="mp-action-fold"><summary><span>兼容性扫描</span><small>脚本冲突 · AI 功能检测</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict">🔍 冲突扫描</button><button class="mp-btn" id="moon-phase-ai-detect">🤖 AI 功能检测</button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="settings" style="display:none"><div class="mp-sub-label">系统选项 / OPTIONS</div>' +
       '<details class="mp-action-fold"><summary><span>AI 演算设定</span><small>提示词编辑 · 副模型配置</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词设置</button><button class="mp-btn" id="moon-phase-custom-ai">⚙️ 副模型设置</button></div></details>' +
+      '<details class="mp-action-fold"><summary><span>回忆与影像</span><small>生图渠道 · 后日谈篇幅</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings">🖼️ 回忆与生图设定</button></div></details>' +
       '<details class="mp-action-fold"><summary><span>更新与指南</span><small>系统升级 · 查阅帮助</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 发现新版本 · 查看更新' : '🔄 检查版本更新') + '</button><button class="mp-btn" id="moon-phase-faq">❓ 帮助与说明</button></div></details></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
     panel._lcdStateTimer = setInterval(function() {
@@ -3732,8 +4236,11 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-bio-lib').addEventListener('click', function() { openBioLibraryDialog(panel); });
     panel.querySelector('#moon-phase-user-bio').addEventListener('click', function() { openUserAuditionMainDialog(panel); });
     panel.querySelector('#moon-phase-user-bio-lib').addEventListener('click', function() { openUserBioLibraryDialog(panel); });
+     panel.querySelector('#moon-phase-gallery').addEventListener('click', function() { openMemoryGalleryDialog(); });
+     panel.querySelector('#moon-phase-ending').addEventListener('click', function() { manualTriggerEnding(panel); });
     panel.querySelector('#moon-phase-prompt-edit').addEventListener('click', function() { openPromptEditor(panel); });
     panel.querySelector('#moon-phase-custom-ai').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
+     panel.querySelector('#moon-phase-image-settings').addEventListener('click', function() { openImageGenerationSettingsDialog(panel); });
     panel.querySelector('#moon-phase-faq').addEventListener('click', openFaqDialog);
     panel.querySelector('#moon-phase-adapt').addEventListener('click', function() { openUnifiedAdaptDialog(panel); });
     panel.querySelector('#moon-phase-ai-detect').addEventListener('click', function() { openAiConflictDialog(panel); });
@@ -3806,6 +4313,13 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
       info('当前卡：' + curCard + ' · 启用小抄 ' + bioStatus.count + ' 份');
       if (bioStatus.count > 0) info('覆盖角色：' + bioStatus.charNames.join('、'));
     }
+    lines.push('<div class="mp-log-subhead">── 回忆档案 ──</div>');
+    try {
+      const gallery = getGalleryList(), endings = getEndingArchive(), imageConfig = getImageGenConfig();
+      info('当前聊天回忆：' + gallery.length + ' 项 · 已结算周目：' + endings.records.length + ' 次');
+      info('图片渠道：' + String(imageConfig.imageProvider || 'pollinations').toUpperCase() + ' · 显影需手动点击');
+      info('后日谈目标：' + (Number(getSettings().epilogueTargetWords) || 8000) + ' 字');
+    } catch (e) { warn('回忆档案尚未初始化'); }
     return lines.join('<br>');
   }
 
