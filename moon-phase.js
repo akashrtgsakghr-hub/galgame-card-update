@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.8';
-  const MOON_FORMULA_CHANGELOG = "优化低亮度液晶屏与移动端文字显示；街机难度与系统月相统一命名；修复跳跃碰撞和自动更新脚本定位。";
+  const MOON_FORMULA_VERSION = '4.3.9';
+  const MOON_FORMULA_CHANGELOG = "新增系统面板与街机模式切换；街机模式复用月相难度按钮且不改变系统难度；优化液晶屏像素字体。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -101,6 +101,12 @@
     normal: { name: '普通', glyph: '🌖', title: '亏凸月', quota: '7.0', detail: '标准难度，情感变化比较均衡。适合大多数剧情卡、综合向卡，日常和冲突都能跑。' },
     hard: { name: '困难', glyph: '🌗', title: '下弦月', quota: '5.0', detail: '周上限更紧，时间跳跃判定更严。适合冲突多、推进快、需要压力感的强剧情卡。' },
     hell: { name: '地狱', glyph: '🌑', title: '新月', quota: '3.0', detail: '周上限最低，默认开启锚定时间线。适合重度虐恋、强冲突、黑深残、高张力、长线折磨的卡。' }
+  };
+  const ARCADE_DIFFICULTY_HINTS = {
+    easy: '低速巡航 · 适合熟悉操作',
+    normal: '标准速度 · 推荐节奏',
+    hard: '高速运行 · 反应挑战',
+    hell: '极速挑战 · 障碍更密'
   };
 
   function getRStageFromE(E) {
@@ -3181,8 +3187,14 @@ function openUpdateConfigDialog(panel) {
       '@keyframes moon-fade{from{opacity:0;transform:scale(0.96) translateY(4px);}to{opacity:1;transform:scale(1) translateY(0);}}' +
       '@keyframes moon-progress-slide{0%{left:-40%;}100%{left:105%;}}' +
       '@keyframes moon-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}' +
+      '@font-face{font-family:"MP Fusion Pixel";src:url("https://fontpixel.com/downloads/fusion-pixel-monospaced-zh-Hans-12px-square.woff2") format("woff2");font-style:normal;font-weight:400;font-display:swap;}' +
       '#moon-phase-panel{background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0,rgba(255,255,255,.012) 1px,transparent 1px,transparent 4px),linear-gradient(180deg,#160b18 0%,#09060d 100%) !important;border:2px solid #f472d0 !important;border-radius:4px !important;padding:16px !important;font-family:"Courier New",monospace !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.26) !important;image-rendering:pixelated;}' +
       '#moon-phase-panel .mp-head{border-bottom:2px dashed rgba(244,114,208,.45) !important;}' +
+      '#moon-phase-panel .mp-display-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:10px 0;padding:4px;background:#0b080d;border:1px solid #59304d;box-shadow:inset 0 0 0 1px rgba(244,114,208,.04);}' +
+      '#moon-phase-panel .mp-display-mode-switch button{min-height:37px;padding:7px 9px;border:1px solid #42253a;background:#160e18;color:#b7a2b4;font:700 12px/1.4 "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;letter-spacing:.3px;cursor:pointer;}' +
+      '#moon-phase-panel .mp-display-mode-switch button.active{border-color:#f472d0;background:#35142e;color:#ffd3ef;box-shadow:inset 0 0 0 1px rgba(255,190,232,.12),2px 2px 0 #35152f;}' +
+      '#moon-phase-panel.mp-display-arcade .mp-system-content{display:none !important;}' +
+      '#moon-phase-panel.mp-display-arcade .mp-mode-select-card{margin-bottom:0;}' +
       '#moon-phase-panel .mp-title{color:#ffb8eb !important;text-shadow:2px 2px #5a164d;letter-spacing:.5px !important;font-size:12px !important;}' +
       '#moon-phase-panel .mp-title-orb{filter:drop-shadow(0 0 5px #f472d0);}' +
       '#moon-phase-panel .mp-card{background:#100a13 !important;border:1px solid rgba(244,114,208,.32) !important;border-radius:3px !important;box-shadow:inset 0 0 0 1px rgba(244,114,208,.05);}' +
@@ -3197,7 +3209,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-lcd-card>div[style*="margin-top:8px"]{color:#b8ccb0 !important;}' +
       '#moon-phase-panel .mp-lcd-card{padding:9px !important;background:#101610 !important;border:3px solid #374a37 !important;box-shadow:inset 0 0 0 2px #080d08,0 0 0 2px #080d08 !important;color:#18271a !important;}' +
       '#moon-phase-panel .mp-lcd-card:before{display:none !important;}' +
-      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:12px;background:#7d896f;color:#182019;border:3px solid #182019;box-shadow:none;font:14px/1.7 ui-monospace,"Microsoft YaHei",monospace;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:12px;background:#7d896f;color:#182019;border:3px solid #182019;box-shadow:none;font:14px/1.7 "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;letter-spacing:.15px;-webkit-font-smoothing:none;font-smooth:never;image-rendering:pixelated;}' +
       '#moon-phase-panel .mp-lcd-screen>*{position:relative;z-index:1;color:#182019 !important;text-shadow:none !important;}' +
       '#moon-phase-panel .mp-lcd-screen-head,#moon-phase-panel .mp-lcd-character-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-bottom:7px;border-bottom:1px solid #182019;font-size:12px;font-weight:bold;letter-spacing:.3px;}' +
       '#moon-phase-panel .mp-lcd-screen-head b{padding:3px 5px;border:1px solid #182019;font-size:10px;}' +
@@ -3226,12 +3238,6 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:last-child{font-size:10px !important;}' +
       '#moon-phase-panel .mp-mode-select-card>div[style*="margin-top:8px"]{font-size:13px !important;line-height:1.7 !important;}' +
       '#moon-phase-panel .mp-mode-select-card>div[style*="margin-top:8px"] b{font-size:14px !important;}' +
-      '#moon-phase-panel .mp-arcade-difficulty-card .mp-label{font-size:13px !important;letter-spacing:.4px;}' +
-      '#moon-phase-panel .mp-arcade-levels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}' +
-      '#moon-phase-panel .mp-arcade-level{min-height:58px;padding:7px 4px;border:1px solid #3c4a38;background:#171d16;color:#bec9b5;font:13px/1.4 ui-monospace,"Microsoft YaHei",monospace;cursor:pointer;}' +
-      '#moon-phase-panel .mp-arcade-level.active{background:#7d896f;color:#182019;border-color:#7d896f;}' +
-      '#moon-phase-panel .mp-arcade-level small{display:block;font-size:10px;opacity:.9;}' +
-      '#moon-phase-panel .mp-arcade-hint{margin-top:7px;color:#aab69a;font-size:12px;line-height:1.5;}' +
       '#moon-phase-panel .mp-label,#moon-phase-panel .mp-toggle-title{color:#ffd1f1 !important;}' +
       '#moon-phase-panel .mp-btn,#moon-phase-panel .mp-mode-btn,#moon-phase-panel .mp-antisl,#moon-phase-panel .mp-extra-btn,#moon-phase-panel .mp-cardmode-btn,#moon-phase-panel .mp-fanfic-btn,#moon-phase-panel .mp-safelock-btn,#moon-phase-panel .mp-pacing-btn{border-radius:2px !important;font-family:"Courier New",monospace !important;box-shadow:2px 2px 0 #35152f;transition:transform .08s,filter .08s;}' +
       '#moon-phase-panel .mp-btn{background:#170d1a !important;border-color:#643052 !important;color:#f8d8ee !important;}' +
@@ -3253,7 +3259,7 @@ function openUpdateConfigDialog(panel) {
       '.mp-loading-box{padding:20px 28px;border-radius:3px;background:#100914;border:2px solid #f472d0;color:#ffe1f5;font-size:13px;text-align:center;min-width:260px;max-width:360px;box-sizing:border-box;box-shadow:0 0 0 3px #2a1029,0 0 26px rgba(244,114,208,.2);}' +
       '.mp-loading-track{height:5px;border:1px solid #74305f;background:#1a101b;overflow:hidden;position:relative;}' +
       '.mp-loading-bar{position:absolute;top:0;height:100%;width:38%;background:#f472d0;animation:moon-progress-slide 1.25s ease-in-out infinite;}' +
-      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:#7d896f;border:3px solid #182019;outline:3px solid #080d08;color:#182019;text-align:center;box-shadow:0 5px 0 #080d08;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
+      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:#7d896f;border:3px solid #182019;outline:3px solid #080d08;color:#182019;text-align:center;box-shadow:0 5px 0 #080d08;font-family:"MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;-webkit-font-smoothing:none;font-smooth:never;image-rendering:pixelated;}' +
       '.mp-arcade-brand{font-size:12px;letter-spacing:1px;color:#18271a;margin-bottom:8px;}' +
       '.mp-arcade-title{font-size:13px;line-height:1.6;color:#18271a;margin:0 auto 8px;max-width:320px;}' +
       '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:12px;color:#18271a;margin:0 auto 5px;max-width:320px;}' +
@@ -3312,7 +3318,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-update-hitbox .mp-title-orb{flex:0 0 auto;}' +
       '#moon-phase-panel .mp-update-hitbox .mp-title{display:block;flex:1 1 170px;min-width:0;max-width:none;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.35;}' +
       '#moon-phase-panel .mp-update-hitbox .mp-badge{display:inline-block;flex:0 0 auto;}' +
-      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}#moon-phase-panel .mp-lcd-screen{padding:9px;font-size:13px;line-height:1.65;}#moon-phase-panel .mp-lcd-stats{grid-template-columns:repeat(2,1fr);}#moon-phase-panel .mp-arcade-levels{grid-template-columns:repeat(2,minmax(0,1fr));}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}' +
+      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}#moon-phase-panel .mp-lcd-screen{padding:9px;font-size:13px;line-height:1.65;}#moon-phase-panel .mp-lcd-stats{grid-template-columns:repeat(2,1fr);}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}' +
       '@media(min-width:700px){#moon-phase-panel .mp-lcd-screen{font-size:15px;}}';
   }
 // ===== 第 16 份 =====
@@ -3407,10 +3413,19 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-lcd-character-view">' + renderLcdCharacterDetails(ch) + '</div><div class="mp-lcd-screen-foot">PIXEL DISPLAY · PLAYER STATUS</div></div>';
   }
 
+  function renderArcadeGameScreen() {
+    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
+  }
+
   function renderPanel(panel) {
     if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
     if (panel._lcdStateTimer) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; }
     const mode = getCurrentMode();
+    const displayMode = panel.dataset.displayMode === 'arcade' ? 'arcade' : 'system';
+    const isArcadeMode = displayMode === 'arcade';
+    const selectedLevel = isArcadeMode ? (panel.dataset.arcadeDifficulty || 'normal') : mode;
+    panel.dataset.displayMode = displayMode;
+    panel.classList.toggle('mp-display-arcade', isArcadeMode);
     const antisl = getAntiSL();
     const extraSetting = getExtraModelMode();
     const cardMode = getCardMode();
@@ -3430,22 +3445,23 @@ function openUpdateConfigDialog(panel) {
   (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
 '</span>' +
       '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
-      '<div class="mp-card mp-lcd-card">' + renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn) + '</div>' +
-      '<div class="mp-card mp-mode-select-card"><div class="mp-label">游戏难度选择 / SELECT LEVEL</div>' +
+      '<div class="mp-display-mode-switch" role="tablist" aria-label="选择显示模式">' +
+      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机模式</button></div>' +
+      '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
+      '<div class="mp-card mp-mode-select-card' + (isArcadeMode ? ' is-arcade' : '') + '"><div class="mp-label">' + (isArcadeMode ? '街机难度选择 / SELECT LEVEL' : '游戏系统难度 / SYSTEM LEVEL') + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
       ['easy', 'normal', 'hard', 'hell'].map(function(m) {
-        const item = LUNAR_META[m]; const isAct = (m === mode);
+        const item = LUNAR_META[m]; const isAct = (m === selectedLevel);
         return '<button class="mp-mode-btn ' + (isAct ? 'active' : '') + '" data-mode="' + m + '" style="padding:8px 2px;border-radius:9px;border:1px solid ' + (isAct ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.15)') + ';background:' + (isAct ? '#0c2540' : '#0f172a') + ';color:' + (isAct ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' +
           '<div style="font-size:14px;">' + item.glyph + '</div><div>' + item.name + '</div>' +
-          '<div style="font-size:8px;opacity:0.65;">周上限 ' + item.quota + '</div></button>';
+          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? item.title : '周上限 ' + item.quota) + '</div></button>';
       }).join('') + '</div>' +
-      '<div style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
-      '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail + '</div></div>' +
-      '<div class="mp-card mp-arcade-difficulty-card" style="display:none"><div class="mp-label">街机难度 / ARCADE LEVEL</div><div class="mp-arcade-levels">' +
-      [['easy', '速度较慢'], ['normal', '推荐节奏'], ['hard', '速度更快'], ['hell', '高速挑战']].map(function(level) {
-        const meta = LUNAR_META[level[0]];
-        return '<button type="button" class="mp-arcade-level' + (level[0] === 'normal' ? ' active' : '') + '" data-arcade-difficulty="' + level[0] + '">' + meta.glyph + ' ' + meta.title + '<small>' + meta.name + ' · ' + level[1] + '</small></button>';
-      }).join('') + '</div><div class="mp-arcade-hint">切换难度会重新开始当前一局</div></div>' +
+      '<div class="mp-mode-description" style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
+      (isArcadeMode
+        ? '<b style="color:#e2e8f0;">' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].title + ' · 街机档位</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。此处选择只影响街机，不会更改系统月相。切换后立即开始新一局。'
+        : '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail) + '</div></div>' +
+      '<div class="mp-system-content">' +
       '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 游戏难度与规则 <span>▼</span></summary><div class="mp-toggle-row">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">冷战期或好感度为负时锚定</div></div>' +
       '<button class="mp-antisl ' + (antisl ? 'on' : '') + '" id="moon-phase-antisl">' + (antisl ? '锚定: ON' : '锚定: OFF') + '</button></div>' +
@@ -3479,7 +3495,6 @@ function openUpdateConfigDialog(panel) {
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>世界记录</b><small>时间线扫描 · 生成 · 编辑</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>机器诊断</b><small>系统自检 · 规则测试 · 环境扫描</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>选项与资料</b><small>游戏规则 · AI 设置 · 版本更新 · 帮助</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card mp-arcade-launch" id="moon-phase-arcade"><span class="mp-menu-icon">▣</span><span><b>街机小游戏</b><small>本聊天最高分 ' + String(getArcadeHighScore()).padStart(5, '0') + ' · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</small></span><i>▶</i></button>' +
       '</div><div class="mp-menu-controls"><span><kbd>ENTER / A</kbd> 选择</span><span><kbd>ESC / B</kbd> 返回</span><span>♥ 全功能保留</span></div></section>' +
       '<section class="mp-menu-page" id="moon-menu-page" style="display:none"><div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>GAME MENU / 目录</small><b id="moon-menu-page-title">功能</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:none"><div class="mp-sub-label">冒险模式 / ADVENTURE MODE</div>' +
@@ -3497,7 +3512,7 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-menu-subpage" data-menu-page="settings" style="display:none"><div class="mp-sub-label">选项与资料 / OPTIONS</div>' +
       '<details class="mp-action-fold"><summary><span>AI 行为设置</span><small>提示词编辑 · 副模型配置</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词设置</button><button class="mp-btn" id="moon-phase-custom-ai">⚙️ 副模型设置</button></div></details>' +
       '<details class="mp-action-fold"><summary><span>版本与帮助</span><small>更新游戏系统 · 查阅帮助</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 发现新版本 · 查看更新' : '🔄 检查版本更新') + '</button><button class="mp-btn" id="moon-phase-faq">❓ 帮助与说明</button></div></details></div></section>' +
-      '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div>';
+      '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
     panel._lcdStateTimer = setInterval(function() {
       if (!panel.isConnected) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; return; }
       const latest = readMvuLatest();
@@ -3510,6 +3525,18 @@ function openUpdateConfigDialog(panel) {
       if (characterView) characterView.innerHTML = renderLcdCharacterDetails(latestCharacter);
     }, 2500);
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
+    panel.querySelectorAll('[data-display-mode]').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const nextMode = button.getAttribute('data-display-mode') === 'arcade' ? 'arcade' : 'system';
+        if (nextMode === panel.dataset.displayMode) return;
+        panel.dataset.displayMode = nextMode;
+        renderPanel(panel);
+      });
+    });
+    if (isArcadeMode) {
+      const lcdCard = panel.querySelector('.mp-lcd-card');
+      if (lcdCard) panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true, difficulty: selectedLevel });
+    }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');
     const menuTitles = { adventure: '开始游戏', characters: '角色与存档', timeline: '世界记录', system: '机器诊断', settings: '选项与资料' };
@@ -3528,40 +3555,6 @@ function openUpdateConfigDialog(panel) {
     panel.querySelector('#moon-menu-back').addEventListener('click', function() {
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
-    });
-    panel.querySelector('#moon-phase-arcade').addEventListener('click', function() {
-      const lcdCard = panel.querySelector('.mp-lcd-card');
-      if (!lcdCard) return;
-      const savedDisplay = lcdCard.innerHTML;
-      const arcadeDifficultyCard = panel.querySelector('.mp-arcade-difficulty-card');
-      if (arcadeDifficultyCard) arcadeDifficultyCard.style.display = 'block';
-      let arcadeDifficulty = panel.dataset.arcadeDifficulty || 'normal';
-      const arcadeLevels = panel.querySelectorAll('[data-arcade-difficulty]');
-      arcadeLevels.forEach(function(button) { button.classList.toggle('active', button.getAttribute('data-arcade-difficulty') === arcadeDifficulty); });
-      if (arcadeDifficultyCard && arcadeDifficultyCard._arcadeLevelHandler) arcadeDifficultyCard.removeEventListener('click', arcadeDifficultyCard._arcadeLevelHandler);
-      lcdCard.classList.add('mp-lcd-game');
-      lcdCard.innerHTML = '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore()) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 撞到障碍后点击重开</div><button class="mp-arcade-exit" type="button">◀ 返回模式选择</button></div>';
-      function startArcadeRound() { panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true, difficulty: arcadeDifficulty }); }
-      startArcadeRound();
-      if (arcadeDifficultyCard) {
-        arcadeDifficultyCard._arcadeLevelHandler = function(event) {
-          const button = event.target.closest('[data-arcade-difficulty]');
-          if (!button) return;
-          arcadeDifficulty = button.getAttribute('data-arcade-difficulty') || 'normal';
-          panel.dataset.arcadeDifficulty = arcadeDifficulty;
-          arcadeLevels.forEach(function(levelButton) { levelButton.classList.toggle('active', levelButton === button); });
-          if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
-          startArcadeRound();
-        };
-        arcadeDifficultyCard.addEventListener('click', arcadeDifficultyCard._arcadeLevelHandler);
-      }
-      lcdCard.querySelector('.mp-arcade-exit').addEventListener('click', function() {
-        if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
-        lcdCard.classList.remove('mp-lcd-game');
-        lcdCard.innerHTML = savedDisplay;
-        if (arcadeDifficultyCard) { arcadeDifficultyCard.style.display = 'none'; if (arcadeDifficultyCard._arcadeLevelHandler) { arcadeDifficultyCard.removeEventListener('click', arcadeDifficultyCard._arcadeLevelHandler); arcadeDifficultyCard._arcadeLevelHandler = null; } }
-      });
-      try { lcdCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
     });
     if (panel.dataset.menuKeysBound !== '1') {
       panel.dataset.menuKeysBound = '1';
@@ -3596,6 +3589,13 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
       panel.addEventListener('click', function(event) {
         const btn = event.target && event.target.closest ? event.target.closest('.mp-mode-btn') : null;
         if (!btn || !panel.contains(btn)) return;
+        if (panel.dataset.displayMode === 'arcade') {
+          const nextArcadeDifficulty = btn.getAttribute('data-mode') || 'normal';
+          if (nextArcadeDifficulty === (panel.dataset.arcadeDifficulty || 'normal')) return;
+          panel.dataset.arcadeDifficulty = nextArcadeDifficulty;
+          renderPanel(panel);
+          return;
+        }
         const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel();
       });
     }
