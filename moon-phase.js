@@ -970,7 +970,8 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('');
       lines.push('标签格式：[Sylveina|L/M/H|+/-|基础值]，例：[Sylveina|M|+|3.5]。');
       lines.push('基础值区间：L=0.5~2.0，M=3.0~5.0，H=6.0~10.0。');
-      lines.push('标签后换行输出 s。');
+      lines.push('【重要：正则美化触发格式】正文剧情结束后，只在最后单独输出一个 Sylveina 数值标签，下一行只输出小写字母 s，格式必须是：\\n[Sylveina|L|+|1.2]\\ns。');
+      lines.push('禁止在标签和 s 之后输出任何角色变量赋值、世界时间、JSON、UpdateVariable、StatusPlaceHolderImpl 或解释文字；不要在可见正文中打印“角色.姓名.好感度=...”等后台变量。所有数值由本插件根据标签在本地计算和保存。');
       callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 4, 1, false);
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
   }
@@ -1408,6 +1409,26 @@ async function _collectAllWorldbooks(includeDisabled) {
     });
   }
 
+  function sanitizeSylveinaRegexTail() {
+    try {
+      const found = getLatestAiMessage();
+      if (!found || !found.msg || typeof found.msg.mes !== 'string') return false;
+      const mes = found.msg.mes;
+      const tagRe = /\[Sylveina\|[LMH]\|[+-]\|\d+(?:\.\d+)?\]/g;
+      let match, last = null;
+      while ((match = tagRe.exec(mes)) !== null) last = { index: match.index, text: match[0], end: tagRe.lastIndex };
+      if (!last) return false;
+      const suffix = mes.slice(last.end);
+      // 只有检测到明确的后台变量/占位符格式时才清理，避免误删正常剧情。
+      const backendPattern = /(?:^|\r?\n)\s*(?:角色\.[^\r\n=]+=[^\r\n]*|世界\.时间=[^\r\n]*|<UpdateVariable>[\s\S]*?<\/UpdateVariable>|<StatusPlaceHolderImpl\s*\/>)/i;
+      if (!backendPattern.test(suffix)) return false;
+      const cleanPrefix = mes.slice(0, last.end).replace(/[ \t]+$/, '');
+      found.msg.mes = cleanPrefix + '\ns';
+      try { if (typeof found.msg.mes === 'string') found.msg.mes = found.msg.mes.replace(/\n{3,}/g, '\n\n'); } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  }
+
   function onGenerationEnd() {
     callSetPrompt(PROMPT_KEY + '_gate', '', 0, 0, false);
     if (timeJumpCooldown > 0) timeJumpCooldown--;
@@ -1417,7 +1438,12 @@ async function _collectAllWorldbooks(includeDisabled) {
     if (jumpInfo) { injectTimeJump(jumpInfo); }
     else { callSetPrompt(PROMPT_KEY + '_jump', '', 0, 0, false); const actions = checkAllCountdowns(); injectCountdownActions(actions); }
     injectEventPrompt();
-    setTimeout(function() { runMoonCalculation(); }, 2000);
+    setTimeout(function() {
+      Promise.resolve(runMoonCalculation()).finally(function() {
+        // 让用户配置的正则能稳定命中末尾的“标签 + 换行 s”，同时只清理标签后的后台变量输出。
+        sanitizeSylveinaRegexTail();
+      });
+    }, 2000);
     const nowTriggered = isFateCollapseTriggered();
     if (nowTriggered && !lastTriggerState) { setTimeout(function() { toast('系统视线已降临 · 锚定时间线生效', 'warning'); }, 500); }
     lastTriggerState = nowTriggered;
