@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.5';
-  const MOON_FORMULA_CHANGELOG = "升级复古液晶屏质感，并新增可随时游玩的掌机小游戏、实时分数与本地最高分记录。";
+  const MOON_FORMULA_VERSION = '4.3.6';
+  const MOON_FORMULA_CHANGELOG = "升级为黑绿单色像素液晶屏；屏幕实时展示游戏时间、运行选项与角色档案；修复通过酒馆助手接口自动写入更新。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -656,14 +656,14 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     function keydown(e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } }
     function draw() {
       const w = canvas.width, h = canvas.height, floor = h - 18;
-      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#17241b'; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = 'rgba(183,211,160,.055)'; for (let x = 3; x < w; x += 4) ctx.fillRect(x, 0, 1, h); for (let y = 3; y < h; y += 4) ctx.fillRect(0, y, w, 1);
-      ctx.fillStyle = '#465d43'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
-      ctx.fillStyle = '#a9c68d'; ctx.fillRect(0, floor, w, 2);
+      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#b8d39a'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#18271a'; for (let x = 3; x < w; x += 4) ctx.fillRect(x, 0, 1, h); for (let y = 3; y < h; y += 4) ctx.fillRect(0, y, w, 1);
+      ctx.fillStyle = '#18271a'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
+      ctx.fillStyle = '#18271a'; ctx.fillRect(0, floor, w, 2);
       if (!dead) { tick++; score += 0.08; speed = Math.min(6, 3 + score / 140); jumpY += jumpV; jumpV += 0.42; if (jumpY > 0) { jumpY = 0; jumpV = 0; }
         obstacles.forEach(function(o) { o.x -= speed; if (o.x < -o.w) { o.x = w + 65 + Math.random() * 100; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); } if (o.x < 46 && o.x + o.w > 30 && floor - (o.h - 2) > floor + jumpY - 23) { dead = true; stateEl.textContent = 'GAME OVER · TAP TO RETRY'; } }); }
-      ctx.fillStyle = '#c5ddaa'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillStyle = '#e9f5d2'; ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
-      ctx.fillStyle = '#76936a'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
+      ctx.fillStyle = '#18271a'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
+      ctx.fillStyle = '#18271a'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
       const scoreNow = Math.floor(score);
       if (scoreNow !== shownScore) {
         shownScore = scoreNow;
@@ -2330,12 +2330,14 @@ async function doAutoUpdate(remote) {
   }
 
   showLoadingDialog('正在写入更新...');
-  const okLS = tryApplyUpdateToStorage(code);
+  let okTH = false;
+  try { okTH = await tryApplyUpdateViaTavernHelper(code); } catch (e) { try { console.warn('[Moon] TavernHelper 脚本更新接口失败:', e); } catch (e2) {} }
+  const okLS = okTH ? false : tryApplyUpdateToStorage(code);
   let okIDB = false;
-  try { okIDB = await tryApplyUpdateToIndexedDB(code); } catch (e) {}
+  if (!okTH) { try { okIDB = await tryApplyUpdateToIndexedDB(code); } catch (e) {} }
   closeLoadingDialog();
 
-  if (okLS || okIDB) {
+  if (okTH || okLS || okIDB) {
     _cachedUpdateInfo = null;
     toast('更新成功，即将刷新页面...', 'success');
     setTimeout(function() {
@@ -2362,6 +2364,51 @@ async function doAutoUpdate(remote) {
       '<br>请打开「酒馆助手 → 脚本管理」，找到本脚本，把新内容粘贴进去并保存。<br>' +
       '<span style="color:#fbbf24;">保存后本脚本会在下次加载时自动刷新页面。</span></div>',
     null, { confirmText: '知道了' });
+}
+
+// 通过酒馆助手公开脚本树接口更新自身，避免依赖酒馆内部 localStorage/IndexedDB 结构。
+async function tryApplyUpdateViaTavernHelper(code) {
+  const helper = mainWin && mainWin.TavernHelper;
+  if (!helper || typeof helper.getScriptTrees !== 'function' || typeof helper.updateScriptTreesWith !== 'function') return false;
+  const scriptId = 'e22f244b-70e1-448e-b24e-5a9b36c48484';
+  const types = ['global', 'preset', 'character'];
+  const containsTarget = function(nodes) {
+    return Array.isArray(nodes) && nodes.some(function(node) {
+      return !!node && (node.id === scriptId && node.type === 'script' || node.type === 'folder' && containsTarget(node.scripts));
+    });
+  };
+  const rewrite = function(nodes, state) {
+    return (nodes || []).map(function(node) {
+      if (!node || typeof node !== 'object') return node;
+      if (node.type === 'script' && node.id === scriptId) {
+        state.count++;
+        return Object.assign({}, node, { content: code });
+      }
+      if (node.type === 'folder' && Array.isArray(node.scripts)) return Object.assign({}, node, { scripts: rewrite(node.scripts, state) });
+      return Object.assign({}, node);
+    });
+  };
+  for (let i = 0; i < types.length; i++) {
+    const type = types[i];
+    let trees;
+    try { trees = helper.getScriptTrees({ type: type }); } catch (e) { continue; }
+    if (!containsTarget(trees)) continue;
+    const state = { count: 0 };
+    await helper.updateScriptTreesWith(function(currentTrees) { return rewrite(currentTrees, state); }, { type: type });
+    if (!state.count) return false;
+    const saved = helper.getScriptTrees({ type: type });
+    let verified = false;
+    const verify = function(nodes) {
+      (nodes || []).forEach(function(node) {
+        if (!node) return;
+        if (node.type === 'script' && node.id === scriptId && node.content === code) verified = true;
+        if (node.type === 'folder') verify(node.scripts);
+      });
+    };
+    verify(saved);
+    if (verified) return true;
+  }
+  return false;
 }
 
 // 尝试在 localStorage 里找到包含本脚本 id 的管理数据并替换 content
@@ -3031,6 +3078,32 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-lcd-card .mp-mode-btn div{color:inherit !important;}' +
       '#moon-phase-panel .mp-lcd-card .mp-mode-btn div:last-child{opacity:.9 !important;}' +
       '#moon-phase-panel .mp-lcd-card>div[style*="margin-top:8px"]{color:#b8ccb0 !important;}' +
+      '#moon-phase-panel .mp-lcd-card{padding:9px !important;background:#101610 !important;border:3px solid #374a37 !important;box-shadow:inset 0 0 0 2px #080d08,0 0 0 2px #080d08 !important;color:#18271a !important;}' +
+      '#moon-phase-panel .mp-lcd-card:before{display:none !important;}' +
+      '#moon-phase-panel .mp-lcd-screen{position:relative;overflow:hidden;padding:10px;background-color:#b8d39a;background-image:radial-gradient(#18271a .55px,transparent .7px);background-size:4px 4px;color:#18271a;border:3px inset #647b51;box-shadow:inset 0 0 14px rgba(24,39,26,.24);font:10px "Courier New",monospace;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-lcd-screen>*{position:relative;z-index:1;color:#18271a !important;text-shadow:none !important;}' +
+      '#moon-phase-panel .mp-lcd-screen-head,#moon-phase-panel .mp-lcd-character-head{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-bottom:5px;border-bottom:1px solid #526a43;font-size:8px;font-weight:bold;letter-spacing:.5px;}' +
+      '#moon-phase-panel .mp-lcd-screen-head b{padding:2px 4px;border:1px solid #526a43;font-size:7px;}' +
+      '#moon-phase-panel .mp-lcd-world-time{padding:7px 0 5px;border-bottom:1px dotted #526a43;font-weight:bold;}' +
+      '#moon-phase-panel .mp-lcd-selection{padding:6px 0;border-bottom:1px dotted #526a43;line-height:1.6;}' +
+      '#moon-phase-panel .mp-lcd-selection b{display:block;margin-bottom:2px;}' +
+      '#moon-phase-panel .mp-lcd-selection span{display:block;font-size:8px;}' +
+      '#moon-phase-panel .mp-lcd-character-head{margin-top:6px;padding-bottom:4px;}' +
+      '#moon-phase-panel .mp-lcd-character-select{max-width:48%;padding:2px 4px;background:#b8d39a;border:1px solid #526a43;color:#18271a;font:8px "Courier New",monospace;}' +
+      '#moon-phase-panel .mp-lcd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:6px 0 4px;}' +
+      '#moon-phase-panel .mp-lcd-stats span{padding:3px 2px;border:1px solid #657c53;text-align:center;font-size:8px;}' +
+      '#moon-phase-panel .mp-lcd-stats b{display:block;font-size:10px;}' +
+      '#moon-phase-panel .mp-lcd-mood-row{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:8px;}' +
+      '#moon-phase-panel .mp-lcd-pixel-face{display:grid;grid-template-columns:repeat(5,4px);grid-auto-rows:4px;gap:1px;padding:3px;background:#b8d39a;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-lcd-pixel-face i{display:block;width:4px;height:4px;background:transparent;}' +
+      '#moon-phase-panel .mp-lcd-pixel-face i.on{background:#18271a;}' +
+      '#moon-phase-panel .mp-lcd-voice{padding:4px 0;border-top:1px dotted #526a43;line-height:1.5;}' +
+      '#moon-phase-panel .mp-lcd-voice small{font-size:7px;font-weight:bold;}' +
+      '#moon-phase-panel .mp-lcd-voice div{max-height:54px;overflow:auto;overflow-wrap:anywhere;}' +
+      '#moon-phase-panel .mp-lcd-empty{padding:16px 4px;text-align:center;line-height:1.8;font-size:8px;}' +
+      '#moon-phase-panel .mp-lcd-screen-foot{padding-top:5px;border-top:1px dotted #526a43;text-align:right;font-size:7px;letter-spacing:.5px;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#526a43 !important;background:#111a12 !important;color:#b8d39a !important;box-shadow:2px 2px 0 #080d08 !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#b8d39a !important;color:#18271a !important;border-color:#b8d39a !important;}' +
       '#moon-phase-panel .mp-label,#moon-phase-panel .mp-toggle-title{color:#ffd1f1 !important;}' +
       '#moon-phase-panel .mp-btn,#moon-phase-panel .mp-mode-btn,#moon-phase-panel .mp-antisl,#moon-phase-panel .mp-extra-btn,#moon-phase-panel .mp-cardmode-btn,#moon-phase-panel .mp-fanfic-btn,#moon-phase-panel .mp-safelock-btn,#moon-phase-panel .mp-pacing-btn{border-radius:2px !important;font-family:"Courier New",monospace !important;box-shadow:2px 2px 0 #35152f;transition:transform .08s,filter .08s;}' +
       '#moon-phase-panel .mp-btn{background:#170d1a !important;border-color:#643052 !important;color:#f8d8ee !important;}' +
@@ -3052,7 +3125,7 @@ function openUpdateConfigDialog(panel) {
       '.mp-loading-box{padding:20px 28px;border-radius:3px;background:#100914;border:2px solid #f472d0;color:#ffe1f5;font-size:13px;text-align:center;min-width:260px;max-width:360px;box-sizing:border-box;box-shadow:0 0 0 3px #2a1029,0 0 26px rgba(244,114,208,.2);}' +
       '.mp-loading-track{height:5px;border:1px solid #74305f;background:#1a101b;overflow:hidden;position:relative;}' +
       '.mp-loading-bar{position:absolute;top:0;height:100%;width:38%;background:#f472d0;animation:moon-progress-slide 1.25s ease-in-out infinite;}' +
-      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:linear-gradient(145deg,#354137,#202b23 48%,#172119);border:3px solid #788b6e;outline:3px solid #101912;color:#dbe9ce;text-align:center;box-shadow:inset 0 0 0 2px rgba(208,226,191,.15),inset 0 0 18px rgba(166,194,145,.12),0 5px 0 #080e0a;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
+      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:#b8d39a;border:3px solid #647b51;outline:3px solid #080d08;color:#18271a;text-align:center;box-shadow:inset 0 0 0 2px #8cae70,inset 0 0 18px rgba(24,39,26,.16),0 5px 0 #080d08;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
       '.mp-arcade-brand{font-size:10px;letter-spacing:2px;color:#c0d4a9;text-shadow:1px 1px #344733;margin-bottom:8px;}' +
       '.mp-arcade-title{font-size:11px;line-height:1.6;color:#e1edcf;margin:0 auto 8px;max-width:320px;}' +
       '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:9px;color:#bdcdaa;margin:0 auto 5px;max-width:320px;}' +
@@ -3061,6 +3134,9 @@ function openUpdateConfigDialog(panel) {
       '.mp-arcade-state{min-height:15px;margin-top:8px;color:#d8e9be;font-size:9px;letter-spacing:1px;}' +
       '.mp-arcade-foot{margin-top:6px;color:#aebd9e;font-size:9px;line-height:1.5;}' +
       '.mp-arcade-exit{margin-top:8px;padding:5px 10px;background:#27352a;border:1px solid #71866b;color:#dce9cc;font:10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #101812;}' +
+      '.mp-arcade-brand,.mp-arcade-title,.mp-arcade-hud,.mp-arcade-hud b,.mp-arcade-state,.mp-arcade-foot{color:#18271a !important;text-shadow:none !important;}' +
+      '#moon-arcade-canvas{border-color:#526a43 !important;background:#b8d39a !important;box-shadow:inset 0 0 10px rgba(24,39,26,.2) !important;}' +
+      '.mp-arcade-exit{background:#b8d39a !important;border-color:#526a43 !important;color:#18271a !important;}' +
       '.mp-lcd-game{padding:8px !important;}' +
       '.mp-lcd-game .mp-arcade-box{width:100%;padding:9px 7px 8px;border-width:2px;outline:2px solid #101912;}' +
       '.mp-lcd-game .mp-arcade-brand{margin-bottom:5px;font-size:9px;}' +
@@ -3145,6 +3221,62 @@ function openUpdateConfigDialog(panel) {
     return html;
   }
 
+  function lcdEscape(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function renderLcdMood(emotion) {
+    const e = String(emotion || '😐');
+    let kind = 'neutral';
+    if (/[😊😄😁🙂🥰😍❤️💕💖😘]/.test(e)) kind = 'happy';
+    else if (/[😢😭😞☹️🥺]/.test(e)) kind = 'sad';
+    else if (/[😠😡🤬💢]/.test(e)) kind = 'angry';
+    else if (/[😳☺️😶‍🌫️]/.test(e)) kind = 'shy';
+    const pixels = {
+      neutral: ['.....', '.###.', '#...#', '#.#.#', '.....', '.#.#.', '..#..'],
+      happy: ['.....', '.###.', '#...#', '#...#', '#.#.#', '#...#', '.###.'],
+      sad: ['.....', '.###.', '#...#', '#...#', '#.#.#', '.#.#.', '..#..'],
+      angry: ['#...#', '.###.', '#...#', '.#.#.', '#...#', '.###.', '.....'],
+      shy: ['.....', '.###.', '#...#', '#.#.#', '#...#', '.###.', '..#..']
+    }[kind];
+    return '<span class="mp-lcd-pixel-face" role="img" aria-label="心情 ' + lcdEscape(e) + '" title="心情：' + lcdEscape(e) + '">' + pixels.join('').replace(/./g, function(px) { return '<i class="' + (px === '#' ? 'on' : '') + '"></i>'; }) + '</span>';
+  }
+
+  function renderLcdCharacterDetails(ch) {
+    if (!ch) return '<div class="mp-lcd-empty">NO CHARACTER DATA<br>建立角色档案后显示角色状态</div>';
+    return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
+      '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
+      '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
+      '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + lcdEscape(ch.情绪 || '😐') + '</span></div>' +
+      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' + lcdEscape(ch.心声 || '暂无心声记录') + '</div></div></div>';
+  }
+
+  function renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn) {
+    const data = readMvuLatest();
+    const stat = data && data.stat_data || {};
+    const world = stat.世界 || {};
+    const chars = stat.角色 || {};
+    const names = Object.keys(chars).filter(function(name) { return !isCharSkeleton(chars[name]); });
+    const selected = names.indexOf(panel.dataset.lcdCharacter || '') >= 0 ? panel.dataset.lcdCharacter : (names[0] || '');
+    if (selected) panel.dataset.lcdCharacter = selected;
+    const ch = selected ? chars[selected] : null;
+    const modeMeta = LUNAR_META[mode] || LUNAR_META.hell;
+    const selections = [
+      '锚定 ' + (antisl ? 'ON' : 'OFF'), '副模 ' + String(extraSetting).toUpperCase(),
+      '卡组 ' + (cardMode === 'multi' ? '多人' : '单人'), '安全锁 ' + (getSafetyLock() ? 'ON' : 'OFF'),
+      '节奏 ' + (pacing === 'Adi' ? '柔板' : pacing === 'All' ? '快板' : '行板'), '同人 ' + (fanficOn ? 'ON' : 'OFF')
+    ];
+    const options = names.map(function(name) { return '<option value="' + lcdEscape(name) + '"' + (name === selected ? ' selected' : '') + '>' + lcdEscape(name) + '</option>'; }).join('');
+    return '<div class="mp-lcd-screen"><div class="mp-lcd-screen-head"><span>MOON POCKET · STATUS</span><b>MONO LCD</b></div>' +
+      '<div class="mp-lcd-world-time">WORLD TIME　' + lcdEscape(world.时间 || '等待游戏时间') + '</div>' +
+      '<div class="mp-lcd-selection"><b>难度 / ' + lcdEscape(modeMeta.name) + ' · ' + lcdEscape(modeMeta.title) + '</b><span>' + selections.map(lcdEscape).join('　') + '</span></div>' +
+      '<div class="mp-lcd-character-head"><span>角色存档 / CHARACTER FILE</span>' +
+      (names.length ? '<select class="mp-lcd-character-select" aria-label="选择角色档案">' + options + '</select>' : '') + '</div>' +
+      '<div class="mp-lcd-character-view">' + renderLcdCharacterDetails(ch) + '</div><div class="mp-lcd-screen-foot">PIXEL DISPLAY · PLAYER STATUS</div></div>';
+  }
+
   function renderPanel(panel) {
     if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
     const mode = getCurrentMode();
@@ -3167,7 +3299,8 @@ function openUpdateConfigDialog(panel) {
   (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
 '</span>' +
       '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
-      '<div class="mp-card mp-lcd-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
+      '<div class="mp-card mp-lcd-card">' + renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn) + '</div>' +
+      '<div class="mp-card mp-mode-select-card"><div class="mp-label">游戏难度选择 / SELECT LEVEL</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
       ['easy', 'normal', 'hard', 'hell'].map(function(m) {
         const item = LUNAR_META[m]; const isAct = (m === mode);
@@ -3297,6 +3430,16 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
         const btn = event.target && event.target.closest ? event.target.closest('.mp-mode-btn') : null;
         if (!btn || !panel.contains(btn)) return;
         const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel();
+      });
+    }
+    const lcdCharacterSelect = panel.querySelector('.mp-lcd-character-select');
+    if (lcdCharacterSelect) {
+      lcdCharacterSelect.addEventListener('change', function() {
+        panel.dataset.lcdCharacter = lcdCharacterSelect.value;
+        const data = readMvuLatest();
+        const character = data && data.stat_data && data.stat_data.角色 && data.stat_data.角色[lcdCharacterSelect.value];
+        const view = panel.querySelector('.mp-lcd-character-view');
+        if (view) view.innerHTML = renderLcdCharacterDetails(character);
       });
     }
     panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s = getSettings(); s.antisl = !(s.antisl === true); saveSettings(s); refreshPanel(); });
