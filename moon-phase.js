@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.3';
-  const MOON_FORMULA_CHANGELOG = "修复更新检查读取过期 CDN 版本的问题，并将版本检查结果的按钮文案改为“关闭”。菜单分组与设置文案统一调整为复古掌机系统风格，保留原有功能。";
+  const MOON_FORMULA_VERSION = '4.3.4';
+  const MOON_FORMULA_CHANGELOG = "为月相运行模式加入复古液晶屏显示效果，保留现有难度选项与操作。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -3003,6 +3003,15 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-title{color:#ffb8eb !important;text-shadow:2px 2px #5a164d;letter-spacing:.5px !important;font-size:12px !important;}' +
       '#moon-phase-panel .mp-title-orb{filter:drop-shadow(0 0 5px #f472d0);}' +
       '#moon-phase-panel .mp-card{background:#100a13 !important;border:1px solid rgba(244,114,208,.32) !important;border-radius:3px !important;box-shadow:inset 0 0 0 1px rgba(244,114,208,.05);}' +
+      '#moon-phase-panel .mp-lcd-card{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(145deg,#1b2b22 0%,#132119 52%,#0c1711 100%) !important;border-color:#54745c !important;box-shadow:inset 0 0 0 2px rgba(166,205,148,.08),inset 0 0 22px rgba(133,181,112,.12),0 0 12px rgba(129,176,113,.08) !important;color:#d2e5c8;}' +
+      '#moon-phase-panel .mp-lcd-card:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(210,238,190,.055) 0,rgba(210,238,190,.055) 1px,transparent 1px,transparent 3px),repeating-linear-gradient(to right,rgba(190,224,171,.025) 0,rgba(190,224,171,.025) 1px,transparent 1px,transparent 4px);opacity:.52;}' +
+      '#moon-phase-panel .mp-lcd-card>*{position:relative;z-index:1;}' +
+      '#moon-phase-panel .mp-lcd-card .mp-label{color:#d6ebc7 !important;text-shadow:0 0 5px rgba(184,222,157,.28);}' +
+      '#moon-phase-panel .mp-lcd-card .mp-mode-btn{border-radius:2px !important;border-color:#58735b !important;background:rgba(15,30,20,.76) !important;color:#bacdb0 !important;box-shadow:inset 0 0 0 1px rgba(191,222,169,.045),2px 2px 0 rgba(3,11,7,.55) !important;}' +
+      '#moon-phase-panel .mp-lcd-card .mp-mode-btn.active{border-color:#a7c78b !important;background:linear-gradient(145deg,#314b34,#263d2c) !important;color:#f0ffdf !important;box-shadow:inset 0 0 0 1px rgba(218,242,187,.16),0 0 9px rgba(171,213,139,.18),2px 2px 0 rgba(3,11,7,.65) !important;}' +
+      '#moon-phase-panel .mp-lcd-card .mp-mode-btn div{color:inherit !important;}' +
+      '#moon-phase-panel .mp-lcd-card .mp-mode-btn div:last-child{opacity:.9 !important;}' +
+      '#moon-phase-panel .mp-lcd-card>div[style*="margin-top:8px"]{color:#b8ccb0 !important;}' +
       '#moon-phase-panel .mp-label,#moon-phase-panel .mp-toggle-title{color:#ffd1f1 !important;}' +
       '#moon-phase-panel .mp-btn,#moon-phase-panel .mp-mode-btn,#moon-phase-panel .mp-antisl,#moon-phase-panel .mp-extra-btn,#moon-phase-panel .mp-cardmode-btn,#moon-phase-panel .mp-fanfic-btn,#moon-phase-panel .mp-safelock-btn,#moon-phase-panel .mp-pacing-btn{border-radius:2px !important;font-family:"Courier New",monospace !important;box-shadow:2px 2px 0 #35152f;transition:transform .08s,filter .08s;}' +
       '#moon-phase-panel .mp-btn{background:#170d1a !important;border-color:#643052 !important;color:#f8d8ee !important;}' +
@@ -3132,7 +3141,7 @@ function openUpdateConfigDialog(panel) {
   (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
 '</span>' +
       '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
-      '<div class="mp-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
+      '<div class="mp-card mp-lcd-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
       ['easy', 'normal', 'hard', 'hell'].map(function(m) {
         const item = LUNAR_META[m]; const isAct = (m === mode);
