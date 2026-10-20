@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.1.2';
-  const MOON_FORMULA_CHANGELOG = "修复时间线标签按钮缺失导致主面板无法打开的问题，并同步更新酒馆助手导入包。\n本次修复安装后，首次启动会显示更新公告；公告只提示一次。";
+  const MOON_FORMULA_VERSION = '4.2.0';
+  const MOON_FORMULA_CHANGELOG = "全界面焕新为黑粉像素街机风格，加入首次自检开场动画与副模型运行时可操作的离线小游戏。\n本次更新保留原功能和数据。";
   const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -28,6 +28,7 @@
   const AUTO_RELOAD_DONE_KEY = 'moon_phase_auto_reload_done_v1';
   const ANNOUNCEMENT_SEEN_KEY = 'moon_phase_announcement_seen_v2';
   const LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY = 'moon_phase_last_update_announcement_version';
+  const SELF_CHECK_ARCADE_SEEN_KEY = 'moon_phase_self_check_arcade_seen_v1';
   const BIO_ASKED_CHATS_KEY = 'moon_phase_bio_asked_chats';
   const USER_BIO_LIBRARY_KEY = 'moon_phase_user_bio_library';
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
@@ -310,7 +311,7 @@
   }
 
   // 调用主模型（SillyTavern Generate 接口），可选 provider: 'main' / 'extra' / 'custom'
-async function callOpeningModel(provider, sysPrompt, userPrompt) {
+async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     // 1. 自定义第三方 API
     if (provider === 'custom') return await callCustomAIConfig(sysPrompt, userPrompt);
 
@@ -359,6 +360,13 @@ async function callOpeningModel(provider, sysPrompt, userPrompt) {
     }
 
     throw new Error('酒馆主模型静默接口不可用，请配置「自定义副模型」使用！');
+  }
+
+  async function callOpeningModel(provider, sysPrompt, userPrompt) {
+    const showArcade = provider === 'extra' || provider === 'custom';
+    if (showArcade) showLoadingDialog('副模型正在处理任务…', true);
+    try { return await _callOpeningModel(provider, sysPrompt, userPrompt); }
+    finally { if (showArcade) closeLoadingDialog(); }
   }
 
   // 回填提示：老存档如果检测到没有本系统变量，给一次弹窗
@@ -576,6 +584,7 @@ async function callOpeningModel(provider, sysPrompt, userPrompt) {
     enqueueModal(function(done) {
       let mask = mainDoc.getElementById('moon-modal-mask'); if (mask) { try { mask.remove(); } catch (e) {} }
       mask = mainDoc.createElement('div'); mask.id = 'moon-modal-mask';
+      mask.className = 'mp-pixel-modal';
       mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483650;background:radial-gradient(circle at center,rgba(15,23,42,0.92) 0%,rgba(2,6,12,0.96) 100%);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
       mask.innerHTML = '<div style="background:linear-gradient(175deg,#141826 0%,#0a0c16 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:18px;padding:22px;width:100%;max-width:460px;max-height:86dvh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.8),0 0 30px rgba(99,102,241,0.18);box-sizing:border-box;"><div style="font-size:15px;font-weight:700;color:#fde047;text-align:center;margin-bottom:16px;border-bottom:1px solid rgba(148,163,184,0.18);padding-bottom:12px;letter-spacing:1.2px;">' + title + '</div><div style="font-size:11.5px;line-height:1.8;color:#cbd5e1;margin-bottom:18px;">' + html + '</div><div style="display:flex;gap:8px;"><button id="moon-modal-confirm" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;">' + (opts.confirmText || '确认') + '</button></div></div>';
       mainDoc.body.appendChild(mask); wrapMaskClose(mask, done);
@@ -590,6 +599,7 @@ async function callOpeningModel(provider, sysPrompt, userPrompt) {
     enqueueModal(function(done) {
       let mask = mainDoc.getElementById('moon-modal-mask'); if (mask) { try { mask.remove(); } catch (e) {} }
       mask = mainDoc.createElement('div'); mask.id = 'moon-modal-mask';
+      mask.className = 'mp-pixel-modal';
       mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483650;background:radial-gradient(circle at center,rgba(15,23,42,0.92) 0%,rgba(2,6,12,0.96) 100%);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
       mask.innerHTML = '<div style="background:linear-gradient(175deg,#141826 0%,#0a0c16 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:18px;padding:22px;width:100%;max-width:460px;max-height:86dvh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.8),0 0 30px rgba(99,102,241,0.18);box-sizing:border-box;"><div style="font-size:15px;font-weight:700;color:#fde047;text-align:center;margin-bottom:16px;border-bottom:1px solid rgba(148,163,184,0.18);padding-bottom:12px;letter-spacing:1.2px;">' + title + '</div><div style="font-size:11.5px;line-height:1.8;color:#cbd5e1;margin-bottom:18px;">' + html + '</div><div style="display:flex;gap:8px;"><button id="moon-modal-cancel" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;">' + (opts.cancelText || '取消') + '</button><button id="moon-modal-confirm" style="flex:1.4;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;">' + (opts.confirmText || '确认') + '</button></div></div>';
       mainDoc.body.appendChild(mask); wrapMaskClose(mask, done);
@@ -606,6 +616,7 @@ async function callOpeningModel(provider, sysPrompt, userPrompt) {
       enqueueModal(function(done) {
         let mask = mainDoc.getElementById('moon-modal-mask'); if (mask) { try { mask.remove(); } catch (e) {} }
         mask = mainDoc.createElement('div'); mask.id = 'moon-modal-mask';
+        mask.className = 'mp-pixel-modal';
         mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483650;background:radial-gradient(circle at center,rgba(15,23,42,0.92) 0%,rgba(2,6,12,0.96) 100%);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
         mask.innerHTML = '<div style="background:linear-gradient(175deg,#141826 0%,#0a0c16 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:18px;padding:22px;width:100%;max-width:520px;max-height:86dvh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.8),0 0 30px rgba(99,102,241,0.18);box-sizing:border-box;"><div style="font-size:15px;font-weight:700;color:#fde047;text-align:center;margin-bottom:16px;border-bottom:1px solid rgba(148,163,184,0.18);padding-bottom:12px;letter-spacing:1.2px;">' + title + '</div><div style="font-size:11.5px;line-height:1.8;color:#cbd5e1;margin-bottom:18px;max-height:60dvh;overflow-y:auto;">' + html + '</div><div style="display:flex;gap:8px;"><button id="moon-step-next" style="flex:1;padding:11px;border-radius:9px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;">' + (opts.confirmText || '确认，进行下一步') + '</button></div></div>';
         mainDoc.body.appendChild(mask);
@@ -619,14 +630,46 @@ async function callOpeningModel(provider, sysPrompt, userPrompt) {
     });
   }
 
-  function showLoadingDialog(text) {
+  let stopArcadeRunner = null;
+  function mountArcadeRunner(mask) {
+    const canvas = mask.querySelector('#moon-arcade-canvas');
+    const scoreEl = mask.querySelector('#moon-arcade-score');
+    const stateEl = mask.querySelector('#moon-arcade-state');
+    if (!canvas || !canvas.getContext) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    let raf = 0, score = 0, speed = 3, tick = 0, dead = false, jumpY = 0, jumpV = 0;
+    let obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }];
+    function jump() { if (dead) { score = 0; dead = false; speed = 3; obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }]; stateEl.textContent = 'PRESS SPACE / TAP TO JUMP'; return; } if (jumpY === 0) jumpV = -8; }
+    function keydown(e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } }
+    function draw() {
+      const w = canvas.width, h = canvas.height, floor = h - 18;
+      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#100914'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#4b1641'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
+      ctx.fillStyle = '#f472d0'; ctx.fillRect(0, floor, w, 2);
+      if (!dead) { tick++; score += 0.08; speed = Math.min(6, 3 + score / 140); jumpY += jumpV; jumpV += 0.42; if (jumpY > 0) { jumpY = 0; jumpV = 0; }
+        obstacles.forEach(function(o) { o.x -= speed; if (o.x < -o.w) { o.x = w + 65 + Math.random() * 100; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); } if (o.x < 46 && o.x + o.w > 30 && floor - (o.h - 2) > floor + jumpY - 23) { dead = true; stateEl.textContent = 'GAME OVER · TAP TO RETRY'; } }); }
+      ctx.fillStyle = '#ff4fc8'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillStyle = '#ffd9f4'; ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
+      ctx.fillStyle = '#fb7185'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
+      scoreEl.textContent = String(Math.floor(score)).padStart(5, '0');
+      raf = mainWin.requestAnimationFrame(draw);
+    }
+    canvas.addEventListener('pointerdown', jump); mainDoc.addEventListener('keydown', keydown, true); draw();
+    stopArcadeRunner = function() { try { mainWin.cancelAnimationFrame(raf); } catch (e) {} try { mainDoc.removeEventListener('keydown', keydown, true); } catch (e) {} canvas.removeEventListener('pointerdown', jump); };
+  }
+
+  function showLoadingDialog(text, withArcade) {
     closeLoadingDialog();
     const mask = mainDoc.createElement('div'); mask.id = 'moon-loading-mask';
-    mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2147483660;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;';
-    mask.innerHTML = '<div style="padding:20px 28px;border-radius:14px;background:#0f172a;border:1px solid rgba(148,163,184,0.3);color:#e2e8f0;font-size:13px;text-align:center;min-width:260px;max-width:360px;box-sizing:border-box;"><div style="margin-bottom:12px;" id="moon-loading-text">⏳ ' + text + '</div><div style="height:4px;border-radius:2px;background:rgba(148,163,184,0.15);overflow:hidden;position:relative;"><div style="position:absolute;top:0;height:100%;width:38%;border-radius:2px;background:linear-gradient(90deg,rgba(56,189,248,0),#38bdf8 30%,#7dd3fc 70%,rgba(125,211,252,0));animation:moon-progress-slide 1.25s ease-in-out infinite;"></div></div><div style="font-size:10.5px;color:#64748b;margin-top:8px;">请稍候</div></div>';
+    mask.className = withArcade ? 'moon-pixel-loading' : '';
+    mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483660;background:rgba(5,0,8,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;';
+    mask.innerHTML = withArcade
+      ? '<div class="mp-arcade-box"><div class="mp-arcade-brand">★ MOON ARCADE ★</div><div class="mp-arcade-title" id="moon-loading-text">' + text + '</div><div class="mp-arcade-hud"><span>HI-SCORE <b id="moon-arcade-score">00000</b></span><span>1P · PLAYER</span></div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格或点击跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">操作角色跳过障碍 · 任务完成后自动返回</div></div>'
+      : '<div class="mp-loading-box"><div style="margin-bottom:12px;" id="moon-loading-text">⏳ ' + text + '</div><div class="mp-loading-track"><div class="mp-loading-bar"></div></div><div style="font-size:10.5px;color:#d68cbd;margin-top:8px;">请稍候</div></div>';
     mainDoc.body.appendChild(mask);
+    if (withArcade) mountArcadeRunner(mask);
   }
-  function closeLoadingDialog() { const m = mainDoc.getElementById('moon-loading-mask'); if (m) { try { m.remove(); } catch (e) {} } }
+  function closeLoadingDialog() { if (stopArcadeRunner) { try { stopArcadeRunner(); } catch (e) {} stopArcadeRunner = null; } const m = mainDoc.getElementById('moon-loading-mask'); if (m) { try { m.remove(); } catch (e) {} } }
   function showResultDialog(title, html, onOpenExtra) { showModalDialog(title, html, null, { confirmText: '我已截图 / 关闭', onOpen: onOpenExtra }); }
   function wrapMaskClose(mask, onClosed) {
     if (!mask || typeof mask.remove !== 'function') return;
@@ -2947,7 +2990,42 @@ function openUpdateConfigDialog(panel) {
       '.mp-log-subhead{margin-top:8px;margin-bottom:4px;color:#fde047;font-size:11px;font-weight:700;}' +
       '@keyframes moon-fade{from{opacity:0;transform:scale(0.96) translateY(4px);}to{opacity:1;transform:scale(1) translateY(0);}}' +
       '@keyframes moon-progress-slide{0%{left:-40%;}100%{left:105%;}}' +
-      '@keyframes moon-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}';
+      '@keyframes moon-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}' +
+      '#moon-phase-panel{background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0,rgba(255,255,255,.012) 1px,transparent 1px,transparent 4px),linear-gradient(180deg,#160b18 0%,#09060d 100%) !important;border:2px solid #f472d0 !important;border-radius:4px !important;padding:16px !important;font-family:"Courier New",monospace !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.26) !important;image-rendering:pixelated;}' +
+      '#moon-phase-panel .mp-head{border-bottom:2px dashed rgba(244,114,208,.45) !important;}' +
+      '#moon-phase-panel .mp-title{color:#ffb8eb !important;text-shadow:2px 2px #5a164d;letter-spacing:.5px !important;font-size:12px !important;}' +
+      '#moon-phase-panel .mp-title-orb{filter:drop-shadow(0 0 5px #f472d0);}' +
+      '#moon-phase-panel .mp-card{background:#100a13 !important;border:1px solid rgba(244,114,208,.32) !important;border-radius:3px !important;box-shadow:inset 0 0 0 1px rgba(244,114,208,.05);}' +
+      '#moon-phase-panel .mp-label,#moon-phase-panel .mp-toggle-title{color:#ffd1f1 !important;}' +
+      '#moon-phase-panel .mp-btn,#moon-phase-panel .mp-mode-btn,#moon-phase-panel .mp-antisl,#moon-phase-panel .mp-extra-btn,#moon-phase-panel .mp-cardmode-btn,#moon-phase-panel .mp-fanfic-btn,#moon-phase-panel .mp-safelock-btn,#moon-phase-panel .mp-pacing-btn{border-radius:2px !important;font-family:"Courier New",monospace !important;box-shadow:2px 2px 0 #35152f;transition:transform .08s,filter .08s;}' +
+      '#moon-phase-panel .mp-btn{background:#170d1a !important;border-color:#643052 !important;color:#f8d8ee !important;}' +
+      '#moon-phase-panel .mp-btn:hover{background:#31132b !important;border-color:#f472d0 !important;transform:translate(-1px,-1px);filter:brightness(1.12);}' +
+      '#moon-phase-panel .mp-btn-highlight{background:#32112b !important;border-color:#f472d0 !important;color:#ffb8eb !important;}' +
+      '#moon-phase-panel .mp-btn-user{background:#241025 !important;border-color:#d946a6 !important;color:#ffc4e9 !important;}' +
+      '#moon-phase-panel .mp-status{background:#08060a !important;border:1px dashed #7a3a68 !important;border-radius:2px !important;color:#e7b9d8 !important;}' +
+      '#moon-phase-panel .mp-badge{border-radius:2px !important;background:#2a1126 !important;border-color:#87416e !important;color:#ffc4e9 !important;}' +
+      '#moon-phase-panel .mp-fate{border-radius:2px !important;}' +
+      '#moon-modal-mask.mp-pixel-modal>div{background:linear-gradient(180deg,#170b18,#09060d) !important;border:2px solid #f472d0 !important;border-radius:4px !important;font-family:"Courier New",monospace !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.24) !important;}' +
+      '#moon-modal-mask.mp-pixel-modal>div>div:first-child,#moon-firstboot-mask>div>div:first-child{color:#ff8cdb !important;border-color:rgba(244,114,208,.45) !important;text-shadow:2px 2px #48153e;}' +
+      '#moon-modal-mask.mp-pixel-modal button{border-radius:2px !important;background:#37102f !important;border:1px solid #f472d0 !important;color:#ffe1f5 !important;font-family:"Courier New",monospace !important;box-shadow:2px 2px 0 #42173a;}' +
+      '#moon-modal-mask.mp-pixel-modal button:hover{filter:brightness(1.2);}' +
+      '#moon-firstboot-mask{font-family:"Courier New",monospace !important;}' +
+      '#moon-firstboot-mask>div{border-radius:4px !important;border:2px solid #f472d0 !important;background:linear-gradient(180deg,#170b18,#09060d) !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.25) !important;}' +
+      '#moon-firstboot-mask button{border-radius:2px !important;background:#37102f !important;border-color:#f472d0 !important;}' +
+      '.mp-pixel-loading{font-family:"Courier New",monospace !important;}' +
+      '.mp-loading-box{padding:20px 28px;border-radius:3px;background:#100914;border:2px solid #f472d0;color:#ffe1f5;font-size:13px;text-align:center;min-width:260px;max-width:360px;box-sizing:border-box;box-shadow:0 0 0 3px #2a1029,0 0 26px rgba(244,114,208,.2);}' +
+      '.mp-loading-track{height:5px;border:1px solid #74305f;background:#1a101b;overflow:hidden;position:relative;}' +
+      '.mp-loading-bar{position:absolute;top:0;height:100%;width:38%;background:#f472d0;animation:moon-progress-slide 1.25s ease-in-out infinite;}' +
+      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:16px 14px 12px;background:#0b0710;border:3px solid #f472d0;outline:3px solid #35132f;color:#ffd9f3;text-align:center;box-shadow:0 0 34px rgba(244,114,208,.3),inset 0 0 0 2px #271021;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
+      '.mp-arcade-brand{font-size:11px;letter-spacing:3px;color:#f472d0;text-shadow:2px 2px #501448;margin-bottom:10px;}' +
+      '.mp-arcade-title{font-size:12px;line-height:1.7;color:#fff0fb;margin:0 auto 10px;max-width:320px;}' +
+      '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:9px;color:#e7a8d5;margin:0 auto 5px;max-width:320px;}' +
+      '.mp-arcade-hud b{color:#fff;font-weight:700;margin-left:4px;}' +
+      '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:1px solid #a34687;background:#100914;image-rendering:pixelated;touch-action:manipulation;}' +
+      '.mp-arcade-state{min-height:15px;margin-top:8px;color:#f472d0;font-size:9px;letter-spacing:1px;}' +
+      '.mp-arcade-foot{margin-top:6px;color:#a9809e;font-size:9px;line-height:1.5;}' +
+      '#moon-loading-mask.mp-pixel-loading{font-family:"Courier New",monospace !important;}' +
+      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-title{max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.mp-arcade-box{padding:12px 9px;}}';
   }
 // ===== 第 16 份 =====
   function renderEventStatusCard() {
@@ -3098,7 +3176,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s.eventPacing = next; saveSettings(s); refreshPanel(); });
     panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
     panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">⚡ 捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
-    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 运行自检...</span>'; const html = await runSelfCheck(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
+    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">⏳ 运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
     panel.querySelector('#moon-phase-simtest').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
     panel.querySelector('#moon-phase-conflict').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
     panel.querySelector('#moon-phase-reroll').addEventListener('click', function() { openRerollDialog(panel); });
@@ -3182,6 +3260,17 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
       if (bioStatus.count > 0) info('覆盖角色：' + bioStatus.charNames.join('、'));
     }
     return lines.join('<br>');
+  }
+
+  async function runSelfCheckWithArcade() {
+    let seen = false;
+    try { seen = mainWin.localStorage.getItem(SELF_CHECK_ARCADE_SEEN_KEY) === '1'; } catch (e) {}
+    if (seen) return await runSelfCheck();
+    try { mainWin.localStorage.setItem(SELF_CHECK_ARCADE_SEEN_KEY, '1'); } catch (e) {}
+    showLoadingDialog('首次系统自检 · 正在启动像素扫描…', true);
+    await sleep(1400);
+    try { return await runSelfCheck(); }
+    finally { closeLoadingDialog(); }
   }
 
   async function runSimulationTest() {
@@ -4925,6 +5014,7 @@ async function applyAdaptiveOpening(charName, values) {
     closeFirstBootDialog();
     const mask = mainDoc.createElement('div');
     mask.id = 'moon-firstboot-mask';
+    mask.className = 'mp-pixel-modal';
     mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483648;background:radial-gradient(circle at center,rgba(15,23,42,0.96) 0%,rgba(2,6,12,0.98) 100%);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
     mask.innerHTML = '' +
       '<div style="background:linear-gradient(175deg,#141826 0%,#0a0c16 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:20px;padding:26px;width:100%;max-width:480px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;box-shadow:0 25px 70px rgba(0,0,0,0.85),0 0 40px rgba(99,102,241,0.25);box-sizing:border-box;">' +
@@ -4996,7 +5086,7 @@ async function applyAdaptiveOpening(charName, values) {
     updateFirstBootProgress(1, '⏳ 正在扫描系统状态...');
     await sleep(800);
     let selfcheckHtml = '';
-    try { selfcheckHtml = await runSelfCheck(); } catch(e) { selfcheckHtml = '<div style="color:#f87171">自检异常：' + String(e && e.message || e) + '</div>'; }
+    try { selfcheckHtml = await runSelfCheckWithArcade(); } catch(e) { selfcheckHtml = '<div style="color:#f87171">自检异常：' + String(e && e.message || e) + '</div>'; }
     updateFirstBootProgress(1, '✔ 自检完成，请查看结果');
     await showStepDialog('🔭 自检报告', selfcheckHtml, { confirmText: '✔ 看完了，下一步' });
     updateFirstBootProgress(1, '✔ 自检通过');
