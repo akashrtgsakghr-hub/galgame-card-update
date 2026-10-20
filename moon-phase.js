@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.6';
-  const MOON_FORMULA_CHANGELOG = "升级为黑绿单色像素液晶屏；屏幕实时展示游戏时间、运行选项与角色档案；修复通过酒馆助手接口自动写入更新。";
+  const MOON_FORMULA_VERSION = '4.3.7';
+  const MOON_FORMULA_CHANGELOG = "街机最高分现在按聊天窗口分别保存在聊天元数据中，并记录达成时的现实本地时间。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -30,7 +30,8 @@
   const ANNOUNCEMENT_SEEN_KEY = 'moon_phase_announcement_seen_v2';
   const LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY = 'moon_phase_last_update_announcement_version';
   const SELF_CHECK_ARCADE_SEEN_KEY = 'moon_phase_self_check_arcade_seen_v1';
-  const ARCADE_HIGH_SCORE_KEY = 'moon_phase_arcade_high_score_v1';
+  const ARCADE_CHAT_RECORD_KEY = 'moon_phase_arcade_record_v1';
+  const LEGACY_ARCADE_HIGH_SCORE_KEY = 'moon_phase_arcade_high_score_v1';
   const BIO_ASKED_CHATS_KEY = 'moon_phase_bio_asked_chats';
   const USER_BIO_LIBRARY_KEY = 'moon_phase_user_bio_library';
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
@@ -633,11 +634,65 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
   }
 
   function getArcadeHighScore() {
-    try { return Math.max(0, parseInt(mainWin.localStorage.getItem(ARCADE_HIGH_SCORE_KEY), 10) || 0); } catch (e) { return 0; }
+    const record = getArcadeRecord();
+    return Math.max(0, parseInt(record.score, 10) || 0);
   }
   function saveArcadeHighScore(score) {
-    try { mainWin.localStorage.setItem(ARCADE_HIGH_SCORE_KEY, String(Math.max(getArcadeHighScore(), score))); } catch (e) {}
+    const current = getArcadeRecord();
+    const nextScore = Math.max(0, Math.floor(Number(score) || 0));
+    if (nextScore <= (Number(current.score) || 0)) return current;
+    const ctx = getSTCtx();
+    if (!ctx) return current;
+    if (!ctx.chatMetadata || typeof ctx.chatMetadata !== 'object') ctx.chatMetadata = {};
+    const record = { score: nextScore, achievedAt: Date.now() };
+    ctx.chatMetadata[ARCADE_CHAT_RECORD_KEY] = record;
+    scheduleArcadeMetadataSave(ctx);
+    return record;
   }
+  function getArcadeRecord() {
+    try {
+      const ctx = getSTCtx();
+      const record = ctx && ctx.chatMetadata && ctx.chatMetadata[ARCADE_CHAT_RECORD_KEY];
+      if (record && typeof record === 'object') return { score: Math.max(0, parseInt(record.score, 10) || 0), achievedAt: Number(record.achievedAt) || 0 };
+      // 一次性把旧版全局分数转入当前聊天；旧版没有时间戳，因此明确保留为“时间未记录”。
+      if (ctx && ctx.chatMetadata) {
+        const legacyScore = Math.max(0, parseInt(mainWin.localStorage.getItem(LEGACY_ARCADE_HIGH_SCORE_KEY), 10) || 0);
+        if (legacyScore > 0) {
+          const migrated = { score: legacyScore, achievedAt: 0, migrated: true };
+          ctx.chatMetadata[ARCADE_CHAT_RECORD_KEY] = migrated;
+          mainWin.localStorage.removeItem(LEGACY_ARCADE_HIGH_SCORE_KEY);
+          scheduleArcadeMetadataSave(ctx);
+          return migrated;
+        }
+      }
+    } catch (e) {}
+    return { score: 0, achievedAt: 0 };
+  }
+  function formatArcadeRecordTime(timestamp, score) {
+    const date = new Date(Number(timestamp) || 0);
+    if (!timestamp || !isFinite(date.getTime())) return Number(score) > 0 ? '旧纪录时间未记录' : '暂无纪录时间';
+    const pad = function(value) { return String(value).padStart(2, '0'); };
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+  let _arcadeMetadataSaveTimer = null;
+  let _arcadeMetadataSaveContext = null;
+  function scheduleArcadeMetadataSave(ctx) {
+    _arcadeMetadataSaveContext = ctx;
+    if (_arcadeMetadataSaveTimer) return;
+    _arcadeMetadataSaveTimer = setTimeout(function() {
+      _arcadeMetadataSaveTimer = null;
+      flushArcadeMetadataSave();
+    }, 1800);
+  }
+  function flushArcadeMetadataSave() {
+    if (_arcadeMetadataSaveTimer) { clearTimeout(_arcadeMetadataSaveTimer); _arcadeMetadataSaveTimer = null; }
+    const ctx = _arcadeMetadataSaveContext;
+    _arcadeMetadataSaveContext = null;
+    if (ctx && typeof ctx.saveMetadata === 'function') {
+      try { const result = ctx.saveMetadata(); if (result && typeof result.catch === 'function') result.catch(function() {}); } catch (e) {}
+    }
+  }
+  try { mainWin.addEventListener('pagehide', flushArcadeMetadataSave); } catch (e) {}
   let stopArcadeRunner = null;
   function mountArcadeRunner(root, options) {
     options = options || {};
@@ -650,6 +705,7 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     if (!ctx) return;
     let raf = 0, score = 0, speed = 3, tick = 0, dead = false, jumpY = 0, jumpV = 0;
     let highScore = getArcadeHighScore(), shownScore = -1, stopped = false;
+    const recordTimeEl = root.querySelector('#moon-arcade-record-time');
     let obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }];
     if (highScoreEl) highScoreEl.textContent = String(highScore).padStart(5, '0');
     function jump() { if (dead) { score = 0; shownScore = -1; dead = false; speed = 3; obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }]; stateEl.textContent = 'PRESS SPACE / TAP TO JUMP'; return; } if (jumpY === 0) jumpV = -8; }
@@ -661,19 +717,19 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
       ctx.fillStyle = '#18271a'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
       ctx.fillStyle = '#18271a'; ctx.fillRect(0, floor, w, 2);
       if (!dead) { tick++; score += 0.08; speed = Math.min(6, 3 + score / 140); jumpY += jumpV; jumpV += 0.42; if (jumpY > 0) { jumpY = 0; jumpV = 0; }
-        obstacles.forEach(function(o) { o.x -= speed; if (o.x < -o.w) { o.x = w + 65 + Math.random() * 100; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); } if (o.x < 46 && o.x + o.w > 30 && floor - (o.h - 2) > floor + jumpY - 23) { dead = true; stateEl.textContent = 'GAME OVER · TAP TO RETRY'; } }); }
+        obstacles.forEach(function(o) { o.x -= speed; if (o.x < -o.w) { o.x = w + 65 + Math.random() * 100; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); } if (o.x < 46 && o.x + o.w > 30 && floor - (o.h - 2) > floor + jumpY - 23) { dead = true; stateEl.textContent = 'GAME OVER · TAP TO RETRY'; flushArcadeMetadataSave(); } }); }
       ctx.fillStyle = '#18271a'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
       ctx.fillStyle = '#18271a'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
       const scoreNow = Math.floor(score);
       if (scoreNow !== shownScore) {
         shownScore = scoreNow;
         scoreEl.textContent = String(scoreNow).padStart(5, '0');
-        if (scoreNow > highScore) { highScore = scoreNow; saveArcadeHighScore(highScore); if (highScoreEl) highScoreEl.textContent = String(highScore).padStart(5, '0'); }
+        if (scoreNow > highScore) { highScore = scoreNow; const record = saveArcadeHighScore(highScore); if (highScoreEl) highScoreEl.textContent = String(highScore).padStart(5, '0'); if (recordTimeEl) recordTimeEl.textContent = 'RECORD TIME · ' + formatArcadeRecordTime(record.achievedAt); }
       }
       raf = mainWin.requestAnimationFrame(draw);
     }
     canvas.addEventListener('pointerdown', jump); mainDoc.addEventListener('keydown', keydown, true); draw();
-    const stop = function() { if (stopped) return; stopped = true; try { mainWin.cancelAnimationFrame(raf); } catch (e) {} try { mainDoc.removeEventListener('keydown', keydown, true); } catch (e) {} canvas.removeEventListener('pointerdown', jump); };
+    const stop = function() { if (stopped) return; stopped = true; flushArcadeMetadataSave(); try { mainWin.cancelAnimationFrame(raf); } catch (e) {} try { mainDoc.removeEventListener('keydown', keydown, true); } catch (e) {} canvas.removeEventListener('pointerdown', jump); };
     if (!options.standalone) stopArcadeRunner = stop;
     return stop;
   }
@@ -684,7 +740,7 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     mask.className = withArcade ? 'moon-pixel-loading' : '';
     mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483660;background:rgba(5,0,8,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;';
     mask.innerHTML = withArcade
-      ? '<div class="mp-arcade-box"><div class="mp-arcade-brand">★ MOON ARCADE ★</div><div class="mp-arcade-title" id="moon-loading-text">' + text + '</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格或点击跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">操作角色跳过障碍 · 任务完成后自动返回</div></div>'
+      ? '<div class="mp-arcade-box"><div class="mp-arcade-brand">★ MOON ARCADE ★</div><div class="mp-arcade-title" id="moon-loading-text">' + text + '</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore()) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格或点击跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">操作角色跳过障碍 · 任务完成后自动返回</div></div>'
       : '<div class="mp-loading-box"><div style="margin-bottom:12px;" id="moon-loading-text">⏳ ' + text + '</div><div class="mp-loading-track"><div class="mp-loading-bar"></div></div><div style="font-size:10.5px;color:#d68cbd;margin-top:8px;">请稍候</div></div>';
     mainDoc.body.appendChild(mask);
     if (withArcade) mountArcadeRunner(mask);
@@ -3130,6 +3186,7 @@ function openUpdateConfigDialog(panel) {
       '.mp-arcade-title{font-size:11px;line-height:1.6;color:#e1edcf;margin:0 auto 8px;max-width:320px;}' +
       '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:9px;color:#bdcdaa;margin:0 auto 5px;max-width:320px;}' +
       '.mp-arcade-hud b{color:#f0ffdb;font-weight:700;margin-left:4px;text-shadow:0 0 5px rgba(200,230,171,.24);}' +
+      '.mp-arcade-record-time{margin:-1px auto 5px;color:#18271a;font-size:8px;letter-spacing:.4px;}' +
       '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:2px solid #64775e;background:#17241b;box-shadow:inset 0 0 12px rgba(8,16,10,.5);image-rendering:pixelated;touch-action:manipulation;}' +
       '.mp-arcade-state{min-height:15px;margin-top:8px;color:#d8e9be;font-size:9px;letter-spacing:1px;}' +
       '.mp-arcade-foot{margin-top:6px;color:#aebd9e;font-size:9px;line-height:1.5;}' +
@@ -3344,7 +3401,7 @@ function openUpdateConfigDialog(panel) {
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>世界记录</b><small>时间线扫描 · 生成 · 编辑</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>机器诊断</b><small>系统自检 · 规则测试 · 环境扫描</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>选项与资料</b><small>游戏规则 · AI 设置 · 版本更新 · 帮助</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card mp-arcade-launch" id="moon-phase-arcade"><span class="mp-menu-icon">▣</span><span><b>街机小游戏</b><small>随时开玩 · 本机最高分 ' + String(getArcadeHighScore()).padStart(5, '0') + '</small></span><i>▶</i></button>' +
+      '<button class="mp-menu-card mp-arcade-launch" id="moon-phase-arcade"><span class="mp-menu-icon">▣</span><span><b>街机小游戏</b><small>本聊天最高分 ' + String(getArcadeHighScore()).padStart(5, '0') + ' · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</small></span><i>▶</i></button>' +
       '</div><div class="mp-menu-controls"><span><kbd>ENTER / A</kbd> 选择</span><span><kbd>ESC / B</kbd> 返回</span><span>♥ 全功能保留</span></div></section>' +
       '<section class="mp-menu-page" id="moon-menu-page" style="display:none"><div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>GAME MENU / 目录</small><b id="moon-menu-page-title">功能</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:none"><div class="mp-sub-label">冒险模式 / ADVENTURE MODE</div>' +
@@ -3399,7 +3456,7 @@ function openUpdateConfigDialog(panel) {
       if (!lcdCard) return;
       const savedDisplay = lcdCard.innerHTML;
       lcdCard.classList.add('mp-lcd-game');
-      lcdCard.innerHTML = '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本机最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 撞到障碍后点击重开</div><button class="mp-arcade-exit" type="button">◀ 返回模式选择</button></div>';
+      lcdCard.innerHTML = '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore()) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 撞到障碍后点击重开</div><button class="mp-arcade-exit" type="button">◀ 返回模式选择</button></div>';
       panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true });
       lcdCard.querySelector('.mp-arcade-exit').addEventListener('click', function() {
         if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
