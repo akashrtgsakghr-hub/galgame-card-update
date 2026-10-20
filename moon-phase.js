@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.4';
-  const MOON_FORMULA_CHANGELOG = "为月相运行模式加入复古液晶屏显示效果，保留现有难度选项与操作。";
+  const MOON_FORMULA_VERSION = '4.3.5';
+  const MOON_FORMULA_CHANGELOG = "升级复古液晶屏质感，并新增可随时游玩的掌机小游戏、实时分数与本地最高分记录。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -30,6 +30,7 @@
   const ANNOUNCEMENT_SEEN_KEY = 'moon_phase_announcement_seen_v2';
   const LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY = 'moon_phase_last_update_announcement_version';
   const SELF_CHECK_ARCADE_SEEN_KEY = 'moon_phase_self_check_arcade_seen_v1';
+  const ARCADE_HIGH_SCORE_KEY = 'moon_phase_arcade_high_score_v1';
   const BIO_ASKED_CHATS_KEY = 'moon_phase_bio_asked_chats';
   const USER_BIO_LIBRARY_KEY = 'moon_phase_user_bio_library';
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
@@ -631,32 +632,50 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     });
   }
 
+  function getArcadeHighScore() {
+    try { return Math.max(0, parseInt(mainWin.localStorage.getItem(ARCADE_HIGH_SCORE_KEY), 10) || 0); } catch (e) { return 0; }
+  }
+  function saveArcadeHighScore(score) {
+    try { mainWin.localStorage.setItem(ARCADE_HIGH_SCORE_KEY, String(Math.max(getArcadeHighScore(), score))); } catch (e) {}
+  }
   let stopArcadeRunner = null;
-  function mountArcadeRunner(mask) {
-    const canvas = mask.querySelector('#moon-arcade-canvas');
-    const scoreEl = mask.querySelector('#moon-arcade-score');
-    const stateEl = mask.querySelector('#moon-arcade-state');
+  function mountArcadeRunner(root, options) {
+    options = options || {};
+    const canvas = root.querySelector('#moon-arcade-canvas');
+    const scoreEl = root.querySelector('#moon-arcade-score');
+    const highScoreEl = root.querySelector('#moon-arcade-hi-score');
+    const stateEl = root.querySelector('#moon-arcade-state');
     if (!canvas || !canvas.getContext) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     let raf = 0, score = 0, speed = 3, tick = 0, dead = false, jumpY = 0, jumpV = 0;
+    let highScore = getArcadeHighScore(), shownScore = -1, stopped = false;
     let obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }];
-    function jump() { if (dead) { score = 0; dead = false; speed = 3; obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }]; stateEl.textContent = 'PRESS SPACE / TAP TO JUMP'; return; } if (jumpY === 0) jumpV = -8; }
+    if (highScoreEl) highScoreEl.textContent = String(highScore).padStart(5, '0');
+    function jump() { if (dead) { score = 0; shownScore = -1; dead = false; speed = 3; obstacles = [{ x: 275, w: 10, h: 18 }, { x: 445, w: 12, h: 25 }]; stateEl.textContent = 'PRESS SPACE / TAP TO JUMP'; return; } if (jumpY === 0) jumpV = -8; }
     function keydown(e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } }
     function draw() {
       const w = canvas.width, h = canvas.height, floor = h - 18;
-      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#100914'; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#4b1641'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
-      ctx.fillStyle = '#f472d0'; ctx.fillRect(0, floor, w, 2);
+      ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#17241b'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(183,211,160,.055)'; for (let x = 3; x < w; x += 4) ctx.fillRect(x, 0, 1, h); for (let y = 3; y < h; y += 4) ctx.fillRect(0, y, w, 1);
+      ctx.fillStyle = '#465d43'; for (let x = 0; x < w; x += 16) { const p = (x + Math.floor(tick / 3) % 16) % w; ctx.fillRect(p, floor + 7, 8, 2); }
+      ctx.fillStyle = '#a9c68d'; ctx.fillRect(0, floor, w, 2);
       if (!dead) { tick++; score += 0.08; speed = Math.min(6, 3 + score / 140); jumpY += jumpV; jumpV += 0.42; if (jumpY > 0) { jumpY = 0; jumpV = 0; }
         obstacles.forEach(function(o) { o.x -= speed; if (o.x < -o.w) { o.x = w + 65 + Math.random() * 100; o.h = 14 + Math.floor(Math.random() * 17); o.w = 9 + Math.floor(Math.random() * 6); } if (o.x < 46 && o.x + o.w > 30 && floor - (o.h - 2) > floor + jumpY - 23) { dead = true; stateEl.textContent = 'GAME OVER · TAP TO RETRY'; } }); }
-      ctx.fillStyle = '#ff4fc8'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillStyle = '#ffd9f4'; ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
-      ctx.fillStyle = '#fb7185'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
-      scoreEl.textContent = String(Math.floor(score)).padStart(5, '0');
+      ctx.fillStyle = '#c5ddaa'; ctx.fillRect(30, floor - 21 + jumpY, 14, 14); ctx.fillStyle = '#e9f5d2'; ctx.fillRect(39, floor - 18 + jumpY, 2, 2); ctx.fillRect(33, floor - 7 + jumpY, 3, 7); ctx.fillRect(40, floor - 7 + jumpY, 3, 7);
+      ctx.fillStyle = '#76936a'; obstacles.forEach(function(o) { ctx.fillRect(Math.round(o.x), floor - o.h, o.w, o.h); ctx.fillRect(Math.round(o.x) - 3, floor - o.h + 5, 4, 3); });
+      const scoreNow = Math.floor(score);
+      if (scoreNow !== shownScore) {
+        shownScore = scoreNow;
+        scoreEl.textContent = String(scoreNow).padStart(5, '0');
+        if (scoreNow > highScore) { highScore = scoreNow; saveArcadeHighScore(highScore); if (highScoreEl) highScoreEl.textContent = String(highScore).padStart(5, '0'); }
+      }
       raf = mainWin.requestAnimationFrame(draw);
     }
     canvas.addEventListener('pointerdown', jump); mainDoc.addEventListener('keydown', keydown, true); draw();
-    stopArcadeRunner = function() { try { mainWin.cancelAnimationFrame(raf); } catch (e) {} try { mainDoc.removeEventListener('keydown', keydown, true); } catch (e) {} canvas.removeEventListener('pointerdown', jump); };
+    const stop = function() { if (stopped) return; stopped = true; try { mainWin.cancelAnimationFrame(raf); } catch (e) {} try { mainDoc.removeEventListener('keydown', keydown, true); } catch (e) {} canvas.removeEventListener('pointerdown', jump); };
+    if (!options.standalone) stopArcadeRunner = stop;
+    return stop;
   }
 
   function showLoadingDialog(text, withArcade) {
@@ -665,7 +684,7 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     mask.className = withArcade ? 'moon-pixel-loading' : '';
     mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483660;background:rgba(5,0,8,0.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;';
     mask.innerHTML = withArcade
-      ? '<div class="mp-arcade-box"><div class="mp-arcade-brand">★ MOON ARCADE ★</div><div class="mp-arcade-title" id="moon-loading-text">' + text + '</div><div class="mp-arcade-hud"><span>HI-SCORE <b id="moon-arcade-score">00000</b></span><span>1P · PLAYER</span></div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格或点击跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">操作角色跳过障碍 · 任务完成后自动返回</div></div>'
+      ? '<div class="mp-arcade-box"><div class="mp-arcade-brand">★ MOON ARCADE ★</div><div class="mp-arcade-title" id="moon-loading-text">' + text + '</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格或点击跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">操作角色跳过障碍 · 任务完成后自动返回</div></div>'
       : '<div class="mp-loading-box"><div style="margin-bottom:12px;" id="moon-loading-text">⏳ ' + text + '</div><div class="mp-loading-track"><div class="mp-loading-bar"></div></div><div style="font-size:10.5px;color:#d68cbd;margin-top:8px;">请稍候</div></div>';
     mainDoc.body.appendChild(mask);
     if (withArcade) mountArcadeRunner(mask);
@@ -3003,8 +3022,8 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-title{color:#ffb8eb !important;text-shadow:2px 2px #5a164d;letter-spacing:.5px !important;font-size:12px !important;}' +
       '#moon-phase-panel .mp-title-orb{filter:drop-shadow(0 0 5px #f472d0);}' +
       '#moon-phase-panel .mp-card{background:#100a13 !important;border:1px solid rgba(244,114,208,.32) !important;border-radius:3px !important;box-shadow:inset 0 0 0 1px rgba(244,114,208,.05);}' +
-      '#moon-phase-panel .mp-lcd-card{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(145deg,#1b2b22 0%,#132119 52%,#0c1711 100%) !important;border-color:#54745c !important;box-shadow:inset 0 0 0 2px rgba(166,205,148,.08),inset 0 0 22px rgba(133,181,112,.12),0 0 12px rgba(129,176,113,.08) !important;color:#d2e5c8;}' +
-      '#moon-phase-panel .mp-lcd-card:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(210,238,190,.055) 0,rgba(210,238,190,.055) 1px,transparent 1px,transparent 3px),repeating-linear-gradient(to right,rgba(190,224,171,.025) 0,rgba(190,224,171,.025) 1px,transparent 1px,transparent 4px);opacity:.52;}' +
+      '#moon-phase-panel .mp-lcd-card{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(145deg,#26352a 0%,#18251c 48%,#111c15 100%) !important;border:2px solid #71866b !important;box-shadow:inset 0 0 0 2px rgba(190,216,172,.14),inset 0 0 24px rgba(151,186,129,.15),0 0 0 3px #0a120d,0 0 14px rgba(129,176,113,.12) !important;color:#d2e5c8;}' +
+      '#moon-phase-panel .mp-lcd-card:before{content:"";position:absolute;inset:4px;z-index:0;pointer-events:none;border:1px solid rgba(206,225,184,.13);background:linear-gradient(115deg,rgba(230,244,207,.08),transparent 28%,transparent 70%,rgba(197,224,174,.035)),repeating-linear-gradient(to bottom,rgba(210,238,190,.065) 0,rgba(210,238,190,.065) 1px,transparent 1px,transparent 3px),repeating-linear-gradient(to right,rgba(190,224,171,.035) 0,rgba(190,224,171,.035) 1px,transparent 1px,transparent 4px);opacity:.82;}' +
       '#moon-phase-panel .mp-lcd-card>*{position:relative;z-index:1;}' +
       '#moon-phase-panel .mp-lcd-card .mp-label{color:#d6ebc7 !important;text-shadow:0 0 5px rgba(184,222,157,.28);}' +
       '#moon-phase-panel .mp-lcd-card .mp-mode-btn{border-radius:2px !important;border-color:#58735b !important;background:rgba(15,30,20,.76) !important;color:#bacdb0 !important;box-shadow:inset 0 0 0 1px rgba(191,222,169,.045),2px 2px 0 rgba(3,11,7,.55) !important;}' +
@@ -3033,14 +3052,20 @@ function openUpdateConfigDialog(panel) {
       '.mp-loading-box{padding:20px 28px;border-radius:3px;background:#100914;border:2px solid #f472d0;color:#ffe1f5;font-size:13px;text-align:center;min-width:260px;max-width:360px;box-sizing:border-box;box-shadow:0 0 0 3px #2a1029,0 0 26px rgba(244,114,208,.2);}' +
       '.mp-loading-track{height:5px;border:1px solid #74305f;background:#1a101b;overflow:hidden;position:relative;}' +
       '.mp-loading-bar{position:absolute;top:0;height:100%;width:38%;background:#f472d0;animation:moon-progress-slide 1.25s ease-in-out infinite;}' +
-      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:16px 14px 12px;background:#0b0710;border:3px solid #f472d0;outline:3px solid #35132f;color:#ffd9f3;text-align:center;box-shadow:0 0 34px rgba(244,114,208,.3),inset 0 0 0 2px #271021;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
-      '.mp-arcade-brand{font-size:11px;letter-spacing:3px;color:#f472d0;text-shadow:2px 2px #501448;margin-bottom:10px;}' +
-      '.mp-arcade-title{font-size:12px;line-height:1.7;color:#fff0fb;margin:0 auto 10px;max-width:320px;}' +
-      '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:9px;color:#e7a8d5;margin:0 auto 5px;max-width:320px;}' +
-      '.mp-arcade-hud b{color:#fff;font-weight:700;margin-left:4px;}' +
-      '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:1px solid #a34687;background:#100914;image-rendering:pixelated;touch-action:manipulation;}' +
-      '.mp-arcade-state{min-height:15px;margin-top:8px;color:#f472d0;font-size:9px;letter-spacing:1px;}' +
-      '.mp-arcade-foot{margin-top:6px;color:#a9809e;font-size:9px;line-height:1.5;}' +
+      '.mp-arcade-box{width:min(360px,100%);box-sizing:border-box;padding:14px 12px 10px;background:linear-gradient(145deg,#354137,#202b23 48%,#172119);border:3px solid #788b6e;outline:3px solid #101912;color:#dbe9ce;text-align:center;box-shadow:inset 0 0 0 2px rgba(208,226,191,.15),inset 0 0 18px rgba(166,194,145,.12),0 5px 0 #080e0a;font-family:"Courier New",monospace;image-rendering:pixelated;}' +
+      '.mp-arcade-brand{font-size:10px;letter-spacing:2px;color:#c0d4a9;text-shadow:1px 1px #344733;margin-bottom:8px;}' +
+      '.mp-arcade-title{font-size:11px;line-height:1.6;color:#e1edcf;margin:0 auto 8px;max-width:320px;}' +
+      '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:9px;color:#bdcdaa;margin:0 auto 5px;max-width:320px;}' +
+      '.mp-arcade-hud b{color:#f0ffdb;font-weight:700;margin-left:4px;text-shadow:0 0 5px rgba(200,230,171,.24);}' +
+      '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:2px solid #64775e;background:#17241b;box-shadow:inset 0 0 12px rgba(8,16,10,.5);image-rendering:pixelated;touch-action:manipulation;}' +
+      '.mp-arcade-state{min-height:15px;margin-top:8px;color:#d8e9be;font-size:9px;letter-spacing:1px;}' +
+      '.mp-arcade-foot{margin-top:6px;color:#aebd9e;font-size:9px;line-height:1.5;}' +
+      '.mp-arcade-exit{margin-top:8px;padding:5px 10px;background:#27352a;border:1px solid #71866b;color:#dce9cc;font:10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #101812;}' +
+      '.mp-lcd-game{padding:8px !important;}' +
+      '.mp-lcd-game .mp-arcade-box{width:100%;padding:9px 7px 8px;border-width:2px;outline:2px solid #101912;}' +
+      '.mp-lcd-game .mp-arcade-brand{margin-bottom:5px;font-size:9px;}' +
+      '.mp-lcd-game .mp-arcade-hud{font-size:8px;}' +
+      '.mp-lcd-game .mp-arcade-foot{font-size:8px;}' +
       '#moon-loading-mask.mp-pixel-loading{font-family:"Courier New",monospace !important;}' +
       '.mp-settings-fold{margin:-2px 0 10px;}' +
       '.mp-settings-fold>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 11px;background:#180d1a;border:1px solid #70345f;color:#ffc4e9;font:700 11px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
@@ -3121,6 +3146,7 @@ function openUpdateConfigDialog(panel) {
   }
 
   function renderPanel(panel) {
+    if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
     const mode = getCurrentMode();
     const antisl = getAntiSL();
     const extraSetting = getExtraModelMode();
@@ -3184,6 +3210,7 @@ function openUpdateConfigDialog(panel) {
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>世界记录</b><small>时间线扫描 · 生成 · 编辑</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>机器诊断</b><small>系统自检 · 规则测试 · 环境扫描</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>选项与资料</b><small>游戏规则 · AI 设置 · 版本更新 · 帮助</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card mp-arcade-launch" id="moon-phase-arcade"><span class="mp-menu-icon">▣</span><span><b>街机小游戏</b><small>随时开玩 · 本机最高分 ' + String(getArcadeHighScore()).padStart(5, '0') + '</small></span><i>▶</i></button>' +
       '</div><div class="mp-menu-controls"><span><kbd>ENTER / A</kbd> 选择</span><span><kbd>ESC / B</kbd> 返回</span><span>♥ 全功能保留</span></div></section>' +
       '<section class="mp-menu-page" id="moon-menu-page" style="display:none"><div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>GAME MENU / 目录</small><b id="moon-menu-page-title">功能</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:none"><div class="mp-sub-label">冒险模式 / ADVENTURE MODE</div>' +
@@ -3222,6 +3249,20 @@ function openUpdateConfigDialog(panel) {
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
     });
+    panel.querySelector('#moon-phase-arcade').addEventListener('click', function() {
+      const lcdCard = panel.querySelector('.mp-lcd-card');
+      if (!lcdCard) return;
+      const savedDisplay = lcdCard.innerHTML;
+      lcdCard.classList.add('mp-lcd-game');
+      lcdCard.innerHTML = '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本机最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 撞到障碍后点击重开</div><button class="mp-arcade-exit" type="button">◀ 返回模式选择</button></div>';
+      panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true });
+      lcdCard.querySelector('.mp-arcade-exit').addEventListener('click', function() {
+        if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
+        lcdCard.classList.remove('mp-lcd-game');
+        lcdCard.innerHTML = savedDisplay;
+      });
+      try { lcdCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    });
     if (panel.dataset.menuKeysBound !== '1') {
       panel.dataset.menuKeysBound = '1';
       panel.addEventListener('keydown', function(event) {
@@ -3250,7 +3291,14 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
   if (!cfg.url) openUpdateConfigDialog(panel);
   else checkForUpdates(false);
 });
-    panel.querySelectorAll('.mp-mode-btn').forEach(function(btn) { btn.addEventListener('click', function() { const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel(); }); });
+    if (panel.dataset.modeButtonsBound !== '1') {
+      panel.dataset.modeButtonsBound = '1';
+      panel.addEventListener('click', function(event) {
+        const btn = event.target && event.target.closest ? event.target.closest('.mp-mode-btn') : null;
+        if (!btn || !panel.contains(btn)) return;
+        const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel();
+      });
+    }
     panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s = getSettings(); s.antisl = !(s.antisl === true); saveSettings(s); refreshPanel(); });
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { const s = getSettings(); const cur = s.extraModel || 'auto'; const next = cur === 'auto' ? 'on' : (cur === 'on' ? 'off' : 'auto'); s.extraModel = next; saveSettings(s); refreshPanel(); toast('副模型策略：' + next.toUpperCase(), 'info'); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s = getSettings(); s.cardMode = (s.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s); refreshPanel(); });
@@ -5082,6 +5130,8 @@ async function applyAdaptiveOpening(charName, values) {
   }
 
   function closePanel() {
+    const panel = mainDoc.getElementById('moon-phase-panel');
+    if (panel && panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
     const m = mainDoc.getElementById('moon-phase-mask');
     if (m) m.classList.remove('open');
   }
