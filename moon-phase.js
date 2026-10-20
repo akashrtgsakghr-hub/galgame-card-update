@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.1.1';
-  const MOON_FORMULA_CHANGELOG = "更新提示现在会在发现新版本时显示‘有更新’，点击后可查看说明并确认安装。\n安装成功后自动刷新页面；刷新完成后首次启动会弹出本次更新公告，且只提示一次。";
+  const MOON_FORMULA_VERSION = '4.1.2';
+  const MOON_FORMULA_CHANGELOG = "修复时间线标签按钮缺失导致主面板无法打开的问题，并同步更新酒馆助手导入包。\n本次修复安装后，首次启动会显示更新公告；公告只提示一次。";
   const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -3058,6 +3058,7 @@ function openUpdateConfigDialog(panel) {
       '<button class="mp-btn" id="moon-phase-ai-detect">🤖 AI 深度检测</button>' +
      '<button class="mp-btn" id="moon-phase-scan-timeline">🔎 扫描时间线</button>' +
      '<button class="mp-btn" id="moon-phase-tl-gen">📝 时间线生成器</button>' +
+      '<button class="mp-btn" id="moon-phase-tl-tag">🏷️ 时间线标签</button>' +
      '<button class="mp-btn" id="moon-phase-manual-tl">✍️ 手动时间线</button>' +
       '<button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词编辑</button>' +
       '<button class="mp-btn" id="moon-phase-custom-ai">⚙️ 自定义副模型</button>' +
