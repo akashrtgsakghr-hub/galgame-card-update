@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.2.0';
-  const MOON_FORMULA_CHANGELOG = "全界面焕新为黑粉像素街机风格，加入首次自检开场动画与副模型运行时可操作的离线小游戏。\n本次更新保留原功能和数据。";
+  const MOON_FORMULA_VERSION = '4.3.0';
+  const MOON_FORMULA_CHANGELOG = "重整主面板为复古日式掌机式分层菜单，按冒险、角色、时间线、系统与设置分类，原有功能入口和数据均保留。";
   const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -3025,7 +3025,31 @@ function openUpdateConfigDialog(panel) {
       '.mp-arcade-state{min-height:15px;margin-top:8px;color:#f472d0;font-size:9px;letter-spacing:1px;}' +
       '.mp-arcade-foot{margin-top:6px;color:#a9809e;font-size:9px;line-height:1.5;}' +
       '#moon-loading-mask.mp-pixel-loading{font-family:"Courier New",monospace !important;}' +
-      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-title{max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.mp-arcade-box{padding:12px 9px;}}';
+      '.mp-settings-fold{margin:-2px 0 10px;}' +
+      '.mp-settings-fold>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 11px;background:#180d1a;border:1px solid #70345f;color:#ffc4e9;font:700 11px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
+      '.mp-settings-fold>summary::-webkit-details-marker{display:none;}' +
+      '.mp-settings-fold>summary span{color:#f472d0;transition:transform .15s;}' +
+      '.mp-settings-fold[open]>summary{margin-bottom:11px;border-color:#f472d0;background:#251024;}' +
+      '.mp-settings-fold[open]>summary span{transform:rotate(180deg);}' +
+      '.mp-menu-label,.mp-sub-label{font:700 9px "Courier New",monospace;color:#f472d0;letter-spacing:1.5px;margin:0 0 9px;text-shadow:1px 1px #45153a;}' +
+      '.mp-menu-grid{display:grid;grid-template-columns:1fr;gap:8px;}' +
+      '.mp-menu-card{width:100%;min-height:54px;display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;background:linear-gradient(180deg,#1c1020,#100a13);border:1px solid #74355f;color:#ffe1f5;font-family:"Courier New",monospace;cursor:pointer;box-shadow:3px 3px 0 #35152f;}' +
+      '.mp-menu-card:hover,.mp-menu-card:focus{background:#2a1226;border-color:#ff78d6;transform:translate(-1px,-1px);outline:none;}' +
+      '.mp-menu-icon{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;background:#32112b;border:1px solid #a94d8b;color:#ff8cdb;font-size:16px;text-shadow:1px 1px #551344;}' +
+      '.mp-menu-card>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;}' +
+      '.mp-menu-card b{font-size:11px;color:#ffe0f4;letter-spacing:.3px;}' +
+      '.mp-menu-card small{font:9px "Courier New",monospace;color:#bc8eaf;line-height:1.35;}' +
+      '.mp-menu-card i{font:20px "Courier New",monospace;color:#f472d0;font-style:normal;}' +
+      '.mp-menu-controls{display:flex;justify-content:space-between;gap:5px;margin-top:13px;padding-top:9px;border-top:1px dashed #502747;color:#a8819e;font:8px "Courier New",monospace;letter-spacing:.3px;}' +
+      '.mp-menu-controls kbd{padding:2px 4px;border:1px solid #9e4b84;background:#2a1126;color:#ffc4e9;font:700 8px "Courier New",monospace;box-shadow:1px 1px #35152f;}' +
+      '.mp-menu-page-head{display:flex;align-items:center;gap:10px;margin-bottom:13px;padding:8px;background:#100a13;border:1px solid #693253;box-shadow:inset 0 0 0 1px rgba(244,114,208,.05);}' +
+      '.mp-menu-back{padding:8px 9px;background:#291124;border:1px solid #a94d8b;color:#ffc4e9;font:700 10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
+      '.mp-menu-page-head>div{display:flex;flex:1;flex-direction:column;gap:3px;}' +
+      '.mp-menu-page-head small{font:8px "Courier New",monospace;color:#a8819e;letter-spacing:1px;}' +
+      '.mp-menu-page-head b{font:700 12px "Courier New",monospace;color:#ffb8eb;}' +
+      '.mp-page-led{width:7px;height:7px;border-radius:50%;background:#ff5fc8;box-shadow:0 0 7px #ff5fc8;}' +
+      '.mp-menu-subpage .mp-grid{margin-bottom:4px;}' +
+      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-title{max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}';
   }
 // ===== 第 16 份 =====
   function renderEventStatusCard() {
@@ -3094,7 +3118,7 @@ function openUpdateConfigDialog(panel) {
       }).join('') + '</div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
       '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail + '</div></div>' +
-      '<div class="mp-card"><div class="mp-toggle-row">' +
+      '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 快捷规则与偏好 <span>▼</span></summary><div class="mp-toggle-row">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">冷战期或好感度为负时锚定</div></div>' +
       '<button class="mp-antisl ' + (antisl ? 'on' : '') + '" id="moon-phase-antisl">' + (antisl ? '锚定: ON' : '锚定: OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
@@ -3112,7 +3136,7 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🌐 同人台词补强</div><div class="mp-toggle-desc">' + (fanficOn ? '台词参考源语言原文' : '不参考原 IP 语料') + '</div></div>' +
       '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '🌐 ON' : 'OFF') + '</button></div>' +
-      '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
+      '</details><div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
       '<span style="width:7px;height:7px;border-radius:50%;background:' + (fateActive ? '#f43f5e' : '#34d399') + ';"></span>' +
       '<span>' + (fateActive ? '🌑 锚定生效中' : '🌓 月相流转中 · 命运未定') + '</span></div></div>' +
       (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:700;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
@@ -3121,29 +3145,54 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-card"><div class="mp-label" style="display:flex;justify-content:space-between;align-items:center;">' +
       '<span>📊 Token 占用</span><button id="moon-token-refresh" style="background:#0c2540;color:#7dd3fc;border:1px solid rgba(56,189,248,0.35);border-radius:6px;font-size:10px;padding:2px 8px;cursor:pointer;font-family:inherit;">🔄 刷新</button></div>' +
       '<div id="moon-token-box" style="font-size:10.5px;line-height:1.7;color:#94a3b8;">点击 🔄 刷新开始统计</div></div>' +
-      '<div class="mp-grid">' +
-      '<button class="mp-btn" id="moon-phase-countdown">⏱️ 倒计时</button>' +
-      '<button class="mp-btn" id="moon-phase-selfcheck">🔭 自检</button>' +
-      '<button class="mp-btn" id="moon-phase-simtest">🧪 测试</button>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-phase-adapt">🚀 一键适配</button>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-phase-reroll">🎲 数值重Roll</button>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate">📦 打包迁移</button>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio">🎬 角色试镜</button>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib">📚 角色小抄库</button>' +
-      '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio">👤 玩家小抄</button>' +
-      '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib">📂 玩家小抄库</button>' +
-      '<button class="mp-btn" id="moon-phase-conflict">🔍 冲突扫描</button>' +
-      '<button class="mp-btn" id="moon-phase-ai-detect">🤖 AI 深度检测</button>' +
-     '<button class="mp-btn" id="moon-phase-scan-timeline">🔎 扫描时间线</button>' +
-     '<button class="mp-btn" id="moon-phase-tl-gen">📝 时间线生成器</button>' +
-      '<button class="mp-btn" id="moon-phase-tl-tag">🏷️ 时间线标签</button>' +
-     '<button class="mp-btn" id="moon-phase-manual-tl">✍️ 手动时间线</button>' +
-      '<button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词编辑</button>' +
-      '<button class="mp-btn" id="moon-phase-custom-ai">⚙️ 自定义副模型</button>' +
-      '<button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 有更新 · 点击查看并更新' : '🔄 检查更新') + '</button>' +
-     '<button class="mp-btn" id="moon-phase-faq" style="grid-column:span 2;">❓ 常见问题</button></div>' +
+      '<section class="mp-menu-home" id="moon-menu-home"><div class="mp-menu-label">SELECT A MODE · 选择功能区</div><div class="mp-menu-grid">' +
+      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>冒险操作</b><small>适配 · 数值 · 迁移 · 倒计时</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与档案</b><small>角色试镜 · 角色小抄 · 玩家小抄</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>时间线工具</b><small>扫描 · 生成 · 标签 · 手动编辑</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检查</b><small>自检 · 测试 · 冲突 · AI 检测</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统设置</b><small>提示词 · 副模型 · 更新 · 帮助</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span><kbd>ENTER / A</kbd> 选择</span><span><kbd>ESC / B</kbd> 返回</span><span>♥ 全功能保留</span></div></section>' +
+      '<section class="mp-menu-page" id="moon-menu-page" style="display:none"><div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>GAME MENU / 目录</small><b id="moon-menu-page-title">功能</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:none"><div class="mp-sub-label">冒险操作 / ADVENTURE</div><div class="mp-grid">' +
+      '<button class="mp-btn" id="moon-phase-countdown">⏱️ 倒计时</button><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt">🚀 一键适配</button><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll">🎲 数值重Roll</button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate">📦 打包迁移</button></div></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:none"><div class="mp-sub-label">角色与档案 / CHARACTER FILES</div><div class="mp-grid">' +
+      '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio">🎬 角色试镜</button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib">📚 角色小抄库</button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio">👤 玩家小抄</button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib">📂 玩家小抄库</button></div></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:none"><div class="mp-sub-label">时间线工具 / TIMELINE</div><div class="mp-grid">' +
+      '<button class="mp-btn" id="moon-phase-scan-timeline">🔎 扫描时间线</button><button class="mp-btn" id="moon-phase-tl-gen">📝 时间线生成器</button><button class="mp-btn" id="moon-phase-tl-tag">🏷️ 时间线标签</button><button class="mp-btn" id="moon-phase-manual-tl">✍️ 手动时间线</button></div></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="system" style="display:none"><div class="mp-sub-label">系统检查 / DIAGNOSTICS</div><div class="mp-grid">' +
+      '<button class="mp-btn" id="moon-phase-selfcheck">🔭 自检</button><button class="mp-btn" id="moon-phase-simtest">🧪 测试</button><button class="mp-btn" id="moon-phase-conflict">🔍 冲突扫描</button><button class="mp-btn" id="moon-phase-ai-detect">🤖 AI 深度检测</button></div></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:none"><div class="mp-sub-label">系统设置 / SYSTEM</div><div class="mp-grid">' +
+      '<button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词编辑</button><button class="mp-btn" id="moon-phase-custom-ai">⚙️ 自定义副模型</button><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 有更新 · 点击查看并更新' : '🔄 检查更新') + '</button><button class="mp-btn" id="moon-phase-faq">❓ 常见问题</button></div></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div>';
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
+    const menuHome = panel.querySelector('#moon-menu-home');
+    const menuPage = panel.querySelector('#moon-menu-page');
+    const menuTitles = { adventure: '冒险操作', characters: '角色与档案', timeline: '时间线工具', system: '系统检查', settings: '系统设置' };
+    panel.querySelectorAll('[data-menu-open]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const key = btn.getAttribute('data-menu-open');
+        menuHome.style.display = 'none';
+        menuPage.style.display = 'block';
+        const title = panel.querySelector('#moon-menu-page-title');
+        if (title) title.textContent = menuTitles[key] || '功能';
+        panel.querySelectorAll('.mp-menu-subpage').forEach(function(page) {
+          page.style.display = page.getAttribute('data-menu-page') === key ? 'block' : 'none';
+        });
+      });
+    });
+    panel.querySelector('#moon-menu-back').addEventListener('click', function() {
+      menuPage.style.display = 'none';
+      menuHome.style.display = 'block';
+    });
+    if (panel.dataset.menuKeysBound !== '1') {
+      panel.dataset.menuKeysBound = '1';
+      panel.addEventListener('keydown', function(event) {
+        if ((event.key === 'Escape' || event.key === 'Backspace') && menuPage.style.display !== 'none') {
+          event.preventDefault();
+          panel.querySelector('#moon-menu-back').click();
+        }
+      });
+    }
 const _badgeEl = panel.querySelector('#moon-version-badge');
 if (_badgeEl) {
   _badgeEl.addEventListener('click', function() {
