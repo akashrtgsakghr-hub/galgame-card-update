@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.0';
-  const MOON_FORMULA_CHANGELOG = "重整主面板为复古日式掌机式分层菜单，按冒险、角色、时间线、系统与设置分类，原有功能入口和数据均保留。";
+  const MOON_FORMULA_VERSION = '4.3.1';
+  const MOON_FORMULA_CHANGELOG = "修复版本号点击后不直接展示检查结果的问题。点击版本号会检查最新版本；发现更新时显示版本号、更新公告和确认更新按钮，完成后自动刷新页面。";
   const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -2179,6 +2179,7 @@ async function checkForUpdates(silent) {
     if (!silent) openUpdateConfigDialog(null);
     return null;
   }
+  if (!silent) showLoadingDialog('正在读取最新版本与更新公告…');
   try {
     const res = await fetch(cfg.url, { cache: 'no-cache' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -2202,23 +2203,24 @@ async function checkForUpdates(silent) {
       }
     }
     if (!remoteVersion) {
-      if (!silent) toast('无法解析远程版本号', 'warning');
+      if (!silent) showResultDialog('版本检查失败', '<div>远程脚本中没有找到有效版本号，请稍后重试。</div>');
       return null;
     }
     const cmp = compareVersions(remoteVersion, MOON_FORMULA_VERSION);
     if (cmp > 0) {
       _cachedUpdateInfo = { version: remoteVersion, info: remoteInfo, url: cfg.url };
       try { refreshPanel(); } catch (e) {}
+      if (!silent) showUpdateAvailableDialog(_cachedUpdateInfo);
       return _cachedUpdateInfo;
     }
     _cachedUpdateInfo = null;
     try { refreshPanel(); } catch (e) {}
-    if (!silent) toast('已是最新版本 v' + MOON_FORMULA_VERSION, 'success');
+    if (!silent) showResultDialog('版本检查结果', '<div style="line-height:1.8;">当前版本：<b style="color:#f472d0;">v' + MOON_FORMULA_VERSION + '</b><br>最新版本：<b style="color:#f472d0;">v' + remoteVersion + '</b><br><br>你现在使用的已经是最新版本。</div>');
     return null;
   } catch (e) {
-    if (!silent) toast('检查更新失败：' + (e.message || e), 'warning');
+    if (!silent) showResultDialog('版本检查失败', '<div style="line-height:1.8;">无法连接更新源。<br>' + String(e && e.message || e).replace(/</g, '&lt;') + '</div>');
     return null;
-  }
+  } finally { if (!silent) closeLoadingDialog(); }
 }
 
 function showUpdateAvailableDialog(remote) {
@@ -3004,6 +3006,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-btn-user{background:#241025 !important;border-color:#d946a6 !important;color:#ffc4e9 !important;}' +
       '#moon-phase-panel .mp-status{background:#08060a !important;border:1px dashed #7a3a68 !important;border-radius:2px !important;color:#e7b9d8 !important;}' +
       '#moon-phase-panel .mp-badge{border-radius:2px !important;background:#2a1126 !important;border-color:#87416e !important;color:#ffc4e9 !important;}' +
+      '#moon-phase-panel button.mp-badge{appearance:none;-webkit-appearance:none;font-family:inherit;line-height:1.35;cursor:pointer;}' +
       '#moon-phase-panel .mp-fate{border-radius:2px !important;}' +
       '#moon-modal-mask.mp-pixel-modal>div{background:linear-gradient(180deg,#170b18,#09060d) !important;border:2px solid #f472d0 !important;border-radius:4px !important;font-family:"Courier New",monospace !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.24) !important;}' +
       '#moon-modal-mask.mp-pixel-modal>div>div:first-child,#moon-firstboot-mask>div>div:first-child{color:#ff8cdb !important;border-color:rgba(244,114,208,.45) !important;text-shadow:2px 2px #48153e;}' +
@@ -3101,12 +3104,12 @@ function openUpdateConfigDialog(panel) {
     panel.innerHTML = '' +
       '<div class="mp-head"><div class="mp-title-group" style="display:flex;align-items:center;gap:8px;">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
-      '<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
-'<span class="mp-badge" id="moon-version-badge" style="cursor:pointer;' +
+'<span class="mp-title">Galgame攻略系统</span>' +
+'<button type="button" class="mp-badge" id="moon-version-badge" aria-label="检查更新" title="点击检查更新或查看更新公告" style="cursor:pointer;' +
   (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
   '">v' + MOON_FORMULA_VERSION +
-  (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">有更新</b>' : '') +
-'</span>' +
+  (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
+'</button>' +
       '</div><button class="mp-close" id="moon-phase-close">✕</button></div>' +
       '<div class="mp-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
@@ -3202,10 +3205,7 @@ if (_badgeEl) {
     }
     const cfg = getUpdateConfig();
     if (!cfg.url) { openUpdateConfigDialog(panel); return; }
-    toast('正在检查更新...', 'info');
-    checkForUpdates(false).then(function(r) {
-      if (!r) toast('当前已是最新版本 v' + MOON_FORMULA_VERSION, 'success');
-    });
+    checkForUpdates(false);
   });
 }
 
@@ -3213,9 +3213,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
   if (_cachedUpdateInfo) { showUpdateAvailableDialog(_cachedUpdateInfo); return; }
   const cfg = getUpdateConfig();
   if (!cfg.url) openUpdateConfigDialog(panel);
-  else checkForUpdates(false).then(function(r) {
-    if (!r) toast('当前已是最新版本 v' + MOON_FORMULA_VERSION, 'success');
-  });
+  else checkForUpdates(false);
 });
     panel.querySelectorAll('.mp-mode-btn').forEach(function(btn) { btn.addEventListener('click', function() { const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel(); }); });
     panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s = getSettings(); s.antisl = !(s.antisl === true); saveSettings(s); refreshPanel(); });
