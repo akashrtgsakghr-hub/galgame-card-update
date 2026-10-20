@@ -1,1 +1,9 @@
-# galgame-card-update
+# Galgame 攻略系统
+
+## 导入到酒馆助手
+
+请导入仓库中的 `Galgame攻略系统-酒馆助手导入.json`，不要把 `moon-phase.js` 直接选作“脚本库导入”文件。`.js` 是脚本源码；酒馆助手的脚本导入需要 JSON 脚本记录。
+
+在酒馆助手的「脚本库」中选择导入该 JSON。它会创建或更新名为「Galgame攻略系统」的全局脚本，脚本已默认启用。导入后按酒馆助手提示确认并刷新页面。
+
+`moon-phase.js` 仍是自动更新使用的源码文件。仓库维护者修改它后，可运行 `scripts/build-import.ps1` 重新生成导入 JSON。
