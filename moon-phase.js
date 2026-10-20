@@ -17,7 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.1.0';
+  const MOON_FORMULA_VERSION = '4.1.1';
+  const MOON_FORMULA_CHANGELOG = "更新提示现在会在发现新版本时显示‘有更新’，点击后可查看说明并确认安装。\n安装成功后自动刷新页面；刷新完成后首次启动会弹出本次更新公告，且只提示一次。";
   const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -26,6 +27,7 @@
   const FIRST_RUN_KEY = 'moon_phase_first_run_done_v1';
   const AUTO_RELOAD_DONE_KEY = 'moon_phase_auto_reload_done_v1';
   const ANNOUNCEMENT_SEEN_KEY = 'moon_phase_announcement_seen_v2';
+  const LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY = 'moon_phase_last_update_announcement_version';
   const BIO_ASKED_CHATS_KEY = 'moon_phase_bio_asked_chats';
   const USER_BIO_LIBRARY_KEY = 'moon_phase_user_bio_library';
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
@@ -2150,6 +2152,12 @@ async function checkForUpdates(silent) {
       const m = text.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
       if (m) remoteVersion = m[1];
     }
+    if (!remoteInfo) {
+      const changelogMatch = text.match(/MOON_FORMULA_CHANGELOG\s*=\s*("(?:\\.|[^"\\])*")/);
+      if (changelogMatch) {
+        try { remoteInfo = JSON.parse(changelogMatch[1]); } catch (e) {}
+      }
+    }
     if (!remoteVersion) {
       if (!silent) toast('无法解析远程版本号', 'warning');
       return null;
@@ -2184,6 +2192,36 @@ function showUpdateAvailableDialog(remote) {
     function() { doAutoUpdate(remote); },
     function() { toast('已取消更新', 'info'); },
     { confirmText: '✅ 确定更新', cancelText: '稍后再说' });
+}
+
+function showUpdateAnnouncementOnce() {
+  let firstRunDone = false;
+  let lastAnnouncedVersion = '';
+  try {
+    const ls = mainWin.localStorage || localStorage;
+    firstRunDone = ls.getItem(FIRST_RUN_KEY) === '1';
+    lastAnnouncedVersion = ls.getItem(LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY) || '';
+    // 新安装走首次启动引导，不再重复弹出版本更新公告。
+    if (!firstRunDone) {
+      ls.setItem(LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY, MOON_FORMULA_VERSION);
+      return false;
+    }
+    if (lastAnnouncedVersion === MOON_FORMULA_VERSION) return false;
+    ls.setItem(LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY, MOON_FORMULA_VERSION);
+  } catch (e) { return false; }
+
+  const safeVersion = String(MOON_FORMULA_VERSION).replace(/[&<>"']/g, function(ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+  const safeInfo = String(MOON_FORMULA_CHANGELOG || '本次更新已完成。').replace(/[&<>"']/g, function(ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+  const html = '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
+    '已更新至 <b style="color:#fde047;">v' + safeVersion + '</b></div>' +
+    '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11.5px;color:#cbd5e1;line-height:1.8;white-space:pre-wrap;">' +
+    safeInfo + '</div>';
+  showModalDialog('📢 更新公告', html, null, { confirmText: '知道了' });
+  return true;
 }
 
 async function doAutoUpdate(remote) {
@@ -2965,7 +3003,7 @@ function openUpdateConfigDialog(panel) {
 '<span class="mp-badge" id="moon-version-badge" style="cursor:pointer;' +
   (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
   '">v' + MOON_FORMULA_VERSION +
-  (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW</b>' : '') +
+  (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">有更新</b>' : '') +
 '</span>' +
       '</div><button class="mp-close" id="moon-phase-close">✕</button></div>' +
       '<div class="mp-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
@@ -3023,7 +3061,7 @@ function openUpdateConfigDialog(panel) {
      '<button class="mp-btn" id="moon-phase-manual-tl">✍️ 手动时间线</button>' +
       '<button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词编辑</button>' +
       '<button class="mp-btn" id="moon-phase-custom-ai">⚙️ 自定义副模型</button>' +
-      '<button class="mp-btn" id="moon-phase-update">🔄 检查更新</button>' + 
+      '<button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 有更新 · 点击查看并更新' : '🔄 检查更新') + '</button>' +
      '<button class="mp-btn" id="moon-phase-faq" style="grid-column:span 2;">❓ 常见问题</button></div>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div>';
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
@@ -5053,6 +5091,7 @@ if (_needAutoReload) {
     injectMenuEntry();
     toast(SYSTEM_UI_NAME + ' 已加载', 'success');
   }, 800);
+  setTimeout(function() { showUpdateAnnouncementOnce(); }, 1500);
   setTimeout(injectMenuEntry, 3000);
   setTimeout(injectMenuEntry, 8000);
   setTimeout(function() { runAdaptiveOpeningFlow(); }, 5500);
