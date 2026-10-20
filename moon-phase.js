@@ -17,8 +17,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.3.1';
-  const MOON_FORMULA_CHANGELOG = "修复版本号点击后不直接展示检查结果的问题。点击版本号会检查最新版本；发现更新时显示版本号、更新公告和确认更新按钮，完成后自动刷新页面。";
+  const MOON_FORMULA_VERSION = '4.3.2';
+  const MOON_FORMULA_CHANGELOG = "标题与版本号现在共用一个完整的更新点击区域，保留原主标题文字；点击该区域即可检查更新并查看公告。更新提示仍显示在版本号旁。";
   const DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -3052,7 +3052,13 @@ function openUpdateConfigDialog(panel) {
       '.mp-menu-page-head b{font:700 12px "Courier New",monospace;color:#ffb8eb;}' +
       '.mp-page-led{width:7px;height:7px;border-radius:50%;background:#ff5fc8;box-shadow:0 0 7px #ff5fc8;}' +
       '.mp-menu-subpage .mp-grid{margin-bottom:4px;}' +
-      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-title{max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}';
+      '#moon-phase-panel .mp-update-hitbox{appearance:none;-webkit-appearance:none;display:flex;flex:1 1 auto;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;max-width:calc(100% - 34px);padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;}' +
+      '#moon-phase-panel .mp-update-hitbox:hover .mp-title{color:#fff0fb !important;text-shadow:0 0 8px rgba(244,114,208,.55);}' +
+      '#moon-phase-panel .mp-update-hitbox:focus-visible{outline:1px dashed #ff8cdb;outline-offset:4px;}' +
+      '#moon-phase-panel .mp-update-hitbox .mp-title-orb{flex:0 0 auto;}' +
+      '#moon-phase-panel .mp-update-hitbox .mp-title{display:block;flex:1 1 170px;min-width:0;max-width:none;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.35;}' +
+      '#moon-phase-panel .mp-update-hitbox .mp-badge{display:inline-block;flex:0 0 auto;}' +
+      '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}';
   }
 // ===== 第 16 份 =====
   function renderEventStatusCard() {
@@ -3102,15 +3108,15 @@ function openUpdateConfigDialog(panel) {
     const bioStatus = getCurrentBioStatus();
     const enabledUserBio = getEnabledUserBio();
     panel.innerHTML = '' +
-      '<div class="mp-head"><div class="mp-title-group" style="display:flex;align-items:center;gap:8px;">' +
+      '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
-'<span class="mp-title">Galgame攻略系统</span>' +
-'<button type="button" class="mp-badge" id="moon-version-badge" aria-label="检查更新" title="点击检查更新或查看更新公告" style="cursor:pointer;' +
+'<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
+'<span class="mp-badge" style="cursor:pointer;' +
   (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
   '">v' + MOON_FORMULA_VERSION +
   (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
-'</button>' +
-      '</div><button class="mp-close" id="moon-phase-close">✕</button></div>' +
+'</span>' +
+      '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
       '<div class="mp-card"><div class="mp-label">月相刻度 · 运行模式</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
       ['easy', 'normal', 'hard', 'hell'].map(function(m) {
