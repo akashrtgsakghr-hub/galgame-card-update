@@ -1,6 +1,11 @@
 (function() {
-  const mainDoc = window.parent.document;
-  const mainWin = window.parent;
+  const mainDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+  const mainWin = window.parent || window;
+  function getStorage() {
+    try { if (mainWin && mainWin.localStorage) return mainWin.localStorage; } catch (e) {}
+    try { if (window.localStorage) return window.localStorage; } catch (e) {}
+    return null;
+  }
 
   const SETTINGS_KEY = 'moon_phase_system_settings';
   const BIO_LIBRARY_KEY = 'moon_phase_bio_library';
@@ -17,8 +22,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.0';
-  const MOON_FORMULA_CHANGELOG = "新增按聊天独立保存的成就与回忆画廊、可选生图渠道、终局结算卡和后日谈；重大事件及彩蛋解锁支持去重。";
+  const MOON_FORMULA_VERSION = '4.6.4';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.4 完整合并更新】\n1. 🌌 周目结算公屏报幕与角色视角后日谈番外：点击「周目结算」支持将终局提示词自动注入酒馆聊天输入框（#send_textarea）并自动发送，AI 回复后由脚本内置正则引擎自动匹配 [GalgameEnding|...] / <GalgameEnding> 标签，原地渲染为「日系经典 Galgame 结局报幕（Staff Roll / — Fin. — 演出卡）」。报幕卡内自带「是否查看后日谈」交互按钮，点击后自动填充提示词到输入框并发送，让 AI 在当前对话内以角色视角继续创作一篇 5000～8000 字的结局后完整番外，并通过内置正则美化为 After Story 番外阅读卡。\n2. 🎨 回忆画廊与多渠道生图升级：新增「画风与画师串预设库」（支持保存多套画师串、正面提示词、负面提示词）；支持 Pollinations / NovelAI / SD WebUI / OpenAI / Midjourney 各渠道独立配置并单独保存，支持设置默认主渠道与次用备用渠道，生成失败自动重试最多 5 次并自动故障切换。\n3. 🖼️ 成就与结局 CG 智能构图：严格保留原有重大事件/彩蛋成就触发条件与手动点击「查看当前回忆（显影 CG）」的交互流程，AI 根据当前最新画面上下文自动提炼默认横构图（16:9 widescreen）提示词。\n4. 🌙 复古黑粉像素掌机体验优化：保留黑粉复古掌机像素风与古早绿屏 LCD（#7d896f），新增 LCD 顶部 [01状态/02档案/03事件/04内存] 直达页签、机身 [SELECT·掌机说明书] / [START·配置API] 快捷按键，游戏难度升级为彩色月相 Emoji（🌕满月 / 🌗下弦月 / 🌙峨眉月 / 🌑新月）。\n5. 🔧 核心算分与 API 稳定性修复：修复 [Sylveina|...] 标签（含全角括号兼容）向四维数值结算的完整链路、阶段值 R 自动同步与属性点重掷快照回滚；修复独立 API 配置拉取模型列表跨域问题并支持按需自动弹窗配置。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -36,6 +41,7 @@
   const ENDING_STORAGE_KEY = 'moon_phase_endings_v1';
   const ACHIEVEMENT_TRIGGER_KEY = 'moon_phase_achievement_triggers_v1';
   const IMAGE_CONFIG_KEY = 'moon_phase_image_gen_config_v1';
+  const CG_STYLE_PRESETS_KEY = 'moon_phase_cg_style_presets_v1';
   const GALLERY_DB_NAME = 'moon_phase_gallery_images_v1';
   const BIO_ASKED_CHATS_KEY = 'moon_phase_bio_asked_chats';
   const USER_BIO_LIBRARY_KEY = 'moon_phase_user_bio_library';
@@ -62,7 +68,7 @@
   };
 
   const DEFAULT_SETTINGS = {
-    mode: 'hell', antisl: true, extraModel: 'auto', cardMode: 'single', safetyLock: true,
+    mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0
   };
@@ -103,8 +109,8 @@
 
   const LUNAR_META = {
     easy: { name: '简单', glyph: '🌕', title: '满月', quota: '10.0', detail: '惩罚小，时间跳跃更容易成功。适合轻松日常、甜宠、慢热、恋爱养成这类不太想被狠虐的卡。' },
-    normal: { name: '普通', glyph: '🌖', title: '亏凸月', quota: '7.0', detail: '标准难度，情感变化比较均衡。适合大多数剧情卡、综合向卡，日常和冲突都能跑。' },
-    hard: { name: '困难', glyph: '🌗', title: '下弦月', quota: '5.0', detail: '周上限更紧，时间跳跃判定更严。适合冲突多、推进快、需要压力感的强剧情卡。' },
+    normal: { name: '普通', glyph: '🌗', title: '下弦月', quota: '7.0', detail: '标准难度，情感变化比较均衡。适合大多数剧情卡、综合向卡，日常和冲突都能跑。' },
+    hard: { name: '困难', glyph: '🌙', title: '峨眉月', quota: '5.0', detail: '周上限更紧，时间跳跃判定更严。适合冲突多、推进快、需要压力感的强剧情卡。' },
     hell: { name: '地狱', glyph: '🌑', title: '新月', quota: '3.0', detail: '周上限最低，默认开启锚定时间线。适合重度虐恋、强冲突、黑深残、高张力、长线折磨的卡。' }
   };
   const ARCADE_DIFFICULTY_HINTS = {
@@ -151,7 +157,7 @@
   function readLastRoll(charData) {
     const lr = charData && charData._lastRoll;
     if (!lr || typeof lr !== 'object') return null;
-    return { 事件类型: lr.事件类型, 方向: lr.方向, 主维度: lr.主维度, 基础值: lr.基础值 };
+    return { 事件类型: lr.事件类型, 方向: lr.方向, 主维度: lr.主维度, 基础值: lr.基础值, _applied: lr._applied === true, _turnSig: lr._turnSig || '' };
   }
   function getSTCtx() {
     try { if (mainWin.SillyTavern && mainWin.SillyTavern.getContext) return mainWin.SillyTavern.getContext(); } catch (e) {}
@@ -324,61 +330,94 @@
     };
   }
 
-  // 调用主模型（SillyTavern Generate 接口），可选 provider: 'main' / 'extra' / 'custom'
-async function _callOpeningModel(provider, sysPrompt, userPrompt) {
-    // 1. 自定义第三方 API
-    if (provider === 'custom') return await callCustomAIConfig(sysPrompt, userPrompt);
+  function hasValidCustomAIConfig() {
+    try {
+      const cfg = getCustomAIConfig();
+      return !!(cfg && cfg.url && cfg.key && cfg.model);
+    } catch (e) { return false; }
+  }
 
-    // 2. 副模型接口兼容
-    if (provider === 'extra') {
-      const mvu = mainWin.Mvu || window.Mvu;
-      if (mvu && typeof mvu.requestExtraAnalysis === 'function') {
-        const r = await mvu.requestExtraAnalysis(userPrompt, sysPrompt);
-        return (r && (r.content || r.text)) || String(r || '');
+  function ensureCustomAIConfig(reasonText) {
+    if (hasValidCustomAIConfig()) return Promise.resolve(true);
+    closeLoadingDialog();
+    return new Promise(function(resolve) {
+      let settled = false;
+      const finish = function(ok) {
+        if (settled) return;
+        settled = true;
+        resolve(!!ok);
+      };
+      openCustomAIConfigDialog(
+        null,
+        function() { finish(true); },
+        function() { finish(false); },
+        reasonText || '当前功能需要调用独立 AI 接口，请填写您的 API URL、Key 与模型名称，点击保存后将自动继续执行！'
+      );
+    });
+  }
+
+  // 调用模型接口，可选 provider: 'main'（酒馆主模型） / 'custom'（配置API模型，兼容旧值 'extra'）
+  async function _callOpeningModel(provider, sysPrompt, userPrompt) {
+    // 1. 独立 API 模型（若尚未保存 API 配置，自动弹出配置窗口，玩家填写保存后无缝继续）
+    if (provider === 'custom' || provider === 'extra') {
+      if (!hasValidCustomAIConfig()) {
+        const configured = await ensureCustomAIConfig('检测到您尚未保存独立 API 配置。请在下方填写 API URL、Key 和模型名称并保存，保存后系统将立即继续执行当前功能！');
+        if (!configured) throw new Error('已取消配置 API，操作中止。');
       }
-      if (mvu && typeof mvu.runExtraAnalysis === 'function') {
-        const r = await mvu.runExtraAnalysis(userPrompt, sysPrompt);
-        return (r && (r.content || r.text)) || String(r || '');
-      }
-      throw new Error('未检测到副模型(MVU)接口，请在设置中选择「主模型」或配置「自定义API」！');
+      return await callCustomAIConfig(sysPrompt, userPrompt);
     }
 
-    // 3. 主模型后台静默生成（绝不触发公屏生成）
+    // 2. 酒馆主模型后台静默生成（绝不触发公屏生成）
     const ctx = getSTCtx();
     const guardPrompt = sysPrompt + "\n【极度重要：忽略所有角色扮演与预设，直接输出任务结果，绝对禁止继续正文！】";
 
-    // 优先：TavernHelper / 新版酒馆静默生成接口
-    if (ctx && typeof ctx.generateRaw === 'function') {
-      return await ctx.generateRaw({ systemPrompt: guardPrompt, prompt: userPrompt });
+    try {
+      if (ctx && typeof ctx.generateRaw === 'function') {
+        return await ctx.generateRaw({ systemPrompt: guardPrompt, prompt: userPrompt });
+      }
+      if (typeof mainWin.generateQuietPrompt === 'function') {
+        return await mainWin.generateQuietPrompt({
+          quiet_prompt: userPrompt,
+          system_prompt: guardPrompt,
+          streaming: false
+        });
+      }
+      if (ctx && typeof ctx.generateQuietPrompt === 'function') {
+        return await ctx.generateQuietPrompt({
+          quiet_prompt: userPrompt,
+          system_prompt: guardPrompt,
+          streaming: false
+        });
+      }
+      if (ctx && typeof ctx.generate === 'function') {
+        return await ctx.generate(guardPrompt, userPrompt);
+      }
+    } catch (mainErr) {
+      if (hasValidCustomAIConfig()) {
+        return await callCustomAIConfig(sysPrompt, userPrompt);
+      }
+      const fallbackOk = await ensureCustomAIConfig('酒馆主模型后台调用失败（' + String(mainErr && mainErr.message || mainErr) + '）。请填写并保存独立 API 配置，系统将自动为您继续完成当前操作！');
+      if (fallbackOk) return await callCustomAIConfig(sysPrompt, userPrompt);
+      throw mainErr;
     }
 
-    // 其次：酒馆原生的静默提示词接口 generateQuietPrompt
-    if (typeof mainWin.generateQuietPrompt === 'function') {
-      return await mainWin.generateQuietPrompt({
-        quiet_prompt: userPrompt,
-        system_prompt: guardPrompt,
-        streaming: false
-      });
+    // 若酒馆静默接口不可用，自动使用或弹窗引导玩家配置独立 API
+    if (!hasValidCustomAIConfig()) {
+      const ok = await ensureCustomAIConfig('当前未检测到可用的酒馆主模型静默接口。请填写您的独立 API 配置（如 DeepSeek / OpenAI / Gemini 等），保存后将自动继续执行！');
+      if (!ok) throw new Error('未检测到酒馆主模型接口且未配置独立 API，操作已取消。');
     }
-    if (ctx && typeof ctx.generateQuietPrompt === 'function') {
-      return await ctx.generateQuietPrompt({
-        quiet_prompt: userPrompt,
-        system_prompt: guardPrompt,
-        streaming: false
-      });
-    }
-
-    // 再次：旧版酒馆 Context 接口
-    if (ctx && typeof ctx.generate === 'function') {
-      return await ctx.generate(guardPrompt, userPrompt);
-    }
-
-    throw new Error('酒馆主模型静默接口不可用，请配置「自定义副模型」使用！');
+    return await callCustomAIConfig(sysPrompt, userPrompt);
   }
 
   async function callOpeningModel(provider, sysPrompt, userPrompt) {
-    const showArcade = provider === 'extra' || provider === 'custom';
-    if (showArcade) showLoadingDialog('副模型正在处理任务…', true);
+    const useCustomApi = (provider === 'custom' || provider === 'extra');
+    if (useCustomApi && !hasValidCustomAIConfig()) {
+      const configured = await ensureCustomAIConfig('当前功能需要调用独立 API，请先填写并保存您的 API 配置，保存后自动继续执行！');
+      if (!configured) throw new Error('已取消配置 API，操作中止。');
+    }
+    const existingLoading = mainDoc.getElementById('moon-loading-mask');
+    const showArcade = useCustomApi && !existingLoading;
+    if (showArcade) showLoadingDialog('API 模型正在处理任务…', true);
     try { return await _callOpeningModel(provider, sysPrompt, userPrompt); }
     finally { if (showArcade) closeLoadingDialog(); }
   }
@@ -410,14 +449,21 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
   function toast(msg, type) {
     try { const t = mainWin.toastr; if (t && t[type]) t[type](msg, '', { timeOut: 2600, positionClass: 'toast-top-center' }); } catch (e) {}
   }
-  function getAdaptModelPref() { try { const v = mainWin.localStorage.getItem(ADAPT_MODEL_PREF_KEY) || ''; if (v === 'main' || v === 'extra' || v === 'custom') return v; } catch (e) {} return 'main'; }
+  function getAdaptModelPref() {
+    try {
+      const v = mainWin.localStorage.getItem(ADAPT_MODEL_PREF_KEY) || '';
+      if (v === 'custom' || v === 'extra') return 'custom';
+      if (v === 'main') return 'main';
+    } catch (e) {}
+    return hasValidCustomAIConfig() ? 'custom' : 'main';
+  }
   function updateLoadingDialogText(text) {
     const m = mainDoc.getElementById('moon-loading-mask'); if (!m) return;
     const el = m.querySelector('#moon-loading-text');
     if (el) el.textContent = '⏳ ' + text;
     else { const el2 = m.querySelector('div > div:first-child'); if (el2) el2.textContent = '⏳ ' + text; }
   }
-// ===== 第 2 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function getBioLibrary() {
     try { const raw = mainWin.localStorage.getItem(BIO_LIBRARY_KEY); if (raw) { const parsed = JSON.parse(raw); if (parsed && parsed.bios && typeof parsed.bios === 'object') return parsed; } } catch (e) {}
     return { version: 1, bios: {} };
@@ -464,46 +510,153 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
 
   function loadLocalState() {
     const key = getChatStateKey();
+    const store = getStorage();
     let data = null;
-    try { const raw = localStorage.getItem(key); if (raw) data = JSON.parse(raw); } catch (e) {}
+    try {
+      const raw = store ? store.getItem(key) : null;
+      if (raw) data = JSON.parse(raw);
+    } catch (e) {}
+    if (!data) {
+      try {
+        const rawFallback = localStorage.getItem(key);
+        if (rawFallback) data = JSON.parse(rawFallback);
+      } catch (e) {}
+    }
     if (!data) {
       try {
         const ctx = getSTCtx();
         if (ctx && ctx.chatMetadata && ctx.chatMetadata[key]) {
           data = ctx.chatMetadata[key];
-          localStorage.setItem(key, JSON.stringify(data));
+          if (store) store.setItem(key, JSON.stringify(data));
         }
       } catch (e) {}
     }
+    if (data && data.stat_data) cachedVars = data;
     return data || { stat_data: { 世界: { 时间: '2000年01月01日 · 星期六 · 00:00', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' }, 角色: {} } };
   }
 
-  async function saveLocalState(newStatData) {
-    showLoadingDialog('当前阶段值发生重大变故，变动正在更新数据中，请勿退出当前页面导致更新失败！');
+  async function saveLocalState(newStatData, opts) {
+    opts = opts || {};
+    const showLoading = opts.showLoading === true;
+    if (showLoading) {
+      showLoadingDialog('当前阶段值发生重大变故，变动正在更新数据中，请勿退出当前页面导致更新失败！');
+    }
     try {
       const key = getChatStateKey();
-      localStorage.setItem(key, JSON.stringify({ stat_data: newStatData }));
+      const payload = { stat_data: newStatData };
+      cachedVars = payload;
+      const store = getStorage();
+      if (store) store.setItem(key, JSON.stringify(payload));
+      try { if (localStorage !== store) localStorage.setItem(key, JSON.stringify(payload)); } catch (e) {}
       const ctx = getSTCtx();
       if (ctx && ctx.chatMetadata) {
-        ctx.chatMetadata[key] = { stat_data: newStatData };
+        ctx.chatMetadata[key] = payload;
         if (typeof ctx.saveMetadata === 'function') await ctx.saveMetadata();
       }
-      await new Promise(function(r) { setTimeout(r, 500); });
+      if (showLoading) await new Promise(function(r) { setTimeout(r, 350); });
+      lastWriteError = '';
       return true;
     } catch (e) {
+      lastWriteError = String(e && e.message || e);
       toast('写入失败，本地存储可能已满', 'warning');
       return false;
-    } finally { closeLoadingDialog(); }
+    } finally {
+      if (showLoading) closeLoadingDialog();
+    }
   }
 
   function readMvuLatest() { return loadLocalState(); }
-  async function writeMvuLatest(newStatData) { return await saveLocalState(newStatData); }
+  async function writeMvuLatest(newStatData, opts) { return await saveLocalState(newStatData, opts); }
+
+  const SYLVEINA_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(（]\s*Sylveina\s*[|｜]([^\]\u3015\u3011\uff3d)）\r\n]+)[\]\u3015\u3011\uff3d)）]?/gi;
+
+  function parseSylveinaBody(bodyStr, fullMatch) {
+    if (!bodyStr) return null;
+    const rawParts = String(bodyStr).split(/[|｜]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    if (rawParts.length < 2) return null;
+    let level = '';
+    let sign = '';
+    let baseValue = NaN;
+    let dimension = 'E';
+    let charName = '';
+    const levelMap = { L: '日常', M: '关键', H: '重大' };
+    for (let i = 0; i < rawParts.length; i++) {
+      const p = rawParts[i];
+      const upper = p.toUpperCase();
+      if (!level && (upper === 'L' || upper === 'M' || upper === 'H')) {
+        level = upper;
+        continue;
+      }
+      if (!level && (p === '日常' || p === '关键' || p === '重大' || p === '彩蛋')) {
+        level = p === '日常' ? 'L' : (p === '关键' ? 'M' : 'H');
+        continue;
+      }
+      if (!sign && (p === '+' || p === '-' || p === '＋' || p === '－' || p === '−' || p === '—' || p === '正向' || p === '负向')) {
+        sign = (p === '-' || p === '－' || p === '−' || p === '—' || p === '负向') ? '-' : '+';
+        continue;
+      }
+      if ((upper === 'E' || upper === 'P' || upper === 'R' || upper === 'I') && isNaN(Number(p))) {
+        dimension = upper;
+        continue;
+      }
+      if (p === '好感度' || p === '好感' || p === '肉体值' || p === '肉体' || p === '阶段值' || p === '阶段' || p === '嫉妒值' || p === '嫉妒') {
+        dimension = p.indexOf('肉') === 0 ? 'P' : (p.indexOf('阶') === 0 ? 'R' : (p.indexOf('嫉') === 0 ? 'I' : 'E'));
+        continue;
+      }
+      const numMatch = p.match(/^([+-＋－−—])?\s*(\d+(?:\.\d+)?)$/);
+      if (numMatch && isNaN(baseValue)) {
+        if (!sign && numMatch[1]) {
+          sign = (numMatch[1] === '-' || numMatch[1] === '－' || numMatch[1] === '−' || numMatch[1] === '—') ? '-' : '+';
+        }
+        baseValue = parseFloat(numMatch[2]);
+        continue;
+      }
+      if (!charName) {
+        charName = p;
+      }
+    }
+    if (!level) level = 'L';
+    if (!sign) sign = '+';
+    if (isNaN(baseValue)) return null;
+    const eventType = levelMap[level] || '日常';
+    const direction = sign === '+' ? '正向' : '负向';
+    const canonicalTag = '[Sylveina|' + (charName ? charName + '|' : '') + level + '|' + sign + '|' + baseValue + ']';
+    const canonicalSimpleTag = '[Sylveina|' + level + '|' + sign + '|' + baseValue + ']';
+    return {
+      level: level,
+      sign: sign,
+      direction: direction,
+      eventType: eventType,
+      dimension: dimension || 'E',
+      baseValue: baseValue,
+      charName: charName,
+      fullMatch: fullMatch || canonicalTag,
+      canonicalTag: canonicalTag,
+      canonicalSimpleTag: canonicalSimpleTag
+    };
+  }
+
+  function extractAllSylveinaTags(mes) {
+    const out = [];
+    if (!mes) return out;
+    const text = String(mes);
+    const re = new RegExp(SYLVEINA_TAG_GLOBAL_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const parsed = parseSylveinaBody(m[1], m[0]);
+      if (parsed) {
+        parsed.index = m.index;
+        parsed.end = re.lastIndex;
+        out.push(parsed);
+      }
+    }
+    return out;
+  }
 
   function extractSylveinaTag(mes) {
-    if (!mes) return null;
-    const m = String(mes).match(/\[Sylveina\|([LMH])\|([+-])\|(\d+(?:\.\d+)?)\]/);
-    if (!m) return null;
-    return { level: m[1], direction: m[2] === '+' ? '正向' : '负向', baseValue: parseFloat(m[3]), fullMatch: m[0] };
+    const all = extractAllSylveinaTags(mes);
+    if (!all.length) return null;
+    return all[all.length - 1];
   }
 
   function extractBaseValueFromLatestAiMessage(eventType) {
@@ -512,22 +665,22 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
       if (!found || !found.msg || !found.msg.mes) return null;
       const tag = extractSylveinaTag(found.msg.mes);
       if (!tag) return null;
-      const levelMap = { L: '日常', M: '关键', H: '重大' };
-      const eventKey = levelMap[tag.level] || '日常';
-      return { value: tag.baseValue, direction: tag.direction, level: tag.level, eventType: eventKey, fullMatch: tag.fullMatch };
+      return { value: tag.baseValue, direction: tag.direction, level: tag.level, eventType: tag.eventType || eventType || '日常', dimension: tag.dimension || 'E', charName: tag.charName || '', fullMatch: tag.fullMatch };
     } catch (e) { return null; }
   }
 
   function extractFirstMeetTag(mes) {
     if (!mes) return null;
-    const m = String(mes).match(/\[初见\|优势\s*([+-]?\d+)\|劣势\s*([+-]?\d+)\]/);
+    const m = String(mes).match(/[\[\u3014\u3010\uff3b]\s*初见\s*[|｜]\s*优势\s*([+-＋－]?\d+)\s*[|｜]\s*劣势\s*([+-＋－]?\d+)\s*[\]\u3015\u3011\uff3d]/);
     if (!m) return null;
-    return { 优势: Number(m[1]) || 0, 劣势: Number(m[2]) || 0, fullMatch: m[0] };
+    const adv = Number(String(m[1]).replace('＋', '+').replace('－', '-')) || 0;
+    const dis = Number(String(m[2]).replace('＋', '+').replace('－', '-')) || 0;
+    return { 优势: adv, 劣势: dis, fullMatch: m[0] };
   }
 
   function extractDebuffTag(mes) {
     if (!mes) return null;
-    const m = String(mes).match(/\[踩雷\]/);
+    const m = String(mes).match(/[\[\u3014\u3010\uff3b]\s*踩雷\s*[\]\u3015\u3011\uff3d]/);
     if (!m) return null;
     return { fullMatch: m[0] };
   }
@@ -583,7 +736,7 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     } catch (e) {}
     return false;
   }
-// ===== 第 3 份 =====
+  /* ───────────────────────────────────────────────────────── */
   const modalQueue = []; let isModalShowing = false;
   function enqueueModal(render) { modalQueue.push(render); processModalQueue(); }
   function processModalQueue() {
@@ -779,7 +932,7 @@ async function _callOpeningModel(provider, sysPrompt, userPrompt) {
     const origRemove = mask.remove.bind(mask); let closed = false;
     mask.remove = function() { if (closed) return; closed = true; try { origRemove(); } catch (e) {} if (typeof onClosed === 'function') { try { onClosed(); } catch (e) {} } };
   }
-// ===== 第 4 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function parseGameTime(str) {
     if (!str || typeof str !== 'string') return null;
     const re = /(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日[\s\S]*?(?:(上午|下午|中午|凌晨|早上|早晨|清晨|傍晚|晚上|夜里|夜间|深夜|午后|正午)\s*)?(\d{1,2})\s*(?:[:点时])\s*(?:(\d{1,2})\s*分?)?/;
@@ -939,7 +1092,7 @@ async function _collectAllWorldbooks(includeDisabled) {
     const books = await _collectAllWorldbooks();
     return books.map(function(e) { return { bookName: e.bookName, title: e.title, content: e.content, enabled: true }; });
   }
-// ===== 第 5 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function processDebuffIfTagged(charName, ch, mode) {
     const quota = ch._quota || (ch._quota = {}); if (!quota._debuff) quota._debuff = {};
     if (quota._debuff.冷战期 === true) return null;
@@ -1079,7 +1232,7 @@ async function _collectAllWorldbooks(includeDisabled) {
     }
     if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 4, 1, false);
   }
-// ===== 第 6 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function injectEventPrompt() {
     try {
       const data = readMvuLatest();
@@ -1169,7 +1322,7 @@ async function _collectAllWorldbooks(includeDisabled) {
     return false;
   }
   function isCurrentlyInExtraAnalysis() { try { if (mainWin.Mvu && typeof mainWin.Mvu.isDuringExtraAnalysis === 'function') return mainWin.Mvu.isDuringExtraAnalysis(); } catch (e) {} return false; }
-// ===== 第 7 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function computeCharDelta(charData, lastRoll, mode) {
     if (!charData || !lastRoll) return null;
     const dim = String(lastRoll.主维度 || '').toUpperCase();
@@ -1215,31 +1368,126 @@ async function _collectAllWorldbooks(includeDisabled) {
     return { delta: delta, oldValue: oldValue, newValue: newValue, fieldName: fieldName, dimension: dim, emotionResult: emotionResult, isAbyss: isAbyss, weeklyBlocked: weeklyBlocked };
   }
 
+  function syncStageWithAffection(ch) {
+    if (!ch || typeof ch !== 'object') return false;
+    const E = Number(ch.好感度) || 0;
+    const curR = Number(ch.阶段值) || 0;
+    const targetStage = getRStageFromE(E);
+    const targetR = targetStage.r;
+    const q = ch._quota || (ch._quota = {});
+    if (targetR < curR) {
+      ch.阶段值 = targetR;
+      if (targetR < 0) q.R阶段门 = false;
+      return true;
+    }
+    if (targetR > curR && q.R阶段门 !== true) {
+      const nextGate = getNextGateNode(curR);
+      if (nextGate === null || E < nextGate || curR < 0) {
+        ch.阶段值 = targetR;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function matchTagForCharacter(tags, charName, activeCharCount) {
+    if (!Array.isArray(tags) || !tags.length) return null;
+    const cleanName = String(charName || '').trim();
+    for (let i = tags.length - 1; i >= 0; i--) {
+      const t = tags[i];
+      if (t.charName && cleanName && (t.charName === cleanName || cleanName.indexOf(t.charName) >= 0 || t.charName.indexOf(cleanName) >= 0)) {
+        return t;
+      }
+    }
+    for (let i = tags.length - 1; i >= 0; i--) {
+      if (!tags[i].charName) return tags[i];
+    }
+    if (activeCharCount === 1 || getCardMode() !== 'multi') {
+      return tags[tags.length - 1];
+    }
+    return null;
+  }
+
+  function tryExtractWorldTimeFromMessage(mes, currentWorldTime) {
+    if (!mes) return null;
+    const text = String(mes);
+    const explicitMatch = text.match(/(?:世界\.时间|【?当前时间|【?时间|📅|🕒)\s*[:：=]\s*([^\r\n】>]+)/i);
+    const candidate = explicitMatch ? explicitMatch[1].trim() : '';
+    const m = (candidate && candidate.match(TL_TIME_RE)) || text.match(/(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^\r\n]{0,20}?\d{1,2}\s*[:点时]\s*\d{1,2}(?:\s*分)?)/);
+    if (!m) return null;
+    const newDate = parseGameTime(m[1] || m[0]);
+    if (!newDate) return null;
+    const curDate = parseGameTime(currentWorldTime);
+    if (curDate && newDate.getTime() < curDate.getTime()) return null;
+    const y = newDate.getFullYear();
+    const mo = String(newDate.getMonth() + 1).padStart(2, '0');
+    const da = String(newDate.getDate()).padStart(2, '0');
+    const wd = ['日','一','二','三','四','五','六'][newDate.getDay()];
+    const hh = String(newDate.getHours()).padStart(2, '0');
+    const mm = String(newDate.getMinutes()).padStart(2, '0');
+    return y + '年' + mo + '月' + da + '日 · 星期' + wd + ' · ' + hh + ':' + mm;
+  }
+
   async function runMoonCalculation() {
     try {
       const data = readMvuLatest();
       if (!data || !data.stat_data || !data.stat_data.角色) return;
       const statData = data.stat_data;
       const chars = statData.角色;
-      const world = statData.世界 || {};
+      const world = statData.世界 || (statData.世界 = { 时间: '2000年01月01日 · 星期六 · 00:00', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' });
       const mode = getCurrentMode();
+      const latestAi = getLatestAiMessage();
+      const latestAiText = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
+      const extractedTime = tryExtractWorldTimeFromMessage(latestAiText, world.时间 || '');
+      if (extractedTime && extractedTime !== world.时间) {
+        world.时间 = extractedTime;
+      }
       const currentTime = world.时间 || '';
-      try { await updateInternalTime(); } catch (e) {}
+      try {
+        const currentDate = parseGameTime(currentTime);
+        if (currentDate) {
+          let lastDate = parseGameTime(world._上次推进时间 || currentTime) || currentDate;
+          const diffDays = (currentDate.getTime() - lastDate.getTime()) / 86400000;
+          if (diffDays > 0) {
+            let internalDays = diffDays;
+            if (diffDays >= 3) {
+              const floorRatio = mode === 'easy' ? 10 : mode === 'normal' ? 20 : mode === 'hard' ? 30 : 35;
+              const ctx = getSTCtx();
+              const currentFloor = (ctx && ctx.chat) ? ctx.chat.length : 0;
+              const store = getStorage();
+              const lastJumpFloor = parseInt((store && store.getItem(LAST_JUMP_FLOOR_KEY)) || '0', 10);
+              const floorDelta = Math.max(0, currentFloor - lastJumpFloor);
+              internalDays = Math.max(1, Math.round(floorDelta / floorRatio));
+              if (store) store.setItem(LAST_JUMP_FLOOR_KEY, String(currentFloor));
+            }
+            world._内部流逝天数 = (Number(world._内部流逝天数) || 0) + internalDays;
+            world._上次推进时间 = currentTime;
+          }
+        }
+      } catch (e) {}
+
       const changedChars = [];
+      const stageChangedChars = [];
       const gateLogs = [];
       const eventLogs = [];
       const achievementRequests = [];
       const endingRequests = [];
-      const latestAi = getLatestAiMessage();
-      const latestAiText = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
-      const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText) : stableFeatureHash(String(currentTime));
+      const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : stableFeatureHash(String(currentTime));
+      const parsedTags = extractAllSylveinaTags(latestAiText);
+      const activeCharNames = Object.keys(chars).filter(function(k) {
+        return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
+      });
+
       let wbEntries = [];
       try { wbEntries = await getAllWorldbookEntries(); } catch (e) {}
-      for (const name in chars) {
+
+      for (const name of activeCharNames) {
         const ch = chars[name];
         if (!ch || isCharSkeleton(ch)) continue;
         if (!ch._quota) ch._quota = {};
         if (ch._quota._firstMeetDone === undefined) ch._quota._firstMeetDone = false;
+        const oldRBeforeTurn = Number(ch.阶段值) || 0;
+
         try {
           const fmResult = await processFirstMeetForChar(name, ch, mode);
           if (fmResult) gateLogs.push({ type: 'event_update', char: name, event: { type: 'first_meet', result: fmResult } });
@@ -1248,23 +1496,64 @@ async function _collectAllWorldbooks(includeDisabled) {
           const dbResult = await processDebuffIfTagged(name, ch, mode);
           if (dbResult) gateLogs.push({ type: 'event_update', char: name, event: { type: 'debuff', result: dbResult } });
         } catch (e) {}
+
+        // 若本楼层检测到 Sylveina 标签且尚未对该角色结算，则自动写入 ch._lastRoll
+        const matchedTag = matchTagForCharacter(parsedTags, name, activeCharNames.length);
+        if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature) {
+          const esType = (ch._quota._eventState && ch._quota._eventState.事件类型) || '';
+          const resolvedEventType = (esType === '重大' || esType === '彩蛋' || matchedTag.level === 'H')
+            ? '重大'
+            : (matchedTag.eventType || esType || '日常');
+          ch._lastRoll = {
+            事件类型: resolvedEventType,
+            方向: matchedTag.direction || '正向',
+            主维度: matchedTag.dimension || 'E',
+            基础值: Number(matchedTag.baseValue) || 0,
+            _applied: false,
+            _turnSig: turnSignature
+          };
+        }
+
         const lastRoll = readLastRoll(ch);
-        if (lastRoll && lastRoll.主维度) {
+        if (lastRoll && lastRoll.主维度 && !lastRoll._applied) {
+          ch._quota._preRollSnapshot = {
+            好感度: Number(ch.好感度) || 0,
+            肉体值: Number(ch.肉体值) || 0,
+            阶段值: Number(ch.阶段值) || 0,
+            嫉妒值: Number(ch.嫉妒值) || 0,
+            好感度周上限已用: Number(ch._quota.好感度周上限已用) || 0,
+            turnSig: turnSignature
+          };
           if (lastRoll.事件类型 === '重大') {
             achievementRequests.push({ charName: name, eventType: '重大事件', reason: String(lastRoll.主维度) + '向剧烈转折', key: turnSignature + '::' + name + '::major' });
           }
           const result = computeCharDelta(ch, lastRoll, mode);
           if (result && result.delta !== 0) {
-            const oldR = Number(ch.阶段值) || 0;
             ch[result.fieldName] = result.newValue;
             changedChars.push({ name: name, field: result.fieldName, delta: result.delta, newValue: result.newValue });
-            if (result.fieldName === '阶段值' && result.newValue !== oldR) { try { triggerBioRewriteFor([name]); } catch (e) {} }
           }
-          ch._lastRoll = { 事件类型: '', 方向: '', 主维度: '', 基础值: 0 };
+          // 保留 _lastRoll 供阶段门判定与面板「🎲 属性点重掷」读取，仅标记已结算
+          ch._lastRoll = {
+            事件类型: lastRoll.事件类型,
+            方向: lastRoll.方向,
+            主维度: lastRoll.主维度,
+            基础值: lastRoll.基础值,
+            _applied: true,
+            _turnSig: turnSignature
+          };
+          ch._quota._lastCalculatedTurnSig = turnSignature;
         }
+
         const gateLog = processGateForChar(name, ch, currentTime, mode);
         if (gateLog) gateLogs.push(gateLog);
+        syncStageWithAffection(ch);
         try { computePlayerConfession(ch, mode, currentTime); } catch (e) {}
+
+        const newRAfterTurn = Number(ch.阶段值) || 0;
+        if (newRAfterTurn !== oldRBeforeTurn) {
+          stageChangedChars.push(name);
+        }
+
         try {
           const evt = await processEventSystem(name, ch, currentTime, world, wbEntries);
           if (evt) {
@@ -1280,8 +1569,12 @@ async function _collectAllWorldbooks(includeDisabled) {
           if (ending.triggered) endingRequests.push({ charName: name, charData: ch, ending: ending });
         } catch (e) {}
       }
-      const ok = await writeMvuLatest(statData);
+
+      const ok = await writeMvuLatest(statData, { showLoading: stageChangedChars.length > 0 });
       if (!ok) { try { console.warn('[Doki] 变量写回失败：', lastWriteError); } catch (e) {} return; }
+      if (stageChangedChars.length > 0) {
+        try { triggerBioRewriteFor(stageChangedChars); } catch (e) {}
+      }
       achievementRequests.forEach(function(request) {
         if (markAchievementTrigger(request.key)) triggerAchievementUnlock(request.charName, request.eventType, request.reason, request.key).catch(function(e) { try { console.warn('[Doki] 成就记录失败：', e); } catch (ignore) {} });
       });
@@ -1291,8 +1584,13 @@ async function _collectAllWorldbooks(includeDisabled) {
       if (gateLogs.length) { try { injectGateNotice(gateLogs); } catch (e) {} }
       if (eventLogs.length) { try { injectGateNotice(eventLogs.map(function(x) { return { type: 'event_update', char: x.char, event: x.event }; })); } catch (e) {} }
       if (changedChars.length) {
-        try { const msg = changedChars.map(function(c) { return c.name + ' ' + c.field + ' Δ' + c.delta; }).join('；'); console.log('[Doki] 数值更新：', msg); } catch (e) {}
+        try {
+          const msg = changedChars.map(function(c) { return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('；');
+          console.log('[Doki] 数值更新：', msg);
+          toast('数值更新：' + msg, 'info');
+        } catch (e) {}
       }
+      try { refreshPanel(); } catch (e) {}
     } catch (e) { try { console.warn('[Doki] 计算流程异常：', e); } catch (e2) {} }
   }
 
@@ -1392,24 +1690,27 @@ async function _collectAllWorldbooks(includeDisabled) {
       } catch (e) { resolve(null); }
     });
   }
-// ===== 第 8 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function checkTimeJump() {
     try {
-      const currentTime = readVar('世界.时间', '');
+      const data = readMvuLatest();
+      const statData = data && data.stat_data;
+      const currentTime = (statData && statData.世界 && statData.世界.时间) || readVar('世界.时间', '');
       if (!currentTime) return null;
-      const lastTime = mainWin.localStorage.getItem(LAST_TIME_KEY) || '';
-      if (!lastTime) { mainWin.localStorage.setItem(LAST_TIME_KEY, currentTime); return null; }
+      const store = getStorage();
+      const lastTime = (store && store.getItem(LAST_TIME_KEY)) || '';
+      if (!lastTime) { if (store) store.setItem(LAST_TIME_KEY, currentTime); return null; }
       const lastDate = parseGameTime(lastTime); const currentDate = parseGameTime(currentTime);
-      if (!lastDate || !currentDate) { mainWin.localStorage.setItem(LAST_TIME_KEY, currentTime); return null; }
+      if (!lastDate || !currentDate) { if (store) store.setItem(LAST_TIME_KEY, currentTime); return null; }
       const diffDays = (currentDate.getTime() - lastDate.getTime()) / 86400000;
       if (diffDays < 1) return null;
       if (timeJumpCooldown > 0) return null;
-      mainWin.localStorage.setItem(LAST_TIME_KEY, currentTime);
+      if (store) store.setItem(LAST_TIME_KEY, currentTime);
       const mode = getCurrentMode();
       const floorRatio = mode === 'easy' ? 10 : mode === 'normal' ? 20 : mode === 'hard' ? 30 : 35;
       const ctx = getSTCtx();
       const currentFloor = (ctx && ctx.chat) ? ctx.chat.length : 0;
-      const lastJumpFloor = parseInt(mainWin.localStorage.getItem(LAST_JUMP_FLOOR_KEY) || '0');
+      const lastJumpFloor = parseInt((store && store.getItem(LAST_JUMP_FLOOR_KEY)) || '0', 10);
       const floorDelta = Math.max(0, currentFloor - lastJumpFloor);
       const daysFromFloor = Math.max(1, Math.round(floorDelta / floorRatio));
       const diceThreshold = mode === 'easy' ? 8 : mode === 'normal' ? 13 : 18;
@@ -1422,8 +1723,17 @@ async function _collectAllWorldbooks(includeDisabled) {
       else if (dice >= diceThreshold) { delta = base; resultText = '成功'; }
       else { delta = 0; resultText = '失败（不加不减）'; }
       delta = Math.min(delta, 5.0); delta = roundHalf(delta);
-      mainWin.localStorage.setItem(LAST_JUMP_FLOOR_KEY, String(currentFloor));
+      if (store) store.setItem(LAST_JUMP_FLOOR_KEY, String(currentFloor));
       timeJumpCooldown = 5;
+      if (delta !== 0 && statData && statData.角色) {
+        for (const name in statData.角色) {
+          const ch = statData.角色[name];
+          if (!ch || isCharSkeleton(ch) || ch.在场 === false) continue;
+          ch.好感度 = roundHalf((Number(ch.好感度) || 0) + delta);
+          syncStageWithAffection(ch);
+        }
+        writeMvuLatest(statData);
+      }
       return { diffDays: Math.floor(diffDays), dice: dice, threshold: diceThreshold, resultText: resultText, delta: delta, daysFromFloor: daysFromFloor, mode: mode, coeff: coeff };
     } catch (e) { return null; }
   }
@@ -1436,24 +1746,26 @@ async function _collectAllWorldbooks(includeDisabled) {
     lines.push('');
     lines.push('【掷骰判定】1d20 = ' + info.dice + '（阈值 ≥' + info.threshold + '）');
     lines.push('【结果】' + info.resultText);
-    lines.push('【E值变化】' + (info.delta >= 0 ? '+' : '') + info.delta);
+    lines.push('【E值变化】' + (info.delta >= 0 ? '+' : '') + info.delta + '（已由系统在本地档案中自动结算）');
     lines.push('【倒计时扣减】换算天数 ' + info.daysFromFloor + ' 天。');
-    lines.push('');
-    lines.push('【变量模型 / <Commands> 执行要求】：请在更新变量时写入：');
-    lines.push("_.set('角色.<主要角色名>.好感度', 原值 + " + info.delta + ");");
+    lines.push('→ 叙事要求：在接下来的剧情中自然体现这段时间流逝后的关系氛围。');
     lines.push('═══════════════════════════════════');
     callSetPrompt(PROMPT_KEY + '_jump', lines.join('\n'), 4, 1, false);
   }
   function checkAllCountdowns() {
     const actions = [];
     try {
-      const currentTime = readVar('世界.时间', '');
+      const data = readMvuLatest();
+      const statData = data && data.stat_data;
+      const currentTime = (statData && statData.世界 && statData.世界.时间) || readVar('世界.时间', '');
       if (!currentTime) return actions;
-      const characters = readVar('角色', {});
+      const characters = (statData && statData.角色) || readVar('角色', {});
       if (!characters || typeof characters !== 'object') return actions;
+      let mutated = false;
       for (const name in characters) {
-        const ch = characters[name]; if (!ch) continue;
-        const quota = ch._quota || {}; const debuff = quota._debuff || {};
+        const ch = characters[name]; if (!ch || isCharSkeleton(ch)) continue;
+        const quota = ch._quota || (ch._quota = {});
+        const debuff = quota._debuff || (quota._debuff = {});
         const E = Number(ch.好感度) || 0;
         if (quota.周上限起始) {
           const startDate = parseGameTime(quota.周上限起始); const curDate = parseGameTime(currentTime);
@@ -1463,17 +1775,27 @@ async function _collectAllWorldbooks(includeDisabled) {
               const y = curDate.getFullYear(); const mo = String(curDate.getMonth() + 1).padStart(2, '0'); const d = String(curDate.getDate()).padStart(2, '0');
               const wd = ['日', '一', '二', '三', '四', '五', '六'][curDate.getDay()];
               const newResetStr = y + '年' + mo + '月' + d + '日 · 星期' + wd + ' · 00:00';
+              quota.好感度周上限已用 = 0;
+              quota.玩家本周已掷 = false;
+              quota.周上限起始 = newResetStr;
+              mutated = true;
               actions.push({ type: 'quota_reset', char: name,
-                msg: "【好感度周上限重置】角色【" + name + "】已满7天。请执行：\n_.set('角色." + name + "._quota.好感度周上限已用', 0);\n_.set('角色." + name + "._quota.玩家本周已掷', false);\n_.set('角色." + name + "._quota.周上限起始', '" + newResetStr + "');" });
+                msg: "【好感度周上限重置】角色【" + name + "】已满7天，系统已自动重置本周好感上限与破门掷骰次数。" });
             }
           }
         }
         if (debuff.冷战期 === true && debuff.冷却结束时间) {
           if (timeReached(currentTime, debuff.冷却结束时间) && E >= 0) {
+            debuff.冷战期 = false;
+            debuff.冷却结束时间 = '';
+            mutated = true;
             actions.push({ type: 'coldwar_end', char: name,
-              msg: "【冷战期结束】角色【" + name + "】已解冻。请执行：\n_.set('角色." + name + "._quota._debuff.冷战期', false);\n_.set('角色." + name + "._quota._debuff.冷却结束时间', '');" });
+              msg: "【冷战期结束】角色【" + name + "】冷战冷却时间已满且好感度非负，已解冻恢复正常互动。" });
           }
         }
+      }
+      if (mutated && statData) {
+        writeMvuLatest(statData);
       }
       return actions;
     } catch (e) { return actions; }
@@ -1510,8 +1832,6 @@ async function _collectAllWorldbooks(includeDisabled) {
     trySubscribe('worldinfo_entries_loaded', function(lores) {
       try {
         if (!Array.isArray(lores)) return lores;
-        const extraActive = isExtraModelActive();
-        const inExtraGen = isCurrentlyInExtraAnalysis();
         const mode = getCurrentMode();
         const modeCap = mode.charAt(0).toUpperCase() + mode.slice(1);
         const targetPrefix = '[Mode-' + modeCap + ']';
@@ -1519,9 +1839,8 @@ async function _collectAllWorldbooks(includeDisabled) {
           const entry = lores[i]; if (!entry) continue;
           const title = String(entry.name || entry.comment || entry.title || '');
           if (title.indexOf('[Mode-') === 0) {
-            if (title.indexOf('[Mode-Common]') === 0) { if (extraActive && !inExtraGen) lores.splice(i, 1); continue; }
+            if (title.indexOf('[Mode-Common]') === 0) continue;
             if (title.indexOf(targetPrefix) !== 0) { lores.splice(i, 1); continue; }
-            if (extraActive && !inExtraGen && title.indexOf('更新规则') >= 0) { lores.splice(i, 1); continue; }
           }
         }
         const _bioCardName = getCurrentCardName();
@@ -1548,15 +1867,17 @@ async function _collectAllWorldbooks(includeDisabled) {
       return lores;
     });
     trySubscribe('message_received', function() {
-      if (isExtraModelActive()) {
-        isWaitingForExtraModel = true;
-        setTimeout(function() { if (isWaitingForExtraModel) { isWaitingForExtraModel = false; onGenerationEnd(); } }, 4500);
-      } else { onGenerationEnd(); }
-    });
-    trySubscribe('mag_variable_update_ended', function(vars) {
-      try { if (vars) cachedVars = vars.stat_data ? vars : { stat_data: vars }; } catch (e) {}
       isWaitingForExtraModel = false;
       onGenerationEnd();
+    });
+    trySubscribe('character_message_rendered', function() {
+      setTimeout(function() {
+        sanitizeSylveinaRegexTail();
+        beautifySylveinaTagsInDom();
+      }, 150);
+    });
+    trySubscribe('mag_variable_update_ended', function() {
+      isWaitingForExtraModel = false;
     });
     trySubscribe('chat_completion_prompt_ready', function() {
       injectCardModeNotice();
@@ -1570,7 +1891,8 @@ async function _collectAllWorldbooks(includeDisabled) {
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);
     trySubscribe('chat_changed', function() {
       anchorData = null; pendingCollapseNotice = false; timeJumpCooldown = 0; isWaitingForExtraModel = false;
-      mainWin.localStorage.removeItem(LAST_TIME_KEY); mainWin.localStorage.removeItem(LAST_JUMP_FLOOR_KEY);
+      const store = getStorage();
+      if (store) { store.removeItem(LAST_TIME_KEY); store.removeItem(LAST_JUMP_FLOOR_KEY); }
       clearFateCollapse();
       setTimeout(function() { tryInheritAnchor(); }, 800);
       setTimeout(function() { checkAndPromptMigrate(); }, 2000);
@@ -1578,27 +1900,540 @@ async function _collectAllWorldbooks(includeDisabled) {
       setTimeout(function() { checkPendingMigration(); }, 2600);
       setTimeout(function() { checkAndPromptBackfill(); }, 3800);
       setTimeout(function() { checkAndPromptBioEnable(); }, 4600);
+      setTimeout(function() { beautifySylveinaTagsInDom(); }, 1000);
     });
+    setTimeout(function() { beautifySylveinaTagsInDom(); }, 600);
+    setTimeout(function() { beautifySylveinaTagsInDom(); }, 2200);
   }
 
   function sanitizeSylveinaRegexTail() {
     try {
       const found = getLatestAiMessage();
       if (!found || !found.msg || typeof found.msg.mes !== 'string') return false;
-      const mes = found.msg.mes;
-      const tagRe = /\[Sylveina\|[LMH]\|[+-]\|\d+(?:\.\d+)?\]/g;
-      let match, last = null;
-      while ((match = tagRe.exec(mes)) !== null) last = { index: match.index, text: match[0], end: tagRe.lastIndex };
-      if (!last) return false;
-      const suffix = mes.slice(last.end);
-      // 只有检测到明确的后台变量/占位符格式时才清理，避免误删正常剧情。
-      const backendPattern = /(?:^|\r?\n)\s*(?:角色\.[^\r\n=]+=[^\r\n]*|世界\.时间=[^\r\n]*|<UpdateVariable>[\s\S]*?<\/UpdateVariable>|<StatusPlaceHolderImpl\s*\/>)/i;
-      if (!backendPattern.test(suffix)) return false;
-      const cleanPrefix = mes.slice(0, last.end).replace(/[ \t]+$/, '');
-      found.msg.mes = cleanPrefix + '\ns';
-      try { if (typeof found.msg.mes === 'string') found.msg.mes = found.msg.mes.replace(/\n{3,}/g, '\n\n'); } catch (e) {}
-      return true;
+      let mes = found.msg.mes;
+      const allTags = extractAllSylveinaTags(mes);
+      if (!allTags.length) return false;
+      let changed = false;
+
+      // 将全角〔Sylveina|...〕或【Sylveina|...】等异体统一规范化为半角 [Sylveina|...]
+      const normalizedMes = mes.replace(SYLVEINA_TAG_GLOBAL_RE, function(full, body) {
+        const parsed = parseSylveinaBody(body, full);
+        if (!parsed) return full;
+        return parsed.canonicalSimpleTag;
+      });
+      if (normalizedMes !== mes) {
+        mes = normalizedMes;
+        changed = true;
+      }
+
+      const reNorm = new RegExp(SYLVEINA_TAG_GLOBAL_RE.source, 'gi');
+      let m, lastNorm = null;
+      while ((m = reNorm.exec(mes)) !== null) {
+        lastNorm = { index: m.index, text: m[0], end: reNorm.lastIndex };
+      }
+      if (lastNorm) {
+        const suffix = mes.slice(lastNorm.end);
+        const backendPattern = /(?:^|\r?\n)\s*(?:角色\.[^\r\n=]+=[^\r\n]*|世界\.时间=[^\r\n]*|<UpdateVariable>[\s\S]*?<\/UpdateVariable>|<StatusPlaceHolderImpl\s*\/>)/i;
+        const alreadyHasPlaceholder = /^\s*\r?\n\s*s\s*$/.test(suffix);
+        const isAtEnd = /^\s*$/.test(suffix);
+        if (backendPattern.test(suffix) || (isAtEnd && !alreadyHasPlaceholder)) {
+          const cleanPrefix = mes.slice(0, lastNorm.end).replace(/[ \t]+$/, '');
+          mes = cleanPrefix + '\ns';
+          changed = true;
+        }
+      }
+      if (changed) {
+        found.msg.mes = mes.replace(/\n{3,}/g, '\n\n');
+      }
+      return changed;
     } catch (e) { return false; }
+  }
+
+  const GALGAME_ENDING_BRACKET_RE = /[\[\u3014\u3010\uff3b]\s*GalgameEnding\s*[|｜:\uff1a]([\s\S]*?)[\]\u3015\u3011\uff3d]/gi;
+  const GALGAME_ENDING_XML_RE = /(?:<|&lt;)GalgameEnding(?:\s+[^>&]*)?(?:>|&gt;)([\s\S]*?)(?:<\/|&lt;\/)GalgameEnding(?:>|&gt;)/gi;
+  const GALGAME_EPILOGUE_BRACKET_RE = /[\[\u3014\u3010\uff3b]\s*GalgameEpilogue\s*[|｜:\uff1a]([\s\S]*?)[\]\u3015\u3011\uff3d]/gi;
+  const GALGAME_EPILOGUE_XML_RE = /(?:<|&lt;)GalgameEpilogue(\s+[^>&]*)?(?:>|&gt;)([\s\S]*?)(?:<\/|&lt;\/)GalgameEpilogue(?:>|&gt;)/gi;
+
+  const ENDING_ROUTE_META = {
+    TE: { badge: 'TRUE END · 命定真结局', jp: '― トゥルーエンド · 世界線の収束 ―', accent: '#f472d0', subAccent: '#7dd3fc', border: '#f472d0', bgGlow: 'rgba(244,114,208,0.22)' },
+    HE: { badge: 'HAPPY END · 圆满终局', jp: '― ハッピーエンド · 永遠の誓い ―', accent: '#fb7185', subAccent: '#fde047', border: '#fb7185', bgGlow: 'rgba(251,113,133,0.22)' },
+    BE: { badge: 'BAD END · 悲恋终局', jp: '― バッドエンド · 散りゆく花 ―', accent: '#38bdf8', subAccent: '#c084fc', border: '#38bdf8', bgGlow: 'rgba(56,189,248,0.20)' },
+    CageEnd: { badge: 'CAGE END · 槛中终局', jp: '― ケイジエンド · 閉ざされた楽園 ―', accent: '#e879f9', subAccent: '#f43f5e', border: '#e879f9', bgGlow: 'rgba(232,121,249,0.22)' },
+    UserDeathEnd: { badge: 'DEAD END · 陨落终局', jp: '― デッドエンド · 終焉の鐘 ―', accent: '#94a3b8', subAccent: '#f87171', border: '#94a3b8', bgGlow: 'rgba(148,163,184,0.18)' },
+    CharDeathEnd: { badge: 'ECLIPSE END · 永诀终局', jp: '― エクリプスエンド · 残響の月 ―', accent: '#a78bfa', subAccent: '#93c5fd', border: '#a78bfa', bgGlow: 'rgba(167,139,250,0.20)' },
+    CustomEnd: { badge: 'FINALE END · 终幕之章', jp: '― フィナーレ · 運命の栞 ―', accent: '#f472d0', subAccent: '#fde047', border: '#f472d0', bgGlow: 'rgba(244,114,208,0.22)' }
+  };
+
+  function cleanHtmlToPlainForRegex(str) {
+    return String(str || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .trim();
+  }
+
+  function parseGalgameEndingPayload(rawBody) {
+    const cleaned = cleanHtmlToPlainForRegex(rawBody);
+    if (!cleaned) return null;
+    const data = readMvuLatest();
+    const chars = (data && data.stat_data && data.stat_data.角色) || {};
+    const names = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
+    const defaultCharName = names[0] || '攻略角色';
+    const defaultCh = chars[defaultCharName] || {};
+    const defaultTime = String(readVar('世界.时间', '终幕时刻'));
+
+    const fields = {};
+    // 尝试 JSON 解析兜底
+    if (cleaned.indexOf('{') >= 0 && cleaned.lastIndexOf('}') > cleaned.indexOf('{')) {
+      try {
+        const j = extractJson(cleaned);
+        if (j && typeof j === 'object') {
+          Object.keys(j).forEach(function(k) { fields[k.toLowerCase()] = String(j[k] || '').trim(); });
+        }
+      } catch (e) {}
+    }
+
+    // 解析管道符 | 或换行分隔的 key=value
+    const tokens = cleaned.split(/[|｜\r\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+    tokens.forEach(function(tok) {
+      const m = tok.match(/^([^=＝:：]{1,18})[=＝:：]\s*([\s\S]+)$/);
+      if (!m) return;
+      const key = m[1].trim().toLowerCase();
+      const val = m[2].trim();
+      if (!val) return;
+      if (key === '结局名' || key === '结局' || key === '标题' || key === 'title') fields.title = val;
+      else if (key === '类型' || key === '路线' || key === 'type' || key === 'endingtype' || key === 'route') fields.endingType = val;
+      else if (key === '角色' || key === '女主' || key === '攻略角色' || key === 'char' || key === 'charname') fields.charName = val;
+      else if (key === '时间' || key === '世界时间' || key === '历经时间' || key === 'time' || key === 'totaltime') fields.totalTime = val;
+      else if (key === '四维' || key === '数值' || key === '终局四维' || key === 'stats') fields.stats = val;
+      else if (key === '转折' || key === '关键时刻' || key === '分歧点' || key === 'keymoment') fields.keyMoment = val;
+      else if (key === '复盘' || key === '纪要' || key === '总结' || key === 'summary') fields.summary = val;
+      else if (key === '独白' || key === '心声' || key === '终幕独白' || key === 'monologue') fields.monologue = val;
+      else if (key === 'cg' || key === 'cgprompt' || key === 'prompt' || key === '画面' || key === '提示词') fields.cgPrompt = val;
+    });
+
+    const charName = String(fields.charName || fields.char || defaultCharName).slice(0, 60);
+    const chObj = chars[charName] || defaultCh || {};
+    let E = Number(chObj.好感度) || 0;
+    let P = Number(chObj.肉体值) || 0;
+    let R = Number(chObj.阶段值) || 0;
+    let I = Number(chObj.嫉妒值) || 0;
+    if (fields.stats) {
+      const mE = fields.stats.match(/(?:E|好感(?:度)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
+      const mP = fields.stats.match(/(?:P|肉体(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
+      const mR = fields.stats.match(/(?:R|阶段(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
+      const mI = fields.stats.match(/(?:I|嫉妒(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
+      if (mE) E = parseFloat(mE[1]);
+      if (mP) P = parseFloat(mP[1]);
+      if (mR) R = parseFloat(mR[1]);
+      if (mI) I = parseFloat(mI[1]);
+    }
+
+    let rawType = String(fields.endingType || fields.endingtype || 'TE').trim();
+    if (/happy|圆满|^he$/i.test(rawType)) rawType = 'HE';
+    else if (/bad|悲恋|悲剧|^be$/i.test(rawType)) rawType = 'BE';
+    else if (/cage|囚禁/i.test(rawType)) rawType = 'CageEnd';
+    else if (/userdeath|玩家死亡|陨落/i.test(rawType)) rawType = 'UserDeathEnd';
+    else if (/chardeath|角色死亡|永诀/i.test(rawType)) rawType = 'CharDeathEnd';
+    else if (/true|真结局|^te$/i.test(rawType)) rawType = 'TE';
+
+    const title = String(fields.title || (charName + '之篇 · 终末之约')).replace(/^[《「『]|[》」』]$/g, '').slice(0, 80);
+    const totalTime = String(fields.totalTime || fields.totaltime || defaultTime).slice(0, 80);
+    const keyMoment = String(fields.keyMoment || fields.keymoment || '命运交叉点上的最终抉择').slice(0, 260);
+    const summary = String(fields.summary || '漫长的相遇与抉择，在此刻收束为这一周目的最终注脚。').slice(0, 500);
+    const monologue = String(fields.monologue || '倘若时光倒流，我仍会记得与你相遇的这一刻。').replace(/^[“「『]|[”」』]$/g, '').slice(0, 300);
+    let cgPrompt = String(fields.cgPrompt || fields.cgprompt || ('horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel ending CG, ' + charName + ', emotional finale scene')).slice(0, 2500);
+    if (!/horizontal composition|16:9/i.test(cgPrompt)) {
+      cgPrompt = 'horizontal composition, 16:9 aspect ratio, widescreen, ' + cgPrompt;
+    }
+
+    const endingId = 'ending_chat_' + stableFeatureHash(charName + '::' + title + '::' + rawType);
+    const record = {
+      id: endingId,
+      title: title,
+      endingType: rawType,
+      charName: charName,
+      totalTime: totalTime,
+      E: E,
+      P: P,
+      R: R,
+      I: I,
+      summary: summary,
+      monologue: monologue,
+      keyMoment: keyMoment,
+      cgPrompt: cgPrompt,
+      createdAt: Date.now()
+    };
+    ensureEndingRecordArchived(record);
+    return record;
+  }
+
+  function ensureEndingRecordArchived(record) {
+    if (!record || !record.id) return;
+    try {
+      const archive = getEndingArchive();
+      const existsIdx = archive.records.findIndex(function(r) { return r && r.id === record.id; });
+      if (existsIdx < 0) {
+        archive.records.unshift(record);
+        saveEndingArchive(archive);
+      } else {
+        archive.records[existsIdx] = Object.assign({}, archive.records[existsIdx], record, { createdAt: archive.records[existsIdx].createdAt || record.createdAt });
+        saveEndingArchive(archive);
+      }
+      const gallery = getGalleryList();
+      const galIdx = gallery.findIndex(function(item) { return item && item.id === record.id; });
+      if (galIdx < 0) {
+        gallery.unshift({
+          id: record.id,
+          char: record.charName,
+          title: record.title,
+          desc: record.summary,
+          prompt: record.cgPrompt,
+          uc: getImageGenConfig().imageNegativePrompt,
+          imageKey: '',
+          imageUrl: '',
+          createdAt: record.createdAt,
+          isEnding: true,
+          endingType: record.endingType
+        });
+        saveGalleryList(gallery);
+      }
+    } catch (e) {}
+  }
+
+  function renderGalgameEndingCurtainHtml(record) {
+    const meta = ENDING_ROUTE_META[record.endingType] || ENDING_ROUTE_META.CustomEnd;
+    const playerInfo = collectCurrentPlayerPersona();
+    const playerName = (playerInfo && playerInfo.name && playerInfo.name !== '(未命名玩家)') ? playerInfo.name : 'PLAYER / 观测者';
+    const stageName = getRStageFromE(record.E).name;
+    const payloadJson = escapeFeatureHtml(JSON.stringify({
+      id: record.id,
+      title: record.title,
+      endingType: record.endingType,
+      charName: record.charName,
+      totalTime: record.totalTime,
+      E: record.E,
+      P: record.P,
+      R: record.R,
+      I: record.I,
+      summary: record.summary,
+      monologue: record.monologue,
+      keyMoment: record.keyMoment,
+      cgPrompt: record.cgPrompt,
+      createdAt: record.createdAt
+    }));
+
+    return '<div class="mp-galgame-ending-curtain" data-mp-ending-card="' + escapeFeatureHtml(record.id) + '" data-mp-ending-payload="' + payloadJson + '" style="margin:14px 0 10px;border:2px solid ' + meta.border + ';border-radius:6px;background:radial-gradient(circle at 50% 0%,' + meta.bgGlow + ',rgba(12,7,16,0.98) 68%),linear-gradient(180deg,#14091a 0%,#08050b 100%);color:#fce7f3;font-family:\"MP Fusion Pixel\",\"Noto Serif SC\",\"Microsoft YaHei\",sans-serif;box-shadow:0 12px 32px rgba(0,0,0,0.85),inset 0 0 24px ' + meta.bgGlow + ';overflow:hidden;position:relative;">' +
+      '<!-- 顶部电影黑边报幕栏 -->' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:linear-gradient(90deg,#050307,#210d20,#050307);border-bottom:1px solid rgba(244,114,208,0.4);font-size:10px;letter-spacing:1.5px;color:#f9a8d4;font-family:monospace;">' +
+        '<span>🎬 VISUAL NOVEL ENDING CREDITS · 終幕報幕</span>' +
+        '<span style="color:#fde047;">✦ WORLDLINE CONVERGENCE ✦</span>' +
+      '</div>' +
+      '<!-- 中央结局主标题舞台 -->' +
+      '<div style="padding:18px 18px 14px;text-align:center;border-bottom:1px dashed rgba(244,114,208,0.32);background:radial-gradient(ellipse at center,rgba(244,114,208,0.10) 0%,transparent 75%);">' +
+        '<div style="display:inline-block;padding:3px 14px;border:1px solid ' + meta.accent + ';background:rgba(20,9,24,0.88);color:' + meta.accent + ';font-size:11px;font-weight:700;letter-spacing:2px;box-shadow:2px 2px 0 rgba(0,0,0,0.6);">' +
+          '✦ ' + escapeFeatureHtml(meta.badge) + ' ✦' +
+        '</div>' +
+        '<div style="font-size:10px;color:#cbd5e1;letter-spacing:2px;margin-top:5px;opacity:0.85;">' + escapeFeatureHtml(meta.jp) + '</div>' +
+        '<div style="font-size:21px;font-weight:700;color:#ffffff;margin:10px 0 6px;letter-spacing:1.5px;text-shadow:0 2px 12px ' + meta.accent + ';">' +
+          '『 ' + escapeFeatureHtml(record.title) + ' 』' +
+        '</div>' +
+        '<div style="font-size:10px;color:#f9a8d4;letter-spacing:3px;opacity:0.85;">─── ❖ ───  S T A F F   &amp;   C A S T   R O L L  ─── ❖ ───</div>' +
+      '</div>' +
+      '<!-- 双栏日系 Galgame 报幕演职员与轨迹表 -->' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;padding:14px 16px;background:rgba(9,5,13,0.72);">' +
+        '<!-- 左栏：CAST / 出演与终局羁绊 -->' +
+        '<div style="padding:10px 12px;background:rgba(24,12,29,0.85);border:1px solid rgba(244,114,208,0.32);border-left:3px solid ' + meta.accent + ';">' +
+          '<div style="font-size:10px;color:' + meta.subAccent + ';letter-spacing:1.5px;font-weight:700;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:4px;">◈ CAST &amp; PARAMETER · 登场人物与终局数值</div>' +
+          '<div style="font-size:11.5px;line-height:1.85;color:#f8dbf0;">' +
+            '<div><span style="color:#94a3b8;font-size:10.5px;">HEROINE / 攻略角色：</span><b style="color:#fff;">' + escapeFeatureHtml(record.charName) + '</b> <span style="font-size:10px;padding:1px 5px;background:#35132d;border:1px solid #f472d0;color:#ffb8eb;">' + escapeFeatureHtml(stageName) + '</span></div>' +
+            '<div><span style="color:#94a3b8;font-size:10.5px;">OBSERVER / 玩家视点：</span><b style="color:#fde047;">' + escapeFeatureHtml(playerName) + '</b></div>' +
+            '<div><span style="color:#94a3b8;font-size:10.5px;">WORLD TIME / 历经岁月：</span><span style="color:#7dd3fc;">' + escapeFeatureHtml(record.totalTime) + '</span></div>' +
+            '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed rgba(244,114,208,0.22);display:flex;gap:6px;flex-wrap:wrap;font-family:monospace;font-size:11px;">' +
+              '<span style="padding:1px 6px;background:#1f0d22;border:1px solid #f472d0;color:#ffb8eb;">好感 E:' + record.E + '</span>' +
+              '<span style="padding:1px 6px;background:#1f0d22;border:1px solid #fb7185;color:#fecdd3;">肉体 P:' + record.P + '</span>' +
+              '<span style="padding:1px 6px;background:#0f1d2e;border:1px solid #38bdf8;color:#bae6fd;">阶段 R:' + record.R + '</span>' +
+              '<span style="padding:1px 6px;background:#231230;border:1px solid #c084fc;color:#e9d5ff;">嫉妒 I:' + record.I + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<!-- 右栏：STORY ARCHIVE / 命运分歧与周目复盘 -->' +
+        '<div style="padding:10px 12px;background:rgba(24,12,29,0.85);border:1px solid rgba(244,114,208,0.32);border-left:3px solid ' + meta.subAccent + ';">' +
+          '<div style="font-size:10px;color:' + meta.subAccent + ';letter-spacing:1.5px;font-weight:700;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:4px;">◈ STORY &amp; DIRECTION · 命运轨迹与周目纪要</div>' +
+          '<div style="font-size:11.5px;line-height:1.75;color:#f8dbf0;">' +
+            '<div style="margin-bottom:6px;"><span style="color:#fde047;font-weight:700;">★ 命运分歧点：</span><span>' + escapeFeatureHtml(record.keyMoment) + '</span></div>' +
+            '<div><span style="color:#f9a8d4;font-weight:700;">✦ 终幕复盘：</span><span style="color:#e2e8f0;">' + escapeFeatureHtml(record.summary) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<!-- 经典 Galgame 底部 ADV 台词框：角色终幕独白 -->' +
+      '<div style="margin:2px 16px 12px;padding:12px 15px;background:linear-gradient(180deg,rgba(32,12,34,0.92),rgba(14,7,18,0.96));border:1px solid ' + meta.accent + ';box-shadow:inset 0 0 14px rgba(244,114,208,0.15);position:relative;">' +
+        '<div style="display:inline-block;padding:2px 10px;background:' + meta.accent + ';color:#09050b;font-size:10.5px;font-weight:700;margin-bottom:6px;letter-spacing:1px;">' +
+          '【 ' + escapeFeatureHtml(record.charName) + ' · 終幕独白 】' +
+        '</div>' +
+        '<div style="font-size:12.5px;line-height:1.85;color:#ffffff;font-style:italic;letter-spacing:0.5px;">' +
+          '「 ' + escapeFeatureHtml(record.monologue) + ' 」<span style="color:' + meta.accent + ';margin-left:6px;font-style:normal;">▼</span>' +
+        '</div>' +
+      '</div>' +
+      '<!-- 终幕后日谈互动询问栏（内置正则交互：是否查看后日谈，点击自动填入聊天框并发送） -->' +
+      '<div style="margin:0 16px 12px;padding:11px 14px;background:linear-gradient(90deg,rgba(14,32,52,0.94),rgba(34,13,40,0.94));border:1px dashed #7dd3fc;border-left:3px solid #7dd3fc;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:inset 0 0 14px rgba(125,211,252,0.14);">' +
+        '<div style="flex:1;min-width:200px;font-size:11.5px;line-height:1.65;color:#e0f2fe;">' +
+          '<div style="font-weight:700;color:#7dd3fc;letter-spacing:0.8px;">📖 AFTER STORY · 是否查看《' + escapeFeatureHtml(record.charName) + '》视角后日谈番外？</div>' +
+          '<div style="font-size:10.5px;color:#cbd5e1;">点下方按钮将自动填充提示词至聊天输入框并发送，让 AI 在当前对话内以《' + escapeFeatureHtml(record.charName) + '》视角继续创作一篇 <b>5000～8000字</b> 的结局后完整番外</div>' +
+        '</div>' +
+        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:8px 14px;border:1px solid #7dd3fc;background:linear-gradient(180deg,#163c5e,#0c2136);color:#f0f9ff;font:700 11.5px monospace;cursor:pointer;box-shadow:2px 2px 0 #060d17;white-space:nowrap;">✨ 查看后日谈（自动填入发送）</button>' +
+      '</div>' +
+      '<!-- 报幕互动操作台（显影结局CG / 查看后日谈 / 导出结算卡 / 回忆画廊） -->' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 12px;">' +
+        '<button type="button" data-mp-ending-action="cg" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #f472d0;background:#381230;color:#ffe4f7;font:700 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">🖼️ 显影结局 CG (横构图)</button>' +
+        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:700 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 查看后日谈 (5000~8000字番外)</button>' +
+        '<button type="button" data-mp-ending-action="share" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:105px;padding:7px 8px;border:1px solid #fde047;background:#2d2110;color:#fef08a;font:700 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📸 导出结算卡</button>' +
+        '<button type="button" data-mp-ending-action="gallery" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:7px 10px;border:1px solid #a855f7;background:#211132;color:#f3e8ff;font:700 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">🏆 画廊</button>' +
+      '</div>' +
+      '<!-- 底部 Staff 铭牌与 Fin. 落款 -->' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 16px;background:#060309;border-top:1px solid rgba(244,114,208,0.3);font-size:10px;color:#a38ea1;font-family:monospace;">' +
+        '<span>DIRECTOR : MOON POCKET GALGAME SYSTEM</span>' +
+        '<span style="color:#f9a8d4;font-weight:700;font-size:11.5px;letter-spacing:1.5px;">— Fin. —　Thank you for playing ♥</span>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function bindGalgameEndingCardDelegation() {
+    if (mainDoc._mpEndingDelegationBound) return;
+    mainDoc._mpEndingDelegationBound = true;
+    mainDoc.addEventListener('click', function(ev) {
+      const btn = ev.target && ev.target.closest ? ev.target.closest('[data-mp-ending-action]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      const action = btn.getAttribute('data-mp-ending-action');
+      const endingId = btn.getAttribute('data-mp-ending-id') || '';
+      const cardEl = btn.closest('[data-mp-ending-card]');
+      let payload = null;
+      if (cardEl && cardEl.getAttribute('data-mp-ending-payload')) {
+        try { payload = JSON.parse(cardEl.getAttribute('data-mp-ending-payload')); } catch (e) {}
+      }
+      const archive = getEndingArchive();
+      let record = archive.records.find(function(r) { return r && r.id === endingId; }) || payload;
+      if (record) ensureEndingRecordArchived(record);
+
+      if (action === 'gallery') {
+        openMemoryGalleryDialog();
+        return;
+      }
+      if (!record) {
+        toast('未找到该结局记录，请打开回忆画廊查看', 'warning');
+        return;
+      }
+      if (action === 'cg') {
+        const galItem = getGalleryList().find(function(item) { return item && item.id === record.id; }) || {
+          id: record.id,
+          char: record.charName,
+          title: record.title,
+          desc: record.summary,
+          prompt: record.cgPrompt,
+          uc: getImageGenConfig().imageNegativePrompt,
+          imageKey: '',
+          imageUrl: '',
+          createdAt: record.createdAt || Date.now(),
+          isEnding: true,
+          endingType: record.endingType
+        };
+        developCGItem(galItem);
+      } else if (action === 'epilogue') {
+        injectAndSendEpiloguePromptToChatbox(record);
+      } else if (action === 'epilogue_modal') {
+        startEpilogueGenerationEngine(record.charName, record);
+      } else if (action === 'share') {
+        generateSteamShareCard(record);
+      }
+    });
+
+    mainDoc.addEventListener('click', function(ev) {
+      const expBtn = ev.target && ev.target.closest ? ev.target.closest('[data-mp-epilogue-export]') : null;
+      if (!expBtn) return;
+      ev.preventDefault();
+      const card = expBtn.closest('[data-mp-epilogue-card]');
+      if (!card) return;
+      const title = card.getAttribute('data-mp-epilogue-title') || '终局后日谈番外';
+      const charName = card.getAttribute('data-mp-epilogue-char') || '角色';
+      const bodyEl = card.querySelector('.mp-galgame-epilogue-body');
+      const rawText = bodyEl ? (bodyEl.innerText || bodyEl.textContent || '') : '';
+      if (!rawText.trim()) {
+        toast('未读取到后日谈正文内容', 'warning');
+        return;
+      }
+      const header = '# 《' + title + '》\n> 叙事视角：' + charName + '\n\n';
+      const blob = new Blob([header + rawText.trim()], { type: 'text/plain;charset=utf-8' });
+      const url = (mainWin.URL || URL).createObjectURL(blob);
+      downloadFileViaBrowser(url, '后日谈_' + String(charName + '_' + title).replace(/[\\/:*?"<>|]/g, '_') + '.txt');
+      setTimeout(function() { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
+    });
+  }
+
+  function parseGalgameEpilogueXml(attrStr, innerHtml) {
+    const attrs = String(attrStr || '').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
+    const getAttr = function(name) {
+      const m = attrs.match(new RegExp(name + '\\s*=\\s*["\']([^"\']*)["\']', 'i'));
+      return m ? m[1].trim() : '';
+    };
+    const title = getAttr('title') || getAttr('标题') || '终幕之后 · 角色视角番外';
+    const charName = getAttr('char') || getAttr('角色') || '她';
+    const endingTitle = getAttr('ending') || getAttr('结局') || '命定终局';
+    const bodyHtml = String(innerHtml || '').trim();
+    if (!bodyHtml) return null;
+    return { title: title, charName: charName, endingTitle: endingTitle, bodyHtml: bodyHtml };
+  }
+
+  function parseGalgameEpilogueBracket(rawBody) {
+    if (!rawBody) return null;
+    const cleaned = String(rawBody).replace(/<br\s*\/?>/gi, '\n').trim();
+    const parts = cleaned.split(/[|｜]/);
+    const map = {};
+    const freeParts = [];
+    parts.forEach(function(seg) {
+      const eqIdx = seg.search(/[=:：]/);
+      if (eqIdx > 0 && eqIdx < 12) {
+        const k = seg.slice(0, eqIdx).replace(/<[^>]+>/g, '').trim().toLowerCase();
+        const v = seg.slice(eqIdx + 1).trim();
+        map[k] = v;
+      } else {
+        freeParts.push(seg.trim());
+      }
+    });
+    const title = map['标题'] || map['title'] || '终幕之后 · 角色视角番外';
+    const charName = map['角色'] || map['char'] || '她';
+    const endingTitle = map['结局'] || map['ending'] || '命定终局';
+    const bodyText = map['正文'] || map['content'] || freeParts.join('\n\n');
+    if (!bodyText) return null;
+    const bodyHtml = bodyText
+      .split(/\n{2,}/)
+      .map(function(p) { return '<p style="margin:0 0 12px;text-indent:2em;">' + p.replace(/\n/g, '<br>') + '</p>'; })
+      .join('');
+    return { title: title, charName: charName, endingTitle: endingTitle, bodyHtml: bodyHtml };
+  }
+
+  function renderGalgameEpilogueCurtainHtml(ep) {
+    const plainLen = String(ep.bodyHtml || '').replace(/<[^>]+>/g, '').replace(/\s+/g, '').length;
+    return '<div class="mp-galgame-epilogue-card" data-mp-epilogue-card="1" data-mp-epilogue-title="' + escapeFeatureHtml(ep.title) + '" data-mp-epilogue-char="' + escapeFeatureHtml(ep.charName) + '" style="margin:14px 0 10px;border:2px solid #7dd3fc;border-radius:6px;background:radial-gradient(circle at 50% 0%,rgba(56,189,248,0.16),rgba(10,7,16,0.98) 70%),linear-gradient(180deg,#101929 0%,#09060e 100%);color:#f8fafc;font-family:\"MP Fusion Pixel\",\"Noto Serif SC\",\"Microsoft YaHei\",serif;box-shadow:0 12px 32px rgba(0,0,0,0.85),inset 0 0 24px rgba(56,189,248,0.12);overflow:hidden;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:linear-gradient(90deg,#060b14,#132840,#060b14);border-bottom:1px solid rgba(125,211,252,0.4);font-size:10.5px;letter-spacing:1.5px;color:#7dd3fc;font-family:monospace;">' +
+        '<span>📖 VISUAL NOVEL AFTER STORY · 終局後日談番外</span>' +
+        '<span style="color:#fde047;">✦ POV : ' + escapeFeatureHtml(ep.charName) + ' · 约 ' + plainLen + ' 字 ✦</span>' +
+      '</div>' +
+      '<div style="padding:18px 20px 14px;text-align:center;border-bottom:1px dashed rgba(125,211,252,0.3);">' +
+        '<div style="display:inline-block;padding:2px 12px;border:1px solid #7dd3fc;background:rgba(15,28,46,0.9);color:#7dd3fc;font-size:10.5px;font-weight:700;letter-spacing:1.5px;">' +
+          '承接终局：《' + escapeFeatureHtml(ep.endingTitle) + '》 · 角色第一视角番外' +
+        '</div>' +
+        '<div style="font-size:20px;font-weight:700;color:#ffffff;margin:10px 0 4px;letter-spacing:1.2px;text-shadow:0 2px 10px rgba(56,189,248,0.45);">' +
+          '『 ' + escapeFeatureHtml(ep.title) + ' 』' +
+        '</div>' +
+        '<div style="font-size:10.5px;color:#f9a8d4;letter-spacing:2px;opacity:0.9;">─── ❖ ───  A F T E R   S T O R Y  ·  ' + escapeFeatureHtml(ep.charName) + ' の 視 点  ─── ❖ ───</div>' +
+      '</div>' +
+      '<div class="mp-galgame-epilogue-body" style="padding:18px 22px;font-size:13.5px;line-height:2.0;color:#f1f5f9;letter-spacing:0.4px;max-height:72vh;overflow-y:auto;background:rgba(8,6,14,0.65);">' +
+        ep.bodyHtml +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;background:#06040a;border-top:1px solid rgba(125,211,252,0.3);font-size:10.5px;color:#94a3b8;font-family:monospace;">' +
+        '<span>✦ AFTER STORY ARCHIVE · 角色视角完整番外</span>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<button type="button" data-mp-epilogue-export="1" style="padding:6px 12px;border:1px solid #7dd3fc;background:#10263c;color:#e0f2fe;font:700 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #050811;">💾 导出后日谈 TXT</button>' +
+          '<span style="color:#f9a8d4;font-weight:700;">— After Story Fin. ♥ —</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function beautifyGalgameEndingInDom() {
+    try {
+      bindGalgameEndingCardDelegation();
+      const nodes = mainDoc.querySelectorAll('.mes .mes_text');
+      if (!nodes || !nodes.length) return;
+      for (let i = Math.max(0, nodes.length - 10); i < nodes.length; i++) {
+        const el = nodes[i];
+        if (!el || !el.innerHTML) continue;
+        const textSample = el.textContent || '';
+        const hasEnding = /GalgameEnding/i.test(textSample) || /GalgameEnding/i.test(el.innerHTML);
+        const hasEpilogue = /GalgameEpilogue/i.test(textSample) || /GalgameEpilogue/i.test(el.innerHTML);
+        if (!hasEnding && !hasEpilogue) continue;
+        let rawHtml = el.innerHTML;
+        let modifiedEnding = false;
+        let modifiedEpilogue = false;
+
+        if (hasEnding) {
+          rawHtml = rawHtml.replace(GALGAME_ENDING_XML_RE, function(full, body) {
+            const rec = parseGalgameEndingPayload(body);
+            if (!rec) return full;
+            modifiedEnding = true;
+            return renderGalgameEndingCurtainHtml(rec);
+          });
+
+          rawHtml = rawHtml.replace(GALGAME_ENDING_BRACKET_RE, function(full, body) {
+            const rec = parseGalgameEndingPayload(body);
+            if (!rec) return full;
+            modifiedEnding = true;
+            return renderGalgameEndingCurtainHtml(rec);
+          });
+        }
+
+        if (hasEpilogue) {
+          rawHtml = rawHtml.replace(GALGAME_EPILOGUE_XML_RE, function(full, attrStr, body) {
+            const ep = parseGalgameEpilogueXml(attrStr, body);
+            if (!ep) return full;
+            modifiedEpilogue = true;
+            return renderGalgameEpilogueCurtainHtml(ep);
+          });
+
+          rawHtml = rawHtml.replace(GALGAME_EPILOGUE_BRACKET_RE, function(full, body) {
+            const ep = parseGalgameEpilogueBracket(body);
+            if (!ep) return full;
+            modifiedEpilogue = true;
+            return renderGalgameEpilogueCurtainHtml(ep);
+          });
+        }
+
+        if ((modifiedEnding || modifiedEpilogue) && rawHtml !== el.innerHTML) {
+          el.innerHTML = rawHtml;
+          if (modifiedEnding) callSetPrompt(PROMPT_KEY + '_ending_director', '', 0, 0, false);
+          if (modifiedEpilogue) callSetPrompt(PROMPT_KEY + '_epilogue_director', '', 0, 0, false);
+        }
+      }
+    } catch (e) {}
+  }
+
+  function beautifySylveinaTagsInDom() {
+    try {
+      const nodes = mainDoc.querySelectorAll('.mes .mes_text');
+      if (!nodes || !nodes.length) return;
+      const levelNames = { L: '日常波动', M: '关键转折', H: '重大羁绊' };
+      for (let i = Math.max(0, nodes.length - 6); i < nodes.length; i++) {
+        const el = nodes[i];
+        if (!el || !el.innerHTML) continue;
+        if (!/Sylveina/i.test(el.textContent || '')) continue;
+        const rawHtml = el.innerHTML;
+        const domTagRe = /[\[\u3014\u3010\uff3b(（]\s*Sylveina\s*[|｜]([^\]\u3015\u3011\uff3d)）<\r\n]+)[\]\u3015\u3011\uff3d)）](?:\s*(?:<br\s*\/?>|\r?\n|<\/p>\s*<p>)?\s*s(?=\s*(?:<\/p>|$)))?/gi;
+        const replaced = rawHtml.replace(domTagRe, function(full, body) {
+          const parsed = parseSylveinaBody(body, full);
+          if (!parsed) return full;
+          const isPos = parsed.sign !== '-';
+          const accent = isPos ? '#f472d0' : '#38bdf8';
+          const bg = isPos ? 'rgba(244,114,208,0.12)' : 'rgba(56,189,248,0.12)';
+          const levelLabel = levelNames[parsed.level] || parsed.eventType || '命运波动';
+          const namePrefix = parsed.charName ? (escapeFeatureHtml(parsed.charName) + ' · ') : '';
+          return '<div class="mp-sylveina-badge" style="display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:4px 11px;border-radius:4px;border:1px solid ' + accent + ';background:' + bg + ';color:#fce7f3;font:700 11.5px \"MP Fusion Pixel\",\"Courier New\",monospace;box-shadow:2px 2px 0 rgba(20,10,24,0.65);">' +
+            '<span>🌙 ' + namePrefix + levelLabel + ' [' + parsed.level + ']</span>' +
+            '<span style="color:' + accent + ';">' + (isPos ? '▲ +' : '▼ -') + parsed.baseValue + '</span>' +
+            '</div>';
+        });
+        if (replaced !== rawHtml) {
+          el.innerHTML = replaced;
+        }
+      }
+    } catch (e) {}
+    beautifyGalgameEndingInDom();
   }
 
   function onGenerationEnd() {
@@ -1606,16 +2441,18 @@ async function _collectAllWorldbooks(includeDisabled) {
     if (timeJumpCooldown > 0) timeJumpCooldown--;
     injectSafetyLockStatus();
     injectFanficEnhanceNotice();
+    sanitizeSylveinaRegexTail();
+    beautifySylveinaTagsInDom();
     const jumpInfo = checkTimeJump();
     if (jumpInfo) { injectTimeJump(jumpInfo); }
     else { callSetPrompt(PROMPT_KEY + '_jump', '', 0, 0, false); const actions = checkAllCountdowns(); injectCountdownActions(actions); }
     injectEventPrompt();
     setTimeout(function() {
       Promise.resolve(runMoonCalculation()).finally(function() {
-        // 让用户配置的正则能稳定命中末尾的“标签 + 换行 s”，同时只清理标签后的后台变量输出。
         sanitizeSylveinaRegexTail();
+        beautifySylveinaTagsInDom();
       });
-    }, 2000);
+    }, 600);
     const nowTriggered = isFateCollapseTriggered();
     if (nowTriggered && !lastTriggerState) { setTimeout(function() { toast('系统视线已降临 · 锚定时间线生效', 'warning'); }, 500); }
     lastTriggerState = nowTriggered;
@@ -1628,7 +2465,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       pendingCollapseNotice = false;
     }
   }
-// ===== 第 9 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function captureLatestContent() {
     try {
       const ctx = getSTCtx();
@@ -1801,7 +2638,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       return bio;
     } catch (e) { console.warn('[Doki] 玩家小抄注入失败：', e); return null; }
   }
-// ===== 第 10 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function hasBioForCurrentCard() {
     try {
       const cardName = getCurrentCardName();
@@ -1979,7 +2816,7 @@ if (!b.versions.current) {
         }
       });
   }
-// ===== 第 11 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function openBioLibraryDialog(panel) {
     const lib = getBioLibrary();
     const bios = Object.values(lib.bios || {});
@@ -2122,7 +2959,7 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
       }
     });
   }
-// ===== 第 12 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function openUserBioLibraryDialog(panel) {
     const lib = getUserBioLibrary();
     const userBios = Object.values(lib.userBios || {});
@@ -2716,11 +3553,10 @@ function openUpdateConfigDialog(panel) {
       '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;font-size:11px;color:#cbd5e1;line-height:1.6;">' +
       '<div style="color:#7dd3fc;font-weight:700;margin-bottom:4px;">当前 Persona 面板内容</div>' +
       (personaData.persona ? '<div style="white-space:pre-wrap;max-height:120px;overflow-y:auto;">' + personaData.persona.replace(/</g, '&lt;').substring(0, 500) + (personaData.persona.length > 500 ? '……' : '') + '</div>' : '<div style="color:#f87171;">（Persona 面板为空，请先在右侧填写）</div>') + '</div>' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">生成模型：</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">生成模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="main" checked><span style="font-size:12px;">主模型</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="extra"><span style="font-size:12px;">副模型</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="custom"><span style="font-size:12px;">自定义API</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-ub-provider" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label>' +
       '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">小传字数：<span id="moon-ub-bio-label" style="color:#7dd3fc;font-weight:700;">260</span> 字</div>' +
       '<input id="moon-ub-bio-slider" type="range" min="150" max="400" step="10" value="260" style="width:100%;margin-bottom:8px;">' +
@@ -2747,7 +3583,7 @@ function openUpdateConfigDialog(panel) {
         }
       });
   }
-// ===== 第 13 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function _ub_startGenerate(panel, provider, bioLimit, segLimit, useChat) {
     showLoadingDialog('AI 正在提炼玩家小传...');
     let bio = '';
@@ -2921,7 +3757,7 @@ function openUpdateConfigDialog(panel) {
     const m = text.match(/```(?:[a-zA-Z]*)?\s*([\s\S]*?)```/); if (m) text = m[1].trim();
     return text;
   }
-// ===== 第 14 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function triggerBioRewriteFor(charNames) {
     if (!Array.isArray(charNames) || !charNames.length) return;
     const cardName = getCurrentCardName();
@@ -3060,7 +3896,7 @@ function openUpdateConfigDialog(panel) {
         }
       });
   }
-// ===== 第 15 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function _mb_startQueue(names, config, panel) {
     const state = { names: names.slice(), index: 0, config: config, drafts: {}, confirmed: {} };
     showLoadingDialog('AI 正在做人物小抄...');
@@ -3286,7 +4122,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-moon-pixel i.lit{background:#eef3e3;}' +
       '#moon-phase-panel .mp-moon-pixel i.shadow{background:#182019;}' +
       '#moon-phase-panel .mp-mode-moon{display:flex;justify-content:center;align-items:center;height:23px;margin-bottom:3px;}' +
-      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn .mp-mode-moon{font-size:0 !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn .mp-mode-moon{font-size:18px !important;line-height:1 !important;filter:drop-shadow(0 0 5px rgba(244,114,208,0.45));}' +
       '#moon-phase-panel .mp-difficulty-fold>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:#180d1a;border:1px solid #70345f;border-bottom-color:#f472d0;color:#ffc4e9;font-size:13px;font-weight:bold;cursor:pointer;list-style:none;}' +
       '#moon-phase-panel .mp-difficulty-fold>summary::-webkit-details-marker{display:none;}' +
       '#moon-phase-panel .mp-difficulty-fold>summary i{color:#f472d0;font-style:normal;transition:transform .12s;}' +
@@ -3296,7 +4132,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-settings-fold>summary{color:#ffd1f1 !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{border-radius:2px !important;border-color:#643052 !important;background:#170d1a !important;color:#f8d8ee !important;box-shadow:2px 2px 0 #35152f !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn.active{background:#32112b !important;color:#ffc4e9 !important;border-color:#f472d0 !important;}' +
-      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{min-height:68px;font-size:13px !important;}' +
+      '#moon-phase-panel .mp-mode-select-card .mp-mode-btn{min-height:68px;font-size:11.5px !important;white-space:nowrap;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:first-child{font-size:18px !important;}' +
       '#moon-phase-panel .mp-mode-select-card .mp-mode-btn div:last-child{font-size:10px !important;}' +
       '#moon-phase-panel .mp-mode-select-card>div[style*="margin-top:8px"]{font-size:13px !important;line-height:1.7 !important;}' +
@@ -3382,9 +4218,25 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-update-hitbox .mp-title{display:block;flex:1 1 170px;min-width:0;max-width:none;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.35;}' +
       '#moon-phase-panel .mp-update-hitbox .mp-badge{display:inline-block;flex:0 0 auto;}' +
       '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}#moon-phase-panel .mp-lcd-screen{padding:9px;font-size:13px;line-height:1.65;}#moon-phase-panel .mp-lcd-stats{grid-template-columns:repeat(2,1fr);}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}' +
+      '#moon-phase-panel .mp-console-bezel{display:flex;justify-content:space-between;align-items:center;padding:3px 6px 6px;color:#b8ccb0;font:700 9px "Courier New",monospace;letter-spacing:0.8px;}' +
+      '#moon-phase-panel .mp-power-led{display:inline-flex;align-items:center;gap:5px;color:#ffb8eb;font-size:9px;}' +
+      '#moon-phase-panel .mp-power-led i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4ecd;box-shadow:0 0 6px #ff4ecd;}' +
+      '#moon-phase-panel .mp-lcd-quick-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #182019;}' +
+      '#moon-phase-panel .mp-lcd-quick-tab{padding:3px 2px;border:1px solid #182019;background:#707d63;color:#182019;font:700 11px "MP Fusion Pixel","Zpix","Courier New",monospace;cursor:pointer;text-align:center;}' +
+      '#moon-phase-panel .mp-lcd-quick-tab.active{background:#182019;color:#7d896f !important;}' +
+      '#moon-phase-panel .mp-console-pillbar{display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 11px;padding:4px 6px;}' +
+      '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #a94d8b;border-radius:999px;background:linear-gradient(180deg,#2a1126,#150916);color:#ffc4e9;font:700 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;letter-spacing:0.4px;}' +
+      '#moon-phase-panel .mp-select-start-btn:hover{border-color:#f472d0;background:#3b1535;color:#fff;transform:translate(-1px,-1px);}' +
+      '#moon-phase-panel .mp-select-start-btn.unconfigured{border-color:#fbbf24;color:#fde047;}' +
+      '#moon-phase-panel .mp-subpage-switch{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;}' +
+      '#moon-phase-panel .mp-subpage-tab{padding:6px 2px;border:1px solid #643052;background:#140b16;color:#bc8eaf;font:700 10px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;text-align:center;box-shadow:1px 1px 0 #35152f;}' +
+      '#moon-phase-panel .mp-subpage-tab.active{border-color:#f472d0;background:#32112b;color:#ffe1f5;}' +
+      '#moon-phase-panel .mp-btn{flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 6px !important;min-height:48px;}' +
+      '#moon-phase-panel .mp-btn small{display:block;font-size:9px;color:#bc8eaf;font-weight:400;line-height:1.25;}' +
+      '#moon-phase-panel .mp-btn-highlight small,#moon-phase-panel .mp-btn-user small{color:#f5b8df;}' +
       '@media(min-width:700px){#moon-phase-panel .mp-lcd-screen{font-size:15px;}}';
   }
-// ===== 第 16 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function renderEventStatusCard() {
     const data = readMvuLatest();
     if (!data || !data.stat_data) return '<div class="mp-lcd-empty">（暂无变量数据）</div>';
@@ -3602,15 +4454,297 @@ function openUpdateConfigDialog(panel) {
     }
     if (changed) saveGalleryList(list);
   }
+  const IMAGE_PROVIDER_META = {
+    pollinations: { name: 'Pollinations（免 Key）', defaultUrl: 'https://image.pollinations.ai', defaultModel: 'flux', needsKey: false },
+    novelai: { name: 'NovelAI', defaultUrl: 'https://image.novelai.net/ai/generate-image', defaultModel: 'nai-diffusion-3', needsKey: true },
+    sdwebui: { name: 'Stable Diffusion WebUI', defaultUrl: 'http://127.0.0.1:7860', defaultModel: '', needsKey: false },
+    openai: { name: 'OpenAI 兼容图像接口', defaultUrl: 'https://api.openai.com/v1/images/generations', defaultModel: 'dall-e-3', needsKey: true },
+    midjourney: { name: 'Midjourney Proxy', defaultUrl: '', defaultModel: 'mj-v6', needsKey: false }
+  };
+
   function getImageGenConfig() {
-    const defaults = { imageProvider: 'pollinations', imageApiKey: '', imageApiUrl: '', imageModel: 'nai-diffusion-3', imageNegativePrompt: 'lowres, bad anatomy, bad hands, text, worst quality, low quality, jpeg artifacts, watermark, blurry' };
-    try { return Object.assign(defaults, JSON.parse(mainWin.localStorage.getItem(IMAGE_CONFIG_KEY) || '{}')); } catch (e) { return defaults; }
+    const defaultNeg = 'lowres, bad anatomy, bad hands, text, worst quality, low quality, jpeg artifacts, watermark, blurry, vertical orientation, portrait orientation';
+    const defaultChannels = {
+      pollinations: { apiUrl: 'https://image.pollinations.ai', apiKey: '', model: 'flux' },
+      novelai: { apiUrl: 'https://image.novelai.net/ai/generate-image', apiKey: '', model: 'nai-diffusion-3' },
+      sdwebui: { apiUrl: 'http://127.0.0.1:7860', apiKey: '', model: '' },
+      openai: { apiUrl: 'https://api.openai.com/v1/images/generations', apiKey: '', model: 'dall-e-3' },
+      midjourney: { apiUrl: '', apiKey: '', model: 'mj-v6' }
+    };
+    let raw = {};
+    try {
+      const ls = getStorage();
+      raw = JSON.parse((ls && ls.getItem(IMAGE_CONFIG_KEY)) || '{}') || {};
+    } catch (e) { raw = {}; }
+    const channels = {};
+    Object.keys(defaultChannels).forEach(function(k) {
+      channels[k] = Object.assign({}, defaultChannels[k], (raw.channels && raw.channels[k]) || {});
+    });
+    // 兼容迁移旧版单渠道字段
+    const legacyProv = raw.imageProvider || 'pollinations';
+    if (channels[legacyProv]) {
+      if (raw.imageApiUrl && ! (raw.channels && raw.channels[legacyProv] && raw.channels[legacyProv].apiUrl)) channels[legacyProv].apiUrl = raw.imageApiUrl;
+      if (raw.imageApiKey && ! (raw.channels && raw.channels[legacyProv] && raw.channels[legacyProv].apiKey)) channels[legacyProv].apiKey = raw.imageApiKey;
+      if (raw.imageModel && ! (raw.channels && raw.channels[legacyProv] && raw.channels[legacyProv].model)) channels[legacyProv].model = raw.imageModel;
+    }
+    const primaryProvider = (raw.primaryProvider && IMAGE_PROVIDER_META[raw.primaryProvider]) ? raw.primaryProvider : (IMAGE_PROVIDER_META[legacyProv] ? legacyProv : 'pollinations');
+    const secondaryProvider = (raw.secondaryProvider && (raw.secondaryProvider === 'none' || IMAGE_PROVIDER_META[raw.secondaryProvider])) ? raw.secondaryProvider : 'none';
+    const maxRetries = Math.max(1, Math.min(5, parseInt(raw.maxRetries, 10) || 5));
+    const activeCh = channels[primaryProvider] || defaultChannels.pollinations;
+    return {
+      primaryProvider: primaryProvider,
+      secondaryProvider: secondaryProvider,
+      maxRetries: maxRetries,
+      channels: channels,
+      imageProvider: primaryProvider,
+      imageApiUrl: activeCh.apiUrl || '',
+      imageApiKey: activeCh.apiKey || '',
+      imageModel: activeCh.model || '',
+      imageNegativePrompt: typeof raw.imageNegativePrompt === 'string' ? raw.imageNegativePrompt : defaultNeg
+    };
   }
+
   function saveImageGenConfig(config) {
     const allowed = ['pollinations', 'novelai', 'sdwebui', 'openai', 'midjourney'];
-    if (!config || allowed.indexOf(config.imageProvider) < 0) return false;
-    try { mainWin.localStorage.setItem(IMAGE_CONFIG_KEY, JSON.stringify(config)); return true; } catch (e) { return false; }
+    if (!config || typeof config !== 'object') return false;
+    const current = getImageGenConfig();
+    const channels = Object.assign({}, current.channels);
+    if (config.channels && typeof config.channels === 'object') {
+      allowed.forEach(function(k) {
+        if (config.channels[k] && typeof config.channels[k] === 'object') {
+          channels[k] = {
+            apiUrl: String(config.channels[k].apiUrl != null ? config.channels[k].apiUrl : (channels[k] && channels[k].apiUrl) || '').trim(),
+            apiKey: String(config.channels[k].apiKey != null ? config.channels[k].apiKey : (channels[k] && channels[k].apiKey) || '').trim(),
+            model: String(config.channels[k].model != null ? config.channels[k].model : (channels[k] && channels[k].model) || '').trim()
+          };
+        }
+      });
+    }
+    const primary = allowed.indexOf(config.primaryProvider) >= 0 ? config.primaryProvider : (allowed.indexOf(config.imageProvider) >= 0 ? config.imageProvider : current.primaryProvider);
+    if (config.imageApiUrl !== undefined || config.imageApiKey !== undefined || config.imageModel !== undefined) {
+      const targetProv = allowed.indexOf(config.editingProvider) >= 0 ? config.editingProvider : primary;
+      channels[targetProv] = {
+        apiUrl: String(config.imageApiUrl !== undefined ? config.imageApiUrl : channels[targetProv].apiUrl).trim(),
+        apiKey: String(config.imageApiKey !== undefined ? config.imageApiKey : channels[targetProv].apiKey).trim(),
+        model: String(config.imageModel !== undefined ? config.imageModel : channels[targetProv].model).trim()
+      };
+    }
+    const secondary = (config.secondaryProvider === 'none' || allowed.indexOf(config.secondaryProvider) >= 0) ? config.secondaryProvider : current.secondaryProvider;
+    const maxRetries = Math.max(1, Math.min(5, parseInt(config.maxRetries, 10) || current.maxRetries || 5));
+    const activeCh = channels[primary] || { apiUrl: '', apiKey: '', model: '' };
+    const payload = {
+      primaryProvider: primary,
+      secondaryProvider: secondary,
+      maxRetries: maxRetries,
+      channels: channels,
+      imageProvider: primary,
+      imageApiUrl: activeCh.apiUrl,
+      imageApiKey: activeCh.apiKey,
+      imageModel: activeCh.model,
+      imageNegativePrompt: config.imageNegativePrompt !== undefined ? String(config.imageNegativePrompt).trim() : current.imageNegativePrompt
+    };
+    try {
+      const ls = getStorage();
+      if (ls) ls.setItem(IMAGE_CONFIG_KEY, JSON.stringify(payload));
+      return true;
+    } catch (e) { return false; }
   }
+
+  /* ── 画风与画师串预设库（支持多套画师串、正面提示词、负面提示词） ── */
+  function getCgStylePresets() {
+    try {
+      const ls = getStorage();
+      const raw = ls && ls.getItem(CG_STYLE_PRESETS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.presets)) return parsed;
+      }
+    } catch (e) {}
+    return {
+      version: 1,
+      presets: [
+        {
+          id: 'preset_default_gal',
+          name: '🌸 日系Galgame清透CG（默认示例）',
+          artistPrompt: 'anime style, key visual, visual novel CG, makoto shinkai, kyoto animation, ask (askzy), ciloranko',
+          positivePrompt: 'masterpiece, best quality, ultra-detailed, horizontal composition, 16:9 aspect ratio, cinematic lighting, soft dramatic shadows, expressive eyes, detailed background',
+          negativePrompt: 'lowres, bad anatomy, bad hands, extra digits, fewer digits, text, watermark, signature, worst quality, low quality, blurry, vertical orientation',
+          enabled: false,
+          updatedAt: Date.now()
+        }
+      ]
+    };
+  }
+
+  function saveCgStylePresets(lib) {
+    try {
+      const ls = getStorage();
+      if (ls && lib && Array.isArray(lib.presets)) {
+        ls.setItem(CG_STYLE_PRESETS_KEY, JSON.stringify(lib));
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function getEnabledCgStylePreset() {
+    const lib = getCgStylePresets();
+    const found = (lib.presets || []).filter(function(p) { return p && p.enabled === true; });
+    return found.length ? found[0] : null;
+  }
+
+  /* ── 画风与画师串预设管理弹窗 ── */
+  function openCgStylePresetsDialog(onBack) {
+    const lib = getCgStylePresets();
+    const presets = lib.presets || [];
+    const rows = presets.map(function(p) {
+      const isEn = p.enabled === true;
+      return '<div style="padding:10px;margin-bottom:8px;background:#100a13;border:1px solid ' + (isEn ? '#f472d0' : '#59304d') + ';border-radius:4px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px;">' +
+          '<b style="color:#ffb8eb;font-size:12px;">🎨 ' + escapeFeatureHtml(p.name || '未命名预设') + '</b>' +
+          '<button type="button" class="moon-cg-preset-toggle" data-id="' + escapeFeatureHtml(p.id) + '" style="padding:3px 9px;font-size:10.5px;cursor:pointer;background:' + (isEn ? '#37102f;border:1px solid #6ee7b7;color:#6ee7b7' : '#1c1020;border:1px solid #a94d8b;color:#e9c3dc') + ';">' + (isEn ? '● 已启用' : '○ 启用此预设') + '</button>' +
+        '</div>' +
+        '<div style="font-size:10px;color:#a5f3fc;line-height:1.5;word-break:break-all;"><b>画师串：</b>' + escapeFeatureHtml(String(p.artistPrompt || '(无)').slice(0, 110)) + '</div>' +
+        '<div style="font-size:10px;color:#cbd5e1;line-height:1.5;word-break:break-all;"><b>正面词：</b>' + escapeFeatureHtml(String(p.positivePrompt || '(无)').slice(0, 110)) + '</div>' +
+        '<div style="font-size:10px;color:#94a3b8;line-height:1.5;word-break:break-all;"><b>负面词：</b>' + escapeFeatureHtml(String(p.negativePrompt || '(无)').slice(0, 90)) + '</div>' +
+        '<div style="display:flex;gap:6px;margin-top:7px;">' +
+          '<button type="button" class="moon-cg-preset-edit" data-id="' + escapeFeatureHtml(p.id) + '" style="flex:1;padding:5px;font-size:10.5px;">✏️ 编辑</button>' +
+          '<button type="button" class="moon-cg-preset-del" data-id="' + escapeFeatureHtml(p.id) + '" style="flex:0.6;padding:5px;font-size:10.5px;">🗑 删除</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    const html = '<div style="font-size:11px;color:#f9a8d4;line-height:1.7;margin-bottom:8px;">' +
+      '可保存多套<b>画师串、正面提示词、负面提示词</b>。启用后，显影 CG 时会自动将画师串与正面/负面提示词拼接到画面描述中。</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
+        '<button type="button" id="moon-cg-preset-new" style="flex:1;padding:8px;font-weight:700;cursor:pointer;">＋ 新建画风/画师串预设</button>' +
+      '</div>' +
+      '<div style="max-height:46vh;overflow-y:auto;">' + (rows || '<div style="padding:16px;text-align:center;color:#94a3b8;">暂无预设，点击上方按钮新建一套吧！</div>') + '</div>';
+
+    showModalDialog('🎨 画风与画师串预设库', html, function() {
+      if (typeof onBack === 'function') setTimeout(onBack, 150);
+    }, {
+      confirmText: '完成返回',
+      onOpen: function(mask) {
+        mask.querySelector('#moon-cg-preset-new').addEventListener('click', function() {
+          try { mask.remove(); } catch (e) {}
+          openCgStylePresetEditDialog(null, function() { openCgStylePresetsDialog(onBack); });
+        });
+        mask.querySelectorAll('.moon-cg-preset-toggle').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const id = btn.getAttribute('data-id');
+            const curLib = getCgStylePresets();
+            let nowEnabled = false;
+            (curLib.presets || []).forEach(function(item) {
+              if (item.id === id) {
+                item.enabled = !item.enabled;
+                nowEnabled = item.enabled;
+              } else {
+                item.enabled = false;
+              }
+            });
+            saveCgStylePresets(curLib);
+            try { mask.remove(); } catch (e) {}
+            toast(nowEnabled ? '已启用画风预设' : '已停用画风预设', nowEnabled ? 'success' : 'info');
+            openCgStylePresetsDialog(onBack);
+          });
+        });
+        mask.querySelectorAll('.moon-cg-preset-edit').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const id = btn.getAttribute('data-id');
+            try { mask.remove(); } catch (e) {}
+            openCgStylePresetEditDialog(id, function() { openCgStylePresetsDialog(onBack); });
+          });
+        });
+        mask.querySelectorAll('.moon-cg-preset-del').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const id = btn.getAttribute('data-id');
+            const curLib = getCgStylePresets();
+            curLib.presets = (curLib.presets || []).filter(function(x) { return x.id !== id; });
+            saveCgStylePresets(curLib);
+            toast('预设已删除', 'info');
+            try { mask.remove(); } catch (e) {}
+            openCgStylePresetsDialog(onBack);
+          });
+        });
+      }
+    });
+  }
+
+  function openCgStylePresetEditDialog(presetId, onDone) {
+    const lib = getCgStylePresets();
+    const existing = presetId ? (lib.presets || []).find(function(x) { return x.id === presetId; }) : null;
+    const item = existing || {
+      id: newFeatureId('cgpreset'),
+      name: '',
+      artistPrompt: '',
+      positivePrompt: 'masterpiece, best quality, ultra-detailed, horizontal composition, 16:9 aspect ratio, cinematic lighting',
+      negativePrompt: 'lowres, bad anatomy, bad hands, text, watermark, worst quality, low quality, blurry, vertical orientation',
+      enabled: true
+    };
+    const html = '<div style="display:flex;flex-direction:column;gap:8px;font-size:11.5px;">' +
+      '<label>预设名称<input id="moon-cgp-name" type="text" value="' + escapeFeatureHtml(item.name) + '" placeholder="例如：清透水彩Gal风 / 赛璐璐厚涂" style="width:100%;box-sizing:border-box;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#fce7f3;"></label>' +
+      '<label>画师串 (Artist / Style Tags)<textarea id="moon-cgp-artist" placeholder="例如：artist:ask_(askzy), ciloranko, anime visual novel style..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#a5f3fc;font-family:monospace;">' + escapeFeatureHtml(item.artistPrompt) + '</textarea></label>' +
+      '<label>正面提示词 (Positive Quality & Composition)<textarea id="moon-cgp-pos" placeholder="masterpiece, best quality, horizontal composition, 16:9..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#fce7f3;font-family:monospace;">' + escapeFeatureHtml(item.positivePrompt) + '</textarea></label>' +
+      '<label>负面提示词 (Negative Prompt / UC)<textarea id="moon-cgp-neg" placeholder="lowres, bad anatomy, bad hands, text, watermark..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#fca5a5;font-family:monospace;">' + escapeFeatureHtml(item.negativePrompt) + '</textarea></label>' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:#ffb8eb;"><input type="checkbox" id="moon-cgp-enable"' + (item.enabled !== false ? ' checked' : '') + '> 保存后立即启用此预设</label>' +
+    '</div>';
+
+    showModalDialogCancelable(existing ? '✏️ 编辑画风预设' : '＋ 新建画风预设', html,
+      function() {
+        const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
+        const name = mask.querySelector('#moon-cgp-name').value.trim() || '自定义画风预设';
+        const artist = mask.querySelector('#moon-cgp-artist').value.trim();
+        const pos = mask.querySelector('#moon-cgp-pos').value.trim();
+        const neg = mask.querySelector('#moon-cgp-neg').value.trim();
+        const enableNow = mask.querySelector('#moon-cgp-enable').checked;
+        const curLib = getCgStylePresets();
+        if (!Array.isArray(curLib.presets)) curLib.presets = [];
+        if (enableNow) {
+          curLib.presets.forEach(function(p) { p.enabled = false; });
+        }
+        const updated = {
+          id: item.id,
+          name: name,
+          artistPrompt: artist,
+          positivePrompt: pos,
+          negativePrompt: neg,
+          enabled: enableNow,
+          updatedAt: Date.now()
+        };
+        const idx = curLib.presets.findIndex(function(x) { return x.id === item.id; });
+        if (idx >= 0) curLib.presets[idx] = updated;
+        else curLib.presets.unshift(updated);
+        saveCgStylePresets(curLib);
+        toast('画风预设已保存', 'success');
+        if (typeof onDone === 'function') setTimeout(onDone, 150);
+      },
+      function() { if (typeof onDone === 'function') setTimeout(onDone, 150); },
+      { confirmText: '💾 保存预设', cancelText: '取消' }
+    );
+  }
+
+  /* ── 组装完整横构图提示词（合并画师串预设 + 正面词 + 当前画面描述） ── */
+  function composeFullCgPrompts(scenePrompt, itemNegativePrompt) {
+    const preset = getEnabledCgStylePreset();
+    const config = getImageGenConfig();
+    const parts = [];
+    if (preset && preset.artistPrompt) parts.push(String(preset.artistPrompt).trim());
+    if (preset && preset.positivePrompt) parts.push(String(preset.positivePrompt).trim());
+    if (!/horizontal composition|16:9|widescreen/i.test(parts.join(' ') + ' ' + String(scenePrompt || ''))) {
+      parts.push('horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel CG');
+    }
+    if (scenePrompt) parts.push(String(scenePrompt).trim());
+    const finalPositive = parts.filter(Boolean).join(', ').replace(/,\s*,+/g, ', ').slice(0, 2800);
+
+    const negParts = [];
+    if (preset && preset.negativePrompt) negParts.push(String(preset.negativePrompt).trim());
+    if (itemNegativePrompt) negParts.push(String(itemNegativePrompt).trim());
+    if (!negParts.length && config.imageNegativePrompt) negParts.push(String(config.imageNegativePrompt).trim());
+    const finalNegative = negParts.filter(Boolean).join(', ').slice(0, 1000);
+    return { positive: finalPositive, negative: finalNegative };
+  }
+
   function blobToDataUrl(blob) {
     return new Promise(function(resolve, reject) {
       const reader = new FileReader();
@@ -3619,46 +4753,68 @@ function openUpdateConfigDialog(panel) {
       reader.readAsDataURL(blob);
     });
   }
-  async function callImageGenerationApi(prompt, customNegativePrompt) {
-    const config = getImageGenConfig();
-    const provider = config.imageProvider || 'pollinations';
-    const negative = customNegativePrompt || config.imageNegativePrompt || '';
-    const input = String(prompt || '').trim().slice(0, 2500);
-    if (!input) throw new Error('缺少图片提示词');
+
+  async function requestSingleImageProvider(provider, channelCfg, input, negative) {
+    const meta = IMAGE_PROVIDER_META[provider] || IMAGE_PROVIDER_META.pollinations;
+    const apiUrl = String((channelCfg && channelCfg.apiUrl) || meta.defaultUrl || '').trim();
+    const apiKey = String((channelCfg && channelCfg.apiKey) || '').trim();
+    const model = String((channelCfg && channelCfg.model) || meta.defaultModel || '').trim();
+
     if (provider === 'novelai') {
-      if (!config.imageApiKey) throw new Error('请先填写 NovelAI API Key');
-      const response = await fetch(config.imageApiUrl || 'https://image.novelai.net/ai/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + config.imageApiKey.trim() }, body: JSON.stringify({ input: input, model: config.imageModel || 'nai-diffusion-3', action: 'generate', parameters: { width: 1216, height: 832, scale: 5, sampler: 'k_euler', steps: 28, n_samples: 1, negative_prompt: negative } }) });
-      if (!response.ok) throw new Error('NovelAI HTTP ' + response.status + '；也可能是浏览器跨域限制');
+      if (!apiKey) throw new Error('请先填写 NovelAI API Key');
+      const response = await fetch(apiUrl || 'https://image.novelai.net/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+        body: JSON.stringify({
+          input: input,
+          model: model || 'nai-diffusion-3',
+          action: 'generate',
+          parameters: { width: 1216, height: 832, scale: 5, sampler: 'k_euler', steps: 28, n_samples: 1, negative_prompt: negative }
+        })
+      });
+      if (!response.ok) throw new Error('NovelAI HTTP ' + response.status);
       return await blobToDataUrl(await response.blob());
     }
     if (provider === 'sdwebui') {
-      let url = (config.imageApiUrl || 'http://127.0.0.1:7860').replace(/\/+$/, '');
+      let url = (apiUrl || 'http://127.0.0.1:7860').replace(/\/+$/, '');
       if (!url.endsWith('/sdapi/v1/txt2img')) url += '/sdapi/v1/txt2img';
       const headers = { 'Content-Type': 'application/json' };
-      if (config.imageApiKey) headers.Authorization = 'Bearer ' + config.imageApiKey.trim();
-      const response = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ prompt: input, negative_prompt: negative, width: 1024, height: 576, steps: 25, cfg_scale: 7 }) });
-      if (!response.ok) throw new Error('SD WebUI HTTP ' + response.status + '；请检查地址、服务状态和跨域设置');
+      if (apiKey) headers.Authorization = 'Bearer ' + apiKey;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ prompt: input, negative_prompt: negative, width: 1024, height: 576, steps: 25, cfg_scale: 7 })
+      });
+      if (!response.ok) throw new Error('SD WebUI HTTP ' + response.status);
       const json = await response.json();
       if (json.images && json.images[0]) return 'data:image/png;base64,' + json.images[0];
       throw new Error('SD WebUI 未返回有效图片');
     }
     if (provider === 'openai') {
-      if (!config.imageApiKey) throw new Error('请先填写图像 API Key');
-      let url = (config.imageApiUrl || 'https://api.openai.com').replace(/\/+$/, '');
+      if (!apiKey) throw new Error('请先填写图像 API Key');
+      let url = (apiUrl || 'https://api.openai.com').replace(/\/+$/, '');
       if (!/\/images\/generations$/i.test(url)) url += url.endsWith('/v1') ? '/images/generations' : '/v1/images/generations';
-      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + config.imageApiKey.trim() }, body: JSON.stringify({ model: config.imageModel || 'dall-e-3', prompt: input, size: '1792x1024', response_format: 'b64_json' }) });
-      if (!response.ok) throw new Error('图像 API HTTP ' + response.status + '；请检查服务商、模型和跨域设置');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+        body: JSON.stringify({ model: model || 'dall-e-3', prompt: input, size: '1792x1024', response_format: 'b64_json' })
+      });
+      if (!response.ok) throw new Error('图像 API HTTP ' + response.status);
       const json = await response.json(), row = json.data && json.data[0];
       if (row && row.b64_json) return 'data:image/png;base64,' + row.b64_json;
       if (row && /^https?:\/\//i.test(row.url || '')) return row.url;
       throw new Error('图像 API 未返回可用图片');
     }
     if (provider === 'midjourney') {
-      const base = String(config.imageApiUrl || '').replace(/\/+$/, '');
+      const base = apiUrl.replace(/\/+$/, '');
       if (!base) throw new Error('请先填写 Midjourney Proxy 地址');
       const headers = { 'Content-Type': 'application/json' };
-      if (config.imageApiKey) headers['mj-api-secret'] = config.imageApiKey.trim();
-      const response = await fetch(base + '/mj/submit/imagine', { method: 'POST', headers: headers, body: JSON.stringify({ prompt: input + ' --ar 16:9' }) });
+      if (apiKey) headers['mj-api-secret'] = apiKey;
+      const response = await fetch(base + '/mj/submit/imagine', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ prompt: input + ' --ar 16:9' })
+      });
       if (!response.ok) throw new Error('Midjourney Proxy HTTP ' + response.status);
       const task = await response.json(), taskId = task.result;
       if (!taskId) throw new Error('Midjourney 任务提交失败');
@@ -3672,9 +4828,52 @@ function openUpdateConfigDialog(panel) {
       }
       throw new Error('Midjourney 生成超时');
     }
-    const encoded = encodeURIComponent(input.slice(0, 300));
+    const encoded = encodeURIComponent(input.slice(0, 450));
     return 'https://image.pollinations.ai/prompt/' + encoded + '?width=1280&height=720&nologo=true&seed=' + Math.floor(Math.random() * 100000);
   }
+
+  async function callImageGenerationApi(prompt, customNegativePrompt) {
+    const config = getImageGenConfig();
+    const composed = composeFullCgPrompts(prompt, customNegativePrompt);
+    const input = composed.positive;
+    const negative = composed.negative;
+    if (!input) throw new Error('缺少图片提示词');
+
+    const maxRetries = Math.max(1, Math.min(5, Number(config.maxRetries) || 5));
+    const providersToTry = [config.primaryProvider || 'pollinations'];
+    if (config.secondaryProvider && config.secondaryProvider !== 'none' && config.secondaryProvider !== providersToTry[0]) {
+      providersToTry.push(config.secondaryProvider);
+    }
+
+    let lastError = null;
+    for (let pIdx = 0; pIdx < providersToTry.length; pIdx++) {
+      const prov = providersToTry[pIdx];
+      const provLabel = (IMAGE_PROVIDER_META[prov] && IMAGE_PROVIDER_META[prov].name) || prov;
+      const channelCfg = (config.channels && config.channels[prov]) || {};
+      const roleTag = pIdx === 0 ? '默认渠道' : '次用备用渠道';
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          updateLoadingDialogText('正在通过' + roleTag + '【' + provLabel + '】显影 CG（第 ' + attempt + '/' + maxRetries + ' 次尝试）…');
+        } catch (e) {}
+        try {
+          const resultUrl = await requestSingleImageProvider(prov, channelCfg, input, negative);
+          if (resultUrl) return resultUrl;
+        } catch (err) {
+          lastError = err;
+          try { console.warn('[Doki CG] ' + roleTag + ' ' + prov + ' 第 ' + attempt + '/' + maxRetries + ' 次失败：', err); } catch (e2) {}
+          if (attempt < maxRetries) {
+            await new Promise(function(r) { setTimeout(r, 900); });
+          }
+        }
+      }
+      if (pIdx === 0 && providersToTry.length > 1) {
+        try { toast('默认渠道连续 ' + maxRetries + ' 次失败，正在自动切换至次用渠道…', 'warning'); } catch (e) {}
+      }
+    }
+    throw lastError || new Error('生图请求在重试 ' + maxRetries + ' 次后仍未成功');
+  }
+
   function getAchievementTriggerLedger() {
     const list = readChatFeatureValue(ACHIEVEMENT_TRIGGER_KEY, []);
     return Array.isArray(list) ? list : [];
@@ -3691,29 +4890,52 @@ function openUpdateConfigDialog(panel) {
     for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
     return (hash >>> 0).toString(36);
   }
+
+  function collectCurrentSceneContextForCg() {
+    const latestAi = getLatestAiMessage();
+    const latestScene = latestAi && latestAi.msg ? String(latestAi.msg.mes || '').replace(/<UpdateVariable>[\s\S]*?<\/UpdateVariable>/gi, '').replace(/[\[\(【〔]\s*Sylveina\|[\s\S]*$/i, '').trim() : '';
+    const hist = collectChatHistoryContext(2800);
+    return {
+      latestScene: latestScene.slice(-1800),
+      recentChat: String(hist.chat || '').slice(-2400)
+    };
+  }
+
   function triggerAchievementUnlock(charName, eventType, triggerReason, triggerKey) {
     return (async function() {
       const list = getGalleryList();
       if (list.some(function(item) { return item.triggerKey === triggerKey; })) return;
-      const systemPrompt = '你是日系视觉小说的成就策划。只输出 JSON 对象，字段为 title、desc、prompt、uc。title 不超过 24 字，desc 为 15 至 40 字，prompt 是简洁的横构图动漫场景描述，uc 是负面提示词。不要输出 HTML。';
-      const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n事件：' + String(eventType).slice(0, 40) + '\n契机：' + String(triggerReason).slice(0, 160) + '\n请将此刻写成一枚值得收藏的恋爱剧情成就。';
+      const sceneCtx = collectCurrentSceneContextForCg();
+      const systemPrompt = '你是日系视觉小说的成就策划。请结合当前剧情画面上下文，只输出 JSON 对象，字段为 title、desc、prompt、uc。title 不超过 24 字，desc 为 15 至 40 字，prompt 是根据当前画面生成的英文横构图动漫场景描述（默认横构图：包含 horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel CG），uc 是负面提示词。不要输出 HTML。';
+      const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n事件：' + String(eventType).slice(0, 40) + '\n契机：' + String(triggerReason).slice(0, 160) + (sceneCtx.latestScene ? ('\n\n【当前最新画面正文】\n' + sceneCtx.latestScene) : '') + (sceneCtx.recentChat ? ('\n\n【近期对话上下文】\n' + sceneCtx.recentChat) : '') + '\n\n请将此刻的画面写成一枚值得收藏的恋爱剧情成就与默认横构图 CG 提示词。';
       let result = null;
-      try { result = extractJson(await callOpeningModel(getSettings().extraModel === 'on' ? 'extra' : 'main', systemPrompt, userPrompt)); } catch (e) {}
+      try { result = extractJson(await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', systemPrompt, userPrompt)); } catch (e) {}
       result = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+      let rawPrompt = String(result.prompt || ('horizontal composition, 16:9 aspect ratio, widescreen, romantic anime visual novel CG, ' + charName + ', tender emotional scene, cinematic horizontal composition')).trim();
+      if (!/horizontal composition|16:9/i.test(rawPrompt)) {
+        rawPrompt = 'horizontal composition, 16:9 aspect ratio, widescreen, ' + rawPrompt;
+      }
       const item = {
         id: newFeatureId('ach'), triggerKey: triggerKey, char: String(charName),
         title: String(result.title || '与' + charName + '的命定回响').slice(0, 80),
         desc: String(result.desc || '在这个重要的瞬间，彼此的羁绊留下了新的印记。').slice(0, 300),
-        prompt: String(result.prompt || ('romantic anime visual novel CG, ' + charName + ', tender emotional scene, cinematic horizontal composition')).slice(0, 2500),
+        prompt: rawPrompt.slice(0, 2500),
         uc: String(result.uc || 'worst quality, low quality, blurry, watermark').slice(0, 500),
         imageKey: '', imageUrl: '', createdAt: Date.now(), isEnding: false
       };
       list.unshift(item);
       saveGalleryList(list);
-      const html = '<div style="text-align:center;padding:8px 0"><div style="font-size:30px">🏆</div><b>成就解锁</b><div style="font-size:15px;color:#f9a8d4;margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊；需要时可手动生成 CG。</div></div>';
-      showModalDialog('🏆 成就记录', html, null, { confirmText: '收入回忆' });
+      const html = '<div style="text-align:center;padding:8px 0"><div style="font-size:30px">🏆</div><b>成就解锁</b><div style="font-size:15px;color:#f9a8d4;margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊（默认不自动生图，点击下方「查看当前回忆」即可发送生图请求显影 CG）。</div></div>';
+      showModalDialogCancelable('🏆 成就记录', html,
+        function() {
+          setTimeout(function() { developCGItem(item); }, 150);
+        },
+        null,
+        { confirmText: '🖼️ 查看当前回忆（显影 CG）', cancelText: '先收入回忆' }
+      );
     })();
   }
+
   async function developCGItem(item) {
     if (!item || !item.prompt) { toast('这条回忆没有图片提示词', 'warning'); return; }
     showLoadingDialog('正在显影这段回忆 CG…');
@@ -3733,6 +4955,7 @@ function openUpdateConfigDialog(panel) {
       toast('CG 显影失败：' + String(err && err.message || err).slice(0, 180), 'warning');
     }
   }
+
   function downloadFileViaBrowser(url, filename) {
     try {
       const anchor = mainDoc.createElement('a');
@@ -3750,18 +4973,35 @@ function openUpdateConfigDialog(panel) {
   async function openMemoryGalleryDialog() {
     await cleanExpiredGalleryImages();
     const list = getGalleryList();
-    if (!list.length) {
-      showModalDialog('📚 回忆画廊', '<div style="text-align:center;padding:20px 4px">这里还没有成就或周目结局。经历重大事件或彩蛋后，成就会自动入档。</div>', null, { confirmText: '返回' });
-      return;
-    }
-    const rows = list.map(function(item) {
+    const enabledPreset = getEnabledCgStylePreset();
+    const imgCfg = getImageGenConfig();
+    const primaryMeta = IMAGE_PROVIDER_META[imgCfg.primaryProvider] || IMAGE_PROVIDER_META.pollinations;
+    const secondaryMeta = imgCfg.secondaryProvider && imgCfg.secondaryProvider !== 'none' ? IMAGE_PROVIDER_META[imgCfg.secondaryProvider] : null;
+
+    const topBarHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:7px;background:#100a13;border:1px solid #693253;">' +
+      '<button type="button" id="moon-gal-presets-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">🎨 画风预设' + (enabledPreset ? ' (已启用)' : '') + '</button>' +
+      '<button type="button" id="moon-gal-imgcfg-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">🖼️ 渠道设定</button>' +
+    '</div>' +
+    '<div style="font-size:10px;color:#e9c3dc;margin-bottom:8px;line-height:1.5;">' +
+      '当前主渠道：<b style="color:#7dd3fc;">' + escapeFeatureHtml(primaryMeta.name) + '</b>' +
+      (secondaryMeta ? ' · 次用渠道：<b style="color:#fde047;">' + escapeFeatureHtml(secondaryMeta.name) + '</b>' : ' · 次用渠道：无（失败自动重试 ' + imgCfg.maxRetries + ' 次）') +
+      (enabledPreset ? ' · 画风：<b style="color:#f9a8d4;">' + escapeFeatureHtml(enabledPreset.name) + '</b>' : '') +
+    '</div>';
+
+    const rows = list.length ? list.map(function(item) {
       return '<article style="padding:9px;margin:7px 0;background:#100a13;border:1px solid #693253">' +
         '<b>《' + escapeFeatureHtml(item.title || '未命名回忆') + '》</b><div style="font-size:10px;color:#9ca3af">' + escapeFeatureHtml(item.char || '') + (item.isEnding ? ' · 周目结局' : ' · 成就') + ' · ' + new Date(Number(item.createdAt) || Date.now()).toLocaleString() + '</div>' +
         '<div style="margin:5px 0">' + escapeFeatureHtml(item.desc || '') + '</div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap"><button type="button" data-gallery-view="' + escapeFeatureHtml(item.id) + '">查看</button><button type="button" data-gallery-generate="' + escapeFeatureHtml(item.id) + '"' + (!item.prompt ? ' disabled' : '') + '>显影 CG</button><button type="button" data-gallery-download="' + escapeFeatureHtml(item.id) + '"' + (!(item.imageKey || item.imageUrl) ? ' disabled' : '') + '>下载</button><button type="button" data-gallery-delete="' + escapeFeatureHtml(item.id) + '">移除</button></div></article>';
-    }).join('');
-    const html = '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:8px">本档案只属于当前聊天。图片保存在本机浏览器，外链图片由服务方提供。</div><div style="max-height:36vh;overflow:auto">' + rows + '</div><div id="moon-gallery-preview" style="margin-top:10px"></div>';
+    }).join('') : '<div style="text-align:center;padding:20px 4px;color:#cbd5e1;">这里还没有成就或周目结局。经历重大事件或彩蛋后，成就会自动入档。<br>可点击上方<b>「🎨 画风预设」或「🖼️ 渠道设定」</b>提前配置画师串与生图渠道。</div>';
+
+    const html = topBarHtml + '<div style="max-height:36vh;overflow:auto">' + rows + '</div><div id="moon-gallery-preview" style="margin-top:10px"></div>';
     showModalDialog('📚 回忆画廊 · ' + list.length + ' 项', html, null, { confirmText: '关闭', onOpen: function(mask) {
+      const presetBtn = mask.querySelector('#moon-gal-presets-btn');
+      if (presetBtn) presetBtn.addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { openCgStylePresetsDialog(openMemoryGalleryDialog); }, 160); });
+      const imgCfgBtn = mask.querySelector('#moon-gal-imgcfg-btn');
+      if (imgCfgBtn) imgCfgBtn.addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { openImageGenerationSettingsDialog(null, openMemoryGalleryDialog); }, 160); });
+
       mask.querySelectorAll('[data-gallery-view]').forEach(function(button) {
         button.addEventListener('click', async function() {
           const item = getGalleryList().find(function(row) { return row.id === button.getAttribute('data-gallery-view'); });
@@ -3800,28 +5040,134 @@ function openUpdateConfigDialog(panel) {
       }); });
     } });
   }
-  function openImageGenerationSettingsDialog(panel) {
+
+  function openImageGenerationSettingsDialog(panel, onBack) {
     const config = getImageGenConfig(), settings = getSettings();
-    const providers = [['pollinations', 'Pollinations（免 Key）'], ['novelai', 'NovelAI'], ['sdwebui', 'Stable Diffusion WebUI'], ['openai', 'OpenAI 兼容接口'], ['midjourney', 'Midjourney Proxy']];
-    const providerOptions = providers.map(function(row) { return '<option value="' + row[0] + '"' + (config.imageProvider === row[0] ? ' selected' : '') + '>' + row[1] + '</option>'; }).join('');
-    const html = '<div style="line-height:1.7;margin-bottom:8px;color:#f9a8d4">点击“显影 CG”时，提示词会发送给所选图片服务。API Key 只保存在本机浏览器；默认不会自动生成图片。</div>' +
-      '<label>生图渠道<select id="moon-image-provider" style="width:100%;padding:8px;background:#100a13;color:#fce7f3">' + providerOptions + '</select></label>' +
-      '<label style="display:block;margin-top:8px">接口地址<input id="moon-image-url" value="' + escapeFeatureHtml(config.imageApiUrl) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
-      '<label style="display:block;margin-top:8px">API Key<input id="moon-image-key" type="password" value="' + escapeFeatureHtml(config.imageApiKey) + '" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
-      '<label style="display:block;margin-top:8px">模型<input id="moon-image-model" value="' + escapeFeatureHtml(config.imageModel) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
-      '<label style="display:block;margin-top:8px">负面提示词<textarea id="moon-image-negative" style="width:100%;box-sizing:border-box;min-height:50px;padding:8px;background:#100a13;color:#fce7f3">' + escapeFeatureHtml(config.imageNegativePrompt) + '</textarea></label>' +
-      '<label style="display:block;margin-top:8px">CG 保留天数（0 = 永不自动清理）<input id="moon-image-retention" type="number" min="0" max="3650" value="' + Math.max(0, Number(settings.galleryRetentionDays) || 0) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>' +
-      '<label style="display:block;margin-top:8px">后日谈目标字数（1500–8000）<input id="moon-epilogue-words" type="number" min="1500" max="8000" step="500" value="' + Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000)) + '" style="width:100%;box-sizing:border-box;padding:8px;background:#100a13;color:#fce7f3"></label>';
+    const providers = [
+      ['pollinations', 'Pollinations（免 Key）'],
+      ['novelai', 'NovelAI'],
+      ['sdwebui', 'Stable Diffusion WebUI'],
+      ['openai', 'OpenAI 兼容图像接口'],
+      ['midjourney', 'Midjourney Proxy']
+    ];
+    let currentEditProv = config.primaryProvider || 'pollinations';
+    const workingChannels = JSON.parse(JSON.stringify(config.channels || {}));
+
+    const primaryOptions = providers.map(function(row) {
+      return '<option value="' + row[0] + '"' + (config.primaryProvider === row[0] ? ' selected' : '') + '>' + row[1] + '</option>';
+    }).join('');
+    const secondaryOptions = '<option value="none"' + (config.secondaryProvider === 'none' ? ' selected' : '') + '>无次用渠道（仅主渠道自动重试最多 5 次）</option>' +
+      providers.map(function(row) {
+        return '<option value="' + row[0] + '"' + (config.secondaryProvider === row[0] ? ' selected' : '') + '>' + row[1] + '</option>';
+      }).join('');
+    const editOptions = providers.map(function(row) {
+      return '<option value="' + row[0] + '"' + (currentEditProv === row[0] ? ' selected' : '') + '>配置渠道参数：' + row[1] + '</option>';
+    }).join('');
+
+    const initCh = workingChannels[currentEditProv] || { apiUrl: '', apiKey: '', model: '' };
+    const html = '<div style="line-height:1.7;margin-bottom:8px;color:#f9a8d4;font-size:11px;">' +
+      '每个生图渠道均可<b>独立配置并单独保存</b>。当默认主渠道生成失败时，系统会自动重新发起请求（最多重试 <b>5 次</b>）；若配置了次用渠道，主渠道失败后会自动切换至次用渠道继续生成。</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
+        '<button type="button" id="moon-imgcfg-open-presets" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">🎨 管理画师串与正/负面提示词预设库</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">' +
+        '<label style="font-size:11px;">⭐ 默认主渠道<select id="moon-image-primary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#6ee7b7;border:1px solid #a94d8b;">' + primaryOptions + '</select></label>' +
+        '<label style="font-size:11px;">🛡️ 次用备用渠道<select id="moon-image-secondary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#fde047;border:1px solid #a94d8b;">' + secondaryOptions + '</select></label>' +
+      '</div>' +
+      '<div style="padding:10px;background:#140b18;border:1px solid #f472d0;border-radius:4px;margin-bottom:8px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;">' +
+          '<select id="moon-image-provider" style="flex:1;padding:7px;background:#09060d;color:#ffb8eb;border:1px solid #f472d0;font-weight:700;">' + editOptions + '</select>' +
+          '<button type="button" id="moon-image-save-channel" style="padding:7px 10px;font-size:11px;cursor:pointer;">💾 单独保存此渠道</button>' +
+        '</div>' +
+        '<label style="display:block;margin-top:6px;font-size:11px;">接口地址 (API URL)<input id="moon-image-url" value="' + escapeFeatureHtml(initCh.apiUrl) + '" placeholder="留空则使用该渠道官方默认地址" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
+        '<label style="display:block;margin-top:6px;font-size:11px;">API Key（独立保存在掌机中）<input id="moon-image-key" type="password" value="' + escapeFeatureHtml(initCh.apiKey) + '" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
+        '<label style="display:block;margin-top:6px;font-size:11px;">模型名称 (Model)<input id="moon-image-model" value="' + escapeFeatureHtml(initCh.model) + '" placeholder="例如：nai-diffusion-3 / dall-e-3 / flux" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
+        '<label style="font-size:11px;">失败自动重试次数（最多 5 次）<input id="moon-image-retries" type="number" min="1" max="5" value="' + Math.max(1, Math.min(5, Number(config.maxRetries) || 5)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>' +
+        '<label style="font-size:11px;">CG 保留天数（0=永久）<input id="moon-image-retention" type="number" min="0" max="3650" value="' + Math.max(0, Number(settings.galleryRetentionDays) || 0) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>' +
+      '</div>' +
+      '<label style="display:block;margin-top:8px;font-size:11px;">默认负面提示词（未启用画风预设时兜底使用）<textarea id="moon-image-negative" style="width:100%;box-sizing:border-box;min-height:44px;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;">' + escapeFeatureHtml(config.imageNegativePrompt) + '</textarea></label>' +
+      '<label style="display:block;margin-top:8px;font-size:11px;">后日谈目标字数（1500–8000）<input id="moon-epilogue-words" type="number" min="1500" max="8000" step="500" value="' + Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>';
+
     showModalDialogCancelable('⚙️ 回忆与生图设定', html, function() {
       const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
-      const provider = mask.querySelector('#moon-image-provider').value;
-      const saved = saveImageGenConfig({ imageProvider: provider, imageApiUrl: mask.querySelector('#moon-image-url').value.trim(), imageApiKey: mask.querySelector('#moon-image-key').value.trim(), imageModel: mask.querySelector('#moon-image-model').value.trim(), imageNegativePrompt: mask.querySelector('#moon-image-negative').value.trim() });
+      const editSel = mask.querySelector('#moon-image-provider').value;
+      workingChannels[editSel] = {
+        apiUrl: mask.querySelector('#moon-image-url').value.trim(),
+        apiKey: mask.querySelector('#moon-image-key').value.trim(),
+        model: mask.querySelector('#moon-image-model').value.trim()
+      };
+      const primary = mask.querySelector('#moon-image-primary-provider').value;
+      const secondary = mask.querySelector('#moon-image-secondary-provider').value;
+      const retries = Math.max(1, Math.min(5, parseInt(mask.querySelector('#moon-image-retries').value, 10) || 5));
+      const saved = saveImageGenConfig({
+        primaryProvider: primary,
+        secondaryProvider: secondary,
+        maxRetries: retries,
+        channels: workingChannels,
+        imageProvider: primary,
+        editingProvider: editSel,
+        imageApiUrl: workingChannels[editSel].apiUrl,
+        imageApiKey: workingChannels[editSel].apiKey,
+        imageModel: workingChannels[editSel].model,
+        imageNegativePrompt: mask.querySelector('#moon-image-negative').value.trim()
+      });
       const nextSettings = getSettings();
       nextSettings.galleryRetentionDays = Math.max(0, Math.min(3650, parseInt(mask.querySelector('#moon-image-retention').value, 10) || 0));
       nextSettings.epilogueTargetWords = Math.max(1500, Math.min(8000, parseInt(mask.querySelector('#moon-epilogue-words').value, 10) || 8000));
       saveSettings(nextSettings);
-      toast(saved ? '回忆设定已保存' : '图片配置未能保存，请检查本机存储空间', saved ? 'success' : 'warning');
-    }, null, { confirmText: '保存设定', cancelText: '取消' });
+      toast(saved ? '生图渠道与回忆设定已保存' : '图片配置未能保存，请检查本机存储空间', saved ? 'success' : 'warning');
+      if (typeof onBack === 'function') setTimeout(onBack, 160);
+    }, function() {
+      if (typeof onBack === 'function') setTimeout(onBack, 160);
+    }, {
+      confirmText: '保存全部设定',
+      cancelText: '取消',
+      onOpen: function(mask) {
+        const editSelect = mask.querySelector('#moon-image-provider');
+        const urlInput = mask.querySelector('#moon-image-url');
+        const keyInput = mask.querySelector('#moon-image-key');
+        const modelInput = mask.querySelector('#moon-image-model');
+
+        function flushInputsToWorking() {
+          workingChannels[currentEditProv] = {
+            apiUrl: urlInput.value.trim(),
+            apiKey: keyInput.value.trim(),
+            model: modelInput.value.trim()
+          };
+        }
+        editSelect.addEventListener('change', function() {
+          flushInputsToWorking();
+          currentEditProv = editSelect.value;
+          const ch = workingChannels[currentEditProv] || { apiUrl: '', apiKey: '', model: '' };
+          urlInput.value = ch.apiUrl || '';
+          keyInput.value = ch.apiKey || '';
+          modelInput.value = ch.model || '';
+        });
+        mask.querySelector('#moon-image-save-channel').addEventListener('click', function() {
+          flushInputsToWorking();
+          const ok = saveImageGenConfig({
+            primaryProvider: mask.querySelector('#moon-image-primary-provider').value,
+            secondaryProvider: mask.querySelector('#moon-image-secondary-provider').value,
+            maxRetries: Math.max(1, Math.min(5, parseInt(mask.querySelector('#moon-image-retries').value, 10) || 5)),
+            channels: workingChannels,
+            editingProvider: currentEditProv,
+            imageApiUrl: workingChannels[currentEditProv].apiUrl,
+            imageApiKey: workingChannels[currentEditProv].apiKey,
+            imageModel: workingChannels[currentEditProv].model,
+            imageNegativePrompt: mask.querySelector('#moon-image-negative').value.trim()
+          });
+          const label = (IMAGE_PROVIDER_META[currentEditProv] && IMAGE_PROVIDER_META[currentEditProv].name) || currentEditProv;
+          toast(ok ? ('已单独保存【' + label + '】渠道配置') : '保存失败', ok ? 'success' : 'warning');
+        });
+        mask.querySelector('#moon-imgcfg-open-presets').addEventListener('click', function() {
+          flushInputsToWorking();
+          try { mask.remove(); } catch (e) {}
+          openCgStylePresetsDialog(function() { openImageGenerationSettingsDialog(panel, onBack); });
+        });
+      }
+    });
   }
   function isEndingTriggerCondition(charName, ch, recentText) {
     const E = Number(ch && ch.好感度) || 0, R = Number(ch && ch.阶段值) || 0, I = Number(ch && ch.嫉妒值) || 0;
@@ -3842,33 +5188,241 @@ function openUpdateConfigDialog(panel) {
     saveEndingArchive(archive);
     return true;
   }
-  function promptEndingDialog(charName, ch, endingInfo, isManual) {
-    const html = '<div style="text-align:center;padding:8px 0"><div style="font-size:28px">🌌</div><b style="color:#f9a8d4">世界线收束 · 终局契机</b><div style="margin-top:8px">' + (isManual ? '为角色《' + escapeFeatureHtml(charName) + '》生成本周目的结局结算。' : '《' + escapeFeatureHtml(charName) + '》达成了终局条件：' + escapeFeatureHtml(endingInfo.type) + ' · ' + escapeFeatureHtml(endingInfo.reason) + '。') + '<br>确认后会调用当前 AI 生成结算卡；是否生成 CG 与后日谈由你在结算后选择。</div></div>';
-    showModalDialogCancelable('✦ 终局确认', html, function() { runEndingSettlement(charName, ch, endingInfo.type || 'CustomEnd'); }, null, { confirmText: '生成结局结算', cancelText: '继续游玩' });
+  function buildChatboxEndingPrompt(charName, ch, endingType, reason) {
+    const E = Number(ch && ch.好感度) || 0;
+    const P = Number(ch && ch.肉体值) || 0;
+    const R = Number(ch && ch.阶段值) || 0;
+    const I = Number(ch && ch.嫉妒值) || 0;
+    const worldTime = String(readVar('世界.时间', '终幕时刻'));
+    const routeMeta = ENDING_ROUTE_META[endingType] || ENDING_ROUTE_META.TE;
+    const directorRule = [
+      '═══════════════════════════════════',
+      '🎬【最高优先级 · 日系 Galgame 周目终局报幕指令】',
+      '玩家已触发本周目终局结算。请结合当前剧情脉络，为角色《' + charName + '》撰写一段充满日系视觉小说余韵的终幕演出正文（严禁代替玩家说话或行动）。',
+      '在正文结束后，你必须在回复的最末尾另起一行，严格输出以下单行或多行 `[GalgameEnding|...]` 报幕标签（本系统脚本内置正则会将其自动替换渲染为日系经典 Galgame 结局报幕 Staff Roll 画面）：',
+      '[GalgameEnding|结局名=四至十二字诗意结局名|类型=' + (endingType || 'TE') + '|角色=' + charName + '|时间=' + worldTime + '|四维=E:' + E + '/P:' + P + '/R:' + R + '/I:' + I + '|转折=一句话概括本周目最核心的命运分歧点（40字内）|复盘=本周目两人羁绊与结局的抒情复盘总结（120字内）|独白=角色在此刻对着玩家说出的第一人称终幕心声独白（80字内）|CG=horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel ending CG, ' + charName + ', 根据当前终幕画面生成的英文横构图场景描述]',
+      '═══════════════════════════════════'
+    ].join('\n');
+
+    const chatboxText = [
+      '【🌌 周目终局结算 · 进入日系 Galgame 结局报幕演出】',
+      '▸ 攻略角色：《' + charName + '》｜结局路线：' + routeMeta.badge + '（' + (reason || '世界线收束') + '）',
+      '▸ 终局四维：好感(E)=' + E + ' / 肉体(P)=' + P + ' / 阶段(R)=' + R + ' / 嫉妒(I)=' + I + '｜世界时间：' + worldTime,
+      '请根据我们至今为止的故事脉络，演绎本周目的终幕场景，并在回复末尾输出 [GalgameEnding|结局名=...|类型=' + (endingType || 'TE') + '|角色=' + charName + '|时间=' + worldTime + '|四维=E:' + E + '/P:' + P + '/R:' + R + '/I:' + I + '|转折=...|复盘=...|独白=...|CG=horizontal composition, 16:9 aspect ratio, widescreen, ...] 结局报幕标签。'
+    ].join('\n');
+
+    return { directorRule: directorRule, chatboxText: chatboxText };
   }
+
+  function injectAndSendEndingPromptToChatbox(charName, ch, endingType, reason) {
+    const built = buildChatboxEndingPrompt(charName, ch, endingType || 'TE', reason || '玩家主动结算周目');
+    callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 4, 0, false);
+
+    // 关闭掌机主面板，方便玩家直接在酒馆聊天窗口观看报幕生成
+    try { closePanel(); } catch (e) {}
+
+    const textarea = mainDoc.querySelector('#send_textarea, textarea#send_textarea, #prompt_textarea');
+    const sendBtn = mainDoc.querySelector('#send_but, .fa-paper-plane#send_but, [ id="send_but" ]');
+
+    if (textarea) {
+      textarea.value = built.chatboxText;
+      try { textarea.focus(); } catch (e) {}
+      try {
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('change', { bubbles: true }));
+        if (mainWin.$ && typeof mainWin.$ === 'function') {
+          mainWin.$(textarea).trigger('input').trigger('change');
+        }
+      } catch (e) {}
+
+      setTimeout(function() {
+        let sent = false;
+        if (sendBtn && typeof sendBtn.click === 'function') {
+          try {
+            sendBtn.click();
+            sent = true;
+          } catch (e) {}
+        }
+        if (!sent && mainWin.$ && sendBtn) {
+          try { mainWin.$(sendBtn).trigger('click'); sent = true; } catch (e) {}
+        }
+        if (!sent && typeof mainWin.Generate === 'function') {
+          try { mainWin.Generate('normal'); sent = true; } catch (e) {}
+        }
+        toast(sent ? '🌌 已将周目结算提示词注入聊天框并自动发送！AI 回复后将通过内置正则渲染日系 Galgame 结局报幕' : '🌌 已将周目结算提示词填入聊天框，请点击发送按钮触发结局报幕', 'success');
+      }, 160);
+      return true;
+    }
+
+    // 若当前环境未找到酒馆聊天输入框，则回退为直接弹窗结算
+    toast('未检测到酒馆聊天输入框，已切换为后台直接生成结局报幕', 'info');
+    runEndingSettlement(charName, ch, endingType || 'TE');
+    return false;
+  }
+
+  function buildChatboxEpiloguePrompt(record) {
+    const charName = (record && record.charName) || '她';
+    const endingTitle = (record && record.title) || (charName + '之篇 · 终末之约');
+    const endingType = (record && record.endingType) || 'TE';
+    const routeMeta = ENDING_ROUTE_META[endingType] || ENDING_ROUTE_META.TE;
+    const keyMoment = (record && record.keyMoment) || '命运分歧点上的最终抉择';
+    const summary = (record && record.summary) || '漫长的相遇与抉择，在此刻成为这一周目的最终注脚。';
+    const monologue = (record && record.monologue) || '倘若时光倒流，我仍会记得与你相遇的这一刻。';
+    const worldTime = (record && record.totalTime) || String(readVar('世界.时间', '未记录'));
+
+    const directorRule = [
+      '【📖 日系 Galgame 终局后日谈番外指令（本回合最高优先级）】',
+      '上一回合玩家与角色「' + charName + '」已完成本周目终局结算（结局：《' + endingTitle + '》，路线：' + routeMeta.badge + '）。现在玩家点击了「查看后日谈」，请你立即在当前聊天对话内创作一篇 **5000字～8000字** 的完整结局后番外（After Story）：',
+      '1. **叙事视角（核心要求）**：必须严格以角色「' + charName + '」的视角（第一人称“我”或极度贴合她内心的专属主视角）进行创作，细腻展现她在结局落幕之后的所见、所感、回忆与内心独白。',
+      '2. **剧情内容与篇幅（5000～8000字完整番外）**：重点讲述《' + endingTitle + '》结局之后发生的事情——包含「序幕·终局余温」「第一幕·日常与季节流转」「第二幕·旧物与心底回响」「终幕·致未来的誓言/回望」四个自然篇章，细节丰满、情感真挚克制，总篇幅务必达到 **5000字～8000字**，绝不可敷衍缩写。',
+      '3. **内置正则美化包裹格式（必须严格遵守）**：请将整篇后日谈番外完整包裹在 `<GalgameEpilogue title="自拟诗意后日谈标题" char="' + charName + '" ending="' + endingTitle + '">...此处写5000到8000字完整后日谈正文（可正常分段与使用小标题）...</GalgameEpilogue>` 标签内输出，以便脚本内置正则引擎将其渲染为日系 Galgame After Story 番外阅读卡。本回合无需输出 `[Sylveina|...]` 算分标签。'
+    ].join('\n');
+
+    const chatboxText = [
+      '【📖 开启终局后日谈番外 · 《' + charName + '》视角长篇创作（5000～8000字）】',
+      '▸ 承接周目结局：《' + endingTitle + '》（' + routeMeta.badge + '）｜终局时间：' + worldTime,
+      '▸ 命运分歧回顾：' + keyMoment + '｜终幕独白：「' + monologue + '」',
+      '▸ 请以《' + charName + '》的第一人称视角（或贴合角色内心的视角），顺着上一轮的终局结算，在当前对话内完整创作一篇 **5000字～8000字** 的结局后完整番外（讲述这个结局后面发生的故事、生活细节与内心回响），并使用 `<GalgameEpilogue title="后日谈标题" char="' + charName + '" ending="' + endingTitle + '">...完整番外正文...</GalgameEpilogue>` 标签包裹输出。'
+    ].join('\n');
+
+    return {
+      directorRule: directorRule,
+      chatboxText: chatboxText
+    };
+  }
+
+  function injectAndSendEpiloguePromptToChatbox(record) {
+    if (!record) {
+      toast('未找到周目结局记录，无法发起后日谈', 'warning');
+      return false;
+    }
+    const prompts = buildChatboxEpiloguePrompt(record);
+    callSetPrompt(PROMPT_KEY + '_epilogue_director', prompts.directorRule, 1, 0, false);
+
+    // 关闭任何打开的弹窗或掌机面板，回到公屏对话观看 AI 输出后日谈
+    const modalMask = mainDoc.getElementById('moon-modal-mask');
+    if (modalMask) modalMask.remove();
+    const panel = mainDoc.getElementById('moon-panel');
+    if (panel) panel.remove();
+
+    const textarea = mainDoc.querySelector('#send_textarea') || mainDoc.querySelector('textarea[name="send_textarea"]');
+    const sendBtn = mainDoc.querySelector('#send_but') || mainDoc.querySelector('[ data-testid="send-button" ]');
+
+    if (textarea) {
+      textarea.value = prompts.chatboxText;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+      try { textarea.focus(); } catch (e) {}
+
+      setTimeout(function() {
+        let sent = false;
+        if (sendBtn && typeof sendBtn.click === 'function') {
+          sendBtn.click();
+          sent = true;
+        }
+        if (!sent && mainWin.$ && sendBtn) {
+          try { mainWin.$(sendBtn).trigger('click'); sent = true; } catch (e) {}
+        }
+        if (!sent && typeof mainWin.Generate === 'function') {
+          try { mainWin.Generate('normal'); sent = true; } catch (e) {}
+        }
+        toast(sent ? '📖 已将《' + record.charName + '》视角后日谈（5000~8000字）提示词填入聊天框并自动发送！' : '📖 已将后日谈提示词填入聊天框，请点击发送按钮开始创作', 'success');
+      }, 160);
+      return true;
+    }
+
+    toast('未检测到酒馆聊天输入框，已切换为弹窗生成后日谈', 'info');
+    startEpilogueGenerationEngine(record.charName, record);
+    return false;
+  }
+
+  function promptEndingDialog(charName, ch, endingInfo, isManual) {
+    const eType = (endingInfo && endingInfo.type) || 'TE';
+    const eReason = (endingInfo && endingInfo.reason) || '玩家主动选择结算周目';
+    const routeMeta = ENDING_ROUTE_META[eType] || ENDING_ROUTE_META.TE;
+    const html = '<div style="text-align:center;padding:8px 0">' +
+      '<div style="font-size:28px">🌌</div>' +
+      '<b style="color:#f9a8d4;font-size:14px;">世界线收束 · 日系 Galgame 终局报幕</b>' +
+      '<div style="margin-top:8px;line-height:1.7;color:#fce7f3;">' +
+        (isManual ? '即将为角色《<b>' + escapeFeatureHtml(charName) + '</b>》发起本周目的终局结算。' : '《<b>' + escapeFeatureHtml(charName) + '</b>》达成了终局条件：<b style="color:' + routeMeta.accent + ';">' + escapeFeatureHtml(routeMeta.badge) + '</b>（' + escapeFeatureHtml(eReason) + '）。') +
+      '</div>' +
+      '<div style="margin-top:10px;padding:9px 11px;background:#100a13;border:1px solid #f472d0;text-align:left;font-size:11px;line-height:1.7;color:#f9a8d4;">' +
+        '<b>🎬 公屏结局报幕流程（内置正则美化）：</b><br>' +
+        '1. 点击下方<b>「💬 注入聊天框并自动发送」</b>，系统会将周目结算提示词自动填入酒馆聊天框并发送。<br>' +
+        '2. AI 撰写终幕剧情并输出 <code>[GalgameEnding|...]</code> 标签后，<b>脚本内置正则会自动将其替换为日系经典 Galgame 结局报幕（Staff Roll / Fin 演出卡）</b>！<br>' +
+        '3. 报幕卡内自带<b>「✨ 查看后日谈」</b>交互按钮（点击自动填入输入框并发送，让 AI 在当前对话内以角色视角创作 <b>5000～8000字</b> 结局后完整番外），以及<b>显影横构图结局 CG、导出结算卡</b>。' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:10px;">' +
+        '<button type="button" id="moon-ending-silent-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">⚡ 不发消息·直接弹窗生成报幕</button>' +
+      '</div>' +
+    '</div>';
+
+    showModalDialogCancelable('✦ 终局报幕确认', html,
+      function() {
+        injectAndSendEndingPromptToChatbox(charName, ch, eType, eReason);
+      },
+      null,
+      {
+        confirmText: '💬 注入聊天框并自动发送',
+        cancelText: '继续游玩',
+        onOpen: function(mask) {
+          const silentBtn = mask.querySelector('#moon-ending-silent-btn');
+          if (silentBtn) {
+            silentBtn.addEventListener('click', function() {
+              closeFeatureModal(mask);
+              setTimeout(function() { runEndingSettlement(charName, ch, eType); }, 160);
+            });
+          }
+        }
+      }
+    );
+  }
+
   function manualTriggerEnding(panel) {
     const data = readMvuLatest(), chars = data && data.stat_data && data.stat_data.角色 || {};
     const names = Object.keys(chars).filter(function(name) { return !isCharSkeleton(chars[name]); });
     if (!names.length) { toast('当前聊天没有可结算的角色档案', 'warning'); return; }
-    if (names.length === 1) { promptEndingDialog(names[0], chars[names[0]], { type: 'TE', reason: '玩家主动选择结算周目' }, true); return; }
+    const routeOptions = [
+      ['TE', '✦ TRUE END · 命定真结局（默认推荐）'],
+      ['HE', '✦ HAPPY END · 圆满终局'],
+      ['BE', '✦ BAD END · 悲恋终局'],
+      ['CageEnd', '✦ CAGE END · 槛中终局'],
+      ['CustomEnd', '✦ FINALE END · 自由终幕']
+    ].map(function(r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('');
+
+    if (names.length === 1) {
+      const onlyName = names[0];
+      const ch = chars[onlyName];
+      const autoCheck = isEndingTriggerCondition(onlyName, ch, '');
+      const defaultRoute = autoCheck.triggered ? autoCheck.type : 'TE';
+      promptEndingDialog(onlyName, ch, { type: defaultRoute, reason: autoCheck.triggered ? autoCheck.reason : '玩家主动选择结算周目' }, true);
+      return;
+    }
     const options = names.map(function(name) { return '<option value="' + escapeFeatureHtml(name) + '">' + escapeFeatureHtml(name) + '</option>'; }).join('');
-    showModalDialog('选择结算角色', '<label>角色档案<select id="moon-ending-char-select" style="width:100%;padding:8px;background:#100a13;color:#fce7f3">' + options + '</select></label>', function() {
-      const mask = mainDoc.getElementById('moon-modal-mask'); const selected = mask && mask.querySelector('#moon-ending-char-select') && mask.querySelector('#moon-ending-char-select').value;
-      if (selected && chars[selected]) promptEndingDialog(selected, chars[selected], { type: 'TE', reason: '玩家主动选择结算周目' }, true);
-    }, { confirmText: '继续' });
+    showModalDialogCancelable('🌌 选择周目结算角色与路线',
+      '<label style="display:block;margin-bottom:8px;">结算角色档案<select id="moon-ending-char-select" style="width:100%;padding:8px;margin-top:4px;background:#100a13;color:#fce7f3;border:1px solid #a94d8b;">' + options + '</select></label>' +
+      '<label style="display:block;">结局报幕路线<select id="moon-ending-route-select" style="width:100%;padding:8px;margin-top:4px;background:#100a13;color:#f9a8d4;border:1px solid #a94d8b;">' + routeOptions + '</select></label>',
+      function() {
+        const mask = mainDoc.getElementById('moon-modal-mask');
+        const selected = mask && mask.querySelector('#moon-ending-char-select') && mask.querySelector('#moon-ending-char-select').value;
+        const route = (mask && mask.querySelector('#moon-ending-route-select') && mask.querySelector('#moon-ending-route-select').value) || 'TE';
+        if (selected && chars[selected]) promptEndingDialog(selected, chars[selected], { type: route, reason: '玩家主动选择结算周目' }, true);
+      }, null, { confirmText: '下一步', cancelText: '取消' }
+    );
   }
   async function runEndingSettlement(charName, ch, endingType) {
     showLoadingDialog('正在整理本周目历程…');
     const history = collectChatHistoryContext(6000);
-    const systemPrompt = '你是日系视觉小说的剧本监督。请根据提供的当前角色和聊天脉络，写一张简洁、尊重玩家设定的周目结算卡。只输出 JSON：title（结局名，最多40字）、summary（复盘，最多160字）、monologue（角色第一人称独白，最多100字）、cgPrompt（横构图图片提示词，最多800字）、keyMoment（核心转折，最多120字）。不要替玩家补写行动或台词。';
+    const systemPrompt = '你是日系视觉小说的剧本监督。请根据提供的当前角色和聊天脉络，写一张简洁、尊重玩家设定的周目结算卡。只输出 JSON：title（结局名，最多40字）、summary（复盘，最多160字）、monologue（角色第一人称独白，最多100字）、cgPrompt（根据当前画面生成的横构图图片提示词，默认横构图：包含 horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel CG，最多800字）、keyMoment（核心转折，最多120字）。不要替玩家补写行动或台词。';
     const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局类型：' + String(endingType).slice(0, 40) + '\n四维：好感 ' + (Number(ch.好感度) || 0) + '，肉体 ' + (Number(ch.肉体值) || 0) + '，阶段 ' + (Number(ch.阶段值) || 0) + '，嫉妒 ' + (Number(ch.嫉妒值) || 0) + '\n游戏时间：' + String(readVar('世界.时间', '未记录')) + '\n\n聊天脉络：\n' + String(history && history.chat || '').slice(-6000);
     let result = null;
-    try { result = extractJson(await callOpeningModel(getSettings().extraModel === 'on' ? 'extra' : 'main', systemPrompt, userPrompt)); } catch (e) {}
+    try { result = extractJson(await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', systemPrompt, userPrompt)); } catch (e) {}
     result = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
     const title = String(result.title || charName + '之篇 · 终末之约').slice(0, 80);
     const summary = String(result.summary || '漫长的相遇与抉择，在此刻成为这一周目的最终注脚。').slice(0, 500);
     const monologue = String(result.monologue || '倘若时光倒流，我仍会记得与你相遇的这一刻。').slice(0, 300);
-    const prompt = String(result.cgPrompt || ('anime visual novel ending, ' + charName + ', emotional cinematic horizontal scene')).slice(0, 2500);
+    let prompt = String(result.cgPrompt || ('horizontal composition, 16:9 aspect ratio, widescreen, anime visual novel ending, ' + charName + ', emotional cinematic horizontal scene')).slice(0, 2500);
+    if (!/horizontal composition|16:9/i.test(prompt)) prompt = 'horizontal composition, 16:9 aspect ratio, widescreen, ' + prompt;
     const keyMoment = String(result.keyMoment || '命运交叉点上的最终抉择').slice(0, 300);
     const id = newFeatureId('ending');
     const record = { id: id, title: title, endingType: String(endingType || 'TE'), charName: charName, totalTime: String(readVar('世界.时间', '未记录')), E: Number(ch.好感度) || 0, P: Number(ch.肉体值) || 0, R: Number(ch.阶段值) || 0, I: Number(ch.嫉妒值) || 0, summary: summary, monologue: monologue, keyMoment: keyMoment, cgPrompt: prompt, createdAt: Date.now() };
@@ -3879,12 +5433,9 @@ function openUpdateConfigDialog(panel) {
     openGalgameEndingClearDialog(record, item);
   }
   function openGalgameEndingClearDialog(record, galleryItem) {
-    const html = '<div style="text-align:center"><div style="font-size:22px;color:#f9a8d4;font-weight:700">✦ CLEAR · 周目结算 ✦</div><div style="font-size:16px;margin:6px 0;font-weight:700">《' + escapeFeatureHtml(record.title) + '》</div><div style="font-size:11px;color:#94a3b8">' + escapeFeatureHtml(record.endingType) + ' · ' + escapeFeatureHtml(record.charName) + '</div><div style="padding:10px;background:#100a13;margin-top:9px;text-align:left;line-height:1.7">' + escapeFeatureHtml(record.summary) + '<hr><b>历经时间：</b>' + escapeFeatureHtml(record.totalTime) + '<br><b>终局数值：</b>E' + record.E + ' / P' + record.P + ' / R' + record.R + ' / I' + record.I + '<br><b>关键时刻：</b>' + escapeFeatureHtml(record.keyMoment) + '<br><b>角色心声：</b>“' + escapeFeatureHtml(record.monologue) + '”</div><div style="display:flex;gap:6px;margin-top:10px"><button id="moon-ending-cg" style="flex:1">显影结局 CG</button><button id="moon-ending-share" style="flex:1">导出结算卡</button><button id="moon-ending-epilogue" style="flex:1">生成后日谈</button></div></div>';
-    showModalDialog('🏆 周目结算', html, null, { confirmText: '收下结局卡', onOpen: function(mask) {
-      mask.querySelector('#moon-ending-cg').addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { developCGItem(galleryItem); }, 180); });
-      mask.querySelector('#moon-ending-share').addEventListener('click', function() { generateSteamShareCard(record); });
-      mask.querySelector('#moon-ending-epilogue').addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { startEpilogueGenerationEngine(record.charName, record); }, 180); });
-    } });
+    bindGalgameEndingCardDelegation();
+    const html = renderGalgameEndingCurtainHtml(record);
+    showModalDialog('🎬 日系 Galgame 结局报幕 · 周目结算', html, null, { confirmText: '收下结局报幕卡' });
   }
   async function generateSteamShareCard(record) {
     try {
@@ -3949,21 +5500,37 @@ function openUpdateConfigDialog(panel) {
     if (selected) panel.dataset.lcdCharacter = selected;
     const ch = selected ? chars[selected] : null;
     const modeMeta = LUNAR_META[mode] || LUNAR_META.hell;
+    const hasApi = hasValidCustomAIConfig();
+    const apiModel = hasApi ? getCustomAIConfig().model : '未设';
     const selections = [
-      '锚定 ' + (antisl ? 'ON' : 'OFF'), '副模 ' + String(extraSetting).toUpperCase(),
+      '锚定 ' + (antisl ? 'ON' : 'OFF'), 'API ' + (hasApi ? '已连' : '主模'),
       '卡组 ' + (cardMode === 'multi' ? '多人' : '单人'), '安全锁 ' + (getSafetyLock() ? 'ON' : 'OFF'),
       '节奏 ' + (pacing === 'Adi' ? '柔板' : pacing === 'All' ? '快板' : '行板'), '同人 ' + (fanficOn ? 'ON' : 'OFF')
     ];
     const options = names.map(function(name) { return '<option value="' + lcdEscape(name) + '"' + (name === selected ? ' selected' : '') + '>' + lcdEscape(name) + '</option>'; }).join('');
     const activePage = Math.max(0, Math.min(3, parseInt(panel.dataset.lcdPage || '0', 10) || 0));
     const pageNames = ['系统状态', '角色档案', '事件进度', '内存占用'];
-    return '<div class="mp-lcd-screen"><div class="mp-lcd-screen-head"><span>MOON POCKET · STATUS</span><b>MONO LCD</b></div>' +
+    const shortLabels = ['01 状态', '02 档案', '03 事件', '04 内存'];
+    const quickCharSummary = ch
+      ? '<div style="padding:7px 8px;margin-top:6px;border:1px solid #182019;font-size:12px;line-height:1.55;">' +
+          '<b>当前攻略：' + lcdEscape(selected) + '（' + lcdEscape(getRStageFromE(ch.好感度).name) + '）</b>' +
+          '<span>好感 ' + lcdEscape(ch.好感度 ?? 0) + ' · 肉体 ' + lcdEscape(ch.肉体值 ?? 0) + ' · 阶段 ' + lcdEscape(ch.阶段值 ?? 0) + ' · 嫉妒 ' + lcdEscape(ch.嫉妒值 ?? 0) + '</span>' +
+        '</div>'
+      : '<div class="mp-lcd-empty" style="padding:12px 6px;">尚未建立角色档案 · 请在下方「▶ 开始游戏 → 🚀 开局适配」中建档</div>';
+
+    return '<div class="mp-console-bezel"><span class="mp-power-led"><i></i>POWER</span><span>DOT MATRIX · MOON POCKET</span><span>API:' + lcdEscape(String(apiModel).slice(0, 12)) + '</span></div>' +
+      '<div class="mp-lcd-screen"><div class="mp-lcd-screen-head"><span>MOON POCKET · STATUS</span><b>MONO LCD</b></div>' +
+      '<div class="mp-lcd-quick-tabs" role="tablist" aria-label="液晶屏直达页签">' +
+      shortLabels.map(function(lb, idx) {
+        return '<button type="button" class="mp-lcd-quick-tab' + (activePage === idx ? ' active' : '') + '" data-lcd-tab="' + idx + '">' + lb + '</button>';
+      }).join('') +
+      '</div>' +
       '<div class="mp-lcd-pages" data-lcd-pages>' +
       '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="系统状态">' +
       '<div class="mp-lcd-world-time">WORLD TIME　' + lcdEscape(world.时间 || '等待游戏时间') + '</div>' +
-      '<div class="mp-lcd-difficulty"><b>游戏难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name) + '</strong></div>' +
-      '<div class="mp-lcd-selection"><b>当前设定</b><span>' + selections.map(lcdEscape).join('　') + '</span></div>' +
-      '<div class="mp-lcd-empty">使用屏幕下方的 ◀ / ▶ 查看其他状态页</div></section>' +
+      '<div class="mp-lcd-difficulty"><b>游戏难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
+      '<div class="mp-lcd-selection" style="min-height:auto;"><b>当前设定</b><span>' + selections.map(lcdEscape).join('　') + '</span></div>' +
+      quickCharSummary + '</section>' +
       '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="角色档案">' +
       '<div class="mp-lcd-character-head"><span>角色档案 / CHARACTER FILE</span>' +
       (names.length ? '<select class="mp-lcd-character-select" aria-label="选择角色档案">' + options + '</select>' : '') + '</div>' +
@@ -3977,7 +5544,7 @@ function openUpdateConfigDialog(panel) {
       '<button type="button" data-lcd-page-step="-1" aria-label="上一页">◀</button>' +
       '<div class="mp-lcd-page-indicator"><b data-lcd-page-label>' + pageNames[activePage] + '</b><span data-lcd-page-count>' + String(activePage + 1).padStart(2, '0') + ' / 04</span></div>' +
       '<button type="button" data-lcd-page-step="1" aria-label="下一页">▶</button></nav>' +
-      '<div class="mp-lcd-screen-foot">PIXEL DISPLAY · ← / → FLIP PAGE</div></div>';
+      '<div class="mp-lcd-screen-foot">PIXEL DISPLAY · 点上方 [01~04] 或 ◀ / ▶ 翻页</div></div>';
   }
 
   function setLcdPage(panel, page) {
@@ -3990,6 +5557,9 @@ function openUpdateConfigDialog(panel) {
       el.classList.toggle('active', active);
       el.setAttribute('aria-hidden', active ? 'false' : 'true');
     });
+    panel.querySelectorAll('[data-lcd-tab]').forEach(function(btn) {
+      btn.classList.toggle('active', Number(btn.getAttribute('data-lcd-tab')) === next);
+    });
     const label = panel.querySelector('[data-lcd-page-label]');
     const count = panel.querySelector('[data-lcd-page-count]');
     if (label) label.textContent = pages[next].getAttribute('data-page-label') || '';
@@ -3999,6 +5569,11 @@ function openUpdateConfigDialog(panel) {
   function bindLcdPageControls(panel) {
     const pages = panel.querySelectorAll('.mp-lcd-page');
     if (!pages.length) return;
+    panel.querySelectorAll('[data-lcd-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        setLcdPage(panel, Number(btn.getAttribute('data-lcd-tab')) || 0);
+      });
+    });
     panel.querySelectorAll('[data-lcd-page-step]').forEach(function(button) {
       button.addEventListener('click', function() {
         setLcdPage(panel, (Number(panel.dataset.lcdPage) || 0) + Number(button.getAttribute('data-lcd-page-step')));
@@ -4027,6 +5602,132 @@ function openUpdateConfigDialog(panel) {
     return '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
   }
 
+  function openTutorialDialog(panel) {
+    const steps = [
+      {
+        title: 'PAGE 01 · 掌机核心原理（无需MVU）',
+        badge: 'MOON POCKET MANUAL',
+        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
+          '<div style="padding:8px 10px;background:#100a13;border:1px solid #f472d0;margin-bottom:8px;">' +
+            '<b style="color:#ff8cdb;">★ 重要提示：现在已经完全不需要安装或开启 MVU 了！</b><br>' +
+            '所有角色好感、阶段、事件进度全部保存在这台掌机内部。' +
+          '</div>' +
+          '<div><b>▶ 自动算分与美化是怎么运作的？</b><br>' +
+            '正常推进剧情时，AI 会在回复末尾输出 <code>[Sylveina|M|+|3.5]</code>（即使 AI 写成了全角 <code>〔Sylveina|M|+|3.5〕</code> 也能识别）。<br>' +
+            '掌机捕获标签后会自动美化，并根据当前月相难度结算四维：<br>' +
+            '· <b style="color:#ffb8eb;">好感(E)</b>：情感亲疏，到达 18/38/58/78/98 时进入阶段破门判定<br>' +
+            '· <b style="color:#ffb8eb;">肉体(P)</b>：亲密接触度　· <b style="color:#ffb8eb;">阶段(R)</b>：关系定位(-5~5)　· <b style="color:#ffb8eb;">嫉妒(I)</b>：醋意值' +
+          '</div>' +
+        '</div>'
+      },
+      {
+        title: 'PAGE 02 · 古早绿屏 LCD 显示屏怎么看',
+        badge: 'MONO LCD DISPLAY',
+        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
+          '<p style="margin:0 0 6px;">掌机顶部的复古绿屏液晶屏共有 <b>4 个画面</b>，你可以点屏幕顶部的 <b>[01状态] ~ [04内存]</b> 直接跳转，也可以点底部的 <b>◀ / ▶</b> 翻页：</p>' +
+          '<div style="display:flex;flex-direction:column;gap:5px;">' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[01 状态]</b>：看世界时间、当前月相难度、规则开关状态与当前攻略角色速览。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[02 档案]</b>：切换角色，查看好感/肉体/阶段/嫉妒四维、像素心情脸与内心独白（心声）。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[03 事件]</b>：查看世界内部流逝天数、主线倒计时与当前触发的事件剩余回合。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[04 内存]</b>：查看角色卡、本系统提示词与世界书的 Token 占用统计。</div>' +
+          '</div>' +
+        '</div>'
+      },
+      {
+        title: 'PAGE 03 · 「▶ 开始游戏」与「♥ 角色与存档」',
+        badge: 'GAME MENU GUIDE 1',
+        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
+          '<div style="padding:7px 9px;background:#100a13;border:1px solid #f472d0;margin-bottom:6px;">' +
+            '<b style="color:#ff8cdb;">▶ 开始游戏（开局、重摇骰子、转档）</b><br>' +
+            '· <b>🚀 开局适配</b>：新开卡或<b>已有几十楼记录的老存档</b>第一次用本掌机时必点！AI 会通读上下文推断初始四维并建档。<br>' +
+            '· <b>🎲 属性点重掷</b>：对本轮加减分或情绪骰结果不满意？点它重新摇骰计算并覆盖！<br>' +
+            '· <b>⏱️ 回合计时</b>：巡检 7 天好感周上限重置与冷战解冻。<br>' +
+            '· <b>📦 存档迁移</b>：把当前聊天的角色档案打包，切到新聊天窗口自动弹窗导入。' +
+          '</div>' +
+          '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;">' +
+            '<b style="color:#ffb8eb;">♥ 角色与存档（试镜防OOC、画廊CG、结局）</b><br>' +
+            '· <b>🎬 角色试镜 / 📚 角色小抄库</b>：AI 提炼灵魂小抄并演一段试镜戏，可提导演意见重演，启用后强力防 OOC！<br>' +
+            '· <b>👤 玩家档案 / 📂 玩家资料库</b>：提炼你的 Persona 灵魂小传。<br>' +
+            '· <b>🏆 回忆画廊 / 🌌 周目结算</b>：查看重大事件与彩蛋成就并<b>显影连绘 CG</b>；达成结局时生成结算卡与三幕后日谈小说。' +
+          '</div>' +
+        '</div>'
+      },
+      {
+        title: 'PAGE 04 · 「▤ 冒险日志」「⚙ 系统检修」「▧ 系统选项」',
+        badge: 'GAME MENU GUIDE 2',
+        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
+          '<div style="display:flex;flex-direction:column;gap:6px;">' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▤ 冒险日志</b>：<b>🔎 扫描时间线</b>（扫描世界书并转写）、<b>📝 生成时间线</b>（AI 编写主线时间线）、<b>✍️ 手动补录</b>、<b>🏷️ 时间线标签</b>。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">⚙ 系统检修</b>：<b>🔭 系统自检</b>、<b>🧪 模拟测试</b>、<b>🔍 冲突扫描</b>、<b>🤖 AI 功能检测</b>（排查问题或让 AI 推荐难度）。</div>' +
+            '<div style="padding:7px 9px;background:#241025;border:1px solid #f472d0;"><b style="color:#ff8cdb;">🔑 配置API（智能按需弹窗）</b>：<br>' +
+              '点掌机屏幕下方的 <b>[START · 配置API]</b> 或「▧ 系统选项 → ⚙️ 配置API」即可填写 URL/Key/模型。<br>' +
+              '<b>哪怕你忘了提前填，在使用开局适配、试镜、生成时间线等功能时，只要选了 API 模式，掌机都会自动弹出配置窗口，填好点保存就会无缝继续执行！</b>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      }
+    ];
+
+    let curStep = 0;
+    try {
+      const s = getSettings();
+      if (!s.introSeen) { s.introSeen = true; saveSettings(s); }
+    } catch (e) {}
+
+    const html = '<div id="moon-tut-pills" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;"></div>' +
+      '<div id="moon-tut-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:5px;border-bottom:1px dashed #74355f;"></div>' +
+      '<div id="moon-tut-body" style="min-height:220px;"></div>' +
+      '<div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px dashed #74355f;">' +
+        '<button type="button" id="moon-tut-prev" style="padding:8px 10px;font-size:11px;cursor:pointer;">◀ PREV</button>' +
+        '<button type="button" id="moon-tut-api" style="padding:8px 10px;font-size:11px;cursor:pointer;">🔑 配置API</button>' +
+        '<button type="button" id="moon-tut-next" style="flex:1;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;">NEXT ▶</button>' +
+      '</div>';
+
+    showModalDialog('📖 MOON POCKET · 掌机说明书（新手引导）', html, null, {
+      confirmText: '合上说明书',
+      onOpen: function(mask) {
+        const pillsEl = mask.querySelector('#moon-tut-pills');
+        const headEl = mask.querySelector('#moon-tut-head');
+        const bodyEl = mask.querySelector('#moon-tut-body');
+        const prevBtn = mask.querySelector('#moon-tut-prev');
+        const nextBtn = mask.querySelector('#moon-tut-next');
+        const apiBtn = mask.querySelector('#moon-tut-api');
+
+        function renderStep(idx) {
+          curStep = Math.max(0, Math.min(steps.length - 1, idx));
+          const st = steps[curStep];
+          pillsEl.innerHTML = steps.map(function(item, i) {
+            const on = i === curStep;
+            return '<button type="button" class="moon-tut-step-btn" data-idx="' + i + '" style="padding:5px 2px;border:1px solid ' + (on ? '#f472d0' : '#643052') + ';background:' + (on ? '#37102f' : '#140b16') + ';color:' + (on ? '#ffe1f5' : '#bc8eaf') + ';font:700 10px monospace;cursor:pointer;">P0' + (i + 1) + '</button>';
+          }).join('');
+          pillsEl.querySelectorAll('.moon-tut-step-btn').forEach(function(b) {
+            b.addEventListener('click', function() { renderStep(Number(b.getAttribute('data-idx')) || 0); });
+          });
+          headEl.innerHTML = '<b style="font-size:12px;color:#ffb8eb;">' + st.title + '</b><span style="font-size:9px;padding:1px 6px;border:1px solid #87416e;background:#2a1126;color:#ffc4e9;">' + st.badge + '</span>';
+          bodyEl.innerHTML = st.body;
+          prevBtn.disabled = curStep === 0;
+          prevBtn.style.opacity = curStep === 0 ? '0.45' : '1';
+          nextBtn.textContent = curStep === steps.length - 1 ? '🚀 立即开局适配' : 'NEXT (' + (curStep + 1) + '/' + steps.length + ') ▶';
+        }
+
+        prevBtn.addEventListener('click', function() { if (curStep > 0) renderStep(curStep - 1); });
+        nextBtn.addEventListener('click', function() {
+          if (curStep < steps.length - 1) {
+            renderStep(curStep + 1);
+          } else {
+            try { mask.remove(); } catch (e) {}
+            setTimeout(function() { openUnifiedAdaptDialog(panel); }, 180);
+          }
+        });
+        apiBtn.addEventListener('click', function() {
+          try { mask.remove(); } catch (e) {}
+          setTimeout(function() { openCustomAIConfigDialog(panel); }, 180);
+        });
+        renderStep(0);
+      }
+    });
+  }
+
   function renderPanel(panel) {
     if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
     if (panel._lcdStateTimer) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; }
@@ -4034,6 +5735,7 @@ function openUpdateConfigDialog(panel) {
     const displayMode = panel.dataset.displayMode === 'arcade' ? 'arcade' : 'system';
     const isArcadeMode = displayMode === 'arcade';
     const selectedLevel = isArcadeMode ? (panel.dataset.arcadeDifficulty || 'normal') : mode;
+    const activeMenuKey = panel.dataset.activeMenuKey || '';
     panel.dataset.displayMode = displayMode;
     panel.classList.toggle('mp-display-arcade', isArcadeMode);
     const antisl = getAntiSL();
@@ -4045,39 +5747,47 @@ function openUpdateConfigDialog(panel) {
     const fanficOn = getFanficEnhance();
     const bioStatus = getCurrentBioStatus();
     const enabledUserBio = getEnabledUserBio();
+    const hasApi = hasValidCustomAIConfig();
+    const apiCfg = getCustomAIConfig();
+    const s = getSettings();
+
     panel.innerHTML = '' +
       '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
-'<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
-'<span class="mp-badge" style="cursor:pointer;' +
-  (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
-  '">v' + MOON_FORMULA_VERSION +
-  (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
-'</span>' +
+      '<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
+      '<span class="mp-badge" style="cursor:pointer;' +
+        (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
+        '">v' + MOON_FORMULA_VERSION +
+        (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
+      '</span>' +
       '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
       '<div class="mp-display-mode-switch" role="tablist" aria-label="选择显示模式">' +
       '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
       '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机模式</button></div>' +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
+      '<div class="mp-console-pillbar">' +
+        '<button type="button" class="mp-select-start-btn" id="moon-phase-tutorial" title="打开掌机说明书（新手引导）">SELECT · 📖 掌机说明书' + (!s.introSeen ? ' (NEW)' : '') + '</button>' +
+        '<button type="button" class="mp-select-start-btn' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口 (API)">START · 🔑 ' + (hasApi ? 'API已连' : '配置API') + '</button>' +
+      '</div>' +
       '<div class="mp-card mp-mode-select-card' + (isArcadeMode ? ' is-arcade' : '') + '"><details class="mp-difficulty-fold" open><summary>' + (isArcadeMode ? '街机难度' : '游戏难度') + '<i>▼</i></summary><div class="mp-difficulty-content">' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
       ['easy', 'normal', 'hard', 'hell'].map(function(m) {
         const item = LUNAR_META[m]; const isAct = (m === selectedLevel);
         return '<button class="mp-mode-btn ' + (isAct ? 'active' : '') + '" data-mode="' + m + '" style="padding:8px 2px;border-radius:9px;border:1px solid ' + (isAct ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.15)') + ';background:' + (isAct ? '#0c2540' : '#0f172a') + ';color:' + (isAct ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' +
-          '<div class="mp-mode-moon">' + renderPixelMoonIcon(m) + '</div><div>' + item.name + '</div>' +
-          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? item.title : '周上限 ' + item.quota) + '</div></button>';
+          '<div class="mp-mode-moon">' + item.glyph + '</div><div>' + item.name + ' · ' + item.title + '</div>' +
+          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? '街机档位' : '周上限 ' + item.quota) + '</div></button>';
       }).join('') + '</div>' +
       '<div class="mp-mode-description" style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
       (isArcadeMode
-        ? '<b style="color:#e2e8f0;">' + renderPixelMoonIcon(selectedLevel) + ' ' + LUNAR_META[selectedLevel].title + ' · 街机档位</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。此处选择只影响街机，不会更改系统月相。切换后立即开始新一局。'
-        : '<b style="color:#e2e8f0;">' + renderPixelMoonIcon(mode) + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail) + '</div></div></details></div>' +
+        ? '<b style="color:#e2e8f0;">' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '（街机档位）</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。此处选择只影响街机，不会更改系统月相。切换后立即开始新一局。'
+        : '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail) + '</div></div></details></div>' +
       '<div class="mp-system-content">' +
       '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 运行设定 <span>▼</span></summary><div class="mp-toggle-row">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">冷战期或好感度为负时锚定</div></div>' +
       '<button class="mp-antisl ' + (antisl ? 'on' : '') + '" id="moon-phase-antisl">' + (antisl ? '锚定: ON' : '锚定: OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌙 副模型解析系统</div><div class="mp-toggle-desc">主模型写剧情，副模型算变量</div></div>' +
-      '<button class="mp-extra-btn ' + (extraSetting !== 'off' ? 'on' : '') + '" id="moon-phase-extramodel">副模型: ' + extraSetting.toUpperCase() + '</button></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔑 独立 API 接口</div><div class="mp-toggle-desc">' + (hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '未配置 · 触发内部AI功能时自动弹窗填写') + '</div></div>' +
+      '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? 'API: 已配置' : '配置 API') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</div></div>' +
       '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
@@ -4095,32 +5805,41 @@ function openUpdateConfigDialog(panel) {
       '<span>' + (fateActive ? '🌑 锚定生效中' : '🌓 月相流转中 · 命运未定') + '</span></div></div>' +
       (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:700;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
       (enabledUserBio ? '<div class="mp-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.06);"><div style="font-size:11px;color:#f9a8d4;font-weight:700;">👤 已启用玩家小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">玩家：' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + ' · 覆盖 Persona 面板</div></div>' : '') +
-      '<section class="mp-menu-home" id="moon-menu-home"><div class="mp-menu-label">MOON POCKET · 主菜单</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>开局配置 · 属性调整 · 回合计时</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>角色档案 · 玩家档案 · 资料库</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>时间线扫描 · 生成 · 编辑</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>系统自检 · 规则测试 · 环境扫描</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>运行设定 · AI 演算 · 更新与指南</small></span><i>›</i></button>' +
-      '</div><div class="mp-menu-controls"><span><kbd>ENTER / A</kbd> 选择</span><span><kbd>ESC / B</kbd> 返回</span><span>♥ 全功能保留</span></div></section>' +
-      '<section class="mp-menu-page" id="moon-menu-page" style="display:none"><div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>GAME MENU / 目录</small><b id="moon-menu-page-title">功能</b></div><span class="mp-page-led"></span></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:none"><div class="mp-sub-label">冒险准备 / ADVENTURE SETUP</div>' +
-      '<details class="mp-action-fold"><summary><span>回合与成长</span><small>回合计时 · 属性点数调整</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-countdown">⏱️ 回合计时</button><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll">🎲 属性点重掷</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>新周目与存档转移</span><small>开局适配 · 打包迁移</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt">🚀 开局适配</button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate">📦 存档迁移</button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:none"><div class="mp-sub-label">角色档案 / CHARACTER FILES</div>' +
-      '<details class="mp-action-fold"><summary><span>角色档案与试演</span><small>角色试镜 · 角色小抄</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-bio">🎬 角色试镜</button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib">📚 角色小抄库</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>玩家档案</span><small>玩家档案 · 小抄收藏</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio">👤 玩家档案</button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib">📂 玩家资料库</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>回忆与周目</span><small>成就收藏 · 结局记录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery">🏆 回忆画廊</button><button class="mp-btn" id="moon-phase-ending">🌌 周目结算</button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:none"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
-      '<details class="mp-action-fold"><summary><span>时间线侦察</span><small>扫描世界条目 · 生成时间线</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-scan-timeline">🔎 扫描时间线</button><button class="mp-btn" id="moon-phase-tl-gen">📝 生成时间线</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>时间线整理</span><small>标签管理 · 手动补录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag">🏷️ 时间线标签</button><button class="mp-btn" id="moon-phase-manual-tl">✍️ 手动补录</button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="system" style="display:none"><div class="mp-sub-label">系统检修 / SYSTEM SERVICE</div>' +
-      '<details class="mp-action-fold"><summary><span>系统自检</span><small>状态检查 · 模拟测试</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck">🔭 系统自检</button><button class="mp-btn" id="moon-phase-simtest">🧪 模拟测试</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>兼容性扫描</span><small>脚本冲突 · AI 功能检测</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict">🔍 冲突扫描</button><button class="mp-btn" id="moon-phase-ai-detect">🤖 AI 功能检测</button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:none"><div class="mp-sub-label">系统选项 / OPTIONS</div>' +
-      '<details class="mp-action-fold"><summary><span>AI 演算设定</span><small>提示词编辑 · 副模型配置</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-prompt-edit">🧩 提示词设置</button><button class="mp-btn" id="moon-phase-custom-ai">⚙️ 副模型设置</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>回忆与影像</span><small>生图渠道 · 后日谈篇幅</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings">🖼️ 回忆与生图设定</button></div></details>' +
-      '<details class="mp-action-fold"><summary><span>更新与指南</span><small>系统升级 · 查阅帮助</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update">' + (_cachedUpdateInfo ? '⬇ 发现新版本 · 查看更新' : '🔄 检查版本更新') + '</button><button class="mp-btn" id="moon-phase-faq">❓ 帮助与说明</button></div></details></div></section>' +
+      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '"><div class="mp-menu-label">MOON POCKET · 主菜单（点击进入对应卡槽）</div><div class="mp-menu-grid">' +
+      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>🚀开局适配 · 🎲属性点重掷 · ⏱️回合计时 · 📦存档迁移</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>🎬角色试镜 · 📚小抄库 · 👤玩家档案 · 🏆回忆画廊 · 🌌周目结算</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>🔎扫描时间线 · 📝生成时间线 · 🏷️时间线标签 · ✍️手动补录</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>🔭系统自检 · 🧪模拟测试 · 🔍冲突扫描 · 🤖AI功能检测</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>🔑配置API · 🧩提示词设置 · 🖼️回忆与生图 · 🔄更新 · 📖说明书</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>♥ 黑粉掌机全功能保留</span></div></section>' +
+      '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
+      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回主菜单</button><div><small>GAME MENU / 掌机功能卡槽</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-subpage-switch" role="tablist" aria-label="快捷切换掌机菜单">' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">♥ 角色</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">▤ 日志</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">⚙ 检修</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">▧ 选项</button>' +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险准备 / ADVENTURE SETUP</div>' +
+      '<details class="mp-action-fold" open><summary><span>新周目与存档转移</span><small>新卡/老卡建档 · 跨窗口迁移</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 开局适配</span><small>AI推断初始四维/老卡回填</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 存档迁移</span><small>打包档案到新聊天窗口</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>回合与成长</span><small>回合计时 · 属性点数重摇</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 属性点重掷</span><small>对本轮变动重新摇骰算分</small></button><button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 回合计时</span><small>检查周上限重置与冷战解冻</small></button></div></details></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色档案 / CHARACTER FILES</div>' +
+      '<details class="mp-action-fold" open><summary><span>角色档案与试演</span><small>角色试镜 · 角色小抄防OOC</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 角色试镜</span><small>提炼灵魂小抄并排演对戏</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 角色小抄库</span><small>查看/编辑/启用角色小抄</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>玩家档案</span><small>玩家档案 · 小抄收藏</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 玩家档案</span><small>从Persona提炼玩家小传</small></button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 玩家资料库</span><small>管理并启用玩家专属小抄</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>回忆与周目</span><small>成就连绘画廊 · 结局记录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>查看解锁成就与显影CG</small></button><button class="mp-btn" id="moon-phase-ending"><span>🌌 周目结算</span><small>生成结局卡与后日谈小说</small></button></div></details></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
+      '<details class="mp-action-fold" open><summary><span>时间线侦察</span><small>扫描世界条目 · 生成时间线</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-scan-timeline"><span>🔎 扫描时间线</span><small>检索并转写世界书时间线</small></button><button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>AI根据大纲编写主线时间</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>时间线整理</span><small>标签管理 · 手动补录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 时间线标签</span><small>设置优先匹配的时间标签</small></button><button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动补录</span><small>粘贴任意时间线转标准格式</small></button></div></details></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修 / SYSTEM SERVICE</div>' +
+      '<details class="mp-action-fold" open><summary><span>系统自检</span><small>状态检查 · 模拟测试</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>检查本地存储与模块状态</small></button><button class="mp-btn" id="moon-phase-simtest"><span>🧪 模拟测试</span><small>用假数据测试四维与阶段门</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>兼容性扫描</span><small>脚本冲突 · AI 功能检测</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>排查世界书条目重复冲突</small></button><button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 AI 功能检测</span><small>AI审计冲突或推荐月相难度</small></button></div></details></div>' +
+      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项 / OPTIONS</div>' +
+      '<details class="mp-action-fold" open><summary><span>AI 演算与接口设定</span><small>提示词编辑 · 独立API配置</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ 配置API</span><small>' + (hasApi ? '已设:' + lcdEscape(String(apiCfg.model).slice(0, 10)) : '未设·用时自动弹窗填写') + '</small></button><button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 提示词设置</span><small>自定义建档/回填提示词</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>回忆与影像</span><small>生图渠道 · 后日谈篇幅</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>设置CG显影渠道与后日谈字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>新手引导与按钮功能详解</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>更新与指南</span><small>系统升级 · 查阅帮助</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>在线拉取最新脚本版本</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>常见问题搜索与排障指南</small></button></div></details></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
+
     panel._lcdStateTimer = setInterval(function() {
       if (!panel.isConnected) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; return; }
       const latest = readMvuLatest();
@@ -4136,6 +5855,12 @@ function openUpdateConfigDialog(panel) {
     }, 2500);
     bindLcdPageControls(panel);
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
+    panel.querySelector('#moon-phase-tutorial').addEventListener('click', function() { openTutorialDialog(panel); });
+    const tutBtn2 = panel.querySelector('#moon-phase-tutorial-btn');
+    if (tutBtn2) tutBtn2.addEventListener('click', function() { openTutorialDialog(panel); });
+    const headerApiBtn = panel.querySelector('#moon-header-api-btn');
+    if (headerApiBtn) headerApiBtn.addEventListener('click', function() { openCustomAIConfigDialog(panel); });
+
     panel.querySelectorAll('[data-display-mode]').forEach(function(button) {
       button.addEventListener('click', function() {
         const nextMode = button.getAttribute('data-display-mode') === 'arcade' ? 'arcade' : 'system';
@@ -4154,16 +5879,21 @@ function openUpdateConfigDialog(panel) {
     panel.querySelectorAll('[data-menu-open]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         const key = btn.getAttribute('data-menu-open');
+        panel.dataset.activeMenuKey = key;
         menuHome.style.display = 'none';
         menuPage.style.display = 'block';
         const title = panel.querySelector('#moon-menu-page-title');
         if (title) title.textContent = menuTitles[key] || '功能';
+        panel.querySelectorAll('.mp-subpage-tab').forEach(function(t) {
+          t.classList.toggle('active', t.getAttribute('data-menu-open') === key);
+        });
         panel.querySelectorAll('.mp-menu-subpage').forEach(function(page) {
           page.style.display = page.getAttribute('data-menu-page') === key ? 'block' : 'none';
         });
       });
     });
     panel.querySelector('#moon-menu-back').addEventListener('click', function() {
+      panel.dataset.activeMenuKey = '';
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
     });
@@ -4207,7 +5937,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
           renderPanel(panel);
           return;
         }
-        const s = getSettings(); s.mode = btn.getAttribute('data-mode'); saveSettings(s); refreshPanel();
+        const s2 = getSettings(); s2.mode = btn.getAttribute('data-mode'); saveSettings(s2); refreshPanel();
       });
     }
     const lcdCharacterSelect = panel.querySelector('.mp-lcd-character-select');
@@ -4220,11 +5950,11 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
         if (view) view.innerHTML = renderLcdCharacterDetails(character);
       });
     }
-    panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s = getSettings(); s.antisl = !(s.antisl === true); saveSettings(s); refreshPanel(); });
-    panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { const s = getSettings(); const cur = s.extraModel || 'auto'; const next = cur === 'auto' ? 'on' : (cur === 'on' ? 'off' : 'auto'); s.extraModel = next; saveSettings(s); refreshPanel(); toast('副模型策略：' + next.toUpperCase(), 'info'); });
-    panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s = getSettings(); s.cardMode = (s.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s); refreshPanel(); });
-    panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s = getSettings(); s.safetyLock = !getSafetyLock(); saveSettings(s); refreshPanel(); });
-    panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s.eventPacing = next; saveSettings(s); refreshPanel(); });
+    panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s2 = getSettings(); s2.antisl = !(s2.antisl === true); saveSettings(s2); refreshPanel(); });
+    panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
+    panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
+    panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
+    panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
     panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">⚡ 捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
     panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">⏳ 运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
@@ -4236,11 +5966,11 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-bio-lib').addEventListener('click', function() { openBioLibraryDialog(panel); });
     panel.querySelector('#moon-phase-user-bio').addEventListener('click', function() { openUserAuditionMainDialog(panel); });
     panel.querySelector('#moon-phase-user-bio-lib').addEventListener('click', function() { openUserBioLibraryDialog(panel); });
-     panel.querySelector('#moon-phase-gallery').addEventListener('click', function() { openMemoryGalleryDialog(); });
-     panel.querySelector('#moon-phase-ending').addEventListener('click', function() { manualTriggerEnding(panel); });
+    panel.querySelector('#moon-phase-gallery').addEventListener('click', function() { openMemoryGalleryDialog(); });
+    panel.querySelector('#moon-phase-ending').addEventListener('click', function() { manualTriggerEnding(panel); });
     panel.querySelector('#moon-phase-prompt-edit').addEventListener('click', function() { openPromptEditor(panel); });
     panel.querySelector('#moon-phase-custom-ai').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
-     panel.querySelector('#moon-phase-image-settings').addEventListener('click', function() { openImageGenerationSettingsDialog(panel); });
+    panel.querySelector('#moon-phase-image-settings').addEventListener('click', function() { openImageGenerationSettingsDialog(panel); });
     panel.querySelector('#moon-phase-faq').addEventListener('click', openFaqDialog);
     panel.querySelector('#moon-phase-adapt').addEventListener('click', function() { openUnifiedAdaptDialog(panel); });
     panel.querySelector('#moon-phase-ai-detect').addEventListener('click', function() { openAiConflictDialog(panel); });
@@ -4251,7 +5981,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-manual-tl').addEventListener('click', function() { openManualTimelineInputDialog(panel); });
     panel.querySelector('#moon-phase-tl-tag').addEventListener('click', function() { openTimelineTagDialog(panel); });
   }
-// ===== 第 17 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function runSelfCheck() {
     const lines = [];
     const ok = function(s) { lines.push('<span style="color:#6ee7b7">✔</span> ' + s); };
@@ -4272,7 +6002,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
 
 lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
     const stateKey = getChatStateKey();
-    const localRaw = localStorage.getItem(stateKey);
+    const localRaw = (getStorage() || localStorage).getItem(stateKey);
     if (localRaw) {
       try {
         const parsed = JSON.parse(localRaw);
@@ -4345,11 +6075,16 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
     if (t1 && t2 && t2.getHours() === 14) lines.push('✔ 时间解析正确');
     else lines.push('✖ 时间解析异常');
 
-    lines.push('<div class="mp-log-subhead">【测试2】Sylveina 标签解析</div>');
-    const mockMes = "剧情推演。\n[Sylveina|L|+|1.2]";
-    const match = mockMes.match(/\[Sylveina\|([LMH])\|([+-])\|(\d+(?:\.\d+)?)\]/);
-    if (match && match[1] === 'L' && match[2] === '+' && match[3] === '1.2') lines.push('✔ 标签提取正确: 事件=L, 方向=+, 基础值=1.2');
-    else lines.push('✖ 标签提取失败');
+    lines.push('<div class="mp-log-subhead">【测试2】Sylveina 标签解析（含全角括号兼容）</div>');
+    const mockMes1 = "剧情推演。\n[Sylveina|L|+|1.2]";
+    const mockMes2 = "剧情推演。\n〔Sylveina|M|+|3.5〕";
+    const tTag1 = extractSylveinaTag(mockMes1);
+    const tTag2 = extractSylveinaTag(mockMes2);
+    if (tTag1 && tTag1.level === 'L' && tTag1.baseValue === 1.2 && tTag2 && tTag2.level === 'M' && tTag2.baseValue === 3.5) {
+      lines.push('✔ 标准标签与全角〔Sylveina|M|+|3.5〕提取均正常');
+    } else {
+      lines.push('✖ 标签提取失败');
+    }
 
     lines.push('<div class="mp-log-subhead">【测试3】公式仿真 (Amore 5210 + L+1.2)</div>');
     try {
@@ -4428,7 +6163,7 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
     lines.push('<b style="color:#93c5fd">🔍 全环境冲突扫描</b>');
 
 const stateKey = getChatStateKey();
-    const localRaw = localStorage.getItem(stateKey);
+    const localRaw = (getStorage() || localStorage).getItem(stateKey);
     if (localRaw) { try { JSON.parse(localRaw); ok('LocalStorage 数据结构合法'); } catch (e) { bad('LocalStorage 数据损坏'); fatalCount++; } }
     else warn('LocalStorage 尚无数据');
 
@@ -4451,7 +6186,7 @@ const stateKey = getChatStateKey();
     else ok('未发现明显冲突');
     return { hasConflict: hasConflict || fatalCount > 0, html: lines.join('<br>') };
   }
-// ===== 第 18 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function computeTokenBreakdown() {
     const out = { sys: [], sysTotal: 0, charCard: 0, charCardName: '', moonEntries: 0, moonEntriesCount: 0, timeline: 0, timelineCount: 0, preset: 0, presetName: '', worldbook: 0, worldbookCount: 0, grand: 0 };
     const ctx = getSTCtx();
@@ -4561,14 +6296,36 @@ const stateKey = getChatStateKey();
         }
         sel.addEventListener('change', showCurrent); showCurrent();
         doBtn.addEventListener('click', function() {
-          const name = sel.value; const ch = chars[name] || {}; const lastRoll = readLastRoll(ch);
+          const name = sel.value; const ch = chars[name] || {};
+          let lastRoll = readLastRoll(ch);
+          if (!lastRoll || !lastRoll.主维度) {
+            const ext = extractBaseValueFromLatestAiMessage();
+            if (ext) {
+              lastRoll = { 事件类型: ext.eventType || '日常', 方向: ext.direction || '正向', 主维度: ext.dimension || 'E', 基础值: Number(ext.value) || 0 };
+            }
+          }
           if (!lastRoll || !lastRoll.主维度) { infoEl.innerHTML = '<span style="color:#f87171">✖ 该角色本轮没有 AI 判断记录，无法重Roll。</span>'; return; }
-          const clone = JSON.parse(JSON.stringify(ch)); const result = computeCharDelta(clone, lastRoll, mode);
+          const clone = JSON.parse(JSON.stringify(ch));
+          const snap = clone._quota && clone._quota._preRollSnapshot;
+          if (snap && typeof snap === 'object') {
+            if (snap.好感度 !== undefined) clone.好感度 = snap.好感度;
+            if (snap.肉体值 !== undefined) clone.肉体值 = snap.肉体值;
+            if (snap.阶段值 !== undefined) clone.阶段值 = snap.阶段值;
+            if (snap.嫉妒值 !== undefined) clone.嫉妒值 = snap.嫉妒值;
+            if (clone._quota && snap.好感度周上限已用 !== undefined) clone._quota.好感度周上限已用 = snap.好感度周上限已用;
+          }
+          const result = computeCharDelta(clone, lastRoll, mode);
           if (!result) { infoEl.innerHTML = '<span style="color:#f87171">✖ 计算失败，请检查 _lastRoll 字段。</span>'; return; }
-          pendingResult = { name: name, fieldName: result.fieldName, dimension: result.dimension, newValue: result.newValue };
+          pendingResult = {
+            name: name,
+            fieldName: result.fieldName,
+            dimension: result.dimension,
+            newValue: result.newValue,
+            newWeeklyUsed: clone._quota ? clone._quota.好感度周上限已用 : undefined
+          };
           infoEl.innerHTML = '角色：<b style="color:#7dd3fc">' + name + '</b><br><b style="color:#6ee7b7">重Roll结果：</b><br>' +
             '本轮判断：' + lastRoll.事件类型 + ' ' + lastRoll.方向 + ' ' + lastRoll.主维度 + ' 基础' + lastRoll.基础值 + '<br>' +
-            result.fieldName + '：' + result.oldValue + ' → <b style="color:#6ee7b7">' + result.newValue + '</b>（Δ' + result.delta + '）<br>' +
+            result.fieldName + '：' + result.oldValue + ' → <b style="color:#6ee7b7">' + result.newValue + '</b>（Δ' + (result.delta >= 0 ? '+' : '') + result.delta + '）<br>' +
             (result.emotionResult ? '情绪骰 1d4 = ' + result.emotionResult.dice + '（阈值' + result.emotionResult.threshold + '，' + (result.emotionResult.passed ? '通过' : '失败') + '）<br>' : '') +
             (result.isAbyss ? '⚠ 深渊模式生效<br>' : '') + (result.weeklyBlocked ? '⚠ 周上限已压缩<br>' : '');
           confirmBtn.disabled = false;
@@ -4577,7 +6334,12 @@ const stateKey = getChatStateKey();
           if (!pendingResult) return;
           const d = readMvuLatest();
           if (!d || !d.stat_data || !d.stat_data.角色 || !d.stat_data.角色[pendingResult.name]) { toast('写入失败：找不到角色', 'warning'); return; }
-          const target = d.stat_data.角色[pendingResult.name]; target[pendingResult.fieldName] = pendingResult.newValue;
+          const target = d.stat_data.角色[pendingResult.name];
+          target[pendingResult.fieldName] = pendingResult.newValue;
+          if (target._quota && pendingResult.newWeeklyUsed !== undefined) {
+            target._quota.好感度周上限已用 = pendingResult.newWeeklyUsed;
+          }
+          syncStageWithAffection(target);
           const ok = await writeMvuLatest(d.stat_data);
           if (ok) { toast('已覆盖变量', 'success'); try { refreshPanel(); } catch (e) {} try { mask.remove(); } catch (e) {} }
           else toast('写入失败', 'warning');
@@ -4628,65 +6390,195 @@ const stateKey = getChatStateKey();
       }
     });
   }
-
-// ===== 第 19 份 =====
+  /* ───────────────────────────────────────────────────────── */
   const CUSTOM_AI_CONFIG_KEY_LOCAL = 'moon_phase_custom_ai_config';
-  function getCustomAIConfig() { try { const raw = mainWin.localStorage.getItem(CUSTOM_AI_CONFIG_KEY_LOCAL); if (raw) return JSON.parse(raw); } catch (e) {} return { url: '', key: '', model: '' }; }
-  function saveCustomAIConfig(cfg) { try { mainWin.localStorage.setItem(CUSTOM_AI_CONFIG_KEY_LOCAL, JSON.stringify(cfg)); } catch (e) {} }
-  function openCustomAIConfigDialog(panel) {
-    const cfg = getCustomAIConfig();
-    function normalizeApiUrl(url) {
-      if (!url) return '';
-      let u = url.trim().replace(/\/+$/, '');
-      if (u.endsWith('/chat/completions')) return u;
-      if (/\/v\d+$/.test(u)) return u + '/chat/completions';
-      const urlObj = (function(str) { try { return new URL(str); } catch(e) { return null; } })(u);
-      if (urlObj && (urlObj.pathname === '/' || urlObj.pathname === '')) return u + '/v1/chat/completions';
+  function getCustomAIConfig() {
+    try {
+      const store = getStorage();
+      const raw = store ? store.getItem(CUSTOM_AI_CONFIG_KEY_LOCAL) : null;
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { url: '', key: '', model: '' };
+  }
+  function saveCustomAIConfig(cfg) {
+    try {
+      const store = getStorage();
+      if (store) store.setItem(CUSTOM_AI_CONFIG_KEY_LOCAL, JSON.stringify(cfg));
+    } catch (e) {}
+  }
+
+  const normalizeApiUrl = normalizeCustomApiUrl;
+  function normalizeCustomApiUrl(url) {
+    if (!url) return '';
+    let u = String(url).trim().replace(/[\u3000\s]+/g, '').replace(/\/+$/, '');
+    if (u.endsWith('/chat/completions')) return u;
+    if (/\/v\d+(?:beta\d*)?$/i.test(u)) return u + '/chat/completions';
+    try {
+      const urlObj = new URL(u);
+      const p = urlObj.pathname.replace(/\/+$/, '');
+      if (p === '' || p === '/') return u + '/v1/chat/completions';
+      if (!p.endsWith('/chat/completions')) return u + '/chat/completions';
+    } catch (e) {}
+    return u;
+  }
+
+  function deriveCustomBaseUrl(url) {
+    if (!url) return '';
+    let u = String(url).trim().replace(/[\u3000\s]+/g, '').replace(/\/+$/, '');
+    if (u.endsWith('/chat/completions')) u = u.slice(0, -'/chat/completions'.length);
+    else if (u.endsWith('/models')) u = u.slice(0, -'/models'.length);
+    try {
+      const x = new URL(u);
+      const p = x.pathname.replace(/\/+$/, '');
+      if (p === '' || p === '/') x.pathname = '/v1';
+      return x.toString().replace(/\/+$/, '');
+    } catch (e) {
       return u;
     }
-    // 从 chat/completions 端点反推 /models 端点
-    function deriveModelsUrl(chatUrl) {
-      if (!chatUrl) return '';
-      let u = String(chatUrl).trim().replace(/\/+$/, '');
-      if (u.endsWith('/chat/completions')) return u.slice(0, -'/chat/completions'.length) + '/models';
-      if (/\/v\d+$/.test(u)) return u + '/models';
-      try {
-        const x = new URL(u);
-        const p = x.pathname.replace(/\/+$/, '');
-        if (p === '' || p === '/') x.pathname = '/v1/models';
-        else x.pathname = p + '/models';
-        return x.toString();
-      } catch (e) { return u + '/v1/models'; }
+  }
+
+  function deriveModelsUrl(chatUrl) {
+    const base = deriveCustomBaseUrl(chatUrl);
+    if (!base) return '';
+    return base.replace(/\/+$/, '') + '/models';
+  }
+
+  function getSTRequestHeaders() {
+    try {
+      const ctx = getSTCtx();
+      if (ctx && typeof ctx.getRequestHeaders === 'function') return ctx.getRequestHeaders();
+    } catch (e) {}
+    try {
+      if (typeof mainWin.getRequestHeaders === 'function') return mainWin.getRequestHeaders();
+    } catch (e) {}
+    return { 'Content-Type': 'application/json' };
+  }
+
+  function extractModelIdsFromPayload(data) {
+    let ids = [];
+    if (Array.isArray(data && data.data)) ids = data.data.map(function(x) { return x && (x.id || x.name || x.model); });
+    else if (Array.isArray(data && data.models)) ids = data.models.map(function(x) { return typeof x === 'string' ? x : (x && (x.id || x.name || x.model)); });
+    else if (Array.isArray(data)) ids = data.map(function(x) { return typeof x === 'string' ? x : (x && (x.id || x.name || x.model)); });
+    return ids.filter(function(s) { return s && typeof s === 'string'; }).map(function(s) { return s.replace(/^models\//, ''); });
+  }
+
+  function getSuggestedModelsByUrl(rawUrl) {
+    const u = String(rawUrl || '').toLowerCase();
+    if (u.indexOf('deepseek') >= 0) return ['deepseek-chat', 'deepseek-reasoner'];
+    if (u.indexOf('googleapis') >= 0 || u.indexOf('gemini') >= 0) return ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+    if (u.indexOf('anthropic') >= 0 || u.indexOf('claude') >= 0) return ['claude-sonnet-4-20250514', 'claude-3-7-sonnet-latest', 'claude-3-5-haiku-latest'];
+    if (u.indexOf('siliconflow') >= 0) return ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1'];
+    if (u.indexOf('openrouter') >= 0) return ['deepseek/deepseek-chat-v3-0324', 'google/gemini-2.5-flash', 'openai/gpt-4o-mini'];
+    return ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-7-sonnet-latest'];
+  }
+
+  async function fetchModelsWithFallback(rawUrl, key) {
+    const doFetch = (mainWin && typeof mainWin.fetch === 'function') ? mainWin.fetch.bind(mainWin) : fetch;
+    const baseUrl = deriveCustomBaseUrl(rawUrl);
+    const modelsUrl = deriveModelsUrl(normalizeCustomApiUrl(rawUrl));
+    const candidateUrls = [modelsUrl];
+    try {
+      const uObj = new URL(rawUrl.trim());
+      const altUrl = uObj.origin + '/v1/models';
+      const altUrl2 = uObj.origin + '/models';
+      if (candidateUrls.indexOf(altUrl) < 0) candidateUrls.push(altUrl);
+      if (candidateUrls.indexOf(altUrl2) < 0) candidateUrls.push(altUrl2);
+    } catch (e) {}
+
+    let lastErr = null;
+    // 1. 优先尝试通过酒馆后端代理接口拉取（绕过浏览器 CORS 跨域与移动端 iframe 限制）
+    try {
+      const stHeaders = Object.assign({ 'Content-Type': 'application/json' }, getSTRequestHeaders());
+      const proxyRes = await doFetch('/api/backends/chat-completions/status', {
+        method: 'POST',
+        headers: stHeaders,
+        body: JSON.stringify({
+          chat_completion_source: 'custom',
+          custom_url: baseUrl,
+          api_key_custom: key,
+          reverse_proxy: baseUrl,
+          proxy_password: key
+        })
+      });
+      if (proxyRes && proxyRes.ok) {
+        const proxyData = await proxyRes.json();
+        const proxyIds = extractModelIdsFromPayload(proxyData);
+        if (proxyIds.length > 0) return { ids: proxyIds, via: '酒馆后端代理' };
+      }
+    } catch (e) {
+      lastErr = e;
     }
 
-    const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">仅供本系统的 AI 检测 / 开局推断 / 对话回填 / 时间线功能使用。</div>' +
+    // 2. 尝试前端直接请求候选 /models 端点
+    for (let i = 0; i < candidateUrls.length; i++) {
+      const targetUrl = candidateUrls[i];
+      if (!targetUrl) continue;
+      try {
+        const res = await doFetch(targetUrl, {
+          method: 'GET',
+          headers: { 'Authorization': 'Bearer ' + key }
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          lastErr = new Error('HTTP ' + res.status + ' ' + String(t).slice(0, 120));
+          continue;
+        }
+        const data = await res.json();
+        const ids = extractModelIdsFromPayload(data);
+        if (ids.length > 0) return { ids: ids, via: '直连' };
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Failed to fetch');
+  }
+
+  function openCustomAIConfigDialog(panel, onSaved, onCanceled, promptBannerText) {
+    const cfg = getCustomAIConfig();
+    const displayUrl = cfg.rawUrl || (cfg.url ? deriveCustomBaseUrl(cfg.url) : '');
+    const bannerHtml = promptBannerText
+      ? '<div style="padding:8px 10px;margin-bottom:10px;border:1px solid #f472d0;background:#241025;color:#ffd1f1;font-size:11px;line-height:1.6;">💡 <b>掌机提示：</b>' + escapeFeatureHtml(promptBannerText) + '</div>'
+      : '';
+
+    const html = bannerHtml +
+      '<div style="font-size:11px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">仅供本系统的 AI 检测 / 开局推断 / 角色与玩家试镜 / 时间线功能使用。<br><span style="color:#ff8cdb;font-size:10px;">★ 支持直接手填模型名保存（无需必须拉取列表），保存后立即生效。</span></div>' +
       '<div style="display:flex;flex-direction:column;gap:8px;">' +
-      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">API URL</div><input id="moon-custom-url" type="text" value="' + (cfg.url || '') + '" placeholder="https://api.openai.com" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;"></div>' +
-      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">API Key</div><input id="moon-custom-key" type="password" value="' + (cfg.key || '') + '" placeholder="sk-..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;"></div>' +
+      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">API URL</div><input id="moon-custom-url" type="text" value="' + escapeFeatureHtml(displayUrl) + '" placeholder="https://api.deepseek.com/v1" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid #74355f;background:#05070e;color:#e2e8f0;font-size:12px;"></div>' +
+      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">API Key</div><input id="moon-custom-key" type="password" value="' + escapeFeatureHtml(cfg.key || '') + '" placeholder="sk-..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid #74355f;background:#05070e;color:#e2e8f0;font-size:12px;"></div>' +
       '<div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-          '<div style="font-size:11px;color:#94a3b8;">模型</div>' +
-          '<button id="moon-custom-fetch" style="padding:3px 10px;border-radius:6px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:700;">📥 拉取模型列表</button>' +
+          '<div style="font-size:11px;color:#94a3b8;">模型（可直接输入或从下拉框选择）</div>' +
+          '<button id="moon-custom-fetch" type="button" style="padding:3px 10px;border-radius:4px;border:1px solid #f472d0;background:#37102f;color:#ffe1f5;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:700;">📥 拉取模型列表</button>' +
         '</div>' +
-        '<input id="moon-custom-model" type="text" value="' + (cfg.model || '') + '" placeholder="gpt-4o-mini" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' +
+        '<input id="moon-custom-model" type="text" value="' + escapeFeatureHtml(cfg.model || '') + '" placeholder="例如：deepseek-chat / gemini-2.5-flash / gpt-4o-mini" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid #74355f;background:#05070e;color:#e2e8f0;font-size:12px;">' +
         '<div id="moon-custom-model-select-box" style="display:none;margin-top:6px;">' +
-          '<select id="moon-custom-model-select" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;"></select>' +
+          '<select id="moon-custom-model-select" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid #74355f;background:#05070e;color:#e2e8f0;font-size:12px;"></select>' +
         '</div>' +
         '<div id="moon-custom-model-status" style="font-size:10.5px;color:#64748b;margin-top:4px;line-height:1.5;"></div>' +
       '</div></div>';
-    showModalDialogCancelable('⚙️ 自定义副模型', html,
+    showModalDialogCancelable('🔑 配置 API 接口', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
         const rawUrl = mask.querySelector('#moon-custom-url').value.trim();
         const key = mask.querySelector('#moon-custom-key').value.trim();
         const model = mask.querySelector('#moon-custom-model').value.trim();
-        if (!rawUrl || !key || !model) { toast('请填写完整配置', 'warning'); return; }
-        saveCustomAIConfig({ url: normalizeApiUrl(rawUrl), key: key, model: model });
+        if (!rawUrl || !key || !model) { toast('请填写完整 API URL、Key 和模型名称', 'warning'); return; }
+        const savedObj = { rawUrl: rawUrl, url: normalizeCustomApiUrl(rawUrl), key: key, model: model };
+        saveCustomAIConfig(savedObj);
         try { mask.remove(); } catch (e) {}
-        toast('配置已保存', 'success');
+        toast('API 配置已保存' + (typeof onSaved === 'function' ? '，正在继续执行…' : ''), 'success');
+        try { refreshPanel(); } catch (e) {}
+        if (typeof onSaved === 'function') {
+          setTimeout(function() { try { onSaved(savedObj); } catch (e) {} }, 120);
+        }
       },
-      function() { toast('已取消', 'info'); },
-      { confirmText: '保存', cancelText: '取消',
+      function() {
+        toast('已取消', 'info');
+        if (typeof onCanceled === 'function') {
+          try { onCanceled(); } catch (e) {}
+        }
+      },
+      { confirmText: typeof onSaved === 'function' ? '保存并继续' : '保存', cancelText: '取消',
         onOpen: function(mask) {
           const fetchBtn = mask.querySelector('#moon-custom-fetch');
           const urlInput = mask.querySelector('#moon-custom-url');
@@ -4696,45 +6588,52 @@ const stateKey = getChatStateKey();
           const sel = mask.querySelector('#moon-custom-model-select');
           const status = mask.querySelector('#moon-custom-model-status');
 
+          function rawUrlMatchesDomainMismatch(u, m) {
+            const ul = String(u || '').toLowerCase();
+            const ml = String(m || '').toLowerCase();
+            if (ul.indexOf('api.deepseek.com') >= 0 && ml.indexOf('deepseek') < 0) return true;
+            return false;
+          }
+
+          function populateSelect(ids, noteText, noteColor) {
+            const unique = Array.from(new Set(ids));
+            const cur = String(modelInput.value || '').trim();
+            sel.innerHTML = '<option value="">— 选择要使用的模型 —</option>' + unique.map(function(id) {
+              const safeVal = String(id).replace(/"/g, '&quot;');
+              const safeTxt = String(id).replace(/</g, '&lt;');
+              return '<option value="' + safeVal + '"' + (id === cur ? ' selected' : '') + '>' + safeTxt + '</option>';
+            }).join('');
+            selBox.style.display = 'block';
+            if (unique.length && (!cur || rawUrlMatchesDomainMismatch(urlInput.value, cur))) {
+              modelInput.value = unique[0];
+              sel.value = unique[0];
+            }
+            status.textContent = noteText;
+            status.style.color = noteColor || '#6ee7b7';
+          }
+
           fetchBtn.addEventListener('click', async function() {
             const rawUrl = urlInput.value.trim();
             const key = keyInput.value.trim();
             if (!rawUrl) { status.textContent = '请先填写 API URL'; status.style.color = '#f87171'; return; }
             if (!key) { status.textContent = '请先填写 API Key'; status.style.color = '#f87171'; return; }
 
-            const modelsUrl = deriveModelsUrl(normalizeApiUrl(rawUrl));
             fetchBtn.disabled = true; fetchBtn.textContent = '⏳ 拉取中...';
-            status.textContent = '请求：' + modelsUrl;
+            status.textContent = '正在拉取模型列表（支持酒馆后端代理与直连双通道）...';
             status.style.color = '#94a3b8';
             try {
-              const res = await fetch(modelsUrl, {
-                method: 'GET',
-                headers: { 'Authorization': 'Bearer ' + key }
-              });
-              if (!res.ok) {
-                const t = await res.text();
-                throw new Error('HTTP ' + res.status + ' ' + String(t).slice(0, 120));
-              }
-              const data = await res.json();
-              let ids = [];
-              if (Array.isArray(data && data.data)) ids = data.data.map(function(x) { return x && (x.id || x.name || x.model); });
-              else if (Array.isArray(data && data.models)) ids = data.models.map(function(x) { return x && (x.id || x.name); });
-              else if (Array.isArray(data)) ids = data.map(function(x) { return typeof x === 'string' ? x : (x && (x.id || x.name)); });
-              ids = ids.filter(function(s) { return s && typeof s === 'string'; });
-              if (!ids.length) { status.textContent = '返回的模型列表为空'; status.style.color = '#fbbf24'; return; }
+              const res = await fetchModelsWithFallback(rawUrl, key);
+              const ids = res.ids || [];
               ids.sort(function(a, b) { return a.localeCompare(b); });
-              const cur = String(modelInput.value || '').trim();
-              sel.innerHTML = '<option value="">— 选择要使用的模型 —</option>' + ids.map(function(id) {
-                const safeVal = String(id).replace(/"/g, '&quot;');
-                const safeTxt = String(id).replace(/</g, '&lt;');
-                return '<option value="' + safeVal + '"' + (id === cur ? ' selected' : '') + '>' + safeTxt + '</option>';
-              }).join('');
-              selBox.style.display = 'block';
-              status.textContent = '✔ 共 ' + ids.length + ' 个模型，已加载到下拉框';
-              status.style.color = '#6ee7b7';
+              populateSelect(ids, '✔ 共拉取到 ' + ids.length + ' 个模型（' + res.via + '），已加载到下拉框', '#6ee7b7');
             } catch (e) {
-              status.textContent = '✖ 拉取失败：' + (e.message || e);
-              status.style.color = '#f87171';
+              const fallbackIds = getSuggestedModelsByUrl(rawUrl);
+              const errMsg = String(e && e.message || e);
+              populateSelect(
+                fallbackIds,
+                '⚠ 远程列表拉取受限（' + errMsg + '），已为您载入该接口常用模型预设，可直接下拉选择或手动填写模型名并点击保存！',
+                '#fbbf24'
+              );
             } finally {
               fetchBtn.disabled = false;
               fetchBtn.textContent = '📥 拉取模型列表';
@@ -4751,15 +6650,65 @@ const stateKey = getChatStateKey();
   async function callCustomAIConfig(sysPrompt, userPrompt) {
     const cfg = getCustomAIConfig();
     if (!cfg.url || !cfg.key || !cfg.model) throw new Error('未配置自定义副模型');
-    let apiUrl = cfg.url;
-    try { const x = new URL(apiUrl); const p = x.pathname.replace(/\/+$/, ''); if (p === '') x.pathname = '/v1/chat/completions'; else if (/^\/v\d+$/i.test(p)) x.pathname = p + '/chat/completions'; apiUrl = x.toString(); } catch (e) {}
+    const doFetch = (mainWin && typeof mainWin.fetch === 'function') ? mainWin.fetch.bind(mainWin) : fetch;
+    const apiUrl = normalizeCustomApiUrl(cfg.rawUrl || cfg.url);
+    const baseUrl = deriveCustomBaseUrl(cfg.rawUrl || cfg.url);
+    const messages = [
+      { role: 'system', content: sysPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+
+    // 1. 优先尝试通过酒馆后端代理请求（避免浏览器 CORS Failed to fetch）
     try {
-      const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key }, body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: userPrompt }], temperature: 0.3 }) });
-      if (!res.ok) { const t = await res.text(); throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 100)); }
+      const stHeaders = Object.assign({ 'Content-Type': 'application/json' }, getSTRequestHeaders());
+      const proxyRes = await doFetch('/api/backends/chat-completions/generate', {
+        method: 'POST',
+        headers: stHeaders,
+        body: JSON.stringify({
+          chat_completion_source: 'custom',
+          custom_url: baseUrl,
+          api_key_custom: cfg.key,
+          reverse_proxy: baseUrl,
+          proxy_password: cfg.key,
+          model: cfg.model,
+          messages: messages,
+          temperature: 0.3,
+          stream: false
+        })
+      });
+      if (proxyRes && proxyRes.ok) {
+        const proxyData = await proxyRes.json();
+        if (proxyData && proxyData.choices && proxyData.choices[0] && proxyData.choices[0].message) {
+          return proxyData.choices[0].message.content;
+        }
+        if (proxyData && typeof proxyData.content === 'string') return proxyData.content;
+      }
+    } catch (e) {}
+
+    // 2. 回退前端直连请求
+    try {
+      const res = await doFetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + cfg.key
+        },
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: messages,
+          temperature: 0.3
+        })
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 120));
+      }
       const data = await res.json();
       if (data.choices && data.choices[0] && data.choices[0].message) return data.choices[0].message.content;
       throw new Error('接口返回格式异常');
-    } catch (e) { throw new Error('请求自定义 API 失败：' + (e.message || e)); }
+    } catch (e) {
+      throw new Error('请求自定义 API 失败（请检查 URL/Key/模型名是否匹配，如使用 DeepSeek 请选 deepseek-chat）：' + (e.message || e));
+    }
   }
 
   const DEFAULT_PROMPTS = {
@@ -4858,8 +6807,7 @@ const stateKey = getChatStateKey();
       }
     });
   }
-
-// ===== 第 20 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function openAiConflictDialog(panel) {
     const tasks = [
       { key: 'conflict', label: '🔍 冲突检测' },
@@ -4867,8 +6815,7 @@ const stateKey = getChatStateKey();
       { key: 'custom', label: '✏️ 自定义' }
     ];
     const providers = [
-      { key: 'custom', label: '⚙️ 自定义副模型' },
-      { key: 'extra', label: '🌙 追随副模型' },
+      { key: 'custom', label: '🔑 配置API模型' + (hasValidCustomAIConfig() ? '（已设：' + getCustomAIConfig().model + '）' : '（未设·点开始自动弹窗）') },
       { key: 'main', label: '🎭 酒馆主模型' }
     ];
     const html = '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -4921,39 +6868,11 @@ const stateKey = getChatStateKey();
     const vars = { charInfo: charInfo, currentMode: currentMode, currentModeLabel: getModeLabel(currentMode), modeList: modeList, mvuDump: mvuDump, otherDump: otherDump };
     const tpl = getPromptTemplates()[task] || getPromptTemplates().conflict;
     try {
-      let reply = '';
-      if (provider === 'custom') reply = await callCustomAIConfig(renderPromptTemplate(tpl.sys, vars), renderPromptTemplate(tpl.user, vars));
-      else if (provider === 'extra') {
-        const mvu = mainWin.Mvu || window.Mvu;
-        if (mvu && typeof mvu.requestExtraAnalysis === 'function') reply = await mvu.requestExtraAnalysis(renderPromptTemplate(tpl.user, vars), renderPromptTemplate(tpl.sys, vars));
-        else { lines.push('<span style="color:#f87171">✖ 无副模型接口</span>'); return lines.join('<br>'); }
-      } else { reply = await callOpeningModel('main', renderPromptTemplate(tpl.sys, vars), renderPromptTemplate(tpl.user, vars)); }
+      let reply = await callOpeningModel(provider, renderPromptTemplate(tpl.sys, vars), renderPromptTemplate(tpl.user, vars));
       if (typeof reply !== 'string') reply = (reply && (reply.content || reply.text)) || String(reply);
       lines.push('<div style="white-space:pre-wrap;color:#e2e8f0;font-size:11px;">' + reply.replace(/</g, '&lt;') + '</div>');
     } catch (err) { lines.push('<span style="color:#f87171">✖ 调用失败：' + (err.message || String(err)) + '</span>'); }
     return lines.join('<br>');
-  }
-
-  function openTimelineTagDialog(panel) {
-    const cur = getTimelineTag();
-    const html = '<div style="color:#fde047;font-weight:700;margin-bottom:8px;">📜 自定义时间线标签</div>' +
-      '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
-      '填一个标签名（例如 <code style="color:#7dd3fc;">[WorldTimeline]</code> 或 <code style="color:#7dd3fc;">世界时间线</code>）。<br>' +
-      '启用后脚本会：<br>① 优先扫描已激活的世界书里标题以此标签开头的条目；<br>② 找到后解析成多个事件（按时间排序，同日按出现顺序）；<br>③ 若该条目不存在或正文为空，自动回退到扫描所有 <code>[Timeline]</code> 条目。<br>' +
-      '<span style="color:#fbbf24;">留空即关闭此功能。</span></div>' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">标签名（不含方括号也行）</div>' +
-      '<input id="moon-tltag-input" type="text" value="' + String(cur || '').replace(/"/g, '&quot;') + '" placeholder="例如：[WorldTimeline]" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12.5px;">';
-    showModalDialogCancelable('📜 自定义时间线标签', html,
-      function() {
-        const mask = mainDoc.getElementById('moon-modal-mask');
-        const v = mask ? mask.querySelector('#moon-tltag-input').value.trim() : '';
-        setTimelineTag(v);
-        try { if (mask) mask.remove(); } catch (e) {}
-        toast(v ? ('时间线标签已设为：' + v) : '已关闭自定义时间线标签', 'info');
-        try { refreshPanel(); } catch (e) {}
-      },
-      function() { toast('已取消', 'info'); },
-      { confirmText: '保存', cancelText: '取消' });
   }
 
 function getTimelineKeywords() {
@@ -5227,16 +7146,15 @@ async function openScanTimelineDialog(panel) {
       function() { toast('已取消', 'info'); },
       { confirmText: '开始转写', cancelText: '取消' });
   }
-
-// ===== 第 21 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function openTimelineGeneratorDialog(panel) {
     const html = '<div style="font-size:11px;color:#cbd5e1;margin-bottom:10px;">让 AI 根据角色卡 / 大纲，生成 [Timeline] 世界书条目。</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">剧情大纲（可选）</div>' +
       '<textarea id="moon-tl-input" placeholder="例如：主角与角色共度四季、经历表白、吵架、和好……" style="width:100%;box-sizing:border-box;min-height:100px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;"></textarea>' +
-      '<div style="margin-top:10px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型：</div>' +
+      '<div style="margin-top:10px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;">' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-tl-model" value="main" checked><span style="font-size:12px;">主模型</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-tl-model" value="custom"><span style="font-size:12px;">自定义API</span></label></div>';
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-tl-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-tl-model" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label></div>';
     showModalDialogCancelable('🕰️ 时间线生成器', html,
       async function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
@@ -5248,6 +7166,47 @@ async function openScanTimelineDialog(panel) {
       },
       function() { toast('已取消', 'info'); },
       { confirmText: '开始生成', cancelText: '取消' });
+  }
+
+  async function runTimelineGenerator(panel, provider, userInput) {
+    const charInfo = collectCharInfoForBio('');
+    const tpl = getPromptTemplates().timeline || DEFAULT_PROMPTS.timeline;
+    const vars = {
+      charInfo: charInfo,
+      userInput: userInput || '（未提供额外大纲，请根据角色卡设定自由设计合理的主线与情感推进时间线）'
+    };
+    showLoadingDialog('AI 正在生成时间线...');
+    let reply = '';
+    try {
+      reply = await callOpeningModel(provider || 'main', renderPromptTemplate(tpl.sys, vars), renderPromptTemplate(tpl.user, vars));
+    } catch (e) {
+      closeLoadingDialog();
+      toast('时间线生成失败：' + (e.message || e), 'warning');
+      return;
+    }
+    closeLoadingDialog();
+    if (typeof reply !== 'string') reply = (reply && (reply.content || reply.text)) || String(reply || '');
+    reply = String(reply).trim();
+    if (!reply) {
+      showModalDialog('❌ 生成失败', '<div>AI 未返回内容。</div>', null, { confirmText: '关闭' });
+      return;
+    }
+    let formatted = reply;
+    try {
+      const arr = extractJson(reply);
+      if (Array.isArray(arr) && arr.length) {
+        formatted = arr.map(function(item) {
+          if (!item || typeof item !== 'object') return '';
+          const title = String(item.comment || item.title || '').replace(/^\[Timeline\]\s*/i, '').trim();
+          const content = String(item.content || '').trim();
+          const lines = content.split(/\r?\n/).map(function(x) { return x.trim(); }).filter(Boolean);
+          const timeLine = lines[0] || '';
+          const descLine = lines.slice(1).join(' ') || title;
+          return '时间：' + timeLine + '\n内容：' + (title && descLine.indexOf(title) < 0 ? ('【' + title + '】' + descLine) : descLine);
+        }).filter(Boolean).join('\n\n');
+      }
+    } catch (e) {}
+    showTimelineResultDialog(formatted, { title: '(AI 生成时间线)' }, { tag: getTimelineTag() || '[WorldTimeline]' });
   }
 
 async function runTimelineMultiConvert(panel, entries) {
@@ -5324,7 +7283,7 @@ function openTimelineKeywordDialog(panel, onDone) {
     }
     // ② 有待迁移的打包数据 → 不弹（走迁移流程）
     try {
-      const raw = localStorage.getItem(PENDING_MIGRATION_KEY);
+      const raw = (getStorage() || localStorage).getItem(PENDING_MIGRATION_KEY);
       if (raw) return null;
     } catch (e) {}
     const cardName = getCurrentCardName();
@@ -5346,11 +7305,10 @@ function openTimelineKeywordDialog(panel, onDone) {
     const cardMode = getCardMode(); const isMulti = cardMode === 'multi';
     const tipHtml = isMulti ? '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· 多人卡：AI 通读上下文识别出场角色<br>· 有对话历史 → 以历史为准</div>' : '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· AI 通读上下文推断初始四维<br>· 全新开场 → 参考开场白 + 角色卡</div>';
     const html = '<div>检测到当前存档还没有有效角色变量。</div>' + tipHtml +
-      '<div style="margin-top:14px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型：</div>' +
+      '<div style="margin-top:14px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;">' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="main" ' + ((savedPref === 'extra' || savedPref === 'custom') ? '' : 'checked') + '><span style="font-size:12px;">主模型</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="extra" ' + (savedPref === 'extra' ? 'checked' : '') + '><span style="font-size:12px;">副模型</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="custom" ' + (savedPref === 'custom' ? 'checked' : '') + '><span style="font-size:12px;">自定义API</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-adapt-model" value="custom" ' + ((savedPref === 'custom' || savedPref === 'extra' || (!savedPref && hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="main" ' + ((savedPref === 'main' || (!savedPref && !hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label>' +
       '</div><label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#94a3b8;cursor:pointer;"><input type="checkbox" id="moon-adapt-remember"> 记住我的选择</label>';
     showModalDialogCancelable('🌅 自适应开局', html,
       function() {
@@ -5504,7 +7462,7 @@ async function applyAdaptiveOpening(charName, values) {
     else toast('写入失败：' + (lastWriteError || '未知原因'), 'warning');
     return ok;
   }
-// ===== 第 22 份 =====
+  /* ───────────────────────────────────────────────────────── */
   async function runMultiCardAdaptiveFirstPass(provider, manualNames) {
     const ctxData = collectChatHistoryContext(10000);
     const hasHistory = ctxData.chat && ctxData.chat.length >= 30;
@@ -5694,7 +7652,7 @@ async function applyAdaptiveOpening(charName, values) {
       stat_data: JSON.parse(JSON.stringify(data.stat_data))
     };
     try {
-      localStorage.setItem(PENDING_MIGRATION_KEY, JSON.stringify(pending));
+      (getStorage() || localStorage).setItem(PENDING_MIGRATION_KEY, JSON.stringify(pending));
       const ctx = getSTCtx();
       if (ctx && ctx.chatMetadata) { ctx.chatMetadata[PENDING_MIGRATION_KEY] = pending; if (typeof ctx.saveMetadata === 'function') ctx.saveMetadata(); }
     } catch (e) { toast('打包写入失败', 'warning'); return; }
@@ -5710,7 +7668,7 @@ async function applyAdaptiveOpening(charName, values) {
   function checkPendingMigration() {
     let pending = null;
     try {
-      const raw = localStorage.getItem(PENDING_MIGRATION_KEY);
+      const raw = (getStorage() || localStorage).getItem(PENDING_MIGRATION_KEY);
       if (raw) pending = JSON.parse(raw);
     } catch (e) {}
     if (!pending) {
@@ -5753,7 +7711,7 @@ async function applyAdaptiveOpening(charName, values) {
     const ok = await writeMvuLatest(pending.stat_data);
     if (!ok) { toast('迁移写入失败', 'warning'); return; }
     try {
-      localStorage.removeItem(PENDING_MIGRATION_KEY);
+      (getStorage() || localStorage).removeItem(PENDING_MIGRATION_KEY);
       const ctx = getSTCtx();
       if (ctx && ctx.chatMetadata && ctx.chatMetadata[PENDING_MIGRATION_KEY]) {
         delete ctx.chatMetadata[PENDING_MIGRATION_KEY];
@@ -5820,11 +7778,10 @@ async function applyAdaptiveOpening(charName, values) {
     const savedPref = getAiMigrateModelPref();
     if (savedPref) { runAiAssistedMigrate(savedPref, data, panel); return; }
     const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">让 AI 通读聊天上下文，判断哪些条目该保留、改名、删除、合并。</div>'
-      + '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型：</div>'
+      + '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>'
       + '<div style="display:flex;gap:8px;">'
-      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-aimig-model" value="main" checked><span style="font-size:12px;">主模型</span></label>'
-      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-aimig-model" value="extra"><span style="font-size:12px;">副模型</span></label>'
-      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-aimig-model" value="custom"><span style="font-size:12px;">自定义API</span></label></div>';
+      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-aimig-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>'
+      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-aimig-model" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label></div>';
     showModalDialogCancelable('🤖 AI 辅助迁移 · 选择模型', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
@@ -6022,8 +7979,7 @@ async function applyAdaptiveOpening(charName, values) {
     }
     showAdaptiveStartDialog(charName || '(多人卡)');
   }
-
- // ===== 第 23 份 =====
+  /* ───────────────────────────────────────────────────────── */
   function injectMenuEntry() {
     const tryInject = function() {
       const menu = mainDoc.getElementById('extensionsMenu');
