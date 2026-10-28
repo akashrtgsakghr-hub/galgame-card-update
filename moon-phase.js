@@ -4235,6 +4235,492 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-btn small{display:block;font-size:9px;color:#bc8eaf;font-weight:400;line-height:1.25;}' +
       '#moon-phase-panel .mp-btn-highlight small,#moon-phase-panel .mp-btn-user small{color:#f5b8df;}' +
       '@media(min-width:700px){#moon-phase-panel .mp-lcd-screen{font-size:15px;}}';
+
+    let extraEl = mainDoc.getElementById('moon-phase-retro-style');
+    if (!extraEl) {
+      extraEl = mainDoc.createElement('style');
+      extraEl.id = 'moon-phase-retro-style';
+      mainDoc.head.appendChild(extraEl);
+    }
+    extraEl.textContent = `
+/* ══════════════════════════════════════════════════════════
+ * 掌机黑粉复古像素重构样式 (Black & Pink Handheld Console)
+ * ══════════════════════════════════════════════════════════ */
+#moon-phase-panel {
+  background: repeating-linear-gradient(0deg, rgba(244,114,208,0.015) 0, rgba(244,114,208,0.015) 1px, transparent 1px, transparent 4px),
+              linear-gradient(180deg, #180c1a 0%, #0c060e 100%) !important;
+  color: #ffe4f7 !important;
+  border: 3px solid #742d60 !important;
+  border-radius: 20px 20px 42px 20px !important;
+  padding: 16px 18px 22px !important;
+  width: 100% !important;
+  max-width: 480px !important;
+  max-height: 92dvh !important;
+  overflow-y: auto !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif !important;
+  box-shadow: inset 1px 1px 0 rgba(255,184,235,0.15), inset -3px -3px 0 rgba(0,0,0,0.8), 0 0 0 3px #230d22, 0 25px 65px rgba(0,0,0,0.9), 0 0 25px rgba(244,114,208,0.2) !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+}
+
+/* 顶部机身标识与电源指示灯 (黑底粉字) */
+#moon-phase-panel .mp-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 2px dashed rgba(244,114,208,0.4) !important;
+}
+#moon-phase-panel .mp-title-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: inherit !important;
+  text-align: left !important;
+  cursor: pointer !important;
+}
+#moon-phase-panel .mp-title-orb {
+  font-size: 18px !important;
+  filter: drop-shadow(0 0 6px #f472d0) !important;
+}
+#moon-phase-panel .mp-title {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: #ffb8eb !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+  font-family: "Courier New", monospace !important;
+  text-shadow: 2px 2px 0 #4a123d !important;
+}
+#moon-phase-panel .mp-badge {
+  font-size: 9px !important;
+  background: #2b0e25 !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  color: #ffc4e9 !important;
+  border: 1px solid #9e3e7f !important;
+  font-weight: 700 !important;
+  font-family: monospace !important;
+  box-shadow: 1px 1px 0 #140512 !important;
+}
+#moon-phase-panel .mp-close {
+  background: #2b0e25 !important;
+  border: 1px solid #9e3e7f !important;
+  color: #ffb8eb !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  box-shadow: 1px 1px 0 #140512 !important;
+}
+#moon-phase-panel .mp-close:hover {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border-color: #f87171 !important;
+}
+
+/* 掌机屏幕玻璃外框 (Recessed Screen Housing) */
+#moon-phase-panel .mp-lcd-card {
+  background: #211024 !important;
+  border: 2px solid #581d45 !important;
+  border-radius: 12px !important;
+  padding: 10px 10px 12px !important;
+  margin-bottom: 12px !important;
+  box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8), inset -1px -1px 0 rgba(244,114,208,0.12), 0 0 0 1px #0a040b !important;
+}
+
+/* 玻璃框顶部丝印与粉红电源灯 */
+#moon-phase-panel .mp-console-bezel {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 2px 6px 8px !important;
+  color: #d898c6 !important;
+  font: 700 9px "Courier New", monospace !important;
+  letter-spacing: 0.6px !important;
+  border-bottom: 1px solid rgba(244,114,208,0.2) !important;
+  margin-bottom: 8px !important;
+}
+#moon-phase-panel .mp-power-led {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  color: #ff8cdb !important;
+  font-size: 8.5px !important;
+  font-weight: 700 !important;
+}
+#moon-phase-panel .mp-power-led i {
+  display: inline-block !important;
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  background: #ff4ecd !important;
+  box-shadow: 0 0 7px #ff4ecd !important;
+}
+
+/* 复古点阵墨绿 LCD 屏幕 (保持原汁原味点阵掌机屏幕) */
+#moon-phase-panel .mp-lcd-screen {
+  position: relative !important;
+  overflow: hidden !important;
+  padding: 12px !important;
+  background: #7d896f !important;
+  color: #182019 !important;
+  border: 2px solid #182019 !important;
+  border-radius: 6px !important;
+  box-shadow: inset 2px 2px 0 #465037, inset -2px -2px 0 #9caf7f !important;
+  font: 13.5px/1.65 "MP Fusion Pixel","Zpix","Courier New",monospace !important;
+  letter-spacing: .2px !important;
+  -webkit-font-smoothing: none !important;
+  font-smooth: never !important;
+  image-rendering: pixelated !important;
+  background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1px) !important;
+  background-size: 3px 3px !important;
+}
+#moon-phase-panel .mp-lcd-screen-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 1px solid #182019 !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+}
+#moon-phase-panel .mp-lcd-screen-head b {
+  padding: 2px 5px !important;
+  border: 1px solid #182019 !important;
+  font-size: 9.5px !important;
+}
+
+/* LCD 顶部快捷切换页签 [01 状态 ~ 04 内存] */
+#moon-phase-panel .mp-lcd-quick-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(4,1fr) !important;
+  gap: 4px !important;
+  margin: 6px 0 8px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 1px solid #182019 !important;
+}
+#moon-phase-panel .mp-lcd-quick-tab {
+  padding: 3px 2px !important;
+  border: 1px solid #182019 !important;
+  background: #707d63 !important;
+  color: #182019 !important;
+  font: 700 11px "MP Fusion Pixel","Courier New",monospace !important;
+  cursor: pointer !important;
+  text-align: center !important;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.15) !important;
+}
+#moon-phase-panel .mp-lcd-quick-tab.active {
+  background: #182019 !important;
+  color: #7d896f !important;
+  font-weight: 800 !important;
+}
+
+/* RPG 四维状态槽 (点阵墨墨黑) */
+.mp-rpg-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.mp-rpg-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+  flex: 0 0 110px;
+}
+.mp-rpg-stat-bar {
+  flex: 1;
+  height: 7px;
+  border: 1px solid #182019;
+  background: rgba(24,32,25,0.15);
+  margin: 0 8px;
+  position: relative;
+}
+.mp-rpg-stat-fill {
+  height: 100%;
+  background: #182019;
+}
+.mp-rpg-stat-val {
+  font-weight: bold;
+  font-family: monospace;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* 掌机实体控制器群 (黑粉配色) */
+.mp-console-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px 10px;
+  margin-bottom: 9px;
+  background: #140816;
+  border: 2px solid #581d45;
+  border-radius: 12px;
+  box-shadow: inset 1px 1px 0 rgba(244,114,208,0.1);
+}
+
+/* 左侧十字方向键 D-Pad (深黑塑料 + 粉调中心) */
+.mp-dpad {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+.mp-dpad-center {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 24px;
+  height: 24px;
+  background: #250d27;
+  border: 1px solid #531c42;
+  z-index: 2;
+  border-radius: 4px;
+}
+.mp-dpad-center::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3d1438;
+}
+.mp-dpad-btn {
+  position: absolute;
+  background: #250d27;
+  border: 1px solid #531c42;
+  color: #ffb8eb;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  font-weight: bold;
+  transition: all 0.1s;
+}
+.mp-dpad-btn:active {
+  background: #3e123a;
+  color: #fff;
+}
+.mp-dpad-up { top: 0; left: 24px; width: 24px; height: 26px; border-radius: 4px 4px 0 0; }
+.mp-dpad-down { bottom: 0; left: 24px; width: 24px; height: 26px; border-radius: 0 0 4px 4px; }
+.mp-dpad-left { top: 24px; left: 0; width: 26px; height: 24px; border-radius: 4px 0 0 4px; }
+.mp-dpad-right { top: 24px; right: 0; width: 26px; height: 24px; border-radius: 0 4px 4px 0; }
+
+/* 中间倾斜 SELECT & START 胶键 (黑粉倾斜按键) */
+.mp-pill-keys {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px;
+}
+.mp-pill-row {
+  display: flex;
+  gap: 10px;
+}
+.mp-select-key, .mp-start-key {
+  transform: rotate(-25deg);
+  padding: 4px 10px;
+  background: #2a1126;
+  border: 1px solid #9e3e7f;
+  border-radius: 10px;
+  color: #ffc4e9;
+  font: 700 9.5px monospace;
+  cursor: pointer;
+  box-shadow: 1px 2px 0 #1a0817;
+  letter-spacing: 0.5px;
+}
+.mp-select-key:hover, .mp-start-key:hover {
+  background: #47173e;
+  color: #fff;
+}
+.mp-select-key:active, .mp-start-key:active {
+  transform: rotate(-25deg) translate(1px, 1px);
+  box-shadow: none;
+}
+.mp-pill-labels {
+  display: flex;
+  gap: 12px;
+  font: 700 8.5px "Courier New", monospace;
+  color: #e2a6d1;
+  letter-spacing: 0.8px;
+  margin-top: 2px;
+}
+
+/* 右侧倾斜 A / B 圆形按键 (经典 Galgame 亮粉圆钮) */
+.mp-action-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.mp-action-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: rotate(-18deg);
+}
+.mp-round-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #d946a6;
+  border: 2px solid #83185b;
+  color: #fff;
+  font: 800 13px "Courier New", monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 1px 2px 0 #4a0d33, 0 0 6px rgba(244,114,208,0.4);
+  user-select: none;
+}
+.mp-round-btn:hover {
+  background: #f472d0;
+  box-shadow: 1px 2px 0 #4a0d33, 0 0 10px rgba(244,114,208,0.7);
+}
+.mp-round-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+.mp-speaker-grill {
+  display: flex;
+  gap: 4px;
+  transform: rotate(-30deg);
+  margin-right: 4px;
+  margin-top: 4px;
+}
+.mp-speaker-grill i {
+  display: block;
+  width: 3px;
+  height: 12px;
+  background: #09030a;
+  border-radius: 2px;
+}
+
+/* 紧凑月相难度分段选择器 (黑粉风格) */
+.mp-lunar-dial-card {
+  background: #170b1a !important;
+  border: 1px solid #6b2857 !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+  margin-bottom: 12px !important;
+  box-shadow: 2px 2px 0 #20081d !important;
+}
+.mp-lunar-dial-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.mp-lunar-dial-btn {
+  padding: 6px 4px;
+  border-radius: 6px;
+  border: 1px solid #5a1f49;
+  background: #130715;
+  color: #f3c2e6;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.mp-lunar-dial-btn.active {
+  border-color: #f472d0;
+  background: #37102f;
+  color: #ffc4e9;
+  box-shadow: 0 0 8px rgba(244,114,208,0.35);
+}
+.mp-lunar-dial-desc {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(244,114,208,0.2);
+  font-size: 10.5px;
+  color: #e5a4d4;
+  line-height: 1.5;
+}
+
+/* 卡带插槽式导航主菜单 (黑底 + 霓虹粉插槽) */
+.mp-cartridge-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+.mp-cartridge-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  background: #190c1c;
+  border: 1px solid #5d224d;
+  border-left: 4px solid #f472d0;
+  border-radius: 8px;
+  color: #ffe1f5;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all 0.12s;
+  box-shadow: 2px 2px 0 #20081d;
+}
+.mp-cartridge-slot:hover {
+  background: #2b122e;
+  border-color: #ff8cdb;
+  border-left-color: #ff8cdb;
+  color: #fff;
+  transform: translateX(2px);
+  box-shadow: 3px 3px 0 #20081d, 0 0 10px rgba(244,114,208,0.25);
+}
+.mp-cartridge-slot.slot-adventure { border-left-color: #f472d0; }
+.mp-cartridge-slot.slot-characters { border-left-color: #fb7185; }
+.mp-cartridge-slot.slot-timeline { border-left-color: #fde047; }
+.mp-cartridge-slot.slot-system { border-left-color: #6ee7b7; }
+.mp-cartridge-slot.slot-settings { border-left-color: #c084fc; }
+
+.mp-cartridge-slot b {
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffb8eb;
+}
+.mp-cartridge-slot small {
+  display: block;
+  font-size: 9.5px;
+  color: #bc8eaf;
+  margin-top: 2px;
+  font-weight: normal;
+}
+.mp-cartridge-slot:hover small {
+  color: #fcd5ee;
+}
+.mp-cartridge-grip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0.5;
+}
+.mp-cartridge-grip span {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background: #f472d0;
+  border-radius: 1px;
+}
+`;
   }
   /* ───────────────────────────────────────────────────────── */
   function renderEventStatusCard() {
@@ -5511,10 +5997,26 @@ function openUpdateConfigDialog(panel) {
     const activePage = Math.max(0, Math.min(3, parseInt(panel.dataset.lcdPage || '0', 10) || 0));
     const pageNames = ['系统状态', '角色档案', '事件进度', '内存占用'];
     const shortLabels = ['01 状态', '02 档案', '03 事件', '04 内存'];
+    function calcBar(val, maxVal) {
+      const pct = Math.max(0, Math.min(100, Math.round(((Number(val) || 0) / (maxVal || 100)) * 100)));
+      return '<div class="mp-rpg-stat-bar"><div class="mp-rpg-stat-fill" style="width:' + pct + '%;"></div></div>';
+    }
+    const eVal = Number(ch && ch.好感度) || 0;
+    const pVal = Number(ch && ch.肉体值) || 0;
+    const rVal = Number(ch && ch.阶段值) || 0;
+    const iVal = Number(ch && ch.嫉妒值) || 0;
+    const stageInfo = ch ? getRStageFromE(eVal) : { name: '初识' };
+
     const quickCharSummary = ch
-      ? '<div style="padding:7px 8px;margin-top:6px;border:1px solid #182019;font-size:12px;line-height:1.55;">' +
-          '<b>当前攻略：' + lcdEscape(selected) + '（' + lcdEscape(getRStageFromE(ch.好感度).name) + '）</b>' +
-          '<span>好感 ' + lcdEscape(ch.好感度 ?? 0) + ' · 肉体 ' + lcdEscape(ch.肉体值 ?? 0) + ' · 阶段 ' + lcdEscape(ch.阶段值 ?? 0) + ' · 嫉妒 ' + lcdEscape(ch.嫉妒值 ?? 0) + '</span>' +
+      ? '<div style="padding:6px 8px;margin-top:6px;border:1px solid #151d14;font-size:11.5px;line-height:1.4;background:rgba(21,29,20,0.06);">' +
+          '<div style="font-weight:bold;margin-bottom:4px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(21,29,20,0.4);padding-bottom:3px;">' +
+            '<span>♥ 目标：' + lcdEscape(selected) + '</span>' +
+            '<span>' + lcdEscape(stageInfo.name) + '</span>' +
+          '</div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[E] 好感度</span>' + calcBar(eVal + 100, 200) + '<span class="mp-rpg-stat-val">' + eVal.toFixed(1) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[P] 肉体值</span>' + calcBar(pVal, 100) + '<span class="mp-rpg-stat-val">' + pVal.toFixed(0) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[R] 阶段门</span>' + calcBar(rVal, 5) + '<span class="mp-rpg-stat-val">Lv.' + rVal + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[I] 嫉妒值</span>' + calcBar(iVal, 100) + '<span class="mp-rpg-stat-val">' + iVal.toFixed(0) + '</span></div>' +
         '</div>'
       : '<div class="mp-lcd-empty" style="padding:12px 6px;">尚未建立角色档案 · 请在下方「▶ 开始游戏 → 🚀 开局适配」中建档</div>';
 
@@ -5765,9 +6267,36 @@ function openUpdateConfigDialog(panel) {
       '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
       '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机模式</button></div>' +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
-      '<div class="mp-console-pillbar">' +
-        '<button type="button" class="mp-select-start-btn" id="moon-phase-tutorial" title="打开掌机说明书（新手引导）">SELECT · 📖 掌机说明书' + (!s.introSeen ? ' (NEW)' : '') + '</button>' +
-        '<button type="button" class="mp-select-start-btn' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口 (API)">START · 🔑 ' + (hasApi ? 'API已连' : '配置API') + '</button>' +
+      '<div class="mp-console-cluster" role="region" aria-label="掌机实体按键群">' +
+        '<!-- 十字方向键 D-Pad -->' +
+        '<div class="mp-dpad" aria-label="十字方向键">' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-up" aria-label="上" title="向上">▲</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-left" data-lcd-page-step="-1" aria-label="上一页" title="向左 / 切换屏幕上一页">◀</button>' +
+          '<div class="mp-dpad-center"></div>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-right" data-lcd-page-step="1" aria-label="下一页" title="向右 / 切换屏幕下一页">▶</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-down" aria-label="下" title="向下">▼</button>' +
+        '</div>' +
+        '<!-- 中间倾斜 SELECT & START 胶键 -->' +
+        '<div class="mp-pill-keys">' +
+          '<div class="mp-pill-row">' +
+            '<button type="button" class="mp-select-key" id="moon-phase-tutorial" title="打开掌机说明书">SELECT</button>' +
+            '<button type="button" class="mp-start-key' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口 (API)">START</button>' +
+          '</div>' +
+          '<div class="mp-pill-labels">' +
+            '<span>📖 说明书</span>' +
+            '<span>🔑 ' + (hasApi ? 'API已连' : '配置API') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<!-- 右侧倾斜 A/B 按键与扬声器 -->' +
+        '<div class="mp-action-block">' +
+          '<div class="mp-action-cluster">' +
+            '<button type="button" class="mp-round-btn mp-btn-b" id="moon-btn-b" title="B键 · 返回/关闭菜单">B</button>' +
+            '<button type="button" class="mp-round-btn mp-btn-a" id="moon-btn-a" title="A键 · 确认/快速开始">A</button>' +
+          '</div>' +
+          '<div class="mp-speaker-grill" aria-label="扬声器孔">' +
+            '<i></i><i></i><i></i><i></i><i></i>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div class="mp-card mp-mode-select-card' + (isArcadeMode ? ' is-arcade' : '') + '"><details class="mp-difficulty-fold" open><summary>' + (isArcadeMode ? '街机难度' : '游戏难度') + '<i>▼</i></summary><div class="mp-difficulty-content">' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
@@ -7982,7 +8511,10 @@ async function applyAdaptiveOpening(charName, values) {
   /* ───────────────────────────────────────────────────────── */
   function injectMenuEntry() {
     const tryInject = function() {
-      const menu = mainDoc.getElementById('extensionsMenu');
+      const menu = mainDoc.getElementById('extensionsMenu') || 
+                   mainDoc.getElementById('extensions_menu') || 
+                   mainDoc.querySelector('.extensionsMenu') || 
+                   mainDoc.querySelector('#extension-settings');
       if (!menu) return false;
       const old = mainDoc.getElementById('moon-phase-menu-entry');
       if (old && old.parentNode === menu) return true;
@@ -7997,10 +8529,29 @@ async function applyAdaptiveOpening(charName, values) {
       return true;
     };
     if (!tryInject()) {
-      const interval = setInterval(function() { if (tryInject()) clearInterval(interval); }, 800);
-      setTimeout(function() { clearInterval(interval); }, 60000);
+      const interval = setInterval(function() { if (tryInject()) clearInterval(interval); }, 600);
+      setTimeout(function() { clearInterval(interval); }, 90000);
     }
+    // Listen for click on ST wand buttons to immediately inject if menu was lazy-loaded
+    try {
+      const wandBtns = mainDoc.querySelectorAll('#extensionsMenuButton, #extensions_button, .extensionsMenuExtensionButton, #wand_button');
+      wandBtns.forEach(function(b) {
+        if (!b._mpHooked) {
+          b._mpHooked = true;
+          b.addEventListener('click', function() { setTimeout(tryInject, 100); setTimeout(tryInject, 400); });
+        }
+      });
+    } catch(e) {}
   }
+
+  
+  // 全局导出与魔棒快捷入口兼容
+  try {
+    mainWin.openMoonPhase = openPanel;
+    mainWin.openGalgameConsole = openPanel;
+    window.openMoonPhase = openPanel;
+    window.openGalgameConsole = openPanel;
+  } catch(e) {}
 
   function openPanel() {
     let mask = mainDoc.getElementById('moon-phase-mask');
@@ -8187,7 +8738,8 @@ if (_needAutoReload) {
     } catch (e) { try { location.reload(); } catch (e2) {} }
   }, 900);
 } else if (_isFirstBoot) {
-  // 首次导入检测流程（流程结束后自带刷新）
+  // 首次导入检测流程：同样先挂载魔棒菜单，避免初始化中断后按钮彻底丢失
+  setTimeout(injectMenuEntry, 300);
   setTimeout(function() { runFirstBootSequence(); }, 1200);
 } else {
   // 常规启动
