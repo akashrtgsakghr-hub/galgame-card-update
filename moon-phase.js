@@ -22,12 +22,14 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.5';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.5 界面与兼容性更新】\n1. 🌕 侧边栏菜单图标优化：去除重复的细月牙图标，保留并统一直显单满月 Emoji（🌕 月相系统），界面更加清爽统一。\n2. 🌌 完整集成 v4.6.4 所有新特性：周目结算公屏报幕与角色视角后日谈番外（After Story阅读卡）、回忆画廊多渠道生图（Pollinations / NovelAI / SD WebUI / OpenAI / Midjourney）、画风及画师串预设库、16:9横向构图智能提示词。\n3. 🎮 复古黑粉像素掌机与液晶屏：保留黑粉复古掌机主题与LCD状态/档案/事件/内存分屏，机身快捷按键与月相难度选择。\n4. 🔧 脚本兼容性与更新链路优化：酒馆助手自动更新适配「月相系统」与「Galgame攻略系统」双向脚本树识别，保证更新平滑写入。";
+  const MOON_FORMULA_VERSION = '4.6.11';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.11 更新不再怕网络，连不上会自动换源】\n1. 🌐 更新会自己找路：先走官方直连，8 秒没动静就自动换国内镜像（jsDelivr → jsDelivr Fastly → ghproxy.net → gh-proxy 依次试），能通哪条用哪条，一条通就立刻停下。\n2. 🕰️ 新鲜度校验：镜像有缓存，某条线路给回来的是比当前更旧的版本时，会自动跳过去找下一条，不会再被一句「已是最新」骗过去（这是最常被误认为「更新失败」的情况）。\n3. ⏱️ 整条链路 45 秒封顶：前面的线路卡太久就不再起新线路，失败弹窗里标为「⏭ 已跳过」，不用对着加载框干等一分多钟。\n4. 🧭 记住上次能用的线路，下回检查更新优先走它；直连仍排第二位，镜像不会永久顶掉直连。给旧缓存的线路不会被记成优先线路。\n5. 🚦 换线路时提示「官方直连不通，已自动改用国内镜像」，发现新版本与检查结果的弹窗里也写明本次走的哪条线路。\n6. 🔄 所有线路都不通才弹窗，逐条列出各自原因（网络不通 / 连接超时 / HTTP 404 / 旧缓存），附「🔄 再试一次」与「⚙️ 换源」两个按钮。\n7. 🎯 下载到的内容不是脚本本体、或版本号对不上时，明确说明「镜像缓存了旧文件」或「更新源地址指错了文件」，不再只弹一句「更新失败」。\n8. ⚙️ 更新设置新增「直连下载不通时自动换国内镜像」开关（默认开启）；面板按钮小字改为「连不通会自动换镜像」。\n9. 📄 新增《更新说明书.md》：线路顺序、三种提示、失败急救三步、常见问题，全写成玩家能看懂的版本。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
+  const LAST_GAME_DAY_KEY = 'moon_phase_last_game_day';
+  const FATE_BACKUP_KEY = 'moon_phase_fate_backup';
   const AUTORELOAD_KEY = 'moon_phase_autoreload_pending';
   const BACKFILL_PROMPT_KEY = 'moon_phase_backfill_prompted_chats';
   const FIRST_RUN_KEY = 'moon_phase_first_run_done_v1';
@@ -70,8 +72,15 @@
   const DEFAULT_SETTINGS = {
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
-    panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0
+    panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
+    turnMinutes: 10
   };
+  // 每轮默认推进分钟数（玩家没有明说时间时使用）
+  const DEFAULT_TURN_MINUTES = 10;
+  // 玩家「明确放行时间跳跃」的措辞；命中才允许跨天
+  const TIME_GRANT_RE = /(?:\b次日\b|\b翌日\b|第二天|隔天|隔日|明天|明日|后天|大后天|下周|下个?星期|下个?月|过几天|几天后|数日后|[一两二三四五六七八九十\d]+\s*(?:天|日|个?星期|个?周|个?月)\s*(?:后|之后|以后)|睡到|睡一觉|过夜|天亮|到晚上|到晚些|傍晚见|晚上见|跳过|快进|时间跳到|直接到)/;
+  // 正文里的叙事转场（AI 自己写的，视为已授权的转场）
+  const NARRATIVE_TURN_RE = /(?:^|[\s。！？!?\n])(?:次日|翌日|隔日|隔天|第二天|夜幕降临|天色渐暗|转眼|一觉醒来)/;
 
   let cachedVars = null;
   let anchorData = null;
@@ -108,10 +117,10 @@
   };
 
   const LUNAR_META = {
-    easy: { name: '简单', glyph: '🌕', title: '满月', quota: '10.0', detail: '惩罚小，时间跳跃更容易成功。适合轻松日常、甜宠、慢热、恋爱养成这类不太想被狠虐的卡。' },
-    normal: { name: '普通', glyph: '🌗', title: '下弦月', quota: '7.0', detail: '标准难度，情感变化比较均衡。适合大多数剧情卡、综合向卡，日常和冲突都能跑。' },
-    hard: { name: '困难', glyph: '🌙', title: '峨眉月', quota: '5.0', detail: '周上限更紧，时间跳跃判定更严。适合冲突多、推进快、需要压力感的强剧情卡。' },
-    hell: { name: '地狱', glyph: '🌑', title: '新月', quota: '3.0', detail: '周上限最低，默认开启锚定时间线。适合重度虐恋、强冲突、黑深残、高张力、长线折磨的卡。' }
+    easy: { name: '简单', glyph: '🌕', title: '满月', quota: '10.0', detail: '加分最多、也不容易翻脸。想慢慢谈恋爱的卡选这个。' },
+    normal: { name: '普通', glyph: '🌗', title: '下弦月', quota: '7.0', detail: '加分适中，日常和冲突都能跑。不知道选哪个就选这个。' },
+    hard: { name: '困难', glyph: '🌙', title: '峨眉月', quota: '5.0', detail: '每周能加的分更少，更难哄。适合冲突多、节奏快的卡。' },
+    hell: { name: '地狱', glyph: '🌑', title: '新月', quota: '3.0', detail: '加分最少，而且默认锁剧情（回不了头）。适合重度虐恋、黑深残的卡。' }
   };
   const ARCADE_DIFFICULTY_HINTS = {
     easy: '低速巡航 · 适合熟悉操作',
@@ -621,7 +630,8 @@
     const eventType = levelMap[level] || '日常';
     const direction = sign === '+' ? '正向' : '负向';
     const canonicalTag = '[Sylveina|' + (charName ? charName + '|' : '') + level + '|' + sign + '|' + baseValue + ']';
-    const canonicalSimpleTag = '[Sylveina|' + level + '|' + sign + '|' + baseValue + ']';
+    // 规范化时保留角色名，否则多人卡标签在「正则美化」环节会被抹成无名标签，导致一人加分全员加分
+    const canonicalSimpleTag = '[Sylveina|' + (charName ? charName + '|' : '') + level + '|' + sign + '|' + baseValue + ']';
     return {
       level: level,
       sign: sign,
@@ -967,30 +977,19 @@
   }
 
   async function updateInternalTime() {
-    const data = readMvuLatest();
-    if (!data || !data.stat_data || !data.stat_data.世界) return null;
-    const world = data.stat_data.世界;
-    const currentTimeStr = world.时间 || '';
-    const currentDate = parseGameTime(currentTimeStr);
-    if (!currentDate) return null;
-    let lastTimeStr = world._上次推进时间 || currentTimeStr;
-    let lastDate = parseGameTime(lastTimeStr); if (!lastDate) lastDate = currentDate;
-    const diffMs = currentDate.getTime() - lastDate.getTime(); const diffDays = diffMs / 86400000;
-    if (diffDays <= 0) return null;
-    let internalDays = diffDays; let isJump = false;
-    if (diffDays >= 3) {
-      isJump = true; const mode = getCurrentMode();
-      const floorRatio = mode === 'easy' ? 10 : mode === 'normal' ? 20 : mode === 'hard' ? 30 : 35;
-      const ctx = getSTCtx(); const currentFloor = (ctx && ctx.chat) ? ctx.chat.length : 0;
-      const lastJumpFloor = parseInt(mainWin.localStorage.getItem(LAST_JUMP_FLOOR_KEY) || '0');
-      const floorDelta = Math.max(0, currentFloor - lastJumpFloor);
-      internalDays = Math.max(1, Math.round(floorDelta / floorRatio));
-      mainWin.localStorage.setItem(LAST_JUMP_FLOOR_KEY, String(currentFloor));
-    }
-    world._内部流逝天数 = (Number(world._内部流逝天数) || 0) + internalDays;
-    world._上次推进时间 = currentTimeStr;
-    await writeMvuLatest(data.stat_data);
-    return { diffDays: Math.floor(diffDays), internalDays: internalDays, totalInternalDays: world._内部流逝天数, isJump: isJump };
+    // 保留为对外薄封装，逻辑统一走 advanceWorldClock，避免出现两套时间算法
+    try {
+      const data = readMvuLatest();
+      if (!data || !data.stat_data || !data.stat_data.世界) return null;
+      const world = data.stat_data.世界;
+      ensureWorldClockFields(world);
+      const latestAi = getLatestAiMessage();
+      const text = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
+      const info = advanceWorldClock(world, text);
+      if (!info.ok) return null;
+      await writeMvuLatest(data.stat_data);
+      return { diffDays: info.days, internalDays: info.days, totalInternalDays: world._游戏日, isJump: info.days >= 1, 来源: info.source };
+    } catch (e) { return null; }
   }
 
   function tryGetDisplayData() {
@@ -1019,7 +1018,7 @@
     const other = s.length - cjk;
     return Math.ceil(cjk * 1.0 + other / 4);
   }
-  function _fmtK(n) { return Math.round(Number(n) || 0) + ' tokens'; }
+  function _fmtK(n) { return Math.round(Number(n) || 0) + ' 字'; }
 
   function _extractEntries(data) {
     if (!data) return [];
@@ -1238,8 +1237,10 @@ async function _collectAllWorldbooks(includeDisabled) {
       const data = readMvuLatest();
       if (!data || !data.stat_data || !data.stat_data.角色) return;
       const chars = data.stat_data.角色;
+      const world = data.stat_data.世界 || {};
       const activeKeys = Object.keys(chars).filter(function(k) { return k !== '示例角色' && k !== 'You' && k !== '你'; });
       if (activeKeys.length === 0) return;
+      const multiCard = getCardMode() === 'multi';
       const lines = [];
       activeKeys.forEach(function(name) {
         const ch = chars[name]; if (!ch) return;
@@ -1252,8 +1253,12 @@ async function _collectAllWorldbooks(includeDisabled) {
           lines.push('【' + name + '】首次登场！请通读角色卡，判断玩家设定触发了哪些喜好/厌恶。');
           lines.push('  在正文末尾额外输出 `[初见|优势+X|劣势-Y]`（优势取值 0/+3/+6/+9，劣势取值 0/-3/-6）。');
         }
+        const importance = String(ch.重要度 || '主要').trim();
+        if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在她身上，内心戏与情感拉扯要写足。');
+        else if (importance === '次要') lines.push('  · 角色定位：次要角色 —— 可以互动，但不要抢主线攻略对象的戏份。');
+        else lines.push('  · 角色定位：NPC —— 只做功能性出场，不展开情感线。');
         lines.push('【' + name + '】本轮事件类型：' + eventType + '，请在区间 ' + range + ' 内挑一个基础值。');
-        lines.push('  输出格式：[Sylveina|' + levelTag + '|+/-|基础值]，例：[Sylveina|' + levelTag + '|+|3.5]');
+        lines.push('  输出格式：' + (multiCard ? '[Sylveina|' + name + '|' + levelTag + '|+/-|基础值]' : '[Sylveina|' + levelTag + '|+/-|基础值]') + '，例：' + (multiCard ? '[Sylveina|' + name + '|' + levelTag + '|+|3.5]' : '[Sylveina|' + levelTag + '|+|3.5]'));
         const days = Number(es._距离主线天数);
         if (!isNaN(days) && isFinite(days)) {
           if (days <= 0) lines.push('  ⚡ 主线节点已触发：请全力演绎当前剧情，不得回避核心冲突。');
@@ -1269,10 +1274,23 @@ async function _collectAllWorldbooks(includeDisabled) {
         else if (q.表白期排除 === true) lines.push('  🚫 此角色已排除表白期（' + (q.表白期排除理由 || '无理由') + '）。');
       });
       lines.push('');
-      lines.push('标签格式：[Sylveina|L/M/H|+/-|基础值]，例：[Sylveina|M|+|3.5]。');
+      lines.push('标签格式：' + (multiCard ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]') + '，例：' + (multiCard ? '[Sylveina|长谷川茗|M|+|3.5]' : '[Sylveina|M|+|3.5]') + '。');
       lines.push('基础值区间：L=0.5~2.0，M=3.0~5.0，H=6.0~10.0。');
-      lines.push('【重要：正则美化触发格式】正文剧情结束后，只在最后单独输出一个 Sylveina 数值标签，下一行只输出小写字母 s，格式必须是：\\n[Sylveina|L|+|1.2]\\ns。');
-      lines.push('禁止在标签和 s 之后输出任何角色变量赋值、世界时间、JSON、UpdateVariable、StatusPlaceHolderImpl 或解释文字；不要在可见正文中打印“角色.姓名.好感度=...”等后台变量。所有数值由本插件根据标签在本地计算和保存。');
+      lines.push('【重要：正则美化触发格式】正文剧情结束后，只在最后单独输出一个 Sylveina 数值标签，下一行只输出小写字母 s。两行示例：');
+      lines.push('[Sylveina|L|+|1.2]');
+      lines.push('s');
+      lines.push('【后台变量块 · 必须输出】在 s 之后再输出下面这些后台变量行（脚本会自动读取并把它们隐藏，玩家看不到）：');
+      lines.push('世界.时间=<本轮结束时的世界时间，格式必须是 YYYY年MM月DD日 · 星期X · HH:MM，只能前进不能倒退>');
+      lines.push('世界.地点=<本轮结束时的场景地点>');
+      lines.push('为本轮有互动的每个角色各输出三行（角色名用档案里的正名）：');
+      lines.push('角色.<角色名>.情绪=<单个 emoji>');
+      lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写她此刻没有说出口的真实想法>');
+      lines.push('角色.<角色名>.在场=true 或 false');
+      lines.push('（当前世界时间：' + (world.时间 || '未记录') + '｜当前地点：' + (world.地点 || '未记录') + '｜游戏日：第 ' + (Number(world._游戏日) || 0) + ' 天。'
+        + '节奏规则：同一场景内的对话，每轮只推进 ' + getTurnMinutes() + ' 分钟（最多不超过 ' + (getTurnMinutes() * 2) + ' 分钟），不要自行跳到几小时之后或第二天；'
+        + '只有玩家明确要求（第二天 / 三天后 / 睡一觉 / 跳过）或剧情确实需要转场时，才写出跨时段或跨天的新时间。'
+        + '没有跨天就保持同一天，只把分钟往后推。）');
+      lines.push('禁止在正文与后台变量块里输出 好感度/肉体值/阶段值/嫉妒值 数值，禁止输出 JSON、UpdateVariable、StatusPlaceHolderImpl 或任何解释文字；四维数值全部由本插件按标签在本地计算和保存。');
       callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 4, 1, false);
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
   }
@@ -1280,7 +1298,7 @@ async function _collectAllWorldbooks(includeDisabled) {
   function injectCardModeNotice() {
     const mode = getCardMode();
     if (mode === 'multi') {
-      const content = ['【卡组模式：多人卡】', '本轮所有数值标签中的 <名>，必须使用本轮剧情中实际互动的角色名字。', '不要用角色卡的名字作为 <名>（那是单人卡的规则）；不要把所有角色的互动都写在同一个名字下。', '若本轮与多个角色有互动，为每一个角色分别输出各自的 Sylveina 标签。'].join('\n');
+      const content = ['【卡组模式：多人卡】', '标签必须带角色名，格式：[Sylveina|角色名|L/M/H|+/-|基础值]，例：[Sylveina|长谷川茗|L|+|1.5]。', '标签里的角色名必须使用本轮剧情中实际互动的角色正名，不要用昵称或称呼。', '若本轮与多个角色有互动，为每一个角色分别输出各自的 Sylveina 标签。', '没有写角色名的标签只会结算给「主要攻略对象」一个人，其他角色不会加分。'].join('\n');
       callSetPrompt(PROMPT_KEY + '_cardmode', content, 4, 1, false);
     } else {
       const content = ['【卡组模式：单人卡】', '本轮数值标签统一使用角色卡主名（即当前对话的角色名）。', '不要用剧情里的昵称、称呼、化名或别名作为 <名>。', '若剧情里出现其他配角，可以在正文中描写，但数值标签只针对角色卡主名这一条。'].join('\n');
@@ -1390,7 +1408,25 @@ async function _collectAllWorldbooks(includeDisabled) {
     return false;
   }
 
-  function matchTagForCharacter(tags, charName, activeCharCount) {
+  // 无名标签（AI 没写名字）只归属一个「主目标」，避免多人卡里一个标签打到所有角色
+  function pickPrimaryTarget(chars, names) {
+    const list = Array.isArray(names) ? names : Object.keys(chars || {});
+    if (!list.length) return '';
+    const weight = { '主要': 3, '主角': 3, '次要': 2, 'NPC': 1 };
+    let best = ''; let bestScore = -Infinity;
+    for (const n of list) {
+      const ch = chars && chars[n];
+      if (!ch || isCharSkeleton(ch)) continue;
+      let score = (weight[String(ch.重要度 || '').trim()] || 2) * 1000;
+      if (ch.在场 === true) score += 500;
+      else if (ch.在场 === false) score -= 500;
+      score += Math.max(-200, Math.min(200, Number(ch.好感度) || 0));
+      if (score > bestScore) { bestScore = score; best = n; }
+    }
+    return best || list[0];
+  }
+
+  function matchTagForCharacter(tags, charName, activeCharCount, primaryName) {
     if (!Array.isArray(tags) || !tags.length) return null;
     const cleanName = String(charName || '').trim();
     for (let i = tags.length - 1; i >= 0; i--) {
@@ -1399,13 +1435,285 @@ async function _collectAllWorldbooks(includeDisabled) {
         return t;
       }
     }
+    if (activeCharCount <= 1) {
+      for (let i = tags.length - 1; i >= 0; i--) {
+        if (!tags[i].charName) return tags[i];
+      }
+      return tags[tags.length - 1];
+    }
+    // 多人卡：无名标签只结算给主目标角色
+    const target = primaryName || '';
+    if (!cleanName || (target && cleanName !== target)) return null;
     for (let i = tags.length - 1; i >= 0; i--) {
       if (!tags[i].charName) return tags[i];
     }
-    if (activeCharCount === 1 || getCardMode() !== 'multi') {
-      return tags[tags.length - 1];
-    }
     return null;
+  }
+
+  function formatGameTime(dateObj) {
+    const d = dateObj instanceof Date ? dateObj : parseGameTime(dateObj);
+    if (!d || isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    const wd = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return y + '年' + mo + '月' + da + '日 · 星期' + wd + ' · ' + hh + ':' + mm;
+  }
+
+  /* ── 后台变量块：AI 写的「世界.时间=… / 角色.X.心声=…」在此被脚本吃进本地状态 ── */
+  const BACKEND_VAR_LINE_RE = /^[ \t>|]*(?:[-*·•][ \t]*)?(世界|角色)\s*[.．]\s*([^\r\n=＝:：]{1,60}?)\s*[=＝:：]\s*(.*?)[ \t]*$/gm;
+
+  function _cleanBackendValue(raw) {
+    let v = String(raw == null ? '' : raw).trim();
+    v = v.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
+    v = v.replace(/^[*`"'「『【\[（(]+/, '').replace(/[*`"'」』】\]）)]+$/, '').trim();
+    return v;
+  }
+  function _parseBackendBool(raw) {
+    const v = String(raw == null ? '' : raw).trim().toLowerCase();
+    if (['true', '是', '1', '在', '在场', 'yes', 'on', '出场'].indexOf(v) >= 0) return true;
+    if (['false', '否', '0', '不在', '离场', 'no', 'off', '退场'].indexOf(v) >= 0) return false;
+    return null;
+  }
+  function _applyBackendVarLines(payload, statData, applied) {
+    if (!payload || !statData) return;
+    if (!statData.世界) statData.世界 = { 时间: '2000年01月01日 · 星期六 · 00:00', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' };
+    const re = new RegExp(BACKEND_VAR_LINE_RE.source, 'gm');
+    let m;
+    while ((m = re.exec(payload)) !== null) {
+      const scope = m[1];
+      const parts = String(m[2] || '').split(/[.．]/).map(function(s) { return s.trim(); }).filter(Boolean);
+      const rawValue = m[3];
+      if (!parts.length) continue;
+      if (scope === '世界') {
+        const field = parts[0];
+        if (field === '时间' || field === '当前时间' || field === 'time') {
+          const v = _cleanBackendValue(rawValue);
+          const d = parseGameTime(v);
+          if (!d) continue;
+          const normalized = formatGameTime(d);
+          if (normalized === statData.世界.时间) continue;
+          const curDate = parseGameTime(statData.世界.时间);
+          // 世界时间只进不退，防止回忆/闪回里的旧日期把面板时间改回去
+          if (curDate && d.getTime() < curDate.getTime()) continue;
+          statData.世界.时间 = normalized;
+          applied.push('世界时间→' + normalized);
+        } else if (field === '地点') {
+          const v = _cleanBackendValue(rawValue).slice(0, 60);
+          if (!v) continue;
+          statData.世界.地点 = v;
+          applied.push('地点→' + v);
+        }
+        continue;
+      }
+      const charName = parts[0];
+      const field = parts[1];
+      if (!charName || !field || !statData.角色) continue;
+      const ch = statData.角色[charName];
+      if (!ch || isCharSkeleton(ch)) continue;
+      if (field === '情绪' || field === '心情' || field === '表情') {
+        const v = _cleanBackendValue(rawValue).slice(0, 8);
+        if (!v) continue;
+        ch.情绪 = v; applied.push(charName + '.情绪');
+      } else if (field === '心声' || field === '内心话' || field === '独白') {
+        const v = _cleanBackendValue(rawValue).slice(0, 300);
+        if (!v) continue;
+        ch.心声 = v; applied.push(charName + '.心声');
+      } else if (field === '在场') {
+        const b = _parseBackendBool(rawValue);
+        if (b === null || ch.在场 === b) continue;
+        ch.在场 = b; applied.push(charName + '.在场=' + (b ? 'true' : 'false'));
+      } else if (field === '重要度' || field === '角色定位') {
+        const v = _cleanBackendValue(rawValue);
+        if (['主要', '主角', '次要', 'NPC', '路人'].indexOf(v) < 0) continue;
+        ch.重要度 = (v === '主角' || v === '主要') ? '主要' : (v === '路人' ? 'NPC' : v);
+        applied.push(charName + '.重要度=' + ch.重要度);
+      }
+    }
+  }
+  // 判断一行后台变量是否归本脚本管：apply=读进档案并隐藏；strip=数值由脚本独占，只隐藏；keep=不认识，原样留着给别的插件/正则
+  function _backendFieldKind(scope, parts) {
+    if (!parts || !parts.length) return 'keep';
+    if (scope === '世界') {
+      const f = parts[0];
+      if (f === '时间' || f === '当前时间' || f === 'time' || f === '地点') return 'apply';
+      return 'keep';
+    }
+    const f = parts[1];
+    if (!f) return 'keep';
+    if (['情绪', '心情', '表情', '心声', '内心话', '独白', '在场', '重要度', '角色定位'].indexOf(f) >= 0) return 'apply';
+    if (['好感度', '好感', '肉体值', '肉体', '阶段值', '阶段', '嫉妒值', '嫉妒'].indexOf(f) >= 0) return 'strip';
+    return 'keep';
+  }
+  function _isOwnedBackendLine(line) {
+    const m = String(line || '').match(/^[ \t>|]*(?:[-*·•][ \t]*)?(世界|角色)\s*[.．]\s*([^\r\n=＝:：]{1,60}?)\s*[=＝:：]/);
+    if (!m) return false;
+    const parts = String(m[2] || '').split(/[.．]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    return _backendFieldKind(m[1], parts) !== 'keep';
+  }
+  // 把最新 AI 楼层里的后台变量块吃进本地状态，并从正文里清掉「属于本脚本」的那些行
+  function ingestBackendVariables(mes, targetStat) {
+    const out = { applied: [], text: String(mes == null ? '' : mes), statData: null };
+    if (typeof mes !== 'string' || !mes) return out;
+    const data = targetStat ? { stat_data: targetStat } : loadLocalState();
+    const statData = data && data.stat_data;
+    if (!statData) return out;
+    let text = String(mes);
+    if (text.indexOf('UpdateVariable') >= 0) {
+      text = text.replace(/<UpdateVariable>([\s\S]*?)<\/UpdateVariable>/gi, function(full, inner) {
+        _applyBackendVarLines(inner, statData, out.applied);
+        const kept = String(inner).split(/\r?\n/).filter(function(line) { return line.trim() && !_isOwnedBackendLine(line); });
+        // 不认识的变量原样留在块里，避免破坏其它插件/正则的变量链
+        return kept.length ? '<UpdateVariable>\n' + kept.join('\n') + '\n</UpdateVariable>' : '';
+      });
+    }
+    _applyBackendVarLines(text, statData, out.applied);
+    const cleaned = text.replace(new RegExp(BACKEND_VAR_LINE_RE.source, 'gm'), function(line) {
+      return _isOwnedBackendLine(line) ? '' : line;
+    }).replace(/\n{3,}/g, '\n\n');
+    out.text = cleaned;
+    out.statData = statData;
+    return out;
+  }
+  function applyBackendVariablesFromLatest() {
+    try {
+      const found = getLatestAiMessage();
+      if (!found || !found.msg || typeof found.msg.mes !== 'string') return null;
+      const res = ingestBackendVariables(found.msg.mes);
+      if (res.text !== found.msg.mes) found.msg.mes = res.text;
+      if (res.applied.length && res.statData) {
+        try { writeMvuLatest(res.statData); } catch (e) {}
+        try { console.log('[Doki] 后台变量同步：', res.applied.join('｜')); } catch (e) {}
+      }
+      return res;
+    } catch (e) { return null; }
+  }
+
+  // 剧情里「次日 / 三天后 / 一周后」这类明确的时间流逝，兜底换算成天数
+  function detectRelativeElapsedDays(mes) {
+    if (!mes) return 0;
+    const text = String(mes);
+    const head = text.slice(0, 220);
+    const tail = text.slice(-220);
+    const probe = head + '\n' + tail;
+    const cnNum = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10, 半: 0.5 };
+    let days = 0;
+    const mWeek = probe.match(/(?:过了|又过了|转眼)?\s*([一两二三四五六七八九十\d]+)\s*(?:个)?\s*(?:星期|周)\s*(?:后|之后|以后)/);
+    const mMonth = probe.match(/(?:过了|又过了|转眼)?\s*([一两二三四五六七八九十\d半]+)\s*(?:个)?\s*月\s*(?:后|之后|以后)/);
+    const mDay = probe.match(/(?:过了|又过了|转眼)?\s*([一两二三四五六七八九十半\d]+)\s*(?:天|日)\s*(?:后|之后|以后)/);
+    const mHalf = probe.match(/半个月\s*(?:后|之后|以后)/);
+    const mNext = probe.match(/(?:^|[\s。！？!?\n])(?:次日|翌日|隔日|隔天|第二天)(?!的)/);
+    if (mMonth) { const n = (cnNum[mMonth[1]] !== undefined ? cnNum[mMonth[1]] : parseFloat(mMonth[1])); if (n > 0) days = Math.round(n * 30); }
+    else if (mWeek) { const n = (cnNum[mWeek[1]] !== undefined ? cnNum[mWeek[1]] : parseFloat(mWeek[1])); if (n > 0) days = Math.round(n * 7); }
+    else if (mHalf) days = 15;
+    else if (mDay) { const n = (cnNum[mDay[1]] !== undefined ? cnNum[mDay[1]] : parseFloat(mDay[1])); if (n > 0) days = Math.round(n); }
+    else if (mNext) days = 1;
+    if (!days || !isFinite(days)) return 0;
+    return Math.max(1, Math.min(7, days));
+  }
+
+  function getTurnMinutes() {
+    const v = Number(getSettings().turnMinutes);
+    return (isFinite(v) && v > 0 && v <= 120) ? Math.round(v) : DEFAULT_TURN_MINUTES;
+  }
+
+  function getLatestUserMessageText() {
+    try {
+      const ctx = getSTCtx();
+      if (!ctx || !ctx.chat || !ctx.chat.length) return '';
+      for (let i = ctx.chat.length - 1; i >= 0; i--) {
+        const m = ctx.chat[i];
+        if (m && m.is_user) return String(m.mes || '');
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  // 只比较「日历日」，同一天返回 0
+  function calendarDayDiff(fromDate, toDate) {
+    const a = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate()).getTime();
+    const b = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate()).getTime();
+    return Math.round((b - a) / 86400000);
+  }
+
+  function ensureWorldClockFields(world) {
+    if (!world || typeof world !== 'object') return;
+    if (world._游戏日 === undefined || world._游戏日 === null || !isFinite(Number(world._游戏日))) {
+      world._游戏日 = Math.floor(Number(world._内部流逝天数) || 0);
+    }
+    world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0));
+    // 旧版是小数天，统一成整数天，两个字段保持同步
+    world._内部流逝天数 = world._游戏日;
+    if (world._回合 === undefined || !isFinite(Number(world._回合))) world._回合 = 0;
+    world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0));
+    if (!world._上次推进时间) world._上次推进时间 = world.时间 || '';
+  }
+
+  // 世界时钟推进：默认每轮走 turnMinutes 分钟；跨大跨度需玩家授权或正文转场
+  function advanceWorldClock(world, latestAiText) {
+    const out = { ok: false, from: '', to: '', minutes: 0, days: 0, source: 'none', granted: false, clamped: false };
+    try {
+      if (!world) return out;
+      ensureWorldClockFields(world);
+      const stateTime = String(world.时间 || '');
+      // 基准用「上次推进时间」：本轮的 世界.时间 可能已被后台变量摄入提前写掉
+      const fromStr = String(world._上次推进时间 || stateTime);
+      const fromDate = parseGameTime(fromStr) || parseGameTime(stateTime);
+      if (!fromDate) return out;
+      out.from = fromStr;
+      const step = getTurnMinutes();
+      const playerText = getLatestUserMessageText();
+      const narrativeDays = detectRelativeElapsedDays(latestAiText);
+      // 授权来源：玩家明说（明天/三天后…），或正文本身写了明确的转场（次日/一周后…）
+      const granted = TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
+      out.granted = granted;
+
+      let target = null; let source = '';
+      // ① AI 显式给的时间优先
+      const aiTime = tryExtractWorldTimeFromMessage(latestAiText, fromStr);
+      if (aiTime) { const d = parseGameTime(aiTime); if (d) { target = d; source = 'ai_clock'; } }
+      // ② 世界时间已被别处推进（后台变量摄入 / 手动校正）
+      if (!target) {
+        const cur = parseGameTime(stateTime);
+        if (cur && cur.getTime() > fromDate.getTime()) { target = cur; source = 'state_clock'; }
+      }
+      // ③ 正文里的相对时间词
+      if (!target) {
+        const relDays = detectRelativeElapsedDays(latestAiText);
+        if (relDays > 0) { const d = new Date(fromDate.getTime()); d.setDate(d.getDate() + relDays); target = d; source = 'narrative_days'; }
+      }
+      // ④ 默认步长
+      if (!target) { target = new Date(fromDate.getTime() + step * 60000); source = 'default_step'; }
+
+      let deltaMin = Math.round((target.getTime() - fromDate.getTime()) / 60000);
+      let dayDelta = calendarDayDiff(fromDate, target);
+
+      // 跨天闸门：明显的大跨度（超过一轮步长的 3 倍）必须由玩家授权或正文转场放行
+      // 自然的「23:55 + 10 分钟过午夜」不算大跳，照常计入新的一天
+      const isBigJump = deltaMin > step * 3;
+      if (isBigJump && !granted && (source === 'ai_clock' || source === 'state_clock')) {
+        target = new Date(fromDate.getTime() + step * 60000);
+        deltaMin = step;
+        dayDelta = calendarDayDiff(fromDate, target);
+        source = 'clamped';
+        out.clamped = true;
+      }
+      // 倒退一律拒绝
+      if (deltaMin <= 0) return out;
+
+      const toStr = formatGameTime(target);
+      if (!toStr) return out;
+      world.时间 = toStr;
+      world._上次推进时间 = toStr;
+      if (dayDelta > 0) {
+        world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + dayDelta;
+        world._内部流逝天数 = world._游戏日;
+      }
+      out.ok = true; out.to = toStr; out.minutes = deltaMin; out.days = dayDelta; out.source = source;
+      return out;
+    } catch (e) { return out; }
   }
 
   function tryExtractWorldTimeFromMessage(mes, currentWorldTime) {
@@ -1415,17 +1723,12 @@ async function _collectAllWorldbooks(includeDisabled) {
     const candidate = explicitMatch ? explicitMatch[1].trim() : '';
     const m = (candidate && candidate.match(TL_TIME_RE)) || text.match(/(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^\r\n]{0,20}?\d{1,2}\s*[:点时]\s*\d{1,2}(?:\s*分)?)/);
     if (!m) return null;
-    const newDate = parseGameTime(m[1] || m[0]);
+    // 必须用 m[0]（完整匹配）；m[1] 只是年份，旧版因此永远解析失败
+    const newDate = parseGameTime(m[0]);
     if (!newDate) return null;
     const curDate = parseGameTime(currentWorldTime);
     if (curDate && newDate.getTime() < curDate.getTime()) return null;
-    const y = newDate.getFullYear();
-    const mo = String(newDate.getMonth() + 1).padStart(2, '0');
-    const da = String(newDate.getDate()).padStart(2, '0');
-    const wd = ['日','一','二','三','四','五','六'][newDate.getDay()];
-    const hh = String(newDate.getHours()).padStart(2, '0');
-    const mm = String(newDate.getMinutes()).padStart(2, '0');
-    return y + '年' + mo + '月' + da + '日 · 星期' + wd + ' · ' + hh + ':' + mm;
+    return formatGameTime(newDate);
   }
 
   async function runMoonCalculation() {
@@ -1438,33 +1741,18 @@ async function _collectAllWorldbooks(includeDisabled) {
       const mode = getCurrentMode();
       const latestAi = getLatestAiMessage();
       const latestAiText = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
-      const extractedTime = tryExtractWorldTimeFromMessage(latestAiText, world.时间 || '');
-      if (extractedTime && extractedTime !== world.时间) {
-        world.时间 = extractedTime;
+      ensureWorldClockFields(world);
+      const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : 't:' + String(world.时间 || '');
+      // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
+      if (world._lastClockSig !== clockSig) {
+        world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0)) + 1;
+        const clockInfo = advanceWorldClock(world, latestAiText);
+        world._lastClockSig = clockSig;
+        if (clockInfo.ok) {
+          statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to };
+        }
       }
       const currentTime = world.时间 || '';
-      try {
-        const currentDate = parseGameTime(currentTime);
-        if (currentDate) {
-          let lastDate = parseGameTime(world._上次推进时间 || currentTime) || currentDate;
-          const diffDays = (currentDate.getTime() - lastDate.getTime()) / 86400000;
-          if (diffDays > 0) {
-            let internalDays = diffDays;
-            if (diffDays >= 3) {
-              const floorRatio = mode === 'easy' ? 10 : mode === 'normal' ? 20 : mode === 'hard' ? 30 : 35;
-              const ctx = getSTCtx();
-              const currentFloor = (ctx && ctx.chat) ? ctx.chat.length : 0;
-              const store = getStorage();
-              const lastJumpFloor = parseInt((store && store.getItem(LAST_JUMP_FLOOR_KEY)) || '0', 10);
-              const floorDelta = Math.max(0, currentFloor - lastJumpFloor);
-              internalDays = Math.max(1, Math.round(floorDelta / floorRatio));
-              if (store) store.setItem(LAST_JUMP_FLOOR_KEY, String(currentFloor));
-            }
-            world._内部流逝天数 = (Number(world._内部流逝天数) || 0) + internalDays;
-            world._上次推进时间 = currentTime;
-          }
-        }
-      } catch (e) {}
 
       const changedChars = [];
       const stageChangedChars = [];
@@ -1477,6 +1765,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       const activeCharNames = Object.keys(chars).filter(function(k) {
         return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
       });
+      const primaryTarget = pickPrimaryTarget(chars, activeCharNames);
 
       let wbEntries = [];
       try { wbEntries = await getAllWorldbookEntries(); } catch (e) {}
@@ -1498,8 +1787,10 @@ async function _collectAllWorldbooks(includeDisabled) {
         } catch (e) {}
 
         // 若本楼层检测到 Sylveina 标签且尚未对该角色结算，则自动写入 ch._lastRoll
-        const matchedTag = matchTagForCharacter(parsedTags, name, activeCharNames.length);
-        if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature) {
+        const matchedTag = matchTagForCharacter(parsedTags, name, activeCharNames.length, primaryTarget);
+        const latestFloorIdx = latestAi ? Number(latestAi.idx) : -1;
+        const floorNotRewound = (ch._quota._lastCalcFloor === undefined) || (latestFloorIdx >= Number(ch._quota._lastCalcFloor));
+        if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature && floorNotRewound) {
           const esType = (ch._quota._eventState && ch._quota._eventState.事件类型) || '';
           const resolvedEventType = (esType === '重大' || esType === '彩蛋' || matchedTag.level === 'H')
             ? '重大'
@@ -1542,6 +1833,7 @@ async function _collectAllWorldbooks(includeDisabled) {
             _turnSig: turnSignature
           };
           ch._quota._lastCalculatedTurnSig = turnSignature;
+          if (latestFloorIdx >= 0) ch._quota._lastCalcFloor = latestFloorIdx;
         }
 
         const gateLog = processGateForChar(name, ch, currentTime, mode);
@@ -1608,10 +1900,23 @@ async function _collectAllWorldbooks(includeDisabled) {
         if (eventState.强制日常期 === undefined) eventState.强制日常期 = 0;
         if (eventState.上次投掷内部天数 === undefined) eventState.上次投掷内部天数 = 0;
         if (eventState.上次大事件内部天数 === undefined) eventState.上次大事件内部天数 = 0;
-        const worldInternalDays = Number(worldStat && worldStat._内部流逝天数) || 0;
+        const worldGameDay = Number(worldStat && worldStat._游戏日) || Math.floor(Number(worldStat && worldStat._内部流逝天数) || 0);
+        const worldInternalDays = worldGameDay;
+        const turnNo = Math.max(0, Math.floor(Number(worldStat && worldStat._回合) || 0));
         const pacing = getEventPacing();
-        const rules = { Adi: { daily: 8, major: 15, cd: 3 }, And: { daily: 5, major: 10, cd: 3 }, All: { daily: 3, major: 5, cd: 3 } };
+        // 短线节拍（日常/重大事件）按「回合」，长线冷却按「游戏日」
+        // daily/major 是事件占用回合数，judgeEvery 是两次判定间隔回合，majorCdDays 是重大事件冷却天数
+        const rules = {
+          Adi: { daily: 8, major: 15, cd: 3, judgeEvery: 12, majorCdDays: 5 },
+          And: { daily: 5, major: 10, cd: 3, judgeEvery: 10, majorCdDays: 4 },
+          All: { daily: 3, major: 5, cd: 3, judgeEvery: 8, majorCdDays: 3 }
+        };
         const rule = rules[pacing] || rules.And;
+        // 旧存档平滑迁移：回合/游戏日字段缺失时以当前值为基准，避免出现「跨版本立刻连出事件」
+        if (eventState.上次投掷回合 === undefined || !isFinite(Number(eventState.上次投掷回合))) eventState.上次投掷回合 = turnNo;
+        if (eventState.上次大事件游戏日 === undefined || !isFinite(Number(eventState.上次大事件游戏日))) eventState.上次大事件游戏日 = worldGameDay;
+        eventState.上次投掷回合 = Number(eventState.上次投掷回合) || 0;
+        eventState.上次大事件游戏日 = Number(eventState.上次大事件游戏日) || 0;
         const entries = Array.isArray(worldbookEntries) ? worldbookEntries : [];
         const timelineEvents = getTimelineEvents(entries);
         let completed = ch._quota._timelineCompleted || [];
@@ -1652,17 +1957,18 @@ async function _collectAllWorldbooks(includeDisabled) {
           resolve({ type: 'cooldown', remaining: eventState.冷却回合 });
           return;
         }
-        const JUDGE_INTERVAL = (getCurrentMode() === 'easy') ? 30 : 21;
-        if (worldInternalDays - eventState.上次投掷内部天数 >= 90) { eventState.强制日常期 = 0; eventState.上次投掷内部天数 = worldInternalDays; }
+        const JUDGE_INTERVAL = rule.judgeEvery;
+        // 兜底：长时间没判定（例如回合计数被外部重置），强制清空日常期重新投
+        if (turnNo - eventState.上次投掷回合 >= JUDGE_INTERVAL * 12) { eventState.强制日常期 = 0; eventState.上次投掷回合 = turnNo; }
         if (eventState.强制日常期 > 0) {
-          eventState.强制日常期 -= 1; eventState.上次投掷内部天数 = worldInternalDays;
+          eventState.强制日常期 -= 1; eventState.上次投掷回合 = turnNo;
           eventState.当前事件 = '强制日常事件'; eventState.事件类型 = '日常'; eventState.剩余回合 = rule.daily;
           ch._quota._eventState = eventState;
           resolve({ type: 'new_event', name: eventState.当前事件, isMajor: false, rounds: eventState.剩余回合 });
           return;
         }
-        const daysSinceLastRoll = worldInternalDays - eventState.上次投掷内部天数;
-        if (daysSinceLastRoll < JUDGE_INTERVAL) { resolve(null); return; }
+        const turnsSinceLastRoll = turnNo - eventState.上次投掷回合;
+        if (turnsSinceLastRoll < JUDGE_INTERVAL) { resolve(null); return; }
         let nextTimelineDate = null;
         for (const evt of timelineEvents) {
           if (completed.indexOf(evt.name) >= 0) continue;
@@ -1672,19 +1978,20 @@ async function _collectAllWorldbooks(includeDisabled) {
         let daysToNextTimeline = Infinity;
         if (nextTimelineDate) daysToNextTimeline = (nextTimelineDate.getTime() - currentDate.getTime()) / 86400000;
         eventState._距离主线天数 = daysToNextTimeline;
-        const canMajor = (worldInternalDays - eventState.上次大事件内部天数) >= 180;
+        const canMajor = (worldGameDay - eventState.上次大事件游戏日) >= rule.majorCdDays;
         const forbidMajor = daysToNextTimeline <= 30;
         let isMajor = false; let isEgg = false; let eventName = '随机事件';
         const dice = Math.floor(Math.random() * 20) + 1;
         if (dice === 20) { isEgg = true; eventName = '彩蛋事件'; }
         else if (dice >= 15) {
           if (!canMajor || forbidMajor) { isMajor = false; eventName = forbidMajor ? '日常事件（主线临近）' : '日常事件（大事件冷却中）'; }
-          else { isMajor = true; eventName = '重大事件'; eventState.上次大事件内部天数 = worldInternalDays; eventState.强制日常期 = 3; }
+          else { isMajor = true; eventName = '重大事件'; eventState.上次大事件游戏日 = worldGameDay; eventState.强制日常期 = 3; }
         } else { isMajor = false; eventName = '日常事件'; }
         eventState.当前事件 = eventName;
         eventState.事件类型 = isEgg ? '彩蛋' : (isMajor ? '重大' : '日常');
         eventState.剩余回合 = isEgg ? 5 : (isMajor ? rule.major : rule.daily);
-        eventState.上次投掷内部天数 = worldInternalDays;
+        eventState.上次投掷回合 = turnNo;
+        eventState.上次投掷内部天数 = worldGameDay;
         ch._quota._eventState = eventState;
         resolve({ type: 'new_event', name: eventName, isMajor: isMajor, isEgg: isEgg, dice: dice, rounds: eventState.剩余回合, forbidMajor: forbidMajor });
       } catch (e) { resolve(null); }
@@ -1695,27 +2002,24 @@ async function _collectAllWorldbooks(includeDisabled) {
     try {
       const data = readMvuLatest();
       const statData = data && data.stat_data;
-      const currentTime = (statData && statData.世界 && statData.世界.时间) || readVar('世界.时间', '');
+      const world = statData && statData.世界;
+      const currentTime = (world && world.时间) || readVar('世界.时间', '');
       if (!currentTime) return null;
+      if (!world) return null;
+      ensureWorldClockFields(world);
+      const gameDay = Number(world._游戏日) || 0;
       const store = getStorage();
-      const lastTime = (store && store.getItem(LAST_TIME_KEY)) || '';
-      if (!lastTime) { if (store) store.setItem(LAST_TIME_KEY, currentTime); return null; }
-      const lastDate = parseGameTime(lastTime); const currentDate = parseGameTime(currentTime);
-      if (!lastDate || !currentDate) { if (store) store.setItem(LAST_TIME_KEY, currentTime); return null; }
-      const diffDays = (currentDate.getTime() - lastDate.getTime()) / 86400000;
-      if (diffDays < 1) return null;
+      const lastDayRaw = store && store.getItem(LAST_GAME_DAY_KEY);
+      const lastDay = (lastDayRaw == null) ? -1 : parseInt(lastDayRaw, 10);
+      if (!isFinite(lastDay) || lastDay < 0) { if (store) store.setItem(LAST_GAME_DAY_KEY, String(gameDay)); return null; }
+      const dayDelta = gameDay - lastDay;
+      if (dayDelta < 1) return null;
       if (timeJumpCooldown > 0) return null;
-      if (store) store.setItem(LAST_TIME_KEY, currentTime);
+      if (store) store.setItem(LAST_GAME_DAY_KEY, String(gameDay));
       const mode = getCurrentMode();
-      const floorRatio = mode === 'easy' ? 10 : mode === 'normal' ? 20 : mode === 'hard' ? 30 : 35;
-      const ctx = getSTCtx();
-      const currentFloor = (ctx && ctx.chat) ? ctx.chat.length : 0;
-      const lastJumpFloor = parseInt((store && store.getItem(LAST_JUMP_FLOOR_KEY)) || '0', 10);
-      const floorDelta = Math.max(0, currentFloor - lastJumpFloor);
-      const daysFromFloor = Math.max(1, Math.round(floorDelta / floorRatio));
       const diceThreshold = mode === 'easy' ? 8 : mode === 'normal' ? 13 : 18;
       const dice = Math.floor(Math.random() * 20) + 1;
-      const coeff = diffDays < 180 ? 1.0 : 1.5;
+      const coeff = dayDelta < 180 ? 1.0 : 1.5;
       const base = 1.5 * coeff;
       let delta = 0; let resultText = '';
       if (dice === 20) { delta = base * 1.5; resultText = '大成功'; }
@@ -1723,7 +2027,6 @@ async function _collectAllWorldbooks(includeDisabled) {
       else if (dice >= diceThreshold) { delta = base; resultText = '成功'; }
       else { delta = 0; resultText = '失败（不加不减）'; }
       delta = Math.min(delta, 5.0); delta = roundHalf(delta);
-      if (store) store.setItem(LAST_JUMP_FLOOR_KEY, String(currentFloor));
       timeJumpCooldown = 5;
       if (delta !== 0 && statData && statData.角色) {
         for (const name in statData.角色) {
@@ -1885,14 +2188,14 @@ async function _collectAllWorldbooks(includeDisabled) {
       injectFanficEnhanceNotice();
       injectEnabledBios();
       injectUserBio();
-      if (isFateCollapseTriggered()) { const anchor = loadAnchor(); if (anchor) injectFateCollapse(anchor); }
+      if (loadAnchor()) { const anchor = loadAnchor(); if (anchor) injectFateCollapse(anchor); }
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);
     trySubscribe('chat_changed', function() {
       anchorData = null; pendingCollapseNotice = false; timeJumpCooldown = 0; isWaitingForExtraModel = false;
       const store = getStorage();
-      if (store) { store.removeItem(LAST_TIME_KEY); store.removeItem(LAST_JUMP_FLOOR_KEY); }
+      if (store) { store.removeItem(LAST_TIME_KEY); store.removeItem(LAST_JUMP_FLOOR_KEY); store.removeItem(LAST_GAME_DAY_KEY); }
       clearFateCollapse();
       setTimeout(function() { tryInheritAnchor(); }, 800);
       setTimeout(function() { checkAndPromptMigrate(); }, 2000);
@@ -1901,6 +2204,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       setTimeout(function() { checkAndPromptBackfill(); }, 3800);
       setTimeout(function() { checkAndPromptBioEnable(); }, 4600);
       setTimeout(function() { beautifySylveinaTagsInDom(); }, 1000);
+      setTimeout(function() { applyBackendVariablesFromLatest(); }, 1200);
     });
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 600);
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 2200);
@@ -2441,6 +2745,8 @@ async function _collectAllWorldbooks(includeDisabled) {
     if (timeJumpCooldown > 0) timeJumpCooldown--;
     injectSafetyLockStatus();
     injectFanficEnhanceNotice();
+    // ① 先把 AI 写的后台变量（世界时间 / 情绪 / 心声 / 在场）吃进本地状态
+    try { applyBackendVariablesFromLatest(); } catch (e) {}
     sanitizeSylveinaRegexTail();
     beautifySylveinaTagsInDom();
     const jumpInfo = checkTimeJump();
@@ -2454,14 +2760,27 @@ async function _collectAllWorldbooks(includeDisabled) {
       });
     }, 600);
     const nowTriggered = isFateCollapseTriggered();
+    const existingAnchor = loadAnchor();
+    if (nowTriggered && !existingAnchor) {
+      // 首次触发：固化锚点，只写这一次（之后不再随最新楼层漂移）
+      const cap = captureLatestContent();
+      if (cap) {
+        const locked = saveAnchor(cap);
+        if (locked) {
+          injectFateCollapse(locked);
+          setTimeout(function() { toast('系统视线已降临 · 锚定时间线已固化', 'warning'); }, 500);
+        }
+      }
+    } else if (existingAnchor) {
+      // 已有锚点：无条件维持注入，好感回正也不解除，只认「开新对话」
+      injectFateCollapse(existingAnchor);
+    }
     if (nowTriggered && !lastTriggerState) { setTimeout(function() { toast('系统视线已降临 · 锚定时间线生效', 'warning'); }, 500); }
     lastTriggerState = nowTriggered;
-    if (nowTriggered) {
-      const cap = captureLatestContent();
-      if (cap) { saveAnchor(cap); clearFateCollapse(); }
-      if (pendingCollapseNotice) { pendingCollapseNotice = false; setTimeout(function() { toast('世界线已被收束，还请直面既定命运。', 'warning'); }, 500); }
-    } else {
-      if (loadAnchor()) { clearAnchor(); clearFateCollapse(); setTimeout(function() { toast('锚定已解除，世界线重归流动', 'info'); }, 500); }
+    if (pendingCollapseNotice && existingAnchor) {
+      pendingCollapseNotice = false;
+      setTimeout(function() { toast('世界线已被收束，还请直面既定命运。', 'warning'); }, 500);
+    } else if (!existingAnchor) {
       pendingCollapseNotice = false;
     }
   }
@@ -2487,18 +2806,29 @@ async function _collectAllWorldbooks(includeDisabled) {
   function getCurrentChatInfo() {
     try { const ctx = getSTCtx(); if (!ctx) return { chatId: '', avatar: '' }; const ch = (ctx.characters && ctx.characters[ctx.characterId]) || {}; return { chatId: ctx.chatId || '', avatar: ch.avatar || '' }; } catch (e) { return { chatId: '', avatar: '' }; }
   }
+  // ⚠ 锚点一旦落下即固定（只写一次），之后不再随最新楼层漂移
   function saveAnchor(data) {
-    anchorData = data;
+    const info = getCurrentChatInfo();
+    const anchor = {
+      content: String((data && data.content) || ''),
+      floorId: (data && data.floorId) || 0,
+      chatId: info.chatId || '',
+      avatar: info.avatar || '',
+      lockedAt: Date.now(),
+      inheritedFrom: (data && data.inheritedFrom) || ''
+    };
+    if (!anchor.content) return null;
+    anchorData = anchor;
     try {
       const ctx = getSTCtx();
-      if (ctx && ctx.chatMetadata) { ctx.chatMetadata[ANCHOR_KEY] = data; if (typeof ctx.saveMetadata === 'function') ctx.saveMetadata(); }
-      const info = getCurrentChatInfo();
-      mainWin.localStorage.setItem('moon_phase_fate_backup', JSON.stringify({ content: data.content, floorId: data.floorId, avatar: info.avatar, chatId: info.chatId, ts: Date.now() }));
+      if (ctx && ctx.chatMetadata) { ctx.chatMetadata[ANCHOR_KEY] = anchor; if (typeof ctx.saveMetadata === 'function') ctx.saveMetadata(); }
+      mainWin.localStorage.setItem(FATE_BACKUP_KEY, JSON.stringify({ content: anchor.content, floorId: anchor.floorId, avatar: anchor.avatar, chatId: anchor.chatId, ts: anchor.lockedAt }));
     } catch (e) {}
+    return anchor;
   }
   function loadAnchor() {
-    if (anchorData) return anchorData;
-    try { const ctx = getSTCtx(); if (ctx && ctx.chatMetadata && ctx.chatMetadata[ANCHOR_KEY]) { anchorData = ctx.chatMetadata[ANCHOR_KEY]; return anchorData; } } catch (e) {}
+    if (anchorData && anchorData.content) return anchorData;
+    try { const ctx = getSTCtx(); if (ctx && ctx.chatMetadata && ctx.chatMetadata[ANCHOR_KEY] && ctx.chatMetadata[ANCHOR_KEY].content) { anchorData = ctx.chatMetadata[ANCHOR_KEY]; return anchorData; } } catch (e) {}
     return null;
   }
   function clearAnchor() {
@@ -2506,8 +2836,20 @@ async function _collectAllWorldbooks(includeDisabled) {
     try {
       const ctx = getSTCtx();
       if (ctx && ctx.chatMetadata && ctx.chatMetadata[ANCHOR_KEY]) { delete ctx.chatMetadata[ANCHOR_KEY]; if (typeof ctx.saveMetadata === 'function') ctx.saveMetadata(); }
-      mainWin.localStorage.removeItem('moon_phase_fate_backup');
+      mainWin.localStorage.removeItem(FATE_BACKUP_KEY);
     } catch (e) {}
+  }
+  // 锚点是否在这份对话的可见历史里（用于识别「分支继承了锚点」）
+  function chatContainsAnchorFloor(ctx, anchor) {
+    if (!ctx || !Array.isArray(ctx.chat) || !anchor || !anchor.content) return false;
+    const probe = String(anchor.content).replace(/\s+/g, '').slice(0, 24);
+    if (probe.length < 8) return false;
+    for (let i = 0; i < ctx.chat.length; i++) {
+      const m = ctx.chat[i];
+      if (!m || m.is_user) continue;
+      if (String(m.mes || '').replace(/\s+/g, '').indexOf(probe) >= 0) return true;
+    }
+    return false;
   }
   function injectFateCollapse(anchor) {
     if (!anchor || !anchor.content) return;
@@ -2537,9 +2879,10 @@ async function _collectAllWorldbooks(includeDisabled) {
         const quota = ch._quota || {}; const debuff = quota._debuff || {};
         const favRaw = ch.好感度 !== undefined ? ch.好感度 : ch.关系值;
         const fav = Number(favRaw);
-        if (!Number.isNaN(fav) && fav > 0) continue;
+        // 冷战期优先判定：好感仍为正时也可能处于冷战，旧版会被 fav>0 直接跳过
         const isColdWar = debuff.冷战期 === true || debuff.踩雷冷却中 === true || ch.状态 === '冷战期' || ch.关系状态 === '冷战期';
-        if (isColdWar || (!Number.isNaN(fav) && fav < 0)) return true;
+        if (isColdWar) return true;
+        if (!Number.isNaN(fav) && fav < 0) return true;
       }
     } catch (e) {}
     return false;
@@ -2549,33 +2892,36 @@ async function _collectAllWorldbooks(includeDisabled) {
       const ctx = getSTCtx();
       if (!ctx) return;
       const currentInfo = getCurrentChatInfo();
-      if (ctx.chatMetadata && ctx.chatMetadata[ANCHOR_KEY]) {
-        if (isFateCollapseTriggered()) injectFateCollapse(ctx.chatMetadata[ANCHOR_KEY]);
+      // ① 当前对话自带锚点：分支会整份复制 chatMetadata，直接生效
+      if (ctx.chatMetadata && ctx.chatMetadata[ANCHOR_KEY] && ctx.chatMetadata[ANCHOR_KEY].content) {
+        anchorData = ctx.chatMetadata[ANCHOR_KEY];
+        injectFateCollapse(anchorData);
         return;
       }
-      const currentTime = readVar('世界.时间', '');
-      const INIT_TIME = '2000年01月01日';
-      const isFromBranch = currentTime && currentTime.indexOf(INIT_TIME) !== 0;
-      if (isFromBranch) {
-        const cached = mainWin.localStorage.getItem('moon_phase_fate_backup');
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (parsed.avatar === currentInfo.avatar && parsed.content) {
-              ctx.chatMetadata[ANCHOR_KEY] = { content: parsed.content, floorId: parsed.floorId || 0, inheritedFrom: parsed.chatId || '' };
-              if (typeof ctx.saveMetadata === 'function') ctx.saveMetadata();
-              toast('世界线已被锚定，还请接受既定命运。', 'warning');
-              if (isFateCollapseTriggered()) injectFateCollapse(ctx.chatMetadata[ANCHOR_KEY]);
-              return;
-            }
-          } catch (e) {}
-        }
-      } else { mainWin.localStorage.removeItem('moon_phase_fate_backup'); }
+      // ② 兜底：metadata 丢失时，只接受「同一 chatId」或「当前对话里确实存在锚点楼层」的备份
+      //    新对话两条都不满足 → 不继承，也不会破坏别人（旧版会无条件删掉备份）
+      const cached = mainWin.localStorage.getItem(FATE_BACKUP_KEY);
+      if (!cached) return;
+      let parsed = null;
+      try { parsed = JSON.parse(cached); } catch (e) { return; }
+      if (!parsed || !parsed.content) return;
+      const sameChat = !!(parsed.chatId && currentInfo.chatId && parsed.chatId === currentInfo.chatId);
+      const isBranchOfAnchor = chatContainsAnchorFloor(ctx, parsed);
+      if (!sameChat && !isBranchOfAnchor) return;
+      ctx.chatMetadata[ANCHOR_KEY] = {
+        content: parsed.content, floorId: parsed.floorId || 0,
+        chatId: currentInfo.chatId || '', avatar: currentInfo.avatar || '',
+        lockedAt: Date.now(), inheritedFrom: parsed.chatId || ''
+      };
+      if (typeof ctx.saveMetadata === 'function') ctx.saveMetadata();
+      anchorData = ctx.chatMetadata[ANCHOR_KEY];
+      toast('世界线已被锚定，还请接受既定命运。', 'warning');
+      injectFateCollapse(anchorData);
     } catch (e) {}
   }
   function onMessageDeletedOrSwiped() {
     setTimeout(function() {
-      if (!isFateCollapseTriggered()) return;
+      // 只看锚点是否存在，不看当前好感度：锁一旦落下就不会因为「刷回正数」而失效
       const anchor = loadAnchor(); if (!anchor) return;
       injectFateCollapse(anchor);
       pendingCollapseNotice = true;
@@ -3119,15 +3465,142 @@ function getUpdateConfig() {
         ? DEFAULT_UPDATE_URL : savedUrl;
       return {
         url: updateUrl,
-        autoCheck: o.autoCheck !== false
+        autoCheck: o.autoCheck !== false,
+        mirrorFallback: o.mirrorFallback !== false
       };
     }
   } catch (e) {}
-  return { url: DEFAULT_UPDATE_URL, autoCheck: true };
+  return { url: DEFAULT_UPDATE_URL, autoCheck: true, mirrorFallback: true };
 }
 
 function saveUpdateConfig(cfg) {
   try { mainWin.localStorage.setItem(UPDATE_CONFIG_KEY, JSON.stringify(cfg)); } catch (e) {}
+}
+
+// ─────────────────────────────────────────────────────────────
+// 更新线路兜底：先走官方直连，直连不通才换国内镜像；全部失败给明确提示
+// ─────────────────────────────────────────────────────────────
+const UPDATE_DIRECT_TIMEOUT = 8000;   // 直连等待上限（超时即判定不通）
+const UPDATE_MIRROR_TIMEOUT = 15000;  // 镜像等待上限
+const UPDATE_TOTAL_BUDGET = 45000;    // 整条链路的总等待上限，超过就不再起新的线路
+const UPDATE_LAST_GOOD_KEY = 'moon_phase_update_last_good_source';
+
+function _updEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _updLastGoodSource() {
+  try { return String(mainWin.localStorage.getItem(UPDATE_LAST_GOOD_KEY) || ''); } catch (e) { return ''; }
+}
+
+// 把各种 GitHub 直链还原成 owner/repo/branch/path，用于拼镜像地址
+function _parseGithubSource(url) {
+  const raw = String(url || '').trim().replace(/[?#].*$/, '');
+  let m = raw.match(/^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/i);
+  if (m) return { owner: m[1], repo: m[2], branch: m[3], path: m[4] };
+  m = raw.match(/^https?:\/\/cdn\.jsdelivr\.net\/gh\/([^\/]+)\/([^@\/]+)@([^\/]+)\/(.+)$/i);
+  if (m) return { owner: m[1], repo: m[2], branch: m[3], path: m[4] };
+  m = raw.match(/^https?:\/\/raw\.gitmirror\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/i);
+  if (m) return { owner: m[1], repo: m[2], branch: m[3], path: m[4] };
+  m = raw.match(/^https?:\/\/(?:ghfast\.top|gh-proxy\.com|ghproxy\.net|gh-proxy\.net)\/https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/i);
+  if (m) return { owner: m[1], repo: m[2], branch: m[3], path: m[4] };
+  return null;
+}
+
+// 生成线路表：最近可用线路 → 官方直连 → 国内镜像（同一地址自动去重）
+function buildUpdateSourceChain(primaryUrl, preferUrl) {
+  const chain = [];
+  const seen = {};
+  function add(url, label, kind) {
+    const u = String(url || '').trim();
+    if (!u || seen[u]) return;
+    seen[u] = 1;
+    chain.push({ url: u, label: label, kind: kind });
+  }
+  const primary = String(primaryUrl || DEFAULT_UPDATE_URL).trim();
+  const prefer = String(preferUrl || '').trim();
+  if (prefer && prefer !== primary) add(prefer, '上次可用的线路', 'prefer');
+  add(primary, '官方直连', 'direct');
+  const gh = _parseGithubSource(primary);
+  if (gh) {
+    const base = gh.owner + '/' + gh.repo;
+    const raw = 'https://raw.githubusercontent.com/' + base + '/' + gh.branch + '/' + gh.path;
+    add('https://cdn.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr', 'mirror');
+    add('https://fastly.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr Fastly', 'mirror');
+    add('https://ghproxy.net/' + raw, '国内镜像 · ghproxy.net', 'mirror');
+    add('https://gh-proxy.com/' + raw, '国内镜像 · gh-proxy', 'mirror');
+  }
+  return chain;
+}
+
+// 带超时的单线路下载：卡住不动也能在限定时间内放弃，避免永远转圈
+async function fetchTextWithTimeout(url, timeoutMs, note) {
+  const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+  const limit = Math.max(3000, timeoutMs || UPDATE_DIRECT_TIMEOUT);
+  let timer = null;
+  if (ctrl) timer = setTimeout(function() { try { ctrl.abort(); } catch (e) {} }, limit);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    if (!res) throw new Error('没有收到响应');
+    if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 404 ? '（文件不存在或分支名变了）' : ''));
+    const text = await res.text();
+    if (!text || !String(text).trim()) throw new Error('返回内容为空');
+    return String(text);
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || /aborted/i.test(String(e.message || '')))) {
+      throw new Error('连接超时（' + Math.round(limit / 1000) + ' 秒无响应' + (note ? '，' + note : '') + '）');
+    }
+    const msg = String((e && e.message) || e || '未知错误');
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)) throw new Error('网络不通（可能被拦截或 DNS 解析失败）');
+    throw new Error(msg);
+  } finally { if (timer) clearTimeout(timer); }
+}
+
+// 按线路表依次尝试；返回 {text,url,label,kind,attempts,switched,stale}，全失败时抛错并带 attempts
+// o.accept(text) 做「新鲜度校验」：镜像有缓存，拿到旧版本时返回 false 就继续换下一条；
+// 若所有线路都只有旧内容，则把第一次拿到的旧内容作为兜底返回（stale:true）。
+async function fetchUpdateSource(opts) {
+  const o = opts || {};
+  const primary = String(o.primaryUrl || DEFAULT_UPDATE_URL).trim();
+  const cfg = getUpdateConfig();
+  const allowMirror = cfg.mirrorFallback !== false && o.allowMirror !== false;
+  const chain = buildUpdateSourceChain(primary, o.preferUrl);
+  const attempts = [];
+  const budget = typeof o.budgetMs === 'number' ? o.budgetMs : UPDATE_TOTAL_BUDGET;
+  const startedAt = Date.now();
+  let staleResult = null;
+  for (let i = 0; i < chain.length; i++) {
+    const item = chain[i];
+    if (!allowMirror && item.url !== primary) continue;
+    // 已经等太久就不再起新线路，避免加载框一直转；把剩下的记为「已跳过」
+    if (attempts.length > 0 && Date.now() - startedAt > budget) {
+      attempts.push({ label: item.label, url: item.url, ok: false, skipped: true, error: '已跳过（前面的线路等太久，不想让你一直转圈）' });
+      continue;
+    }
+    if (typeof o.onBeforeAttempt === 'function') { try { o.onBeforeAttempt(item, attempts.length); } catch (e) {} }
+    const timeout = item.kind === 'mirror' ? UPDATE_MIRROR_TIMEOUT : UPDATE_DIRECT_TIMEOUT;
+    try {
+      const text = await fetchTextWithTimeout(item.url, timeout, item.kind === 'mirror' ? '' : '直连被墙时属正常现象');
+      let fresh = true;
+      if (typeof o.accept === 'function') { try { fresh = o.accept(text) !== false; } catch (e) { fresh = true; } }
+      if (!fresh) {
+        attempts.push({ label: item.label, url: item.url, ok: false, stale: true, error: '拿到的是旧缓存，正在找更新的线路' });
+        if (!staleResult) staleResult = { text: text, url: item.url, label: item.label, kind: item.kind };
+        continue;
+      }
+      attempts.push({ label: item.label, url: item.url, ok: true });
+      if (item.kind === 'mirror') { try { mainWin.localStorage.setItem(UPDATE_LAST_GOOD_KEY, item.url); } catch (e) {} }
+      return { text: text, url: item.url, label: item.label, kind: item.kind, attempts: attempts, switched: attempts.length > 1 };
+    } catch (e) {
+      attempts.push({ label: item.label, url: item.url, ok: false, error: String((e && e.message) || e) });
+    }
+  }
+  if (staleResult) {
+    return { text: staleResult.text, url: staleResult.url, label: staleResult.label, kind: staleResult.kind, attempts: attempts, switched: attempts.length > 1, stale: true };
+  }
+  const err = new Error('所有更新线路都连不上');
+  err.attempts = attempts;
+  throw err;
 }
 
 function compareVersions(a, b) {
@@ -3149,9 +3622,24 @@ async function checkForUpdates(silent) {
   }
   if (!silent) showLoadingDialog('正在读取最新版本与更新公告…');
   try {
-    const res = await fetch(cfg.url, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
+    const got = await fetchUpdateSource({
+      primaryUrl: cfg.url,
+      preferUrl: _updLastGoodSource(),
+      onBeforeAttempt: function(item, tried) {
+        if (silent || !tried) return;
+        updateLoadingDialogText('直连没接通，正在换「' + item.label + '」…');
+      },
+      accept: function(text) {
+        // 镜像有缓存：拿到比当前更旧的版本就继续换线，别让玩家以为「已是最新」
+        const t = String(text);
+        const m = t.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (m) return compareVersions(m[1], MOON_FORMULA_VERSION) >= 0;
+        try { const j = JSON.parse(t); if (j && j.version) return compareVersions(String(j.version), MOON_FORMULA_VERSION) >= 0; } catch (e) {}
+        return true;
+      }
+    });
+    if (got.switched && !silent) toast('官方直连不通，已自动改用「' + got.label + '」', 'info');
+    const text = got.text;
     let remoteVersion = '', remoteInfo = '';
     try {
       const json = JSON.parse(text);
@@ -3171,24 +3659,70 @@ async function checkForUpdates(silent) {
       }
     }
     if (!remoteVersion) {
-      if (!silent) showModalDialog('版本检查失败', '<div>远程脚本中没有找到有效版本号，请稍后重试。</div>', null, { confirmText: '关闭' });
+      if (!silent) showModalDialog('版本检查失败', '<div style="line-height:1.8;">更新源能连上，但里面没有版本号。<br>可能这个地址不是脚本源码，请在「⚙️ 更新设置」里换一个直链。</div>', null, { confirmText: '关闭' });
       return null;
     }
     const cmp = compareVersions(remoteVersion, MOON_FORMULA_VERSION);
     if (cmp > 0) {
-      _cachedUpdateInfo = { version: remoteVersion, info: remoteInfo, url: cfg.url };
+      _cachedUpdateInfo = { version: remoteVersion, info: remoteInfo, url: cfg.url, resolvedUrl: got.url, sourceLabel: got.label, sourceKind: got.kind };
       try { refreshPanel(); } catch (e) {}
       if (!silent) showUpdateAvailableDialog(_cachedUpdateInfo);
       return _cachedUpdateInfo;
     }
     _cachedUpdateInfo = null;
     try { refreshPanel(); } catch (e) {}
-    if (!silent) showModalDialog('版本检查结果', '<div style="line-height:1.8;">当前版本：<b style="color:#f472d0;">v' + MOON_FORMULA_VERSION + '</b><br>最新版本：<b style="color:#f472d0;">v' + remoteVersion + '</b><br><br>你现在使用的已经是最新版本。</div>', null, { confirmText: '关闭' });
+    if (!silent) showModalDialog('版本检查结果', '<div style="line-height:1.8;">当前版本：<b style="color:#f472d0;">v' + MOON_FORMULA_VERSION + '</b><br>最新版本：<b style="color:#f472d0;">v' + remoteVersion + '</b><br><span style="color:#94a3b8;font-size:10.5px;">线路：' + _updEsc(got.label) + '</span><br><br>你现在使用的已经是最新版本。' + (got.stale ? '<br><span style="color:#fbbf24;font-size:10.5px;">（这条线路还在缓存旧版本，稍后再查可能会发现更新的版本）</span>' : '') + '</div>', null, { confirmText: '关闭' });
     return null;
   } catch (e) {
-    if (!silent) showModalDialog('版本检查失败', '<div style="line-height:1.8;">无法连接更新源。<br>' + String(e && e.message || e).replace(/</g, '&lt;') + '</div>', null, { confirmText: '关闭' });
+    if (!silent) showUpdateConnectFailedDialog('版本检查失败', '检查新版本需要联网，现在所有线路都没接通。', e.attempts, function() { checkForUpdates(false); });
     return null;
   } finally { if (!silent) closeLoadingDialog(); }
+}
+
+// 线路全部失败时的提示：列出试过哪几条线、各自为什么失败，并给「重试 / 换源」
+function _updateAttemptsHtml(attempts) {
+  if (!attempts || !attempts.length) return '';
+  let rows = '';
+  attempts.forEach(function(a) {
+    const ok = !!a.ok;
+    const color = ok ? '#6ee7b7' : (a.skipped ? '#94a3b8' : '#f87171');
+    const mark = ok ? '✅ ' : (a.skipped ? '⏭ ' : '⛔ ');
+    rows += '<div style="padding:6px 0;border-bottom:1px dashed rgba(148,163,184,0.15);">' +
+      '<div style="color:' + color + ';font-weight:700;">' + mark + _updEsc(a.label) + '</div>' +
+      (a.error ? '<div style="color:#94a3b8;font-size:10px;margin-top:2px;">' + _updEsc(a.error) + '</div>' : '') +
+    '</div>';
+  });
+  return '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:10.5px;line-height:1.5;margin:8px 0 10px;">' + rows + '</div>';
+}
+
+function showUpdateConnectFailedDialog(title, lead, attempts, onRetry) {
+  const html = '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.7;">' + lead + '</div>' +
+    _updateAttemptsHtml(attempts) +
+    '<div style="font-size:10.5px;color:#94a3b8;line-height:1.7;">' +
+      '可以这样救：<br>' +
+      '1️⃣ 过一会儿点「🔄 再试一次」；<br>' +
+      '2️⃣ 开了加速器 / 梯子的先关掉或换个节点；<br>' +
+      '3️⃣ 还是不行就点「⚙️ 换源」，把更新源换成 jsDelivr 镜像地址。' +
+    '</div>';
+  showModalDialogCancelable(title, html,
+    function() { if (typeof onRetry === 'function') { try { onRetry(); } catch (e) {} } },
+    function() {},
+    { confirmText: '🔄 再试一次', cancelText: '关闭',
+      onOpen: function(mask) {
+        try {
+          const cancelBtn = mask.querySelector('#moon-modal-cancel');
+          const row = cancelBtn ? cancelBtn.parentNode : null;
+          if (!row) return;
+          const btn = mainDoc.createElement('button');
+          btn.textContent = '⚙️ 换源';
+          btn.style.cssText = 'flex:0 0 auto;padding:10px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;';
+          btn.addEventListener('click', function() {
+            try { mask.remove(); } catch (e) {}
+            setTimeout(function() { openUpdateConfigDialog(null); }, 150);
+          });
+          row.appendChild(btn);
+        } catch (e) {}
+      } });
 }
 
 function showUpdateAvailableDialog(remote) {
@@ -3196,11 +3730,12 @@ function showUpdateAvailableDialog(remote) {
     '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
       '发现新版本：<b style="color:#fde047;">v' + remote.version + '</b><br>' +
       '当前版本：<span style="color:#94a3b8;">v' + MOON_FORMULA_VERSION + '</span>' +
+      (remote.sourceLabel ? '<br><span style="font-size:10.5px;color:#64748b;">线路：' + _updEsc(remote.sourceLabel) + (remote.sourceKind === 'mirror' ? '（直连不通，已自动切换）' : '') + '</span>' : '') +
     '</div>' +
     (remote.info
       ? '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11px;color:#94a3b8;line-height:1.7;max-height:240px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">' + String(remote.info).replace(/</g, '&lt;') + '</div>'
       : '') +
-    '<div style="font-size:10.5px;color:#64748b;line-height:1.6;">点「✅ 确定更新」后，脚本会自动下载新版本并写入，然后刷新页面。<br>若自动写入失败，会降级为「复制到剪贴板 + 提示手动替换」。</div>';
+    '<div style="font-size:10.5px;color:#64748b;line-height:1.6;">点「✅ 确定更新」后，脚本会自动下载新版本并写入，然后刷新页面。<br>直连下载不通会自动换国内镜像；若连写入也失败，会降级为「复制到剪贴板 + 提示手动替换」。</div>';
   showModalDialogCancelable('🔄 发现新版本 v' + remote.version, html,
     function() { doAutoUpdate(remote); },
     function() { toast('已取消更新', 'info'); },
@@ -3240,17 +3775,40 @@ function showUpdateAnnouncementOnce() {
 async function doAutoUpdate(remote) {
   if (!remote || !remote.url) { toast('无更新源', 'warning'); return; }
 
-  showLoadingDialog('正在下载新版本...');
+  showLoadingDialog('正在下载新版本…');
   let code = '';
+  let got = null;
   try {
-    const res = await fetch(remote.url, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    code = await res.text();
+    got = await fetchUpdateSource({
+      primaryUrl: remote.url,
+      preferUrl: remote.resolvedUrl || _updLastGoodSource(),
+      onBeforeAttempt: function(item, tried) {
+        updateLoadingDialogText(tried ? '直连没接通，正在换「' + item.label + '」下载…' : '正在通过「' + item.label + '」下载新版本…');
+      },
+      accept: function(text) {
+        // 必须是脚本本体，且版本不低于公告版本，否则继续换线（镜像缓存旧文件时很有用）
+        let body = String(text);
+        try {
+          const j = JSON.parse(body);
+          if (j && typeof j.content === 'string') body = j.content;
+          else if (j && typeof j.script === 'string') body = j.script;
+          else if (j && typeof j.code === 'string') body = j.code;
+        } catch (e) {}
+        const m = body.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (!m) return false;
+        return compareVersions(m[1], remote.version) >= 0;
+      }
+    });
+    code = got.text;
   } catch (e) {
     closeLoadingDialog();
-    toast('下载失败：' + (e.message || e), 'warning');
+    showUpdateConnectFailedDialog('下载失败',
+      '<b style="color:#f87171;">新版本没下载下来。</b><br>下面这些线路都试过了，全部没接通：',
+      (e && e.attempts) || [],
+      function() { doAutoUpdate(remote); });
     return;
   }
+  closeLoadingDialog();
 
   // 若是 JSON 包装，尝试取出脚本正文
   try {
@@ -3262,18 +3820,23 @@ async function doAutoUpdate(remote) {
 
   code = String(code || '').trim();
   if (!code || code.length < 500) {
-    closeLoadingDialog();
-    toast('下载到的脚本内容异常（长度不足）', 'warning');
+    showModalDialog('下载内容异常',
+      '<div style="line-height:1.8;">从「' + _updEsc(got ? got.label : '更新源') + '」拿到的东西不是脚本本体（长度只有 ' + code.length + ' 字符）。<br>' +
+      '一般是更新源地址指错了文件，去「⚙️ 换源」里确认一下链接。</div>',
+      null, { confirmText: '关闭' });
     return;
   }
   const verMatch = code.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
   if (!verMatch || compareVersions(verMatch[1], remote.version) < 0) {
-    closeLoadingDialog();
-    toast('下载内容与声明版本不符，已中止更新', 'warning');
+    showModalDialog('下载内容对不上',
+      '<div style="line-height:1.8;">下载到的版本号是 <b>' + _updEsc(verMatch ? verMatch[1] : '未标注') + '</b>，' +
+      '但公告说是 <b>v' + _updEsc(remote.version) + '</b>。<br>' +
+      '多半是镜像缓存了旧文件，等几分钟再试一次就好。</div>',
+      null, { confirmText: '关闭' });
     return;
   }
 
-  showLoadingDialog('正在写入更新...');
+  showLoadingDialog('正在写入更新…');
   let okTH = false;
   try { okTH = await tryApplyUpdateViaTavernHelper(code); } catch (e) { _autoUpdateScriptWriteDiagnostic = '酒馆助手脚本写入接口报错：' + String(e && e.message || e); try { console.warn('[Moon] TavernHelper 脚本更新接口失败:', e); } catch (e2) {} }
   const okLS = okTH ? false : tryApplyUpdateToStorage(code);
@@ -3525,9 +4088,12 @@ function openUpdateConfigDialog(panel) {
       '脚本会从中解析 <code style="color:#7dd3fc;font-size:10.5px;">MOON_FORMULA_VERSION</code> 作为版本号。' +
     '</div>' +
     '<div style="margin-bottom:8px;">' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">更新源 URL（留空则使用内置默认地址）</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">更新源 URL（留空则用内置地址，一般不用改）</div>' +
       '<input id="moon-upd-url" type="text" value="' + String(cfg.url || DEFAULT_UPDATE_URL).replace(/"/g, '&quot;') + '" placeholder="https://raw.githubusercontent.com/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' +
     '</div>' +
+    '<label style="display:flex;align-items:flex-start;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;margin-bottom:6px;line-height:1.6;">' +
+      '<input type="checkbox" id="moon-upd-mirror" style="margin-top:2px;" ' + (cfg.mirrorFallback !== false ? 'checked' : '') + '> 直连下载不通时，自动换国内镜像（推荐开着）' +
+    '</label>' +
     '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;">' +
       '<input type="checkbox" id="moon-upd-auto" ' + (cfg.autoCheck ? 'checked' : '') + '> 启动时自动检查更新' +
     '</label>';
@@ -3536,7 +4102,9 @@ function openUpdateConfigDialog(panel) {
       const mask = mainDoc.getElementById('moon-modal-mask');
       const url = mask.querySelector('#moon-upd-url').value.trim();
       const auto = mask.querySelector('#moon-upd-auto').checked;
-      saveUpdateConfig({ url: url, autoCheck: auto });
+      const mirrorInput = mask.querySelector('#moon-upd-mirror');
+      const mirror = mirrorInput ? mirrorInput.checked : true;
+      saveUpdateConfig({ url: url, autoCheck: auto, mirrorFallback: mirror });
       try { mask.remove(); } catch (e) {}
       toast('已保存', 'success');
       if (url) checkForUpdates(true);
@@ -3555,8 +4123,8 @@ function openUpdateConfigDialog(panel) {
       (personaData.persona ? '<div style="white-space:pre-wrap;max-height:120px;overflow-y:auto;">' + personaData.persona.replace(/</g, '&lt;').substring(0, 500) + (personaData.persona.length > 500 ? '……' : '') + '</div>' : '<div style="color:#f87171;">（Persona 面板为空，请先在右侧填写）</div>') + '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">生成模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-ub-provider" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-ub-provider" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 就用酒馆现在这个 AI</span></label>' +
       '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">小传字数：<span id="moon-ub-bio-label" style="color:#7dd3fc;font-weight:700;">260</span> 字</div>' +
       '<input id="moon-ub-bio-slider" type="range" min="150" max="400" step="10" value="260" style="width:100%;margin-bottom:8px;">' +
@@ -4190,7 +4758,7 @@ function openUpdateConfigDialog(panel) {
       '.mp-menu-icon{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;background:#32112b;border:1px solid #a94d8b;color:#ff8cdb;font-size:16px;text-shadow:1px 1px #551344;}' +
       '.mp-menu-card>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;}' +
       '.mp-menu-card b{font-size:11px;color:#ffe0f4;letter-spacing:.3px;}' +
-      '.mp-menu-card small{font:9px "Courier New",monospace;color:#bc8eaf;line-height:1.35;}' +
+      '.mp-menu-card small{font:9px "Courier New",monospace;color:#bc8eaf;line-height:1.35;min-width:0;overflow-wrap:anywhere;}' +
       '.mp-menu-card i{font:20px "Courier New",monospace;color:#f472d0;font-style:normal;}' +
       '.mp-menu-controls{display:flex;justify-content:space-between;gap:5px;margin-top:13px;padding-top:9px;border-top:1px dashed #502747;color:#a8819e;font:8px "Courier New",monospace;letter-spacing:.3px;}' +
       '.mp-menu-controls kbd{padding:2px 4px;border:1px solid #9e4b84;background:#2a1126;color:#ffc4e9;font:700 8px "Courier New",monospace;box-shadow:1px 1px #35152f;}' +
@@ -4232,7 +4800,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-subpage-tab{padding:6px 2px;border:1px solid #643052;background:#140b16;color:#bc8eaf;font:700 10px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;text-align:center;box-shadow:1px 1px 0 #35152f;}' +
       '#moon-phase-panel .mp-subpage-tab.active{border-color:#f472d0;background:#32112b;color:#ffe1f5;}' +
       '#moon-phase-panel .mp-btn{flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 6px !important;min-height:48px;}' +
-      '#moon-phase-panel .mp-btn small{display:block;font-size:9px;color:#bc8eaf;font-weight:400;line-height:1.25;}' +
+      '#moon-phase-panel .mp-btn small{display:block;font-size:9px;color:#bc8eaf;font-weight:400;line-height:1.25;min-width:0;overflow-wrap:anywhere;}' +
       '#moon-phase-panel .mp-btn-highlight small,#moon-phase-panel .mp-btn-user small{color:#f5b8df;}' +
       '@media(min-width:700px){#moon-phase-panel .mp-lcd-screen{font-size:15px;}}';
 
@@ -4729,9 +5297,11 @@ function openUpdateConfigDialog(panel) {
     const chars = data.stat_data.角色 || {};
     const world = data.stat_data.世界 || {};
     const internalDays = Number(world._内部流逝天数) || 0;
+    const gameDay = (world._游戏日 === undefined) ? Math.floor(internalDays) : Math.floor(Number(world._游戏日) || 0);
+    const turnNo = Math.floor(Number(world._回合) || 0);
     const names = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
     if (names.length === 0) return '<div class="mp-lcd-empty">（暂无角色事件记录）</div>';
-    let html = '<div class="mp-lcd-event-meta">世界内部流逝：<b>' + internalDays.toFixed(1) + '</b> 天</div>';
+    let html = '<div class="mp-lcd-event-meta">游戏日 <b>' + gameDay + '</b> · 第 <b>' + turnNo + '</b> 回合 · <span style="opacity:.75">' + lcdEscape(String(world.时间 || '未记录').replace(/^(\d{4})年/, '$1·')) + '</span></div>';
     names.forEach(function(name) {
       const ch = chars[name] || {};
       const q = ch._quota || {};
@@ -4797,9 +5367,13 @@ function openUpdateConfigDialog(panel) {
 
   function renderLcdCharacterDetails(ch) {
     if (!ch) return '<div class="mp-lcd-empty">NO CHARACTER DATA<br>建立角色档案后显示角色状态</div>';
+    const imp = String(ch.重要度 || '主要');
+    const impColor = imp === '主要' ? '#f472d0' : (imp === '次要' ? '#7dd3fc' : '#94a3b8');
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
       '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
+      '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:700;">' + lcdEscape(imp) + '</span>' +
+      '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +
       '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + lcdEscape(ch.情绪 || '😐') + '</span></div>' +
       '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' + lcdEscape(ch.心声 || '暂无心声记录') + '</div></div></div>';
   }
@@ -5989,14 +6563,14 @@ function openUpdateConfigDialog(panel) {
     const hasApi = hasValidCustomAIConfig();
     const apiModel = hasApi ? getCustomAIConfig().model : '未设';
     const selections = [
-      '锚定 ' + (antisl ? 'ON' : 'OFF'), 'API ' + (hasApi ? '已连' : '主模'),
-      '卡组 ' + (cardMode === 'multi' ? '多人' : '单人'), '安全锁 ' + (getSafetyLock() ? 'ON' : 'OFF'),
-      '节奏 ' + (pacing === 'Adi' ? '柔板' : pacing === 'All' ? '快板' : '行板'), '同人 ' + (fanficOn ? 'ON' : 'OFF')
+      '锚定:' + (antisl ? '开' : '关'), 'AI:' + (hasApi ? '外接' : '主模'),
+      '卡组:' + (cardMode === 'multi' ? '多人' : '单人'), '安全锁:' + (getSafetyLock() ? '开' : '关'),
+      '节奏:' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中'), '同人:' + (fanficOn ? '开' : '关')
     ];
     const options = names.map(function(name) { return '<option value="' + lcdEscape(name) + '"' + (name === selected ? ' selected' : '') + '>' + lcdEscape(name) + '</option>'; }).join('');
     const activePage = Math.max(0, Math.min(3, parseInt(panel.dataset.lcdPage || '0', 10) || 0));
-    const pageNames = ['系统状态', '角色档案', '事件进度', '内存占用'];
-    const shortLabels = ['01 状态', '02 档案', '03 事件', '04 内存'];
+    const pageNames = ['总览', '角色', '事件', '占用'];
+    const shortLabels = ['01 总览', '02 角色', '03 事件', '04 占用'];
     function calcBar(val, maxVal) {
       const pct = Math.max(0, Math.min(100, Math.round(((Number(val) || 0) / (maxVal || 100)) * 100)));
       return '<div class="mp-rpg-stat-bar"><div class="mp-rpg-stat-fill" style="width:' + pct + '%;"></div></div>';
@@ -6018,7 +6592,7 @@ function openUpdateConfigDialog(panel) {
           '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[R] 阶段门</span>' + calcBar(rVal, 5) + '<span class="mp-rpg-stat-val">Lv.' + rVal + '</span></div>' +
           '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[I] 嫉妒值</span>' + calcBar(iVal, 100) + '<span class="mp-rpg-stat-val">' + iVal.toFixed(0) + '</span></div>' +
         '</div>'
-      : '<div class="mp-lcd-empty" style="padding:12px 6px;">尚未建立角色档案 · 请在下方「▶ 开始游戏 → 🚀 开局适配」中建档</div>';
+      : '<div class="mp-lcd-empty" style="padding:12px 6px;">还没有角色档案<br>点下面「▶ 开始游戏」→「🚀 开局适配」就能建</div>';
 
     return '<div class="mp-console-bezel"><span class="mp-power-led"><i></i>POWER</span><span>DOT MATRIX · MOON POCKET</span><span>API:' + lcdEscape(String(apiModel).slice(0, 12)) + '</span></div>' +
       '<div class="mp-lcd-screen"><div class="mp-lcd-screen-head"><span>MOON POCKET · STATUS</span><b>MONO LCD</b></div>' +
@@ -6028,25 +6602,25 @@ function openUpdateConfigDialog(panel) {
       }).join('') +
       '</div>' +
       '<div class="mp-lcd-pages" data-lcd-pages>' +
-      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="系统状态">' +
-      '<div class="mp-lcd-world-time">WORLD TIME　' + lcdEscape(world.时间 || '等待游戏时间') + '</div>' +
+      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="总览">' +
+      '<div class="mp-lcd-world-time">WORLD TIME　' + lcdEscape(world.时间 || '还没开始') + '</div>' +
       '<div class="mp-lcd-difficulty"><b>游戏难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
       '<div class="mp-lcd-selection" style="min-height:auto;"><b>当前设定</b><span>' + selections.map(lcdEscape).join('　') + '</span></div>' +
       quickCharSummary + '</section>' +
-      '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="角色档案">' +
+      '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="角色">' +
       '<div class="mp-lcd-character-head"><span>角色档案 / CHARACTER FILE</span>' +
       (names.length ? '<select class="mp-lcd-character-select" aria-label="选择角色档案">' + options + '</select>' : '') + '</div>' +
       '<div class="mp-lcd-character-view">' + renderLcdCharacterDetails(ch) + '</div></section>' +
-      '<section class="mp-lcd-page' + (activePage === 2 ? ' active' : '') + '" data-lcd-page="2" data-page-label="事件进度">' +
+      '<section class="mp-lcd-page' + (activePage === 2 ? ' active' : '') + '" data-lcd-page="2" data-page-label="事件">' +
       '<div class="mp-lcd-page-title">EVENT DIRECTOR · 事件进度</div><div id="moon-event-status" class="mp-lcd-event-list">' + renderEventStatusCard() + '</div></section>' +
-      '<section class="mp-lcd-page' + (activePage === 3 ? ' active' : '') + '" data-lcd-page="3" data-page-label="内存占用">' +
-      '<div class="mp-lcd-token-head"><span>MEMORY · 内存占用</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
-      '<div id="moon-token-box">点击刷新开始统计</div></section></div>' +
+      '<section class="mp-lcd-page' + (activePage === 3 ? ' active' : '') + '" data-lcd-page="3" data-page-label="占用">' +
+      '<div class="mp-lcd-token-head"><span>MEMORY · 字数占用</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
+      '<div id="moon-token-box">点右上「↻ 刷新」开始算</div></section></div>' +
       '<nav class="mp-lcd-page-nav" aria-label="显示屏翻页">' +
       '<button type="button" data-lcd-page-step="-1" aria-label="上一页">◀</button>' +
       '<div class="mp-lcd-page-indicator"><b data-lcd-page-label>' + pageNames[activePage] + '</b><span data-lcd-page-count>' + String(activePage + 1).padStart(2, '0') + ' / 04</span></div>' +
       '<button type="button" data-lcd-page-step="1" aria-label="下一页">▶</button></nav>' +
-      '<div class="mp-lcd-screen-foot">PIXEL DISPLAY · 点上方 [01~04] 或 ◀ / ▶ 翻页</div></div>';
+      '<div class="mp-lcd-screen-foot">点上方 [01~04] 或 ◀ ▶ 翻页</div></div>';
   }
 
   function setLcdPage(panel, page) {
@@ -6107,63 +6681,69 @@ function openUpdateConfigDialog(panel) {
   function openTutorialDialog(panel) {
     const steps = [
       {
-        title: 'PAGE 01 · 掌机核心原理（无需MVU）',
+        title: 'PAGE 01 · 这台掌机是干什么的',
         badge: 'MOON POCKET MANUAL',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
+        body: '<div style="line-height:1.85;font-size:11.5px;color:#ffe1f5;">' +
           '<div style="padding:8px 10px;background:#100a13;border:1px solid #f472d0;margin-bottom:8px;">' +
-            '<b style="color:#ff8cdb;">★ 重要提示：现在已经完全不需要安装或开启 MVU 了！</b><br>' +
-            '所有角色好感、阶段、事件进度全部保存在这台掌机内部。' +
+            '<b style="color:#ff8cdb;">★ 一句话：你不用做任何事，正常聊天就好。</b><br>' +
+            '她对你动了多少心、走近到哪一步、现在什么关系、有多吃醋 —— 这四件事掌机都会自己记下来。' +
           '</div>' +
-          '<div><b>▶ 自动算分与美化是怎么运作的？</b><br>' +
-            '正常推进剧情时，AI 会在回复末尾输出 <code>[Sylveina|M|+|3.5]</code>（即使 AI 写成了全角 <code>〔Sylveina|M|+|3.5〕</code> 也能识别）。<br>' +
-            '掌机捕获标签后会自动美化，并根据当前月相难度结算四维：<br>' +
-            '· <b style="color:#ffb8eb;">好感(E)</b>：情感亲疏，到达 18/38/58/78/98 时进入阶段破门判定<br>' +
-            '· <b style="color:#ffb8eb;">肉体(P)</b>：亲密接触度　· <b style="color:#ffb8eb;">阶段(R)</b>：关系定位(-5~5)　· <b style="color:#ffb8eb;">嫉妒(I)</b>：醋意值' +
+          '<div style="margin-bottom:8px;"><b>它怎么知道？靠一个「暗号」</b><br>' +
+            'AI 每轮说完话，末尾会偷偷打一个暗号，长这样：<code>[Sylveina|M|+|3.5]</code>。<br>' +
+            '掌机看见暗号，就摇一次骰子，把这一轮的变化算好记上。暗号玩家看不到，也不会打断剧情。' +
+          '</div>' +
+          '<div><b>屏幕上那四个字母是什么</b><br>' +
+            '· <b style="color:#ffb8eb;">好感 (E)</b>：她有多喜欢你。涨到一定数会触发「关系升级判定」。<br>' +
+            '· <b style="color:#ffb8eb;">亲密 (P)</b>：身体上走到哪一步了。<br>' +
+            '· <b style="color:#ffb8eb;">关系 (R)</b>：从 -5 到 5，负数越冷、正数越亲。<br>' +
+            '· <b style="color:#ffb8eb;">醋意 (I)</b>：她有多吃醋。' +
           '</div>' +
         '</div>'
       },
       {
-        title: 'PAGE 02 · 古早绿屏 LCD 显示屏怎么看',
+        title: 'PAGE 02 · 液晶屏上四个画面',
         badge: 'MONO LCD DISPLAY',
         body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<p style="margin:0 0 6px;">掌机顶部的复古绿屏液晶屏共有 <b>4 个画面</b>，你可以点屏幕顶部的 <b>[01状态] ~ [04内存]</b> 直接跳转，也可以点底部的 <b>◀ / ▶</b> 翻页：</p>' +
+          '<p style="margin:0 0 6px;">点屏幕上方的 <b>[01 总览] ~ [04 占用]</b> 直接跳，也可以点底部 <b>◀ / ▶</b> 翻页：</p>' +
           '<div style="display:flex;flex-direction:column;gap:5px;">' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[01 状态]</b>：看世界时间、当前月相难度、规则开关状态与当前攻略角色速览。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[02 档案]</b>：切换角色，查看好感/肉体/阶段/嫉妒四维、像素心情脸与内心独白（心声）。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[03 事件]</b>：查看世界内部流逝天数、主线倒计时与当前触发的事件剩余回合。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[04 内存]</b>：查看角色卡、本系统提示词与世界书的 Token 占用统计。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[01 总览]</b>：现在几点、什么难度、开关是开还是关、她现在的数值。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[02 角色]</b>：换人看 —— 四项数值、表情、她心里在想什么（内心话）。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[03 事件]</b>：过了几天、第几回合、下一件大事还有多久、眼前这个小事件还剩几回合。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[04 占用]</b>：这段对话占了多少字。数字太大手机会变卡。</div>' +
           '</div>' +
         '</div>'
       },
       {
-        title: 'PAGE 03 · 「▶ 开始游戏」与「♥ 角色与存档」',
+        title: 'PAGE 03 · 你只需要记住这两个按钮',
         badge: 'GAME MENU GUIDE 1',
         body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
           '<div style="padding:7px 9px;background:#100a13;border:1px solid #f472d0;margin-bottom:6px;">' +
-            '<b style="color:#ff8cdb;">▶ 开始游戏（开局、重摇骰子、转档）</b><br>' +
-            '· <b>🚀 开局适配</b>：新开卡或<b>已有几十楼记录的老存档</b>第一次用本掌机时必点！AI 会通读上下文推断初始四维并建档。<br>' +
-            '· <b>🎲 属性点重掷</b>：对本轮加减分或情绪骰结果不满意？点它重新摇骰计算并覆盖！<br>' +
-            '· <b>⏱️ 回合计时</b>：巡检 7 天好感周上限重置与冷战解冻。<br>' +
-            '· <b>📦 存档迁移</b>：把当前聊天的角色档案打包，切到新聊天窗口自动弹窗导入。' +
+            '<b style="color:#ff8cdb;">① 第一次玩：▶ 开始游戏 → 🚀 开局适配</b><br>' +
+            '点它，AI 会把聊天记录读一遍，自动帮你建好角色档案。<b>老存档（已经聊了几十楼）也能用。</b><br>' +
+            '<span style="color:#fde047;">建好之后就不用再点它了。</span>' +
+          '</div>' +
+          '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;margin-bottom:6px;">' +
+            '<b style="color:#ffb8eb;">② 觉得不对：♥ 角色与存档 → 👥 角色定位</b><br>' +
+            'AI 把别人当成主角了？在这里改成「主要」。<br>' +
+            '名字不对、时间卡住、内心话不更新 —— 同一页都能手改，改完点保存立刻生效。' +
           '</div>' +
           '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;">' +
-            '<b style="color:#ffb8eb;">♥ 角色与存档（试镜防OOC、画廊CG、结局）</b><br>' +
-            '· <b>🎬 角色试镜 / 📚 角色小抄库</b>：AI 提炼灵魂小抄并演一段试镜戏，可提导演意见重演，启用后强力防 OOC！<br>' +
-            '· <b>👤 玩家档案 / 📂 玩家资料库</b>：提炼你的 Persona 灵魂小传。<br>' +
-            '· <b>🏆 回忆画廊 / 🌌 周目结算</b>：查看重大事件与彩蛋成就并<b>显影连绘 CG</b>；达成结局时生成结算卡与三幕后日谈小说。' +
+            '<b style="color:#ffb8eb;">加分不满意：🎲 属性点重掷</b><br>' +
+            '这一轮算少了？点它重摇，可以一直摇到满意，再点「确认覆盖」。' +
           '</div>' +
         '</div>'
       },
       {
-        title: 'PAGE 04 · 「▤ 冒险日志」「⚙ 系统检修」「▧ 系统选项」',
+        title: 'PAGE 04 · 剩下三个菜单（都可以不点）',
         badge: 'GAME MENU GUIDE 2',
         body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
           '<div style="display:flex;flex-direction:column;gap:6px;">' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▤ 冒险日志</b>：<b>🔎 扫描时间线</b>（扫描世界书并转写）、<b>📝 生成时间线</b>（AI 编写主线时间线）、<b>✍️ 手动补录</b>、<b>🏷️ 时间线标签</b>。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">⚙ 系统检修</b>：<b>🔭 系统自检</b>、<b>🧪 模拟测试</b>、<b>🔍 冲突扫描</b>、<b>🤖 AI 功能检测</b>（排查问题或让 AI 推荐难度）。</div>' +
-            '<div style="padding:7px 9px;background:#241025;border:1px solid #f472d0;"><b style="color:#ff8cdb;">🔑 配置API（智能按需弹窗）</b>：<br>' +
-              '点掌机屏幕下方的 <b>[START · 配置API]</b> 或「▧ 系统选项 → ⚙️ 配置API」即可填写 URL/Key/模型。<br>' +
-              '<b>哪怕你忘了提前填，在使用开局适配、试镜、生成时间线等功能时，只要选了 API 模式，掌机都会自动弹出配置窗口，填好点保存就会无缝继续执行！</b>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▤ 冒险日志</b>：这个世界未来会发生什么。<b>不设置也能正常玩</b>，想让 AI 有主线目标才需要。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">⚙ 系统检修</b>：觉得卡了、数字乱跳才点。先点 <b>🔭 系统自检</b>，它会告诉你是哪里坏了。</div>' +
+            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▧ 系统选项</b>：填 AI 钥匙、换画风、看说明书。</div>' +
+            '<div style="padding:7px 9px;background:#241025;border:1px solid #f472d0;"><b style="color:#ff8cdb;">🔑 AI 钥匙（API）填不填？</b><br>' +
+              '不填也能玩，用的是你酒馆里那个 AI。<br>只有想让插件单独用一个 AI（比如更便宜的模型），才需要填。<br>' +
+              '<b>忘了提前填也没关系：用到时会自动弹窗让你填，填完继续，不用重来。</b>' +
             '</div>' +
           '</div>' +
         '</div>'
@@ -6241,6 +6821,7 @@ function openUpdateConfigDialog(panel) {
     panel.dataset.displayMode = displayMode;
     panel.classList.toggle('mp-display-arcade', isArcadeMode);
     const antisl = getAntiSL();
+    const anchorLocked = !!loadAnchor();
     const extraSetting = getExtraModelMode();
     const cardMode = getCardMode();
     const pacing = getEventPacing();
@@ -6252,6 +6833,17 @@ function openUpdateConfigDialog(panel) {
     const hasApi = hasValidCustomAIConfig();
     const apiCfg = getCustomAIConfig();
     const s = getSettings();
+    const _panelStat = (readMvuLatest() || {}).stat_data || {};
+    const _panelChars = _panelStat.角色 || {};
+    const hasRoster = Object.keys(_panelChars).some(function(n) { return !isCharSkeleton(_panelChars[n]); });
+    const firstRunTip = hasRoster ? '' :
+      '<div class="mp-card" style="border-color:rgba(244,114,208,0.45);background:rgba(244,114,208,0.07);">' +
+      '<div style="font-size:12px;font-weight:800;color:#ff8cdb;margin-bottom:6px;">🎮 第一次玩？照着做两步就好</div>' +
+      '<div style="font-size:11px;color:#e2e8f0;line-height:1.85;">' +
+      '<b>第 1 步</b>　点下面的按钮 → AI 把聊天记录读一遍，自动建好角色档案。<br>' +
+      '<b>第 2 步</b>　建好就关掉面板，正常聊天。她会自己涨好感。</div>' +
+      '<button class="mp-btn mp-btn-highlight" id="moon-quick-start" style="width:100%;margin-top:9px;">🚀 帮我建角色档案（一键直达）</button>' +
+      '</div>';
 
     panel.innerHTML = '' +
       '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
@@ -6304,43 +6896,43 @@ function openUpdateConfigDialog(panel) {
         const item = LUNAR_META[m]; const isAct = (m === selectedLevel);
         return '<button class="mp-mode-btn ' + (isAct ? 'active' : '') + '" data-mode="' + m + '" style="padding:8px 2px;border-radius:9px;border:1px solid ' + (isAct ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.15)') + ';background:' + (isAct ? '#0c2540' : '#0f172a') + ';color:' + (isAct ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' +
           '<div class="mp-mode-moon">' + item.glyph + '</div><div>' + item.name + ' · ' + item.title + '</div>' +
-          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? '街机档位' : '周上限 ' + item.quota) + '</div></button>';
+          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? '街机档位' : '每周最多 +' + item.quota) + '</div></button>';
       }).join('') + '</div>' +
       '<div class="mp-mode-description" style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
       (isArcadeMode
-        ? '<b style="color:#e2e8f0;">' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '（街机档位）</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。此处选择只影响街机，不会更改系统月相。切换后立即开始新一局。'
+        ? '<b style="color:#e2e8f0;">' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '（街机档位）</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。<br>这个只影响街机小游戏，不改剧情难度。点一下立刻重开一局。'
         : '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail) + '</div></div></details></div>' +
-      '<div class="mp-system-content">' +
+      firstRunTip + '<div class="mp-system-content">' +
       '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 运行设定 <span>▼</span></summary><div class="mp-toggle-row">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">冷战期或好感度为负时锚定</div></div>' +
-      '<button class="mp-antisl ' + (antisl ? 'on' : '') + '" id="moon-phase-antisl">' + (antisl ? '锚定: ON' : '锚定: OFF') + '</button></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">她翻脸/心凉就锁剧情，只能开新对话解</div></div>' +
+      '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '🔒 已锁定' : (antisl ? '锚定: ON' : '锚定: OFF')) + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔑 独立 API 接口</div><div class="mp-toggle-desc">' + (hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '未配置 · 触发内部AI功能时自动弹窗填写') + '</div></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔑 独立 API 接口</div><div class="mp-toggle-desc">' + (hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '没填也能玩，用到时会自动弹窗') + '</div></div>' +
       '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? 'API: 已配置' : '配置 API') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</div></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '这张卡有好几个能攻略的人' : '这张卡只有一个人') + '</div></div>' +
       '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔒 安全锁</div><div class="mp-toggle-desc">' + (getSafetyLock() ? '角色最多表现为心理敌意' : '允许升级至实质敌对') + '</div></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔒 安全锁</div><div class="mp-toggle-desc">' + (getSafetyLock() ? '开：她最多嘴上凶' : '关：可能真的动手') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎬 事件推进节奏</div><div class="mp-toggle-desc">' + (pacing === 'Adi' ? '柔板' : pacing === 'All' ? '快板' : '行板') + '</div></div>' +
-      '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? 'Adagio' : pacing === 'All' ? 'Allegro' : 'Andante') + '</button></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎬 事件推进节奏</div><div class="mp-toggle-desc">' + (pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏') + '</div></div>' +
+      '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? 'Adagio 慢' : pacing === 'All' ? 'Allegro 快' : 'Andante 中') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌐 同人台词补强</div><div class="mp-toggle-desc">' + (fanficOn ? '台词参考源语言原文' : '不参考原 IP 语料') + '</div></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌐 同人台词补强</div><div class="mp-toggle-desc">' + (fanficOn ? '借原作台词，说得更像本人' : '不借原作台词') + '</div></div>' +
       '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '🌐 ON' : 'OFF') + '</button></div>' +
       '</details><div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
       '<span style="width:7px;height:7px;border-radius:50%;background:' + (fateActive ? '#f43f5e' : '#34d399') + ';"></span>' +
       '<span>' + (fateActive ? '🌑 锚定生效中' : '🌓 月相流转中 · 命运未定') + '</span></div></div>' +
       (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:700;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
       (enabledUserBio ? '<div class="mp-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.06);"><div style="font-size:11px;color:#f9a8d4;font-weight:700;">👤 已启用玩家小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">玩家：' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + ' · 覆盖 Persona 面板</div></div>' : '') +
-      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '"><div class="mp-menu-label">MOON POCKET · 主菜单（点击进入对应卡槽）</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>🚀开局适配 · 🎲属性点重掷 · ⏱️回合计时 · 📦存档迁移</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>🎬角色试镜 · 📚小抄库 · 👤玩家档案 · 🏆回忆画廊 · 🌌周目结算</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>🔎扫描时间线 · 📝生成时间线 · 🏷️时间线标签 · ✍️手动补录</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>🔭系统自检 · 🧪模拟测试 · 🔍冲突扫描 · 🤖AI功能检测</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>🔑配置API · 🧩提示词设置 · 🖼️回忆与生图 · 🔄更新 · 📖说明书</small></span><i>›</i></button>' +
-      '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>♥ 黑粉掌机全功能保留</span></div></section>' +
+      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '"><div class="mp-menu-label">MOON POCKET · 主菜单（点哪进哪）</div><div class="mp-menu-grid">' +
+      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩点这里：建角色档案 · 重摇骰子 · 搬存档</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>认错主角就在这改 · 让 AI 演得像本人 · 结局相册</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>这个世界哪天会出事（不点也能玩）</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>卡住了、数不对劲 → 来这体检一次</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>填 AI 钥匙 · 换画风 · 看说明书</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>💡 不会玩？先点「开始游戏」</span></div></section>' +
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回主菜单</button><div><small>GAME MENU / 掌机功能卡槽</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="快捷切换掌机菜单">' +
@@ -6351,22 +6943,22 @@ function openUpdateConfigDialog(panel) {
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">▧ 选项</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险准备 / ADVENTURE SETUP</div>' +
-      '<details class="mp-action-fold" open><summary><span>新周目与存档转移</span><small>新卡/老卡建档 · 跨窗口迁移</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 开局适配</span><small>AI推断初始四维/老卡回填</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 存档迁移</span><small>打包档案到新聊天窗口</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>回合与成长</span><small>回合计时 · 属性点数重摇</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 属性点重掷</span><small>对本轮变动重新摇骰算分</small></button><button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 回合计时</span><small>检查周上限重置与冷战解冻</small></button></div></details></div>' +
+      '<details class="mp-action-fold" open><summary><span>建角色与搬存档</span><small>第一次建档 · 换聊天接着玩</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 开局适配</span><small>第一次玩必点：AI 读完聊天记录，自动建好角色档案</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 存档迁移</span><small>换到新聊天还想接着玩：把档案打包带走</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>摇骰与倒计时</span><small>加分不满意就重摇 · 查周上限</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 属性点重掷</span><small>这轮加分不满意？重摇，可以摇到满意为止</small></button><button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 回合计时</span><small>每周好感上限该清零了吗？点一下检查</small></button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色档案 / CHARACTER FILES</div>' +
-      '<details class="mp-action-fold" open><summary><span>角色档案与试演</span><small>角色试镜 · 角色小抄防OOC</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 角色试镜</span><small>提炼灵魂小抄并排演对戏</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 角色小抄库</span><small>查看/编辑/启用角色小抄</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>玩家档案</span><small>玩家档案 · 小抄收藏</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 玩家档案</span><small>从Persona提炼玩家小传</small></button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 玩家资料库</span><small>管理并启用玩家专属小抄</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>回忆与周目</span><small>成就连绘画廊 · 结局记录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>查看解锁成就与显影CG</small></button><button class="mp-btn" id="moon-phase-ending"><span>🌌 周目结算</span><small>生成结局卡与后日谈小说</small></button></div></details></div>' +
+      '<details class="mp-action-fold" open><summary><span>角色档案与试戏</span><small>改主角 · 试戏 · 防说话走样</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 角色定位</span><small>AI 认错人？在这里把她改成「主要」</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 角色试镜</span><small>让 AI 先演一段，看像不像本人</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 角色小抄库</span><small>管理所有人设小抄，可改可开关</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>玩家档案</span><small>让 AI 记住「你」是谁</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 玩家档案</span><small>把酒馆里的「你」写成一份小传</small></button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 玩家资料库</span><small>挑一份小传让它生效</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>相册与通关</span><small>看解锁的插画 · 结算这一局</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的成就和插画，可下载保存</small></button><button class="mp-btn" id="moon-phase-ending"><span>🌌 周目结算</span><small>这一局结束：生成结局卡和番外小说</small></button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
-      '<details class="mp-action-fold" open><summary><span>时间线侦察</span><small>扫描世界条目 · 生成时间线</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-scan-timeline"><span>🔎 扫描时间线</span><small>检索并转写世界书时间线</small></button><button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>AI根据大纲编写主线时间</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>时间线整理</span><small>标签管理 · 手动补录</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 时间线标签</span><small>设置优先匹配的时间标签</small></button><button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动补录</span><small>粘贴任意时间线转标准格式</small></button></div></details></div>' +
+      '<details class="mp-action-fold" open><summary><span>找日期</span><small>从世界书里找，或让 AI 编一份</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-scan-timeline"><span>🔎 扫描时间线</span><small>翻世界书，把写着的日期列成表</small></button><button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>让 AI 照着大纲编一份未来大事表</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>改日期</span><small>指定读哪一栏 · 自己粘贴</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 时间线标签</span><small>告诉它「日期写在哪一栏」</small></button><button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动补录</span><small>自己贴一段，自动转成标准格式</small></button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修 / SYSTEM SERVICE</div>' +
-      '<details class="mp-action-fold" open><summary><span>系统自检</span><small>状态检查 · 模拟测试</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>检查本地存储与模块状态</small></button><button class="mp-btn" id="moon-phase-simtest"><span>🧪 模拟测试</span><small>用假数据测试四维与阶段门</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>兼容性扫描</span><small>脚本冲突 · AI 功能检测</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>排查世界书条目重复冲突</small></button><button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 AI 功能检测</span><small>AI审计冲突或推荐月相难度</small></button></div></details></div>' +
+      '<details class="mp-action-fold" open><summary><span>体检</span><small>存上了吗 · 有没有缺零件</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>看数据存在哪、有没有缺零件</small></button><button class="mp-btn" id="moon-phase-simtest"><span>🧪 模拟测试</span><small>拿假数据试算一遍，不动你的存档</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>查冲突</span><small>别的插件跟我打架了吗</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书有没有重复、互相打架的条目</small></button><button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 AI 功能检测</span><small>让 AI 帮你查冲突，或推荐一个难度</small></button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项 / OPTIONS</div>' +
-      '<details class="mp-action-fold" open><summary><span>AI 演算与接口设定</span><small>提示词编辑 · 独立API配置</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ 配置API</span><small>' + (hasApi ? '已设:' + lcdEscape(String(apiCfg.model).slice(0, 10)) : '未设·用时自动弹窗填写') + '</small></button><button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 提示词设置</span><small>自定义建档/回填提示词</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>回忆与影像</span><small>生图渠道 · 后日谈篇幅</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>设置CG显影渠道与后日谈字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>新手引导与按钮功能详解</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>更新与指南</span><small>系统升级 · 查阅帮助</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>在线拉取最新脚本版本</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>常见问题搜索与排障指南</small></button></div></details></div></section>' +
+      '<details class="mp-action-fold" open><summary><span>AI 与接口</span><small>可选：让插件用自己的 AI</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ 配置API</span><small>' + (hasApi ? '已设:' + lcdEscape(String(apiCfg.model).slice(0, 10)) : '没填也能玩，用到时会自动弹窗') + '</small></button><button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 提示词设置</span><small>想改 AI 收到的指令，在这里改</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>插画与番外</span><small>用哪家出图 · 番外写多长</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>选画图的渠道，定番外的字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>不会用就看这个，一页讲一件事</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>更新与帮助</span><small>拉最新版 · 常见问题</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>连不通会自动换镜像</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>一个问题一句话，先搜这里</small></button></div></details></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
 
     panel._lcdStateTimer = setInterval(function() {
@@ -6374,7 +6966,7 @@ function openUpdateConfigDialog(panel) {
       const latest = readMvuLatest();
       const latestStat = latest && latest.stat_data || {};
       const timeEl = panel.querySelector('.mp-lcd-world-time');
-      if (timeEl) timeEl.textContent = 'WORLD TIME　' + String((latestStat.世界 && latestStat.世界.时间) || '等待游戏时间');
+      if (timeEl) timeEl.textContent = '世界时间　' + String((latestStat.世界 && latestStat.世界.时间) || '等待游戏时间');
       const selectedName = panel.dataset.lcdCharacter || '';
       const latestCharacter = latestStat.角色 && latestStat.角色[selectedName];
       const characterView = panel.querySelector('.mp-lcd-character-view');
@@ -6387,6 +6979,8 @@ function openUpdateConfigDialog(panel) {
     panel.querySelector('#moon-phase-tutorial').addEventListener('click', function() { openTutorialDialog(panel); });
     const tutBtn2 = panel.querySelector('#moon-phase-tutorial-btn');
     if (tutBtn2) tutBtn2.addEventListener('click', function() { openTutorialDialog(panel); });
+    const quickStartBtn = panel.querySelector('#moon-quick-start');
+    if (quickStartBtn) quickStartBtn.addEventListener('click', function() { openUnifiedAdaptDialog(panel); });
     const headerApiBtn = panel.querySelector('#moon-header-api-btn');
     if (headerApiBtn) headerApiBtn.addEventListener('click', function() { openCustomAIConfigDialog(panel); });
 
@@ -6479,7 +7073,10 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
         if (view) view.innerHTML = renderLcdCharacterDetails(character);
       });
     }
-    panel.querySelector('#moon-phase-antisl').addEventListener('click', function() { const s2 = getSettings(); s2.antisl = !(s2.antisl === true); saveSettings(s2); refreshPanel(); });
+    panel.querySelector('#moon-phase-antisl').addEventListener('click', function() {
+      if (loadAnchor()) { toast('世界线已锚定 · 只能通过开启新对话解除', 'warning'); return; }
+      const s2 = getSettings(); s2.antisl = !(s2.antisl === true); saveSettings(s2); refreshPanel();
+    });
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
@@ -6492,6 +7089,8 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-reroll').addEventListener('click', function() { openRerollDialog(panel); });
     panel.querySelector('#moon-phase-pack-migrate').addEventListener('click', function() { startMigrationPack(panel); });
     panel.querySelector('#moon-phase-bio').addEventListener('click', function() { openAuditionMainDialog(panel); });
+    const rosterBtn = panel.querySelector('#moon-phase-roster');
+    if (rosterBtn) rosterBtn.addEventListener('click', function() { openCharacterRosterDialog(panel); });
     panel.querySelector('#moon-phase-bio-lib').addEventListener('click', function() { openBioLibraryDialog(panel); });
     panel.querySelector('#moon-phase-user-bio').addEventListener('click', function() { openUserAuditionMainDialog(panel); });
     panel.querySelector('#moon-phase-user-bio-lib').addEventListener('click', function() { openUserBioLibraryDialog(panel); });
@@ -6513,12 +7112,13 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
   /* ───────────────────────────────────────────────────────── */
   async function runSelfCheck() {
     const lines = [];
+    let _nFail = 0, _nWarn = 0;
     const ok = function(s) { lines.push('<span style="color:#6ee7b7">✔</span> ' + s); };
-    const warn = function(s) { lines.push('<span style="color:#fbbf24">⚠</span> ' + s); };
+    const warn = function(s) { _nWarn++; lines.push('<span style="color:#fbbf24">⚠</span> ' + s); };
     const info = function(s) { lines.push('<span style="color:#93c5fd">ℹ</span> ' + s); };
-    const fail = function(s) { lines.push('<span style="color:#f87171">✖</span> ' + s); };
-    lines.push('<div class="mp-log-subhead">── 系统版本 ──</div>');
-    info('脚本版本：' + MOON_FORMULA_VERSION + ' · LocalState Refactor');
+    const fail = function(s) { _nFail++; lines.push('<span style="color:#f87171">✖</span> ' + s); };
+    lines.push('<div class="mp-log-subhead">── 现在用的版本 ──</div>');
+    info('版本：' + MOON_FORMULA_VERSION);
     info('UI 名称：' + SYSTEM_UI_NAME);
     info('特殊标签：Sylveina');
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
@@ -6526,33 +7126,33 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     info('推进节奏：' + pacingName);
     info('同人台词补强：' + (getFanficEnhance() ? 'ON' : 'OFF'));
     info('安全锁：' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF'));
-    info('防SL锚定：' + (getAntiSL() ? '🔒 ON' : '⚠️ OFF'));
+    info('锚定：' + (getAntiSL() ? '🔒 ON' : '⚠️ OFF'));
     info('当前难度：' + (LUNAR_META[getCurrentMode()]?.name || getCurrentMode()));
 
-lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
+lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     const stateKey = getChatStateKey();
     const localRaw = (getStorage() || localStorage).getItem(stateKey);
     if (localRaw) {
       try {
         const parsed = JSON.parse(localRaw);
         const charCount = Object.keys(parsed.stat_data && parsed.stat_data.角色 || {}).filter(function(k) { return !isCharSkeleton(parsed.stat_data.角色[k]); }).length;
-        ok('LocalStorage 读写正常 · 已归档角色数: ' + charCount);
+        ok('档案已经存好了 · 角色数: ' + charCount);
         const worldTime = parsed.stat_data && parsed.stat_data.世界 && parsed.stat_data.世界.时间;
         if (worldTime) info('世界时间：' + worldTime);
-      } catch (e) { fail('LocalStorage 数据损坏: ' + e.message); }
-    } else { warn('LocalStorage 暂无数据，等待第一次建档写入'); }
+      } catch (e) { fail('档案读不出来了：' + e.message); }
+    } else { warn('还没有档案 —— 第一次玩的话这是正常的'); }
     try {
       const ctx = getSTCtx();
-      if (ctx && ctx.chatMetadata && ctx.chatMetadata[stateKey]) ok('ChatMetadata 备份正常（防清缓存/防换设备丢失）');
-      else warn('ChatMetadata 暂无备份，建议在数据写入时同步补全');
-    } catch (e) { fail('ChatMetadata 读取失败'); }
-     lines.push('<div class="mp-log-subhead">── 核心引擎 ──</div>');
-    info('Sylveina 标签格式：[Sylveina|L/M/H|+/-|基础值]');
+      if (ctx && ctx.chatMetadata && ctx.chatMetadata[stateKey]) ok('另外还存了一份备份（清缓存、换设备都不怕）');
+      else warn('目前只有一份，聊几句再看一次更稳');
+    } catch (e) { fail('备份读取失败'); }
+    lines.push('<div class="mp-log-subhead">── 算分规则 ──</div>');
+    info('暗号格式：' + (getCardMode() === 'multi' ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]'));
     info('基础值区间：L=0.5~2.0 · M=3.0~5.0 · H=6.0~10.0');
     info('单次上限：' + MOON_FORMULA_PARAMS.singleCap + ' 点');
     info('周上限：简单 ' + MOON_FORMULA_PARAMS.weeklyCap.easy + ' / 普通 ' + MOON_FORMULA_PARAMS.weeklyCap.normal + ' / 困难 ' + MOON_FORMULA_PARAMS.weeklyCap.hard + ' / 地狱 ' + MOON_FORMULA_PARAMS.weeklyCap.hell);
 
-    lines.push('<div class="mp-log-subhead">── 小抄库 ──</div>');
+    lines.push('<div class="mp-log-subhead">── 人设小抄 ──</div>');
     try {
       const bioLib = getBioLibrary();
       const bioList = Object.values(bioLib.bios || {});
@@ -6572,14 +7172,21 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
       info('当前卡：' + curCard + ' · 启用小抄 ' + bioStatus.count + ' 份');
       if (bioStatus.count > 0) info('覆盖角色：' + bioStatus.charNames.join('、'));
     }
-    lines.push('<div class="mp-log-subhead">── 回忆档案 ──</div>');
+    lines.push('<div class="mp-log-subhead">── 相册与结局 ──</div>');
     try {
       const gallery = getGalleryList(), endings = getEndingArchive(), imageConfig = getImageGenConfig();
       info('当前聊天回忆：' + gallery.length + ' 项 · 已结算周目：' + endings.records.length + ' 次');
       info('图片渠道：' + String(imageConfig.imageProvider || 'pollinations').toUpperCase() + ' · 显影需手动点击');
       info('后日谈目标：' + (Number(getSettings().epilogueTargetWords) || 8000) + ' 字');
     } catch (e) { warn('回忆档案尚未初始化'); }
-    return lines.join('<br>');
+    const verdict = _nFail ? ('✖ 有 ' + _nFail + ' 项不正常 —— 请把下面整段截图发帖')
+      : (_nWarn ? ('⚠ 能用，但有 ' + _nWarn + ' 项要注意') : '✔ 一切正常，可以放心玩');
+    const verdictHtml = '<div style="padding:9px 11px;border-radius:9px;margin-bottom:10px;font-size:12px;font-weight:800;line-height:1.6;background:' +
+      (_nFail ? 'rgba(248,113,113,0.14);border:1px solid rgba(248,113,113,0.45);color:#fca5a5;' :
+       _nWarn ? 'rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.4);color:#fde68a;' :
+                'rgba(110,231,183,0.12);border:1px solid rgba(110,231,183,0.4);color:#6ee7b7;') + '">' + verdict +
+      '<div style="font-size:10.5px;font-weight:400;opacity:.85;margin-top:3px;">下面这些是给排查用的细节，看不懂没关系。</div></div>';
+    return verdictHtml + lines.join('<br>');
   }
 
   async function runSelfCheckWithArcade() {
@@ -6595,6 +7202,7 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
 
   async function runSimulationTest() {
     const lines = [];
+    let _nFail = 0, _nWarn = 0;
     lines.push('<b style="color:#6ee7b7">🧪 ' + SYSTEM_UI_NAME + ' · 综合测试</b><br>');
     lines.push('<span style="color:#94a3b8;font-size:10px;">测试使用假数据 (Amore: E5/P2/R1/I0)，不污染真实变量</span><br>');
 
@@ -6677,6 +7285,47 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
       else lines.push('✖ saveLocalState 缺失');
     } catch (e) { lines.push('✖ 函数存在性检查异常：' + (e.message || e)); }
 
+    lines.push('<div class="mp-log-subhead">【测试9】后台变量块摄入（世界时间 / 心声 / 情绪）</div>');
+    try {
+      const mockStat = {
+        世界: { 时间: '2000年01月01日 · 星期六 · 00:00', 地点: '教室', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' },
+        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '😐', 心声: '……', 在场: true, 重要度: '主要' } }
+      };
+      const mockMes = '她笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=😄\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
+      const res = ingestBackendVariables(mockMes, mockStat);
+      const okTime = String(mockStat.世界.时间).indexOf('01月02日') >= 0;
+      const okVoice = String(mockStat.角色['长谷川茗'].心声).indexOf('开心') >= 0;
+      const okEmoji = String(mockStat.角色['长谷川茗'].情绪) === '😄';
+      const okStrip = String(res.text).indexOf('角色.长谷川茗.心声') < 0 && String(res.text).indexOf('世界.时间') < 0;
+      if (okTime && okVoice && okEmoji && okStrip) lines.push('✔ 时间 / 心声 / 情绪 均被写入，且已从正文清理');
+      else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 清理' + okStrip);
+    } catch (e) { lines.push('✖ 后台变量摄入异常：' + (e.message || e)); }
+
+    lines.push('<div class="mp-log-subhead">【测试10】多人卡标签隔离</div>');
+    try {
+      const mockChars = {
+        '甲': { 好感度: 5, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 在场: true, 重要度: '主要' },
+        '乙': { 好感度: 5, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 在场: true, 重要度: '次要' }
+      };
+      const named = extractAllSylveinaTags('[Sylveina|乙|M|+|3.5]');
+      const plain = extractAllSylveinaTags('[Sylveina|L|+|1.0]');
+      const primary = pickPrimaryTarget(mockChars, Object.keys(mockChars));
+      const hitB = matchTagForCharacter(named, '乙', 2, primary);
+      const missA = matchTagForCharacter(named, '甲', 2, primary);
+      const plainOnlyPrimary = matchTagForCharacter(plain, '甲', 2, primary) && !matchTagForCharacter(plain, '乙', 2, primary);
+      if (hitB && !missA && plainOnlyPrimary) lines.push('✔ 具名标签只结算本人，无名标签只结算主目标（' + primary + '）');
+      else lines.push('✖ 标签归属异常：具名=' + !!hitB + ' 越界=' + !!missA + ' 无名隔离=' + !!plainOnlyPrimary);
+    } catch (e) { lines.push('✖ 标签隔离测试异常：' + (e.message || e)); }
+
+    lines.push('<div class="mp-log-subhead">【测试11】相对时间兜底（次日 / 三天后）</div>');
+    try {
+      const d1 = detectRelativeElapsedDays('次日清晨，她推开了门。');
+      const d2 = detectRelativeElapsedDays('三天后，演出如期而至。');
+      const d3 = detectRelativeElapsedDays('她轻轻点头，什么也没说。');
+      if (d1 === 1 && d2 === 3 && d3 === 0) lines.push('✔ 相对时间换算正确（1 / 3 / 0 天）');
+      else lines.push('✖ 相对时间换算异常：' + d1 + ' / ' + d2 + ' / ' + d3);
+    } catch (e) { lines.push('✖ 相对时间测试异常：' + (e.message || e)); }
+
     lines.push('<br><b style="color:#6ee7b7">✨ 综合测试完毕，本地化引擎运转正常。</b>');
     return lines.join('<br>');
   }
@@ -6684,7 +7333,7 @@ lines.push('<div class="mp-log-subhead">── 本地存储层 ──</div>');
   async function runConflictScan() {
     const lines = [];
     const ok = function(s) { lines.push('<span style="color:#6ee7b7">✔</span> ' + s); };
-    const warn = function(s) { lines.push('<span style="color:#fbbf24">⚠</span> ' + s); };
+    const warn = function(s) { _nWarn++; lines.push('<span style="color:#fbbf24">⚠</span> ' + s); };
     const info = function(s) { lines.push('<span style="color:#93c5fd">ℹ</span> ' + s); };
     const bad = function(s) { lines.push('<span style="color:#f87171">✖</span> ' + s); };
     let hasConflict = false;
@@ -6706,8 +7355,8 @@ const stateKey = getChatStateKey();
     if (!dup) ok('没有 [Mode-] 条目重复');
 
     lines.push('<div class="mp-log-subhead">── 标签格式检查 ──</div>');
-    info('当前标签格式：[Sylveina|L/M/H|+/-|基础值]');
-    info('AI 只输出标签，脚本全权计算，MVU 已完全剥离');
+    info('当前标签格式：' + (getCardMode() === 'multi' ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]'));
+    info('数值全由掌机自己算；AI 只负责报时间和她心里的想法，这些玩家看不到');
 
     lines.push('<div class="mp-log-subhead">📋 总结</div>');
     if (fatalCount > 0) bad('发现 ' + fatalCount + ' 项致命冲突');
@@ -6781,59 +7430,202 @@ const stateKey = getChatStateKey();
   async function refreshTokenCard(panel) {
     const box = panel.querySelector('#moon-token-box');
     if (!box) return;
-    box.innerHTML = '<span style="color:#94a3b8;">⏳ 计算中...</span>';
+    box.innerHTML = '<span style="color:#94a3b8;">⏳ 正在算…</span>';
     try {
       const r = await computeTokenBreakdown();
       const lines = [];
       lines.push('<div style="font-size:10.5px;line-height:1.9;">');
-      if (r.charCard > 0) lines.push('<div style="color:#94a3b8;">角色卡' + (r.charCardName ? '（' + String(r.charCardName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#a5f3fc;">' + _fmtK(r.charCard) + '</span></div>');
-      lines.push('<div style="color:#94a3b8;">本系统注入: <span style="color:#6ee7b7;">' + _fmtK(r.sysTotal) + '</span></div>');
+      if (r.charCard > 0) lines.push('<div style="color:#94a3b8;">她的角色卡' + (r.charCardName ? '（' + String(r.charCardName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#a5f3fc;">' + _fmtK(r.charCard) + '</span></div>');
+      lines.push('<div style="color:#94a3b8;">掌机自己占的: <span style="color:#6ee7b7;">' + _fmtK(r.sysTotal) + '</span></div>');
       r.sys.forEach(function(item) { lines.push('<div style="color:#64748b;padding-left:12px;">· ' + item.key + ': <span style="color:#94a3b8;">' + _fmtK(item.tokens) + '</span></div>'); });
-      lines.push('<div style="color:#94a3b8;">月相世界书条目: <span style="color:#c084fc;">' + _fmtK(r.moonEntries) + '</span></div>');
-      lines.push('<div style="color:#94a3b8;">时间线条目: <span style="color:#f9a8d4;">' + _fmtK(r.timeline) + '</span></div>');
-      lines.push('<div style="color:#94a3b8;">玩家预设 / 全局提示' + (r.presetName ? '（' + String(r.presetName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#fbbf24;">' + _fmtK(r.preset) + '</span></div>');
-      lines.push('<div style="color:#94a3b8;">其他世界书: <span style="color:#fda4af;">' + _fmtK(r.worldbook) + '</span></div>');
+      lines.push('<div style="color:#94a3b8;">世界设定条目: <span style="color:#c084fc;">' + _fmtK(r.moonEntries) + '</span></div>');
+      lines.push('<div style="color:#94a3b8;">时间表: <span style="color:#f9a8d4;">' + _fmtK(r.timeline) + '</span></div>');
+      lines.push('<div style="color:#94a3b8;">你的全局设置' + (r.presetName ? '（' + String(r.presetName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#fbbf24;">' + _fmtK(r.preset) + '</span></div>');
+      lines.push('<div style="color:#94a3b8;">其他设定: <span style="color:#fda4af;">' + _fmtK(r.worldbook) + '</span></div>');
       lines.push('<div style="border-top:1px dashed rgba(148,163,184,0.25);margin:6px 0;"></div>');
-      lines.push('<div style="color:#fde047;font-weight:700;">合计: <span style="color:#fde047;">' + _fmtK(r.grand) + '</span></div>');
+      lines.push('<div style="color:#fde047;font-weight:700;">加起来: <span style="color:#fde047;">' + _fmtK(r.grand) + '</span></div>');
       lines.push('</div>');
       box.innerHTML = lines.join('');
-    } catch (e) { box.innerHTML = '<span style="color:#f87171">✖ 计算失败：' + String(e && e.message || e).replace(/</g, '&lt;') + '</span>'; }
+    } catch (e) { box.innerHTML = '<span style="color:#f87171">✖ 算不出来：' + String(e && e.message || e).replace(/</g, '&lt;') + '</span>'; }
+  }
+
+  // 手动改角色定位（主要 / 次要 / NPC），并支持修正世界时间与内心话
+  async function setCharImportance(name, importance, opts) {
+    opts = opts || {};
+    const data = readMvuLatest();
+    const chars = data && data.stat_data && data.stat_data.角色;
+    if (!chars || !chars[name]) return false;
+    const v = String(importance || '').trim();
+    if (['主要', '次要', 'NPC'].indexOf(v) < 0) return false;
+    chars[name].重要度 = v;
+    if (opts.presence !== undefined) chars[name].在场 = opts.presence === true;
+    if (opts.voice !== undefined && String(opts.voice).trim()) chars[name].心声 = String(opts.voice).trim().slice(0, 300);
+    const ok = await writeMvuLatest(data.stat_data);
+    if (ok) { try { injectEventPrompt(); } catch (e) {} try { refreshPanel(); } catch (e) {} }
+    return ok;
+  }
+
+  function openCharacterRosterDialog(panel) {
+    const data = readMvuLatest();
+    const chars = (data && data.stat_data && data.stat_data.角色) || {};
+    const names = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
+    if (!names.length) { showModalDialog('👥 角色定位', '<div style="line-height:1.8;">这个对话还没有角色档案。<br>先去 <b>▶ 开始游戏 → 🚀 开局适配</b> 点一下，建好再回来。</div>', null, { confirmText: '关闭' }); return; }
+    const world = (data.stat_data && data.stat_data.世界) || {};
+    const impOptions = function(cur) {
+      return ['主要', '次要', 'NPC'].map(function(v) {
+        return '<option value="' + v + '"' + (String(cur) === v ? ' selected' : '') + '>' + v + '</option>';
+      }).join('');
+    };
+    const rows = names.map(function(n, i) {
+      const ch = chars[n];
+      const imp = String(ch.重要度 || '主要');
+      const present = ch.在场 !== false;
+      return '<div class="moon-roster-row" data-name="' + escapeFeatureHtml(n) + '" data-idx="' + i + '" style="padding:10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:8px;">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
+        '<b style="font-size:12px;color:#f8fafc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeFeatureHtml(n) + '</b>' +
+        '<span style="font-size:10px;color:#94a3b8;white-space:nowrap;">E' + (Number(ch.好感度) || 0) + ' P' + (Number(ch.肉体值) || 0) + ' R' + (Number(ch.阶段值) || 0) + ' I' + (Number(ch.嫉妒值) || 0) + '</span></div>' +
+        '<div style="display:flex;gap:6px;align-items:center;">' +
+        '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
+        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button></div>' +
+        '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="她心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#0a0c16;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
+        '</div>';
+    }).join('');
+    const html = '<div style="padding:9px 11px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.3);border-radius:9px;font-size:10.8px;line-height:1.7;color:#bae6fd;margin-bottom:10px;">' +
+      '<b>「主要」= 你真正想攻略的人</b>（AI 会把感情戏都写给她）<br>「次要」= 会出现、能聊几句的配角　「NPC」= 只露个脸的路人<br>改完点下面的「保存」就生效，<b>不用重开存档</b>。<br>时间卡住、内心话不动，这一页也能顺手改掉。' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
+      '<div style="flex:1.6;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">世界时间</div><input id="moon-roster-world-time" value="' + escapeFeatureHtml(world.时间 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
+      '<div style="flex:1;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-roster-world-place" value="' + escapeFeatureHtml(world.地点 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"></div></div>' +
+      '<div style="max-height:46dvh;overflow-y:auto;padding-right:3px;">' + rows + '</div>';
+    showModalDialog('👥 角色定位 · 顺便修时间和内心话', html, function() {
+      const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
+      const d = readMvuLatest();
+      const stat = d && d.stat_data; if (!stat) return;
+      if (!stat.角色) stat.角色 = {};
+      const timeInput = mask.querySelector('#moon-roster-world-time');
+      const placeInput = mask.querySelector('#moon-roster-world-place');
+      if (!stat.世界) stat.世界 = { 时间: '', _内部流逝天数: 0, _上次推进时间: '' };
+      if (timeInput) {
+        const raw = String(timeInput.value || '').trim();
+        const parsed = parseGameTime(raw);
+        if (parsed) stat.世界.时间 = formatGameTime(parsed);
+      }
+      if (placeInput) stat.世界.地点 = String(placeInput.value || '').trim().slice(0, 60);
+      mask.querySelectorAll('.moon-roster-row').forEach(function(row) {
+        const name = row.getAttribute('data-name');
+        const ch = stat.角色[name]; if (!ch) return;
+        const sel = row.querySelector('.moon-roster-imp');
+        if (sel) { const v = String(sel.value || ''); if (['主要', '次要', 'NPC'].indexOf(v) >= 0) ch.重要度 = v; }
+        const pBtn = row.querySelector('.moon-roster-presence');
+        if (pBtn) ch.在场 = pBtn.getAttribute('data-on') === '1';
+        const vInput = row.querySelector('.moon-roster-voice');
+        if (vInput) { const v = String(vInput.value || '').trim(); if (v) ch.心声 = v.slice(0, 300); }
+      });
+      writeMvuLatest(stat).then(function(ok) {
+        if (ok) {
+          toast('改好了，下一轮就生效', 'success');
+          try { injectEventPrompt(); } catch (e) {}
+          try { refreshPanel(); } catch (e) {}
+        } else toast('写入失败', 'warning');
+      });
+    }, { confirmText: '保存', onOpen: function(mask) {
+      mask.querySelectorAll('.moon-roster-presence').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const on = btn.getAttribute('data-on') === '1';
+          const next = !on;
+          btn.setAttribute('data-on', next ? '1' : '0');
+          btn.textContent = next ? '在场' : '不在场';
+          btn.style.borderColor = next ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)';
+          btn.style.background = next ? '#052e20' : '#111827';
+          btn.style.color = next ? '#6ee7b7' : '#94a3b8';
+        });
+      });
+    } });
   }
 
   function openRerollDialog(panel) {
     const data = readMvuLatest();
     if (!data || !data.stat_data || !data.stat_data.角色) { showModalDialog('🎲 数值重Roll', '<div>当前没有可用的角色数据。</div>', null, { confirmText: '关闭' }); return; }
-    const chars = data.stat_data.角色; const charNames = Object.keys(chars);
+    const chars = data.stat_data.角色;
+    const charNames = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
     if (!charNames.length) { showModalDialog('🎲 数值重Roll', '<div>没有角色可供重Roll。</div>', null, { confirmText: '关闭' }); return; }
-    const html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">选择要重Roll的角色：</div>' +
-      '<select id="moon-reroll-char" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' + charNames.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('') + '</select>' +
-      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#05070e;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点击下方「🎲 重Roll」开始</div>' +
+    const html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">给谁重摇？</div>' +
+      '<select id="moon-reroll-char" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' + charNames.map(function(n) { return '<option value="' + escapeFeatureHtml(n) + '">' + escapeFeatureHtml(n) + '</option>'; }).join('') + '</select>' +
+      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#05070e;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「🎲 重Roll」开始</div>' +
+      '<div id="moon-reroll-manual" style="display:none;margin-top:10px;padding:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:8px;font-size:11px;color:#fde68a;">' +
+        '<div style="margin-bottom:6px;">这一轮没找到 AI 的判定 → 你自己定一个：</div>' +
+        '<div style="display:flex;gap:6px;align-items:center;">' +
+        '<select id="moon-reroll-dir" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="正向">正向</option><option value="负向">负向</option></select>' +
+        '<select id="moon-reroll-dim" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="E">好感 E</option><option value="P">肉体 P</option><option value="I">嫉妒 I</option></select>' +
+        '<input id="moon-reroll-base" type="number" step="0.5" min="0" max="10" style="width:74px;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
+        '<div style="margin-top:6px;color:#a16207;line-height:1.6;">这只用于这次重摇，不会改掉剧情里已经发生的事。</div>' +
+      '</div>' +
       '<div style="margin-top:12px;display:flex;gap:8px;">' +
       '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🎲 重Roll</button>' +
       '<button id="moon-reroll-confirm" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(16,185,129,0.5);background:#052e20;color:#6ee7b7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;" disabled>确认覆盖</button></div>' +
-      '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">每次点击重新摇骰并本地重算，可反复 Roll 直到满意，再点确认覆盖。</div>';
+      '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">每点一次就重摇一次，可以一直摇到满意，再点「确认覆盖」。</div>';
     let pendingResult = null; const mode = getCurrentMode();
+    function eventRangeOf(ch) {
+      const es = (ch && ch._quota && ch._quota._eventState) || {};
+      const type = String(es.事件类型 || '日常');
+      if (type === '关键') return { evt: '关键', range: [3.0, 5.0] };
+      if (type === '重大' || type === '彩蛋') return { evt: '重大', range: [6.0, 10.0] };
+      return { evt: '日常', range: [0.5, 2.0] };
+    }
+    function tagRollForLatest(name) {
+      const ext = extractBaseValueFromLatestAiMessage();
+      if (!ext) return null;
+      const tagName = String(ext.charName || '').trim();
+      const validNames = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
+      const primary = pickPrimaryTarget(chars, validNames);
+      const hit = tagName && (tagName === name || name.indexOf(tagName) >= 0 || tagName.indexOf(name) >= 0);
+      if (tagName && !hit) return null;
+      if (!tagName && validNames.length > 1 && primary !== name) return null;
+      return { 事件类型: ext.eventType || '日常', 方向: ext.direction || '正向', 主维度: ext.dimension || 'E', 基础值: Number(ext.value) || 0 };
+    }
     showModalDialog('🎲 数值重Roll', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
         const sel = mask.querySelector('#moon-reroll-char'); const infoEl = mask.querySelector('#moon-reroll-info');
         const doBtn = mask.querySelector('#moon-reroll-do'); const confirmBtn = mask.querySelector('#moon-reroll-confirm');
+        const manualBox = mask.querySelector('#moon-reroll-manual');
+        const dirSel = mask.querySelector('#moon-reroll-dir'); const dimSel = mask.querySelector('#moon-reroll-dim'); const baseInput = mask.querySelector('#moon-reroll-base');
+        function fillManual(name) {
+          const ch = chars[name] || {};
+          const r = eventRangeOf(ch);
+          manualBox.style.display = 'none';
+          if (baseInput) baseInput.value = String(Math.round((r.range[0] + Math.random() * (r.range[1] - r.range[0])) * 2) / 2);
+          if (dimSel) dimSel.value = 'E';
+          if (dirSel) dirSel.value = '正向';
+          return r;
+        }
         function showCurrent() {
           const name = sel.value; const ch = chars[name] || {}; const lr = ch._lastRoll || {};
-          const hasLr = lr.主维度 ? '已记录' : '无记录';
-          infoEl.innerHTML = '角色：<b style="color:#7dd3fc">' + name + '</b><br>当前：E' + (ch.好感度 || 0) + ' P' + (ch.肉体值 || 0) + ' R' + (ch.阶段值 || 0) + ' I' + (ch.嫉妒值 || 0) + '<br>本轮判断：' + hasLr + (lr.主维度 ? '（' + (lr.事件类型 || '') + ' ' + (lr.方向 || '') + ' ' + (lr.主维度 || '') + ' 基础' + (lr.基础值 || 0) + '）' : '');
+          const rangeInfo = eventRangeOf(ch);
+          const hasLr = !!lr.主维度;
+          infoEl.innerHTML = '角色：<b style="color:#7dd3fc">' + escapeFeatureHtml(name) + '</b>　<span style="color:#64748b;">' + escapeFeatureHtml(String(ch.重要度 || '主要')) + (ch.在场 === false ? ' · 不在场' : '') + '</span><br>' +
+            '当前：E' + (ch.好感度 || 0) + ' P' + (ch.肉体值 || 0) + ' R' + (ch.阶段值 || 0) + ' I' + (ch.嫉妒值 || 0) + '<br>' +
+            '本轮判断：' + (hasLr
+              ? '<span style="color:#6ee7b7">已记录</span>（' + escapeFeatureHtml(lr.事件类型 || '') + ' ' + escapeFeatureHtml(lr.方向 || '') + ' ' + escapeFeatureHtml(lr.主维度 || '') + ' 基础' + (lr.基础值 || 0) + (lr._applied ? '｜已结算' : '｜待结算') + '）'
+              : '<span style="color:#fbbf24">无记录</span>（本楼层没有该角色的 Sylveina 标签，或已在其它楼层结算过）') + '<br>' +
+            '<span style="color:#64748b;font-size:10.5px;">当前事件档位：' + rangeInfo.evt + ' · 基础值区间 ' + rangeInfo.range[0] + '~' + rangeInfo.range[1] + '</span>';
+          if (!hasLr) { fillManual(name); manualBox.style.display = 'block'; }
+          else manualBox.style.display = 'none';
+          pendingResult = null; confirmBtn.disabled = true;
         }
         sel.addEventListener('change', showCurrent); showCurrent();
         doBtn.addEventListener('click', function() {
           const name = sel.value; const ch = chars[name] || {};
           let lastRoll = readLastRoll(ch);
+          let source = 'AI 判定';
+          if (!lastRoll || !lastRoll.主维度) { lastRoll = tagRollForLatest(name); source = '本楼层标签'; }
           if (!lastRoll || !lastRoll.主维度) {
-            const ext = extractBaseValueFromLatestAiMessage();
-            if (ext) {
-              lastRoll = { 事件类型: ext.eventType || '日常', 方向: ext.direction || '正向', 主维度: ext.dimension || 'E', 基础值: Number(ext.value) || 0 };
-            }
+            const r = eventRangeOf(ch);
+            const base = Number(baseInput && baseInput.value);
+            const useBase = (!isNaN(base) && base > 0) ? Math.min(10, base) : Math.round((r.range[0] + Math.random() * (r.range[1] - r.range[0])) * 2) / 2;
+            lastRoll = { 事件类型: r.evt, 方向: (dirSel && dirSel.value === '负向') ? '负向' : '正向', 主维度: (dimSel && dimSel.value) || 'E', 基础值: useBase };
+            source = '人工补判';
           }
-          if (!lastRoll || !lastRoll.主维度) { infoEl.innerHTML = '<span style="color:#f87171">✖ 该角色本轮没有 AI 判断记录，无法重Roll。</span>'; return; }
           const clone = JSON.parse(JSON.stringify(ch));
           const snap = clone._quota && clone._quota._preRollSnapshot;
           if (snap && typeof snap === 'object') {
@@ -6850,10 +7642,11 @@ const stateKey = getChatStateKey();
             fieldName: result.fieldName,
             dimension: result.dimension,
             newValue: result.newValue,
-            newWeeklyUsed: clone._quota ? clone._quota.好感度周上限已用 : undefined
+            newWeeklyUsed: clone._quota ? clone._quota.好感度周上限已用 : undefined,
+            lastRoll: lastRoll
           };
-          infoEl.innerHTML = '角色：<b style="color:#7dd3fc">' + name + '</b><br><b style="color:#6ee7b7">重Roll结果：</b><br>' +
-            '本轮判断：' + lastRoll.事件类型 + ' ' + lastRoll.方向 + ' ' + lastRoll.主维度 + ' 基础' + lastRoll.基础值 + '<br>' +
+          infoEl.innerHTML = '角色：<b style="color:#7dd3fc">' + escapeFeatureHtml(name) + '</b><br><b style="color:#6ee7b7">重Roll结果：</b>（来源：' + source + '）<br>' +
+            '本轮判断：' + escapeFeatureHtml(lastRoll.事件类型) + ' ' + escapeFeatureHtml(lastRoll.方向) + ' ' + escapeFeatureHtml(lastRoll.主维度) + ' 基础' + lastRoll.基础值 + '<br>' +
             result.fieldName + '：' + result.oldValue + ' → <b style="color:#6ee7b7">' + result.newValue + '</b>（Δ' + (result.delta >= 0 ? '+' : '') + result.delta + '）<br>' +
             (result.emotionResult ? '情绪骰 1d4 = ' + result.emotionResult.dice + '（阈值' + result.emotionResult.threshold + '，' + (result.emotionResult.passed ? '通过' : '失败') + '）<br>' : '') +
             (result.isAbyss ? '⚠ 深渊模式生效<br>' : '') + (result.weeklyBlocked ? '⚠ 周上限已压缩<br>' : '');
@@ -6868,6 +7661,16 @@ const stateKey = getChatStateKey();
           if (target._quota && pendingResult.newWeeklyUsed !== undefined) {
             target._quota.好感度周上限已用 = pendingResult.newWeeklyUsed;
           }
+          if (pendingResult.lastRoll) {
+            target._lastRoll = {
+              事件类型: pendingResult.lastRoll.事件类型,
+              方向: pendingResult.lastRoll.方向,
+              主维度: pendingResult.lastRoll.主维度,
+              基础值: pendingResult.lastRoll.基础值,
+              _applied: true,
+              _turnSig: (_lastRollTurnSigFor(pendingResult.name) || '')
+            };
+          }
           syncStageWithAffection(target);
           const ok = await writeMvuLatest(d.stat_data);
           if (ok) { toast('已覆盖变量', 'success'); try { refreshPanel(); } catch (e) {} try { mask.remove(); } catch (e) {} }
@@ -6876,29 +7679,35 @@ const stateKey = getChatStateKey();
       }
     });
   }
+  function _lastRollTurnSigFor(name) {
+    try { const d = readMvuLatest(); const ch = d && d.stat_data && d.stat_data.角色 && d.stat_data.角色[name]; return ch && ch._lastRoll ? ch._lastRoll._turnSig : ''; } catch (e) { return ''; }
+  }
 
   function openFaqDialog() {
     const FAQ_LIST = [
-      { q: '导入后没有自动刷新页面', keys: ['刷新', '导入'], a: '本版已加入导入后自动刷新一次。如无反应请手动刷新。' },
-      { q: '菜单里找不到入口', keys: ['菜单', '入口'], a: '确认脚本已启用后刷新页面。入口在酒馆右上角扩展菜单里。' },
-      { q: '自检报告在哪里看', keys: ['自检', '报告'], a: '点面板「🔭 自检」，完成后会弹出报告弹窗。' },
-      { q: '锚定时间线是什么', keys: ['锚定', '时间线'], a: '独立开关，任何难度都能开。开启后只有冷战期或好感度为负时才会真正锚定。' },
-      { q: '副模型解析系统是什么', keys: ['副模型', '解析'], a: '让主模型专注叙事，副模型专门解析变量和算分。' },
-      { q: '自适应开局是什么', keys: ['自适应', '开局'], a: '新存档第一次进入时自动弹窗，让 AI 推断初始四维。多人卡下不会自动弹，点面板手动触发。' },
-      { q: '角色试镜是什么？', keys: ['试镜', '角色试镜', '小抄'], a: 'AI 通读角色卡生成一份「角色小抄」（不展示给你），然后根据小抄排演一段试镜片段。<br>不满意可以用自然语言写意见，AI 会重写小抄并重演。<br>确认后保存到本地，供后续剧情使用。' },
-      { q: '角色小抄库怎么用？', keys: ['小抄库', '库', '管理'], a: '主面板点「📚 角色小抄库」。可以查看、编辑、启用/停用、删除。<br>启用的小抄会在剧情里覆盖原卡设定。<br>同角色只能启用一份，启用新的自动停用旧的。' },
-      { q: '玩家小抄是什么？', keys: ['玩家', 'user', 'persona', '玩家小抄'], a: '主面板点「👤 玩家小抄」：AI 会读取你右侧 Persona 面板的设定，提炼成「玩家角色灵魂小抄」。<br>生成后先给你看一遍小传，确认无误再进入单人试镜。<br>启用后会在 prompt 里覆盖 Persona 面板，但同时只允许启用一份，启用新的会自动停用旧的。<br>其他预设、世界书、角色卡不受影响。' },
-      { q: '数值重Roll是什么', keys: ['重roll', '重投'], a: '面板「🎲 数值重Roll」按钮，对指定角色重新掷骰并本地重算。' },
-      { q: '阶段门是什么', keys: ['阶段门', '破门', '冻结'], a: '当好感度到达 18/38/58/78/98 时脚本自动冻结 R，进入破门期。' },
-      { q: '事件推进节奏是什么', keys: ['事件', '节奏'], a: '事件导演系统开关。SLOW / NORMAL / FAST 三档。' },
-      { q: '彩蛋事件是什么', keys: ['彩蛋', '大成功'], a: '事件判定摇出 1d20=20 时触发彩蛋。5 回合固定时长，数值按重大事件同档，叙事风格必须是日常轻喜剧。' },
-      { q: '时间线要怎么写？', keys: ['时间线', 'timeline'], a: '多条目模式：每个事件一个 [Timeline] 条目。<br>单条目模式：一个条目里写多个事件，用「时间：xxx / 内容：yyy」的块排列。' },
-      { q: '标签格式变了？', keys: ['标签', 'Sylveina'], a: '本版已剥离 MVU。AI 只输出 [Sylveina|L/M/H|+/-|基础值] 标签，具体数值由脚本计算。' }
+      { q: '第一次玩，我该点哪里？', keys: ['第一次', '新手', '开始', '入门'], a: '只做一件事：<b>▶ 开始游戏 → 🚀 开局适配</b>，点一下等它跑完。<br>它会读完聊天记录，自动帮你建好角色档案。<br>建好之后就不用管了，正常聊天，好感会自己涨。' },
+      { q: '我不想装也能玩吗？要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置'], a: '不用装任何别的东西。所有数据都存在这台掌机里，<b>不需要 MVU</b>。' },
+      { q: '导入脚本后没反应 / 找不到入口', keys: ['刷新', '导入', '菜单', '入口'], a: '先确认脚本是「已启用」状态，然后刷新一次酒馆页面。<br>入口在右上角的扩展菜单里，图标是 🌕。' },
+      { q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'], a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天（游戏日 +1）。<br>如果剧情要跳到几小时后或第二天，<b>你得自己说一声</b>（「我们明天见」「睡了」），或者正文写了「次日 / 一周后」。<br>没说就默认只过 10 分钟，不会乱跳。' },
+      { q: '时间 / 内心话不动了怎么办', keys: ['时间', '心声', '内心话', '不推进', '卡住'], a: '多半是这轮 AI 没写时间。<br>想马上修：<b>♥ 角色与存档 → 👥 角色定位</b>，直接手写时间、地点和内心话，保存立刻生效。' },
+      { q: 'AI 把别人当成主角了 / 认成「次要」', keys: ['次要', '重要度', '角色定位', '攻略对象', '认错'], a: '<b>♥ 角色与存档 → 👥 角色定位</b>，把她改成「主要」。<br>改完 AI 下一轮就会围着她写，<b>不用重开档</b>。' },
+      { q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '反悔'], a: '一个「回不了头」的开关。<br>打开后，<b>只要她好感跌破 0，或者跟你冷战</b>，这段剧情就锁死了：<br>删楼、滑动、重摇、把好感刷回来 —— 都解不开。<br><b>唯一的解法是开一个新对话。</b><br>不打开就完全不影响你。' },
+      { q: '加分太少了，能重来吗？', keys: ['重roll', '重投', '重摇', '加分'], a: '可以。<b>▶ 开始游戏 → 🎲 属性点重掷</b>，摇到满意再点「确认覆盖」。<br>它会告诉你这次是按什么算的（AI 判定 / 本楼暗号 / 你手填）。' },
+      { q: '重摇显示「无记录」怎么办？', keys: ['无记录', '重roll', '判断'], a: '意思是这一轮 AI 没给这个角色打暗号。<br>现在会自动退回一步：先试「本楼暗号」，还不行就让你<b>手动选方向、数值</b>，照样能摇。' },
+      { q: '「关系升级判定」（阶段门）是什么？', keys: ['阶段门', '破门', '冻结', '升级'], a: '好感涨到 <b>18 / 38 / 58 / 78 / 98</b> 这五个点时，会停下来做一次「能不能更进一步」的判定。<br>过了就升级，没过就卡在这个阶段，需要更好的时机。' },
+      { q: '事件多久来一次？', keys: ['事件', '节奏', '频率'], a: '大约每 <b>8~12 回合</b>来一个日常小事件，重大事件有几天冷却。<br>嫌多嫌少，去 <b>⚙ 运行设定 → 事件推进节奏</b> 调慢 / 中 / 快。' },
+      { q: '「彩蛋事件」是什么？', keys: ['彩蛋', '大成功'], a: '摇到 20 点才会出现的稀有事件，持续 5 回合，风格一定是轻松搞笑的日常。' },
+      { q: '角色试镜是干什么的？', keys: ['试镜', '小抄', '像不像'], a: '让 AI 先读角色卡，写一份「她该怎么说话」的小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。<br>存下来之后，AI 演她会明显更像本人（不会说出不像她会说的话）。' },
+      { q: '小抄（角色小抄库 / 玩家档案）怎么管？', keys: ['小抄库', '管理', '玩家', 'persona'], a: '一个角色只能启用一份小抄，启用新的会自动关掉旧的。<br>玩家档案也一样，只是它管的是「你」。<br>随时可以在库里改、关、删。' },
+      { q: '自检报告在哪看？', keys: ['自检', '报告', '报错'], a: '<b>⚙ 系统检修 → 🔭 系统自检</b>，跑完会弹窗告诉你哪一项不正常。<br>要发帖求助，先跑自检 + 模拟测试，把结果截图一起发。' },
+      { q: '时间线要不要写？', keys: ['时间线', 'timeline', '主线'], a: '不写也能玩。<br>写了的话，AI 会照着上面的日期安排主线大事，世界更有目标感。<br>写法：一个事件一条，或者一条里用「时间：xxx / 内容：yyy」分段。' },
+      { q: 'AI 回复末尾那个 [Sylveina|...] 是什么？', keys: ['标签', 'sylveina', '暗号'], a: '那是给掌机看的「暗号」，你不用管。<br>AI 只打暗号，具体加多少分由掌机摇骰子算，AI 改不了数。' }
     ];
+
     const html = '<div style="padding:10px 12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:9px;color:#fca5a5;font-size:11.5px;line-height:1.7;margin-bottom:12px;">' +
-      '<b>🛑 答疑前置条件：</b><br>先点面板的 <b>【🔭 自检】</b> 和 <b>【🧪 测试】</b>，截图发帖。<br>' +
-      '<span style="color:#fde047;font-weight:700;">⚠️ 本系统已完全本地化，不再依赖 MVU。</span></div>' +
-      '<input id="moon-faq-search" placeholder="输入关键词" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:10px;">' +
+      '<b>🛑 遇到问题先做两步：</b><br>① 先看下面有没有你的问题　② 没有的话点 <b>⚙ 系统检修 → 🔭 系统自检</b>，把结果截图发帖。<br>' +
+      '<span style="color:#fde047;font-weight:700;">💡 不需要装 MVU，所有数据都存在这台掌机里。</span></div>' +
+      '<input id="moon-faq-search" placeholder="打个词搜一搜，比如「时间」「认错」" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:10px;">' +
       '<div id="moon-faq-list" style="display:flex;flex-direction:column;gap:6px;"></div>';
     showModalDialog('❓ 常见问题', html, null, {
       confirmText: '关闭',
@@ -6907,7 +7716,7 @@ const stateKey = getChatStateKey();
         function render(kw) {
           const w = String(kw || '').trim().toLowerCase();
           const items = FAQ_LIST.filter(function(item) { if (!w) return true; const pool = (item.q + ' ' + item.keys.join(' ') + ' ' + item.a).toLowerCase(); return pool.indexOf(w) >= 0; });
-          if (!items.length) { list.innerHTML = '<div style="color:#f87171;font-size:11px;">没找到。</div>'; return; }
+          if (!items.length) { list.innerHTML = '<div style="color:#f87171;font-size:11px;">没找到，换个词试试。</div>'; return; }
           list.innerHTML = items.map(function(item, idx) {
             return '<div style="border:1px solid rgba(148,163,184,0.14);border-radius:9px;overflow:hidden;">' +
               '<button class="moon-faq-q" data-idx="' + idx + '" style="width:100%;text-align:left;padding:8px 10px;background:#0f172a;color:#e2e8f0;border:none;cursor:pointer;font-size:11.5px;font-weight:700;font-family:inherit;">' + item.q + '</button>' +
@@ -7682,8 +8491,8 @@ async function openScanTimelineDialog(panel) {
       '<textarea id="moon-tl-input" placeholder="例如：主角与角色共度四季、经历表白、吵架、和好……" style="width:100%;box-sizing:border-box;min-height:100px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;"></textarea>' +
       '<div style="margin-top:10px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;">' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-tl-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-tl-model" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label></div>';
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-tl-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-tl-model" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 就用酒馆现在这个 AI</span></label></div>';
     showModalDialogCancelable('🕰️ 时间线生成器', html,
       async function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
@@ -7832,14 +8641,14 @@ function openTimelineKeywordDialog(panel, onDone) {
   function showAdaptiveStartDialog(charName) {
     const savedPref = (function() { try { return mainWin.localStorage.getItem(ADAPT_MODEL_PREF_KEY) || ''; } catch (e) { return ''; } })();
     const cardMode = getCardMode(); const isMulti = cardMode === 'multi';
-    const tipHtml = isMulti ? '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· 多人卡：AI 通读上下文识别出场角色<br>· 有对话历史 → 以历史为准</div>' : '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· AI 通读上下文推断初始四维<br>· 全新开场 → 参考开场白 + 角色卡</div>';
-    const html = '<div>检测到当前存档还没有有效角色变量。</div>' + tipHtml +
-      '<div style="margin-top:14px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>' +
+    const tipHtml = isMulti ? '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· 这张卡有好几个人，AI 会把出过场的都认出来<br>· 已经聊过的，按聊过的内容算</div>' : '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· AI 会读完聊天记录，估一个起始数值<br>· 刚开始的对话，就照开场白和角色卡算</div>';
+    const html = '<div>这个对话还没有角色档案，现在给你建一份。</div>' + tipHtml +
+      '<div style="margin-top:14px;font-size:11px;color:#94a3b8;margin-bottom:6px;">用哪个 AI 来读？（没填过 API 也没关系，点「开始」会弹出填写框）</div>' +
       '<div style="display:flex;gap:8px;">' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-adapt-model" value="custom" ' + ((savedPref === 'custom' || savedPref === 'extra' || (!savedPref && hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>' +
-      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="main" ' + ((savedPref === 'main' || (!savedPref && !hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-adapt-model" value="custom" ' + ((savedPref === 'custom' || savedPref === 'extra' || (!savedPref && hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="main" ' + ((savedPref === 'main' || (!savedPref && !hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;">🎭 就用酒馆现在这个 AI</span></label>' +
       '</div><label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#94a3b8;cursor:pointer;"><input type="checkbox" id="moon-adapt-remember"> 记住我的选择</label>';
-    showModalDialogCancelable('🌅 自适应开局', html,
+    showModalDialogCancelable('🌅 开始建角色档案', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
         const sel = mask ? mask.querySelector('input[name="moon-adapt-model"]:checked') : null;
@@ -7857,7 +8666,7 @@ function openTimelineKeywordDialog(panel, onDone) {
             data.stat_data.角色[charName]._quota = q; writeMvuLatest(data.stat_data);
           }
         }
-        toast('已跳过自适应开局', 'info'); isAdaptiveFlowRunning = false;
+        toast('这次先不建，随时可以回来点「开局适配」', 'info'); isAdaptiveFlowRunning = false;
       },
       { confirmText: '开始', cancelText: '跳过' });
   }
@@ -7920,7 +8729,7 @@ async function applyAdaptiveOpening(charName, values) {
     ch.心声 = values.voice;
     if (!ch._quota) ch._quota = {};
     ch._quota.自适应开局已完成 = true;
-    if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 };
+    if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
     if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
     const ok = await writeMvuLatest(data.stat_data);
     if (ok) {
@@ -7959,7 +8768,7 @@ async function applyAdaptiveOpening(charName, values) {
           自适应开局已完成: true,
           _playerConfession: false,
           _firstMeetDone: false,
-          _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 },
+          _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
           _timelineCompleted: values.已触发时间线事件名 || [],
           _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
         }
@@ -7981,7 +8790,7 @@ async function applyAdaptiveOpening(charName, values) {
       if (ch._quota._playerConfession === undefined) ch._quota._playerConfession = false;
       if (ch._quota._firstMeetDone === undefined) ch._quota._firstMeetDone = false;
       if (!ch._quota._eventState) {
-        ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 };
+        ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
       }
       ch._quota._timelineCompleted = values.已触发时间线事件名 || [];
       if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
@@ -8013,6 +8822,7 @@ async function applyAdaptiveOpening(charName, values) {
       '【背景】玩家使用多人卡，剧情里会涉及多个角色。你需要通读上下文，识别实际出场并与玩家有互动的角色，为每个角色推断初始四维数值。',
       '【输出】严格 JSON 数组：',
       '[{"名字":"角色正名","重要度":"主要"|"次要"|"NPC","好感度":number,"肉体值":number,"嫉妒值":number,"情绪":"单个emoji","心声":"15~30字第一人称","推断理由":"≤80字"}]',
+      '【重要度判定】与玩家存在情感线/性张力、且是玩家主要互动对象的角色 = 主要；有互动但非情感线（同伴、对手、老师等）= 次要；只做背景出场 = NPC。玩家明确点名要攻略的角色必须是主要。',
       '【硬性要求】名字必须是剧情里最常出现、最正式的那个名字；至少识别 1 个，最多 10 个；只输出 JSON 数组。'
     ].join('\n');
     let userPrompt = '【角色卡信息】\n' + charInfo + '\n\n';
@@ -8052,6 +8862,10 @@ async function applyAdaptiveOpening(charName, values) {
         '<div><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">P</div><input type="number" step="0.5" class="moon-mc-p" data-idx="' + idx + '" value="' + p + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:12px;"></div>' +
         '<div><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">R</div><div class="moon-mc-r" data-idx="' + idx + '" style="padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#0a0c16;color:#a5f3fc;font-size:12px;">' + stage.r + ' · ' + stage.name + '</div></div></div>' +
         '<div style="margin-top:6px;font-size:10px;color:#94a3b8;">' + emoji + ' · ' + voice.replace(/</g, '&lt;') + '</div>' +
+        '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;"><span style="font-size:10px;color:#94a3b8;">角色定位</span>' +
+        '<select class="moon-mc-imp" data-idx="' + idx + '" style="flex:1;padding:5px 7px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:11px;font-family:inherit;">' +
+        ['主要', '次要', 'NPC'].map(function(v) { return '<option value="' + v + '"' + (imp === v ? ' selected' : '') + '>' + v + '</option>'; }).join('') +
+        '</select><span style="font-size:9.5px;color:#64748b;">主要=主攻略对象</span></div>' +
         (reason ? '<div style="margin-top:4px;font-size:10px;color:#64748b;">💡 ' + reason.replace(/</g, '&lt;') + '</div>' : '') + '</div>';
     }).join('');
     const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">AI 识别到 <b style="color:#7dd3fc;">' + chars.length + '</b> 个出场角色。</div>' +
@@ -8066,7 +8880,9 @@ async function applyAdaptiveOpening(charName, values) {
           if (!ck || !ck.checked) return;
           const c = chars[idx]; const eVal = Number(row.querySelector('.moon-mc-e').value) || 0;
           const pVal = Number(row.querySelector('.moon-mc-p').value) || 0; const stage = getRStageFromE(eVal);
-          finalList.push({ 名字: c.名字, 重要度: c.重要度 || '主要', 好感度: eVal, 肉体值: pVal, 阶段值: stage.r, 嫉妒值: Number(c.嫉妒值) || 0, 情绪: c.情绪 || '😐', 心声: c.心声 || '……' });
+          const impEl = row.querySelector('.moon-mc-imp');
+          const impVal = impEl && ['主要', '次要', 'NPC'].indexOf(String(impEl.value)) >= 0 ? String(impEl.value) : (c.重要度 || '主要');
+          finalList.push({ 名字: c.名字, 重要度: impVal, 好感度: eVal, 肉体值: pVal, 阶段值: stage.r, 嫉妒值: Number(c.嫉妒值) || 0, 情绪: c.情绪 || '😐', 心声: c.心声 || '……' });
         });
         try { mask.remove(); } catch (e) {}
         if (!finalList.length) { toast('未勾选任何角色', 'info'); return; }
@@ -8101,12 +8917,12 @@ async function applyAdaptiveOpening(charName, values) {
         const ch = statData.角色[name];
         ch.好感度 = item.好感度; ch.肉体值 = item.肉体值; ch.阶段值 = item.阶段值;
         ch.嫉妒值 = item.嫉妒值; ch.情绪 = item.情绪; ch.心声 = item.心声;
-        if (!ch.重要度) ch.重要度 = item.重要度 || '主要';
+        ch.重要度 = ['主要', '次要', 'NPC'].indexOf(String(item.重要度)) >= 0 ? item.重要度 : (ch.重要度 || '主要');
         if (!ch._quota) ch._quota = {};
         ch._quota.自适应开局已完成 = true;
         if (ch._quota._playerConfession === undefined) ch._quota._playerConfession = false;
         if (ch._quota._firstMeetDone === undefined) ch._quota._firstMeetDone = false;
-        if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 };
+        if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
         if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
         if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
       } else {
@@ -8121,7 +8937,7 @@ async function applyAdaptiveOpening(charName, values) {
             表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '', 表白期已通过: false, 表白期冷却至: '', 自适应开局已完成: true,
             _playerConfession: false,
             _firstMeetDone: false,
-            _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 },
+            _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
             _timelineCompleted: [],
             _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
           }
@@ -8281,7 +9097,7 @@ async function applyAdaptiveOpening(charName, values) {
           }
           if (!ch._quota) ch._quota = {};
           if (!ch._quota._eventState) {
-            ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 };
+            ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
           }
           if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
           if (ch._quota._playerConfession === undefined) ch._quota._playerConfession = false;
@@ -8309,8 +9125,8 @@ async function applyAdaptiveOpening(charName, values) {
     const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">让 AI 通读聊天上下文，判断哪些条目该保留、改名、删除、合并。</div>'
       + '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>'
       + '<div style="display:flex;gap:8px;">'
-      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-aimig-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 配置API' + (hasValidCustomAIConfig() ? ' (已就绪)' : ' (点此使用)') + '</span></label>'
-      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-aimig-model" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 酒馆主模型</span></label></div>';
+      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-aimig-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>'
+      + '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-aimig-model" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 就用酒馆现在这个 AI</span></label></div>';
     showModalDialogCancelable('🤖 AI 辅助迁移 · 选择模型', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
@@ -8462,7 +9278,7 @@ async function applyAdaptiveOpening(charName, values) {
     q.玩家冷却至 = now;
     q.表白期冷却至 = '';
     q._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
-    q._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0 };
+    q._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
     q._timelineCompleted = [];
     if (q._playerConfession === undefined) q._playerConfession = false;
     if (q._firstMeetDone === undefined) q._firstMeetDone = false;
@@ -8476,16 +9292,16 @@ async function applyAdaptiveOpening(charName, values) {
     if (chars && typeof chars === 'object') { for (const n in chars) { if (!isCharSkeleton(chars[n])) validNames.push(n); } }
     const hasValidVars = validNames.length > 0;
     let detectHtml = '';
-    if (hasValidVars) detectHtml = '<div style="padding:10px 12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.35);border-radius:9px;color:#6ee7b7;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>✔ 当前对话已有角色变量</b>：' + validNames.join('、') + '</div>';
-    else detectHtml = '<div style="padding:10px 12px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.35);border-radius:9px;color:#7dd3fc;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>ℹ️ 当前对话未检测到有效变量</b><br>卡组模式：<b>' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</b></div>';
+    if (hasValidVars) detectHtml = '<div style="padding:10px 12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.35);border-radius:9px;color:#6ee7b7;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>✔ 这个对话已经有角色档案了</b>：' + validNames.join('、') + '<br><span style="color:#a7f3d0;">档案正常的话，直接点右上角关掉就行。</span></div>';
+    else detectHtml = '<div style="padding:10px 12px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.35);border-radius:9px;color:#7dd3fc;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>ℹ️ 这个对话还没有角色档案</b><br>现在建一份就好。卡组模式：<b>' + (cardMode === 'multi' ? '多人卡（好几个角色）' : '单人卡（一个角色）') + '</b></div>';
     const html = detectHtml +
       '<div style="display:flex;flex-direction:column;gap:8px;">' +
-      '<button id="moon-adapt-adaptive" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(56,189,248,0.6);background:linear-gradient(135deg,#0c2540,#075985);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🌅 AI 智能建档<div style="font-size:10.5px;font-weight:400;color:#a5f3fc;margin-top:4px;">AI 通读当前对话的上下文，推断角色初始四维，建档到本对话。适合从未用过本系统的老对话。</div></button>' +
-      '<button id="moon-adapt-migrate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(251,191,36,0.6);background:linear-gradient(135deg,#2a1a05,#78350f);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🔄 兼容迁移<div style="font-size:10.5px;font-weight:400;color:#fcd34d;margin-top:4px;">把旧版字段（情感值/关系值/身体值/好感值等）搬迁到新字段。</div></button>' +
-      '<button id="moon-adapt-aimig" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.6);background:linear-gradient(135deg,#2a1040,#4c1d95);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🤖 AI 辅助迁移<div style="font-size:10.5px;font-weight:400;color:#e9d5ff;margin-top:4px;">AI 通读上下文，判断角色表里哪些条目该保留/改名/删除/合并。</div></button>' +
-      '<button id="moon-adapt-pack" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(110,231,183,0.6);background:linear-gradient(135deg,#052e20,#064e3b);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">📦 打包迁移到新对话<div style="font-size:10.5px;font-weight:400;color:#6ee7b7;margin-top:4px;">把当前对话的角色数据打包，切到新对话后一键导入。</div></button>' +
+      '<button id="moon-adapt-adaptive" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(56,189,248,0.6);background:linear-gradient(135deg,#0c2540,#075985);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🌅 AI 智能建档　👈 点这个就行<div style="font-size:10.5px;font-weight:400;color:#a5f3fc;margin-top:4px;">AI 把聊天记录读一遍，自动建好角色档案。<br>第一次玩、或者老对话第一次装这个插件，都点它。</div></button>' +
+      '<button id="moon-adapt-migrate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(251,191,36,0.6);background:linear-gradient(135deg,#2a1a05,#78350f);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🔄 兼容迁移<div style="font-size:10.5px;font-weight:400;color:#fcd34d;margin-top:4px;">只有一种情况用它：你以前装过旧版本，旧数值搬不过来。</div></button>' +
+      '<button id="moon-adapt-aimig" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.6);background:linear-gradient(135deg,#2a1040,#4c1d95);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🤖 AI 辅助迁移<div style="font-size:10.5px;font-weight:400;color:#e9d5ff;margin-top:4px;">角色表里堆了很多乱七八糟的条目，让 AI 判断哪个留、哪个删。</div></button>' +
+      '<button id="moon-adapt-pack" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(110,231,183,0.6);background:linear-gradient(135deg,#052e20,#064e3b);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">📦 打包迁移到新对话<div style="font-size:10.5px;font-weight:400;color:#6ee7b7;margin-top:4px;">想把档案搬到另一个聊天窗口继续玩，就用它。</div></button>' +
       '</div>';
-    showModalDialog('🚀 一键适配', html, null, {
+    showModalDialog('🚀 开局适配 · 点第一个就行', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
         mask.querySelector('#moon-adapt-adaptive').addEventListener('click', function() { try { mask.remove(); } catch (e) {} manualAdaptiveOpening(panel); });
