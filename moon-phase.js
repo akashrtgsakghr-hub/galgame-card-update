@@ -1,3 +1,5 @@
+/* 00-head.js —— 启动头：全局常量、localStorage key、版本号与更新公告。
+   本文件是 src/ 片段，由 scripts/build.mjs 按文件名顺序拼成 moon-phase.js，不能单独运行。 */
 (function() {
   const mainDoc = (window.parent && window.parent.document) ? window.parent.document : document;
   const mainWin = window.parent || window;
