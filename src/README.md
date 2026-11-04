@@ -40,14 +40,15 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `45-clock.js` | 139 | 世界时钟推进（每轮分钟数 / 换日）、相对时间识别 |
 | `50-calc.js` | 270 | 主计算流程 `runMoonCalculation`、事件投掷与导演 |
 | `55-timejump.js` | 121 | 时间跳跃检测、倒计时与操作提示 |
-| `60-listeners.js` | 164 | 事件监听绑定、正则尾部清洗 |
-| `65-ending.js` | 503 | 结局 / 尾声解析与幕布渲染、标签美化、生成结束钩子 |
+| `60-listeners.js` | 166 | 事件监听绑定、正则尾部清洗 |
+| `65-ending.js` | 504 | 结局 / 尾声解析与幕布渲染、标签美化、生成结束钩子 |
 | `70-anchor.js` | 134 | 锚点锁档（好感跌破 / 冷战固化，仅新对话解锁） |
 | `75-bio.js` | 1330 | 角色档案与玩家档案：生成、试镜、修订、库管理 |
 | `80-bio-queue.js` | 331 | 批量建档队列（静默生成，逐个填入） |
 | `85-style.js` | 711 | 面板与 LCD 的全部 CSS |
+| `88-skin.js` | 2363 | 楼内状态卡：晨昏票根 / 月氏藏书票两套外观、数据适配、挂载与刷新 |
 | `90-panel.js` | 1383 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
-| `95-selfcheck.js` | 1059 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、FAQ |
+| `95-selfcheck.js` | 1062 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、FAQ |
 | `97-api.js` | 381 | 自定义 API 配置、429 退避重试与全局串行队列 |
 | `98-prompts.js` | 312 | 提示词模板与预设、AI 冲突扫描 |
 | `99-timeline-ui.js` | 396 | 时间线清单 / 转写 / 生成（结果写回内置仓库） |
@@ -68,6 +69,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 - 改事件投掷节奏 → `50-calc.js`
 - 改时间线清单 → `05-timeline.js`（数据层）、`99-timeline-ui.js`（界面）
 - 改更新线路 → `97-api.js` 上面的更新模块区（`buildUpdateSourceChain` / `fetchUpdateSource`）
+- 改楼内状态卡外观 → `88-skin.js`：文件顶部的 `SKIN_CSS_TICKET` / `SKIN_CSS_BOOK` 两段 CSS 直接改就行；渲染逻辑是从原来的两套正则美化移植的，数据入口已换成 `readMvuLatest()`
 
 ## 加新文件
 

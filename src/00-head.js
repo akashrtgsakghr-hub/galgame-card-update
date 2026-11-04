@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.12';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.12 上限不再被偷跑 · 时间线搬进脚本 · 429 自动重试】\n1. 🔒 每周好感上限修好了：以前被压缩掉的那部分没记进「本周已用」，同一周里能反复领到剩余额度，一天就把上限撑破了；现在每一分都记账，超不过去。\n2. 📅 老存档没有「本周起算时间」的，会自动补一个，满 7 天照常重置。\n3. 🕰️ 时间线不用再建世界书：生成或转写完，点「💾 存进脚本」就存在脚本里，按角色卡分档，开新对话也跟着走。\n4. 📋 新增「时间线清单」：能看到接下来会发生什么、哪条已经触发，还能改时间、改类型、删除、手动加一条。\n5. 🤖 让 AI 判断事件类型：一键把「日常 / 重大」标好；生成时间线时它也会先判断再写。\n6. 🎬 事件导演：事件由脚本的骰子决定、占几回合也定好，AI 只负责把这件事写好看，不再自己另起事件。\n7. 🔁 429 自动重试：所有独立 API 调用排成一条队，一次只发一个；遇到 429 / 5xx 自动等一会儿再试，最多 3 次；还不行会告诉你换轻量模型或切回酒馆模型。\n8. 📥 世界书入口保留成「从世界书导入」，已经有条目的老玩家可以一次性搬进来。";
+  const MOON_FORMULA_VERSION = '4.6.13';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.13 楼内状态卡 · 两套美化搬进脚本】\n1. 🎫 新增「楼内状态卡」：在每条回复下面挂一张状态卡，不用再装正则、不用建世界书，脚本自己画。\n2. 🖼️ 两套外观随你挑：晨昏票根（可撕副券 · 展开房间与名册）／月氏藏书票（笺纸名札 · 双面翻转）。\n3. ⚙️ 在「系统选项 → 运行设定 → 楼内状态卡」一键切换，选「不显示」就只剩正文。\n4. 🔄 卡片跟着存档走：好感/肉体/阶段/嫉妒、情绪、心声、时间地点天气，都是实时读你自己的档。\n5. 🎨 两套都带日夜模式：票根点 MODE，藏书票点左上角小印，各记各的偏好。\n6. 🧹 切皮肤会自动清掉旧卡片，不会两层叠在一起。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';

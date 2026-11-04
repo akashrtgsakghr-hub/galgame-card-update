@@ -85,9 +85,11 @@
       setTimeout(function() { checkAndPromptBioEnable(); }, 4600);
       setTimeout(function() { beautifySylveinaTagsInDom(); }, 1000);
       setTimeout(function() { applyBackendVariablesFromLatest(); }, 1200);
+      setTimeout(function() { refreshMessageSkins(); }, 1400);
     });
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 600);
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 2200);
+    setTimeout(function() { refreshMessageSkins(); }, 2600);
   }
 
   function sanitizeSylveinaRegexTail() {

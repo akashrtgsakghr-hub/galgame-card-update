@@ -454,6 +454,7 @@
       }
     } catch (e) {}
     beautifyGalgameEndingInDom();
+    scheduleSkinRefresh({ onlyLast: true });
   }
 
   function onGenerationEnd() {
