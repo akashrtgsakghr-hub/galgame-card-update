@@ -22,8 +22,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.11';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.11 更新不再怕网络，连不上会自动换源】\n1. 🌐 更新会自己找路：先走官方直连，8 秒没动静就自动换国内镜像（jsDelivr → jsDelivr Fastly → ghproxy.net → gh-proxy 依次试），能通哪条用哪条，一条通就立刻停下。\n2. 🕰️ 新鲜度校验：镜像有缓存，某条线路给回来的是比当前更旧的版本时，会自动跳过去找下一条，不会再被一句「已是最新」骗过去（这是最常被误认为「更新失败」的情况）。\n3. ⏱️ 整条链路 45 秒封顶：前面的线路卡太久就不再起新线路，失败弹窗里标为「⏭ 已跳过」，不用对着加载框干等一分多钟。\n4. 🧭 记住上次能用的线路，下回检查更新优先走它；直连仍排第二位，镜像不会永久顶掉直连。给旧缓存的线路不会被记成优先线路。\n5. 🚦 换线路时提示「官方直连不通，已自动改用国内镜像」，发现新版本与检查结果的弹窗里也写明本次走的哪条线路。\n6. 🔄 所有线路都不通才弹窗，逐条列出各自原因（网络不通 / 连接超时 / HTTP 404 / 旧缓存），附「🔄 再试一次」与「⚙️ 换源」两个按钮。\n7. 🎯 下载到的内容不是脚本本体、或版本号对不上时，明确说明「镜像缓存了旧文件」或「更新源地址指错了文件」，不再只弹一句「更新失败」。\n8. ⚙️ 更新设置新增「直连下载不通时自动换国内镜像」开关（默认开启）；面板按钮小字改为「连不通会自动换镜像」。\n9. 📄 新增《更新说明书.md》：线路顺序、三种提示、失败急救三步、常见问题，全写成玩家能看懂的版本。";
+  const MOON_FORMULA_VERSION = '4.6.12';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.12 上限不再被偷跑 · 时间线搬进脚本 · 429 自动重试】\n1. 🔒 每周好感上限修好了：以前被压缩掉的那部分没记进「本周已用」，同一周里能反复领到剩余额度，一天就把上限撑破了；现在每一分都记账，超不过去。\n2. 📅 老存档没有「本周起算时间」的，会自动补一个，满 7 天照常重置。\n3. 🕰️ 时间线不用再建世界书：生成或转写完，点「💾 存进脚本」就存在脚本里，按角色卡分档，开新对话也跟着走。\n4. 📋 新增「时间线清单」：能看到接下来会发生什么、哪条已经触发，还能改时间、改类型、删除、手动加一条。\n5. 🤖 让 AI 判断事件类型：一键把「日常 / 重大」标好；生成时间线时它也会先判断再写。\n6. 🎬 事件导演：事件由脚本的骰子决定、占几回合也定好，AI 只负责把这件事写好看，不再自己另起事件。\n7. 🔁 429 自动重试：所有独立 API 调用排成一条队，一次只发一个；遇到 429 / 5xx 自动等一会儿再试，最多 3 次；还不行会告诉你换轻量模型或切回酒馆模型。\n8. 📥 世界书入口保留成「从世界书导入」，已经有条目的老玩家可以一次性搬进来。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -226,8 +226,8 @@
     return null;
   }
 
-  // 从世界书条目里解析时间线事件
-  function getTimelineEvents(entries) {
+  // 从世界书条目里解析时间线事件（老玩家的兼容通道，内置仓库为空时才靠它）
+  function _parseWorldbookTimelineEvents(entries) {
     const events = [];
     if (!Array.isArray(entries)) return events;
     const tag = getTimelineTag();
@@ -264,6 +264,162 @@
       return 0;
     });
     return events;
+  }
+
+  /* ── 时间线内置仓库：不建世界书也能用 ─────────────────────
+     数据存在本机 localStorage，按角色卡分档（换对话、开新档都跟着卡走）。
+     结构：[{ id, name, time, isMajor, done, source }] */
+  const TIMELINE_STORE_KEY = 'moon_phase_timeline_events_v1';
+
+  function timelineScopeKey() {
+    try {
+      const ctx = getSTCtx();
+      const ch = (ctx && ctx.characters && ctx.characters[ctx.characterId]) || {};
+      const id = ch.avatar || ch.name || (ctx && ctx.name2) || '';
+      return 'c:' + String(id || 'default');
+    } catch (e) { return 'c:default'; }
+  }
+
+  function _tlReadAll() {
+    try {
+      const raw = getStorage().getItem(TIMELINE_STORE_KEY);
+      const obj = raw ? JSON.parse(raw) : {};
+      return (obj && typeof obj === 'object') ? obj : {};
+    } catch (e) { return {}; }
+  }
+
+  function normalizeTimelineItem(x) {
+    const o = (x && typeof x === 'object') ? x : {};
+    return {
+      id: String(o.id || ('tl_' + Math.random().toString(36).slice(2, 8))),
+      name: String(o.name || o.title || '未命名事件').slice(0, 80),
+      time: String(o.time || '').trim(),
+      isMajor: o.isMajor === true || /重大|关键/.test(String(o.type || '')),
+      done: o.done === true,
+      source: String(o.source || 'local')
+    };
+  }
+
+  function loadTimelineStore() {
+    const all = _tlReadAll();
+    const list = all[timelineScopeKey()];
+    if (!Array.isArray(list)) return [];
+    return list.filter(Boolean).map(normalizeTimelineItem).sort(function(a, b) {
+      const da = parseGameTime(a.time), db = parseGameTime(b.time);
+      if (da && db) return da.getTime() - db.getTime();
+      if (da) return -1; if (db) return 1; return 0;
+    });
+  }
+
+  function saveTimelineStore(list) {
+    try {
+      const all = _tlReadAll();
+      all[timelineScopeKey()] = (Array.isArray(list) ? list : []).map(normalizeTimelineItem);
+      getStorage().setItem(TIMELINE_STORE_KEY, JSON.stringify(all));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function addTimelineEvents(items) {
+    const list = loadTimelineStore();
+    const seen = {};
+    list.forEach(function(e) { seen[e.name + '@' + e.time] = 1; });
+    let added = 0;
+    (items || []).forEach(function(raw) {
+      const it = normalizeTimelineItem(raw);
+      const key = it.name + '@' + it.time;
+      if (seen[key]) return;
+      seen[key] = 1;
+      list.push(it);
+      added++;
+    });
+    saveTimelineStore(list);
+    return added;
+  }
+
+  function updateTimelineEvent(id, patch) {
+    const list = loadTimelineStore();
+    let hit = false;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].id !== id) continue;
+      list[i] = normalizeTimelineItem(Object.assign({}, list[i], patch || {}));
+      hit = true; break;
+    }
+    if (hit) saveTimelineStore(list);
+    return hit;
+  }
+
+  function removeTimelineEvent(id) {
+    const list = loadTimelineStore().filter(function(e) { return e.id !== id; });
+    saveTimelineStore(list);
+  }
+
+  function clearTimelineStore() { saveTimelineStore([]); }
+
+  function markTimelineDoneByName(name) {
+    if (!name) return;
+    const list = loadTimelineStore();
+    let hit = false;
+    list.forEach(function(e) { if (e.name === name) { e.done = true; hit = true; } });
+    if (hit) saveTimelineStore(list);
+  }
+
+  // 把「时间：xxx / 内容：yyy」文本或 JSON 数组解析成标准事件
+  function parseTimelineText(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return [];
+    const asJson = extractJson(raw);
+    if (Array.isArray(asJson)) {
+      return asJson.map(function(it) {
+        if (!it || typeof it !== 'object') return null;
+        return normalizeTimelineItem({
+          name: it.name || it.title || it.comment || it.内容 || '',
+          time: it.time || it.时间 || '',
+          type: it.type || it.类型 || '',
+          isMajor: it.isMajor === true || /重大|关键/.test(String(it.type || it.类型 || it.content || ''))
+        });
+      }).filter(function(x) { return x && x.name; });
+    }
+    const blocks = raw.split(/\n{2,}/).map(function(t) { return t.trim(); }).filter(Boolean);
+    const list = [];
+    blocks.forEach(function(blk) {
+      const mt = blk.match(/时间\s*[:：]\s*([^\n]+)/);
+      let timeStr = mt ? mt[1].trim() : '';
+      if (!timeStr) { const mm = blk.match(TL_TIME_RE); if (mm) timeStr = mm[0]; }
+      if (!timeStr) return;
+      const mc = blk.match(/内容\s*[:：]\s*([\s\S]+)/);
+      let desc = mc ? mc[1].trim() : blk.replace(/时间\s*[:：][^\n]+/, '').trim();
+      desc = desc.replace(/\n+/g, ' ').trim();
+      const isMajor = /（重大）|\(重大\)|\[重大\]|重大/.test(desc);
+      desc = desc.replace(/（重大）|\(重大\)|\[重大\]/g, '').trim();
+      const mName = desc.match(/【([^】]+)】/);
+      const name = (mName ? mName[1] : desc).slice(0, 60) || '未命名事件';
+      list.push(normalizeTimelineItem({ name: name, time: timeStr, isMajor: isMajor }));
+    });
+    return list;
+  }
+
+  // 统一出口：内置仓库优先，世界书作为可选补充
+  function getTimelineEvents(entries) {
+    const merged = [];
+    const seen = {};
+    loadTimelineStore().forEach(function(it) {
+      const key = it.name + '@' + it.time;
+      seen[key] = 1;
+      merged.push({ name: it.name, time: it.time, isMajor: !!it.isMajor, done: !!it.done, id: it.id, source: 'local', raw: it.name });
+    });
+    _parseWorldbookTimelineEvents(entries).forEach(function(e) {
+      const key = e.name + '@' + e.time;
+      if (seen[key]) return;
+      seen[key] = 1;
+      merged.push({ name: e.name, time: e.time, isMajor: e.isMajor, done: false, source: 'book', raw: e.raw });
+    });
+    merged.sort(function(a, b) {
+      const da = parseGameTime(a.time), db = parseGameTime(b.time);
+      if (da && db) return da.getTime() - db.getTime();
+      if (da) return -1; if (db) return 1; return 0;
+    });
+    return merged;
   }
 
   function scanTimelineCandidates(entries) {
@@ -1211,7 +1367,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       } else if (g.type === 'event_update') {
         const e = g.event;
         if (e.type === 'world_event') {
-          lines.push('【' + g.char + '】世界书主线事件触发：【' + e.name + '】。请立即进入主线，剩余 ' + e.rounds + ' 回合，不得拖延。');
+          lines.push('【' + g.char + '】主线事件触发：【' + e.name + '】。请立即进入主线，剩余 ' + e.rounds + ' 回合，不得拖延。');
         } else if (e.type === 'new_event') {
           if (e.isEgg) {
             lines.push('【' + g.char + '】触发大成功彩蛋事件：【' + e.name + '】。请在 ' + e.rounds + ' 回合内完成。');
@@ -1257,6 +1413,12 @@ async function _collectAllWorldbooks(includeDisabled) {
         if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在她身上，内心戏与情感拉扯要写足。');
         else if (importance === '次要') lines.push('  · 角色定位：次要角色 —— 可以互动，但不要抢主线攻略对象的戏份。');
         else lines.push('  · 角色定位：NPC —— 只做功能性出场，不展开情感线。');
+        const _es = (ch._quota || {})._eventState || {};
+        if (_es.当前事件 && Number(_es.剩余回合) > 0) {
+          lines.push('🎬【事件导演·本轮已定事件】「' + _es.当前事件 + '」（' + (_es.事件类型 || '日常') + '），还剩 ' + _es.剩余回合 + ' 回合。');
+          lines.push('  → 你只负责扩写：把这件事的场面、对话、心理、细节写足，每轮只推进一小步。');
+          lines.push('  → 这件事没走完之前，不要另起新事件、不要跳过时间、不要突然转场，剧情必须围着它转。');
+        }
         lines.push('【' + name + '】本轮事件类型：' + eventType + '，请在区间 ' + range + ' 内挑一个基础值。');
         lines.push('  输出格式：' + (multiCard ? '[Sylveina|' + name + '|' + levelTag + '|+/-|基础值]' : '[Sylveina|' + levelTag + '|+/-|基础值]') + '，例：' + (multiCard ? '[Sylveina|' + name + '|' + levelTag + '|+|3.5]' : '[Sylveina|' + levelTag + '|+|3.5]'));
         const days = Number(es._距离主线天数);
@@ -1290,6 +1452,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         + '节奏规则：同一场景内的对话，每轮只推进 ' + getTurnMinutes() + ' 分钟（最多不超过 ' + (getTurnMinutes() * 2) + ' 分钟），不要自行跳到几小时之后或第二天；'
         + '只有玩家明确要求（第二天 / 三天后 / 睡一觉 / 跳过）或剧情确实需要转场时，才写出跨时段或跨天的新时间。'
         + '没有跨天就保持同一天，只把分钟往后推。）');
+      lines.push('【分工】剧情事件的种类与节奏由脚本的骰子与导演系统决定，你不需要自己另起大事件；拿到哪件事，就把它写成最好看的那一版。');
       lines.push('禁止在正文与后台变量块里输出 好感度/肉体值/阶段值/嫉妒值 数值，禁止输出 JSON、UpdateVariable、StatusPlaceHolderImpl 或任何解释文字；四维数值全部由本插件按标签在本地计算和保存。');
       callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 4, 1, false);
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
@@ -1373,13 +1536,15 @@ async function _collectAllWorldbooks(includeDisabled) {
     delta = roundHalf(delta);
     let weeklyBlocked = false;
     if (dim === 'E' && delta > 0) {
-      const q = charData._quota || {};
+      if (!charData._quota) charData._quota = {};
+      const q = charData._quota;
       const used = Number(q.好感度周上限已用) || 0;
       const cap = MOON_FORMULA_PARAMS.weeklyCap[mode] || MOON_FORMULA_PARAMS.weeklyCap.normal;
-      const remain = cap - used;
+      const remain = roundHalf(cap - used);
       if (remain <= 0) { delta = 0; weeklyBlocked = true; }
       else if (delta > remain) { delta = roundHalf(remain); weeklyBlocked = true; }
-      if (!weeklyBlocked) { if (!charData._quota) charData._quota = {}; charData._quota.好感度周上限已用 = roundHalf(used + Math.max(0, delta)); }
+      // 关键：被压缩后的实际增量也要记账，否则同一周内会反复领到「剩余额度」，把上限撑破
+      if (delta > 0) q.好感度周上限已用 = roundHalf(used + delta);
     }
     if (dim === 'R') delta = 0;
     const newValue = roundHalf(oldValue + delta);
@@ -1923,6 +2088,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         if (!Array.isArray(completed)) completed = [];
         let triggeredTimeline = null;
         for (const evt of timelineEvents) {
+          if (evt.done) continue;
           if (completed.indexOf(evt.name) >= 0) continue;
           const eventTime = parseGameTime(evt.time);
           if (eventTime && currentDate.getTime() >= eventTime.getTime()) { triggeredTimeline = { name: evt.name, isMajor: evt.isMajor }; break; }
@@ -1930,6 +2096,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         if (triggeredTimeline) {
           completed.push(triggeredTimeline.name);
           ch._quota._timelineCompleted = completed;
+          try { markTimelineDoneByName(triggeredTimeline.name); } catch (e) {}
           eventState.当前事件 = triggeredTimeline.name;
           eventState.事件类型 = triggeredTimeline.isMajor ? '重大' : '日常';
           eventState.剩余回合 = triggeredTimeline.isMajor ? rule.major : rule.daily;
@@ -1971,6 +2138,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         if (turnsSinceLastRoll < JUDGE_INTERVAL) { resolve(null); return; }
         let nextTimelineDate = null;
         for (const evt of timelineEvents) {
+          if (evt.done) continue;
           if (completed.indexOf(evt.name) >= 0) continue;
           const eventTime = parseGameTime(evt.time);
           if (eventTime && eventTime.getTime() > currentDate.getTime()) { if (!nextTimelineDate || eventTime.getTime() < nextTimelineDate.getTime()) nextTimelineDate = eventTime; }
@@ -2070,6 +2238,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         const quota = ch._quota || (ch._quota = {});
         const debuff = quota._debuff || (quota._debuff = {});
         const E = Number(ch.好感度) || 0;
+        if (!quota.周上限起始) { quota.周上限起始 = currentTime; mutated = true; }
         if (quota.周上限起始) {
           const startDate = parseGameTime(quota.周上限起始); const curDate = parseGameTime(currentTime);
           if (startDate && curDate) {
@@ -6950,7 +7119,11 @@ function openUpdateConfigDialog(panel) {
       '<details class="mp-action-fold" open><summary><span>玩家档案</span><small>让 AI 记住「你」是谁</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 玩家档案</span><small>把酒馆里的「你」写成一份小传</small></button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 玩家资料库</span><small>挑一份小传让它生效</small></button></div></details>' +
       '<details class="mp-action-fold" open><summary><span>相册与通关</span><small>看解锁的插画 · 结算这一局</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的成就和插画，可下载保存</small></button><button class="mp-btn" id="moon-phase-ending"><span>🌌 周目结算</span><small>这一局结束：生成结局卡和番外小说</small></button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
-      '<details class="mp-action-fold" open><summary><span>找日期</span><small>从世界书里找，或让 AI 编一份</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-scan-timeline"><span>🔎 扫描时间线</span><small>翻世界书，把写着的日期列成表</small></button><button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>让 AI 照着大纲编一份未来大事表</small></button></div></details>' +
+      '<details class="mp-action-fold" open><summary><span>时间线</span><small>大事表就存在脚本里，不用建世界书</small><i>＋</i></summary><div class="mp-grid">' +
+        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 时间线清单</span><small>看看接下来会发生什么，能改能删</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>让 AI 编一份大事表，直接存进来</small></button>' +
+        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书导入</span><small>已经有现成的？搬进来就行</small></button>' +
+      '</div></details>' +
       '<details class="mp-action-fold" open><summary><span>改日期</span><small>指定读哪一栏 · 自己粘贴</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 时间线标签</span><small>告诉它「日期写在哪一栏」</small></button><button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动补录</span><small>自己贴一段，自动转成标准格式</small></button></div></details></div>' +
       '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修 / SYSTEM SERVICE</div>' +
       '<details class="mp-action-fold" open><summary><span>体检</span><small>存上了吗 · 有没有缺零件</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>看数据存在哪、有没有缺零件</small></button><button class="mp-btn" id="moon-phase-simtest"><span>🧪 模拟测试</span><small>拿假数据试算一遍，不动你的存档</small></button></div></details>' +
@@ -7106,6 +7279,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     setTimeout(function() { try { refreshTokenCard(panel); } catch (e) {} }, 120);
     panel.querySelector('#moon-phase-scan-timeline').addEventListener('click', function() { openScanTimelineDialog(panel); });
     panel.querySelector('#moon-phase-tl-gen').addEventListener('click', function() { openTimelineGeneratorDialog(panel); });
+    if (panel.querySelector('#moon-phase-tl-list')) panel.querySelector('#moon-phase-tl-list').addEventListener('click', function() { openTimelineManagerDialog(panel); });
     panel.querySelector('#moon-phase-manual-tl').addEventListener('click', function() { openManualTimelineInputDialog(panel); });
     panel.querySelector('#moon-phase-tl-tag').addEventListener('click', function() { openTimelineTagDialog(panel); });
   }
@@ -7838,6 +8012,7 @@ const stateKey = getChatStateKey();
           proxy_password: key
         })
       });
+      if (proxyRes && !proxyRes.ok) { proxyNote = '代理线路返回 HTTP ' + proxyRes.status; }
       if (proxyRes && proxyRes.ok) {
         const proxyData = await proxyRes.json();
         const proxyIds = extractModelIdsFromPayload(proxyData);
@@ -7985,7 +8160,7 @@ const stateKey = getChatStateKey();
       });
   }
 
-  async function callCustomAIConfig(sysPrompt, userPrompt) {
+  async function _callCustomAIConfigOnce(sysPrompt, userPrompt) {
     const cfg = getCustomAIConfig();
     if (!cfg.url || !cfg.key || !cfg.model) throw new Error('未配置自定义副模型');
     const doFetch = (mainWin && typeof mainWin.fetch === 'function') ? mainWin.fetch.bind(mainWin) : fetch;
@@ -7995,6 +8170,7 @@ const stateKey = getChatStateKey();
       { role: 'system', content: sysPrompt },
       { role: 'user', content: userPrompt }
     ];
+    let proxyNote = '';
 
     // 1. 优先尝试通过酒馆后端代理请求（避免浏览器 CORS Failed to fetch）
     try {
@@ -8045,8 +8221,55 @@ const stateKey = getChatStateKey();
       if (data.choices && data.choices[0] && data.choices[0].message) return data.choices[0].message.content;
       throw new Error('接口返回格式异常');
     } catch (e) {
-      throw new Error('请求自定义 API 失败（请检查 URL/Key/模型名是否匹配，如使用 DeepSeek 请选 deepseek-chat）：' + (e.message || e));
+      throw new Error('请求自定义 API 失败（请检查 URL/Key/模型名是否匹配，如使用 DeepSeek 请选 deepseek-chat）：' + (e.message || e) + (proxyNote ? '｜' + proxyNote : ''));
     }
+  }
+
+  /* ── 独立 API：全局串行 + 429 退避重试 ────────────────────
+     429 多半是「同一秒钟发了太多请求」或「这个模型排队太长」。
+     ① 所有独立 API 调用排成一条队，一次只发一个；
+     ② 命中 429 / 5xx 自动等一会儿再试，最多 3 次；
+     ③ 仍然失败时给出能直接照做的人话提示。 */
+  let _customAIQueue = Promise.resolve();
+  let _customAIBusy = 0;
+  function runInAISerial(fn) {
+    const next = _customAIQueue.then(fn, fn);
+    _customAIQueue = next.then(function() {}, function() {});
+    return next;
+  }
+  function _aiSleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+  function isRateLimitError(errOrMsg) {
+    const t = String((errOrMsg && errOrMsg.message) || errOrMsg || '');
+    return /(^|\D)429(\D|$)|rate.?limit|too many requests|overloaded|quota|exceeded|(^|\D)(502|503|529)(\D|$)/i.test(t);
+  }
+  function aiRetryDelayMs(err, attempt) {
+    const t = String((err && err.message) || err || '');
+    const m = t.match(/(?:retry[\-\s]?after|等待|稍后)[^\d]{0,10}(\d+)/i);
+    if (m) return Math.min(30000, Math.max(1000, Number(m[1]) * 1000));
+    const table = [1500, 4000, 9000];
+    return table[Math.min(attempt, table.length - 1)];
+  }
+  async function callCustomAIConfig(sysPrompt, userPrompt) {
+    const maxTries = 3;
+    let lastErr = null;
+    for (let i = 0; i < maxTries; i++) {
+      try {
+        _customAIBusy++;
+        try {
+          return await runInAISerial(function() { return _callCustomAIConfigOnce(sysPrompt, userPrompt); });
+        } finally { _customAIBusy = Math.max(0, _customAIBusy - 1); }
+      } catch (e) {
+        lastErr = e;
+        if (!isRateLimitError(e) || i >= maxTries - 1) break;
+        const wait = aiRetryDelayMs(e, i);
+        try { toast('模型限流（429），' + Math.round(wait / 1000) + ' 秒后自动重试（第 ' + (i + 2) + '/' + maxTries + ' 次）', 'info'); } catch (e2) {}
+        await _aiSleep(wait);
+      }
+    }
+    if (isRateLimitError(lastErr)) {
+      throw new Error('模型返回 429（请求太频繁或额度用尽）。已自动重试 ' + (maxTries - 1) + ' 次仍未成功。\n可以这样办：① 换轻量一点的模型（名字里带 Flash / mini / lite 的通常更容易排上队）；② 等 1~2 分钟再点一次；③ 把「独立 API」切回酒馆当前模型，让主模型跑这些后台任务。');
+    }
+    throw lastErr;
   }
 
   const DEFAULT_PROMPTS = {
@@ -8056,7 +8279,7 @@ const stateKey = getChatStateKey();
     opening: { label: '开局推断', sys: '你是月相多维情感系统的「开局推断」助手。请推断角色对玩家的初始四维数值。\n【输出】严格 JSON：{"好感度":number,"肉体值":number,"嫉妒值":number,"情绪":"单个emoji","心声":"15~30字第一人称","推断理由":"≤80字"}', user: '【玩家设定】\n名字：{{playerName}}\n描述：{{playerPersona}}\n\n【角色卡】\n名称：{{charName}}\n简介：{{charDesc}}\n性格：{{charPersonality}}\n场景：{{charScenario}}\n开场白：{{charFirstMes}}\n创作者注释：{{charCreatorNotes}}\n\n【对话历史】\n{{chatHistory}}' },
     openingPass2: { label: '开局补全', sys: '你是月相多维情感系统的「开局补全」助手。玩家已确认好感度、肉体值、阶段值。请根据这些最终数值，重新评估嫉妒值、情绪、心声。\n【输出】严格 JSON：{"嫉妒值":number,"情绪":"单个emoji","心声":"15~30字第一人称"}', user: '【玩家设定】\n{{playerName}}\n描述：{{playerPersona}}\n\n【角色卡】\n名称：{{charName}}\n简介：{{charDesc}}\n\n【最终确认数值】\n好感度：{{finalE}}\n肉体值：{{finalP}}\n阶段值：{{finalR}}\n\n【对话历史】\n{{chatHistory}}' },
     backfill: { label: '对话回填', sys: '你是月相多维情感系统的「对话回填」助手。玩家有一个没有变量的老存档，请根据对话历史推断此刻角色对玩家的一整套合理状态。\n【输出】严格 JSON，字段：世界时间、世界地点、好感度、肉体值、嫉妒值、情绪、心声、重要度、表白期已通过、表白期排除、已触发时间线事件名、好感度周上限已用、推断理由。', user: '【玩家设定】\n{{playerName}}\n描述：{{playerPersona}}\n\n【角色卡】\n名称：{{charName}}\n简介：{{charDesc}}\n性格：{{charPersonality}}\n场景：{{charScenario}}\n\n{{timelineDump}}\n\n【对话历史】\n{{chatHistory}}' },
-    timeline: { label: '时间线生成', sys: '你是世界书时间线生成助手。请生成 5~10 条符合格式的 [Timeline] 世界书条目。\n格式：{"comment":"[Timeline] 事件名","content":"YYYY年MM月DD日 · 星期X · HH:MM\\n事件描述"}\n只输出 JSON 数组。', user: '【角色卡】\n{{charInfo}}\n\n【剧情大纲】\n{{userInput}}' },
+    timeline: { label: '时间线生成', sys: '你是剧情时间线规划助手。请为这张角色卡设计 6~10 个未来会发生的事件，并按时间从早到晚排列。\n【每件事都要判断类型】\n· 日常：吃饭、上学、闲聊、小摩擦、日常约会这类起伏不大的事；\n· 重大：告白、吵架分手、事故、离别、生死、主线冲突这类会改变关系或世界观的事。\n先在心里按上面的标准判断，再写进 type 字段。\n【输出】严格 JSON 数组，只输出 JSON，不要解释、不要 markdown：\n[{"name":"一句话事件名","time":"YYYY年MM月DD日 · 星期X · HH:MM","type":"日常","desc":"≤30字补充"}]\n时间必须单调递增，且不早于今天。', user: '【角色卡】\n{{charInfo}}\n\n【剧情大纲】\n{{userInput}}' },
     placeholders: '{{charInfo}} {{charName}} {{charDesc}} {{charPersonality}} {{charScenario}} {{charFirstMes}} {{charCreatorNotes}} {{currentMode}} {{currentModeLabel}} {{modeList}} {{mvuDump}} {{otherDump}} {{promptDump}} {{playerName}} {{playerPersona}} {{finalE}} {{finalP}} {{finalR}} {{finalRName}} {{finalRDesc}} {{chatHistory}} {{userInput}} {{timelineDump}}'
   };
 
@@ -8410,12 +8633,18 @@ async function openScanTimelineDialog(panel) {
     let currentText = initialText;
     function buildHtml(text) {
       const preview = String(text).replace(/</g, '&lt;');
-      return '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">已转写完成。请复制下方内容，粘贴到世界书的 <code>[WorldTimeline]</code> 条目。</div>' +
+      return '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">整理好了。点下面「💾 存进脚本」就存进去，<b style="color:#6ee7b7;">不用新建世界书</b>。</div>' +
         '<div id="moon-tl-result-box" style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.2);border-radius:9px;font-family:monospace;font-size:11px;color:#a5f3fc;white-space:pre-wrap;max-height:280px;overflow-y:auto;">' + preview + '</div>' +
-        '<div style="margin-top:12px;padding:10px 12px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.35);border-radius:9px;font-size:11px;color:#fbbf24;line-height:1.7;">步骤：① 复制 ② 世界书新建 [WorldTimeline] 粘贴 ③ 禁用原标题「' + origTitle + '」的条目 ④ 面板填 [WorldTimeline]</div>';
+        '<div style="margin-top:12px;padding:10px 12px;background:rgba(110,231,183,0.08);border:1px solid rgba(110,231,183,0.3);border-radius:9px;font-size:11px;color:#6ee7b7;line-height:1.7;">来源：' + origTitle + '。存进去之后可以随时在「📋 时间线清单」里改时间、改类型、删除。</div>';
     }
-    showModalDialog('🕰️ AI 转写结果', buildHtml(initialText), null, {
-      confirmText: '关闭',
+    showModalDialog('🕰️ AI 转写结果', buildHtml(initialText), function() {
+      const items = parseTimelineText(currentText);
+      if (!items.length) { toast('没认出时间，先把上面的内容改一改', 'warning'); return; }
+      const added = addTimelineEvents(items);
+      toast('已存进脚本：新增 ' + added + ' 条时间线', 'success');
+      setTimeout(function() { openTimelineManagerDialog(null); }, 260);
+    }, {
+      confirmText: '💾 存进脚本',
       onOpen: function(mask) {
         const confirmBtn = mask.querySelector('#moon-modal-confirm'); if (!confirmBtn) return;
         const copyBtn = mainDoc.createElement('button');
@@ -8485,6 +8714,153 @@ async function openScanTimelineDialog(panel) {
       { confirmText: '开始转写', cancelText: '取消' });
   }
   /* ───────────────────────────────────────────────────────── */
+  /* ── 时间线清单：全部操作都写回脚本本地仓库 ── */
+  function openTimelineManagerDialog(panel) {
+    const list = loadTimelineStore();
+    let nowStr = '';
+    try { const d = readMvuLatest(); nowStr = (d && d.stat_data && d.stat_data.世界 && d.stat_data.世界.时间) || ''; } catch (e) {}
+    const nowDate = parseGameTime(nowStr);
+
+    const rows = list.length ? list.map(function(e) {
+      const d = parseGameTime(e.time);
+      const past = !!(nowDate && d && d.getTime() <= nowDate.getTime());
+      const stateTxt = e.done ? '✅ 已触发' : (past ? '⚡ 已到点' : '⏳ 待触发');
+      const stateColor = e.done ? '#6ee7b7' : (past ? '#fbbf24' : '#94a3b8');
+      const typeBadge = e.isMajor
+        ? '<span style="font-size:9.5px;padding:1px 6px;border-radius:6px;background:rgba(244,114,208,0.18);color:#f9a8d4;border:1px solid rgba(244,114,208,0.45);">重大</span>'
+        : '<span style="font-size:9.5px;padding:1px 6px;border-radius:6px;background:rgba(56,189,248,0.15);color:#7dd3fc;border:1px solid rgba(56,189,248,0.35);">日常</span>';
+      return '<div style="padding:9px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.16);border-radius:9px;margin-bottom:6px;">' +
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+          typeBadge + '<span style="font-size:12px;font-weight:700;color:#e2e8f0;flex:1;min-width:0;overflow-wrap:anywhere;">' + escapeFeatureHtml(e.name) + '</span>' +
+          '<span style="font-size:9.5px;color:' + stateColor + ';">' + stateTxt + '</span>' +
+        '</div>' +
+        '<div style="font-size:10.5px;color:#94a3b8;margin-top:4px;">' + escapeFeatureHtml(e.time || '未写时间') + '</div>' +
+        '<div style="display:flex;gap:5px;margin-top:6px;">' +
+          '<button class="moon-tl-act" data-act="time" data-id="' + e.id + '" style="flex:1;padding:5px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:10.5px;cursor:pointer;font-family:inherit;">⏱ 改时间</button>' +
+          '<button class="moon-tl-act" data-act="type" data-id="' + e.id + '" style="flex:1;padding:5px;border-radius:6px;border:1px solid rgba(168,85,247,0.4);background:#2a1040;color:#c084fc;font-size:10.5px;cursor:pointer;font-family:inherit;">🔄 换成' + (e.isMajor ? '日常' : '重大') + '</button>' +
+          '<button class="moon-tl-act" data-act="del" data-id="' + e.id + '" style="flex:0.7;padding:5px;border-radius:6px;border:1px solid rgba(248,113,113,0.4);background:#2a1010;color:#fca5a5;font-size:10.5px;cursor:pointer;font-family:inherit;">🗑</button>' +
+        '</div></div>';
+    }).join('') : '<div style="padding:16px 10px;text-align:center;font-size:11.5px;color:#64748b;line-height:1.8;">还没有时间线。<br>点下面「📝 让 AI 编一份」，或「➕ 手动加一条」。</div>';
+
+    const html =
+      '<div style="font-size:11px;color:#94a3b8;line-height:1.7;margin-bottom:8px;">' +
+        '这些大事表<b style="color:#7dd3fc;">存在脚本里</b>，不用建世界书；换存档、开新对话都还在这张卡上。' +
+        (nowStr ? '<br>当前世界时间：<b style="color:#e2e8f0;">' + escapeFeatureHtml(nowStr) + '</b>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">' +
+        '<button id="moon-tl-add" style="flex:1;min-width:88px;padding:7px;border-radius:8px;border:1px solid rgba(110,231,183,0.4);background:#0d2b22;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">➕ 手动加一条</button>' +
+        '<button id="moon-tl-cls" style="flex:1;min-width:88px;padding:7px;border-radius:8px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">🤖 判日常/重大</button>' +
+        '<button id="moon-tl-clear" style="flex:0.8;min-width:66px;padding:7px;border-radius:8px;border:1px solid rgba(248,113,113,0.4);background:#2a1010;color:#fca5a5;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">🗑 清空</button>' +
+      '</div>' +
+      '<div style="max-height:44dvh;overflow-y:auto;padding-right:4px;">' + rows + '</div>' +
+      '<div style="margin-top:10px;font-size:10.5px;color:#64748b;line-height:1.6;">到点的事会自动变成「当前事件」并规定占几回合，AI 只负责把这件事写好看。</div>';
+
+    showModalDialog('📋 时间线清单（共 ' + list.length + ' 条）', html, null, {
+      confirmText: '关闭',
+      onOpen: function(mask) {
+        function reopen() { try { mask.remove(); } catch (e) {} openTimelineManagerDialog(panel); }
+        const addBtn = mask.querySelector('#moon-tl-add');
+        if (addBtn) addBtn.addEventListener('click', function() {
+          try { mask.remove(); } catch (e) {}
+          openTimelineAddDialog(panel);
+        });
+        const clsBtn = mask.querySelector('#moon-tl-cls');
+        if (clsBtn) clsBtn.addEventListener('click', function() {
+          try { mask.remove(); } catch (e) {}
+          classifyTimelineWithAI(panel);
+        });
+        const clrBtn = mask.querySelector('#moon-tl-clear');
+        if (clrBtn) clrBtn.addEventListener('click', function() {
+          if (!list.length) { toast('本来就是空的', 'info'); return; }
+          clearTimelineStore(); toast('已清空时间线', 'success'); reopen();
+        });
+        mask.querySelectorAll('.moon-tl-act').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            const id = btn.getAttribute('data-id');
+            const act = btn.getAttribute('data-act');
+            const item = list.filter(function(x) { return x.id === id; })[0];
+            if (!item) return;
+            if (act === 'del') { removeTimelineEvent(id); toast('已删除', 'success'); reopen(); return; }
+            if (act === 'type') { updateTimelineEvent(id, { isMajor: !item.isMajor }); reopen(); return; }
+            if (act === 'time') {
+              try { mask.remove(); } catch (e) {}
+              showTimelineTimeEditor(panel, item);
+            }
+          });
+        });
+      }
+    });
+  }
+
+  function showTimelineTimeEditor(panel, item) {
+    const html = '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">时间写法要能被认出来，例如：2024年5月3日 · 星期五 · 19:30</div>' +
+      '<input id="moon-tl-time-input" type="text" value="' + escapeFeatureHtml(item.time || '') + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;font-family:inherit;">';
+    showModalDialogCancelable('⏱ 改时间', html,
+      function() {
+        const mask = mainDoc.getElementById('moon-modal-mask');
+        const v = mask ? String(mask.querySelector('#moon-tl-time-input').value || '').trim() : '';
+        try { if (mask) mask.remove(); } catch (e) {}
+        if (!parseGameTime(v)) { toast('这个时间读不出来，换个写法试试', 'warning'); openTimelineManagerDialog(panel); return; }
+        updateTimelineEvent(item.id, { time: v });
+        toast('时间已改', 'success');
+        openTimelineManagerDialog(panel);
+      },
+      function() { openTimelineManagerDialog(panel); },
+      { confirmText: '保存', cancelText: '取消' });
+  }
+
+  function openTimelineAddDialog(panel) {
+    const nowStr = (function() { try { const d = readMvuLatest(); return (d && d.stat_data && d.stat_data.世界 && d.stat_data.世界.时间) || ''; } catch (e) { return ''; } })();
+    const html =
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">时间（例：2024年5月3日 · 星期五 · 19:30）</div>' +
+      '<input id="moon-tl-add-time" type="text" value="' + escapeFeatureHtml(nowStr) + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
+      '<div style="font-size:11px;color:#94a3b8;margin:10px 0 4px;">会发生什么（一句话）</div>' +
+      '<input id="moon-tl-add-name" type="text" placeholder="例：文化祭当天，她鼓起勇气约你" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
+      '<label style="display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11.5px;color:#cbd5e1;cursor:pointer;">' +
+        '<input type="checkbox" id="moon-tl-add-major"> 这是重大事件（不加就是日常）</label>';
+    showModalDialogCancelable('➕ 加一条时间线', html,
+      function() {
+        const mask = mainDoc.getElementById('moon-modal-mask');
+        if (!mask) return;
+        const time = String(mask.querySelector('#moon-tl-add-time').value || '').trim();
+        const name = String(mask.querySelector('#moon-tl-add-name').value || '').trim();
+        const major = !!mask.querySelector('#moon-tl-add-major').checked;
+        try { mask.remove(); } catch (e) {}
+        if (!name) { toast('事件名不能空着', 'warning'); openTimelineManagerDialog(panel); return; }
+        if (!parseGameTime(time)) { toast('时间读不出来，换个写法试试', 'warning'); openTimelineManagerDialog(panel); return; }
+        addTimelineEvents([{ name: name, time: time, isMajor: major }]);
+        toast('已加进脚本', 'success');
+        openTimelineManagerDialog(panel);
+      },
+      function() { openTimelineManagerDialog(panel); },
+      { confirmText: '加进去', cancelText: '取消' });
+  }
+
+  async function classifyTimelineWithAI(panel) {
+    const list = loadTimelineStore();
+    if (!list.length) { toast('时间线是空的，先加几条', 'info'); return; }
+    const payload = list.map(function(e, i) { return (i + 1) + '. ' + (e.time || '(无时间)') + '｜' + e.name; }).join('\n');
+    const sys = '你是剧情节奏规划助手。给下面每个时间线事件判断它属于「日常」还是「重大」。\n判断标准：日常=吃饭、上学、闲聊、小摩擦、日常约会这种起伏不大的事；重大=告白、吵架分手、事故、离别、生死、主线冲突这种会改变关系或世界观的事。\n【输出】严格 JSON 数组，只输出 JSON：\n[{"i":1,"type":"日常","why":"≤12字"}]\n不要解释，不要 markdown。';
+    showLoadingDialog('AI 正在判断哪件是日常、哪件是重大…');
+    let reply = '';
+    try { reply = await callOpeningModel('main', sys, payload); }
+    catch (e) { closeLoadingDialog(); toast('调用失败：' + (e.message || e), 'warning'); return; }
+    closeLoadingDialog();
+    const arr = extractJson(reply);
+    if (!Array.isArray(arr)) { toast('AI 没按格式回，再试一次', 'warning'); return; }
+    let changed = 0;
+    arr.forEach(function(it) {
+      if (!it) return;
+      const idx = Number(it.i) - 1;
+      const target = list[idx];
+      if (!target) return;
+      const isMajor = /重大|关键/.test(String(it.type || ''));
+      if (target.isMajor !== isMajor) { updateTimelineEvent(target.id, { isMajor: isMajor }); changed++; }
+    });
+    toast('判定完成，改了 ' + changed + ' 条', 'success');
+    openTimelineManagerDialog(panel);
+  }
+
   function openTimelineGeneratorDialog(panel) {
     const html = '<div style="font-size:11px;color:#cbd5e1;margin-bottom:10px;">让 AI 根据角色卡 / 大纲，生成 [Timeline] 世界书条目。</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">剧情大纲（可选）</div>' +
@@ -8535,16 +8911,22 @@ async function openScanTimelineDialog(panel) {
       if (Array.isArray(arr) && arr.length) {
         formatted = arr.map(function(item) {
           if (!item || typeof item !== 'object') return '';
-          const title = String(item.comment || item.title || '').replace(/^\[Timeline\]\s*/i, '').trim();
-          const content = String(item.content || '').trim();
-          const lines = content.split(/\r?\n/).map(function(x) { return x.trim(); }).filter(Boolean);
-          const timeLine = lines[0] || '';
-          const descLine = lines.slice(1).join(' ') || title;
-          return '时间：' + timeLine + '\n内容：' + (title && descLine.indexOf(title) < 0 ? ('【' + title + '】' + descLine) : descLine);
+          const name = String(item.name || item.title || item.comment || '').replace(/^\[Timeline\]\s*/i, '').trim();
+          const time = String(item.time || item.时间 || '').trim();
+          const desc = String(item.desc || item.content || item.描述 || '').replace(/\n+/g, ' ').trim();
+          const major = /重大|关键/.test(String(item.type || item.类型 || '')) || item.isMajor === true;
+          if (!time) return '';
+          const head = name || desc.slice(0, 20) || '事件';
+          const extra = (desc && desc !== head) ? ' ' + desc : '';
+          return '时间：' + time + '\n内容：【' + head + '】' + extra + (major ? '（重大）' : '');
         }).filter(Boolean).join('\n\n');
       }
     } catch (e) {}
-    showTimelineResultDialog(formatted, { title: '(AI 生成时间线)' }, { tag: getTimelineTag() || '[WorldTimeline]' });
+    const items = parseTimelineText(formatted);
+    if (!items.length) { showTimelineResultDialog(formatted, { title: '(AI 生成时间线)' }, { tag: 'AI' }); return; }
+    const added = addTimelineEvents(items);
+    toast('已存进脚本：新增 ' + added + ' 条时间线（重复的会跳过）', 'success');
+    openTimelineManagerDialog(panel);
   }
 
 async function runTimelineMultiConvert(panel, entries) {

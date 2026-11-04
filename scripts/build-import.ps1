@@ -1,27 +1,24 @@
+# 生成酒馆助手导入 JSON
+#
+# 真正的构建逻辑在 scripts/build.mjs（GitHub Actions 里跑的就是它）：
+#   src/*.js  →  moon-phase.js  →  Galgame攻略系统-酒馆助手导入.json
+#
+# 这个 ps1 只是给习惯在 Windows 上运行的维护者留一个入口，不再自己拼 JSON，
+# 免得出现「两套规则各写一份」的情况。
+
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$sourcePath = Join-Path $repoRoot 'moon-phase.js'
-$outputPath = Join-Path $repoRoot 'Galgame攻略系统-酒馆助手导入.json'
+$buildScript = Join-Path $PSScriptRoot 'build.mjs'
 
-if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-    throw "找不到脚本源码：$sourcePath"
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw "需要先安装 Node.js（https://nodejs.org），然后在仓库根目录运行：node scripts/build.mjs"
 }
 
-$scriptRecord = [ordered]@{
-    type = 'script'
-    enabled = $true
-    name = 'Galgame攻略系统'
-    id = 'e22f244b-70e1-448e-b24e-5a9b36c48484'
-    content = [System.IO.File]::ReadAllText($sourcePath, [System.Text.Encoding]::UTF8)
-    info = 'Galgame攻略系统 / 月相插件。导入后会自动运行，并在酒馆助手扩展菜单中显示入口。'
-    button = [ordered]@{
-        enabled = $false
-        buttons = @()
-    }
-    data = @{}
+Push-Location $repoRoot
+try {
+    & node $buildScript
+    if ($LASTEXITCODE -ne 0) { throw "构建失败（退出码 $LASTEXITCODE）" }
+} finally {
+    Pop-Location
 }
-
-$json = ConvertTo-Json -InputObject $scriptRecord -Depth 10
-[System.IO.File]::WriteAllText($outputPath, $json, [System.Text.UTF8Encoding]::new($false))
-Write-Output "已生成：$outputPath"

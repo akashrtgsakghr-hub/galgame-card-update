@@ -1,0 +1,13 @@
+# 统一换行，避免 Windows 的 core.autocrlf 把片段 checkout 成 CRLF，
+# 导致本地构建与 Linux CI 的产物不一致（sha256 对不上、CI 反复提交）。
+* text=auto eol=lf
+
+# PowerShell 脚本保留 CRLF，兼容旧版 Windows PowerShell
+*.ps1 text eol=crlf
+
+# 图片按二进制处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

@@ -1,0 +1,9 @@
+# 构建临时文件
+.build-check.js
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/

@@ -6,7 +6,24 @@
 
 在酒馆助手的「脚本库」中选择导入该 JSON。它会创建或更新名为「Galgame攻略系统」的全局脚本，脚本已默认启用。导入后按酒馆助手提示确认并刷新页面。
 
-`moon-phase.js` 仍是自动更新使用的源码文件。仓库维护者修改它后，可运行 `scripts/build-import.ps1` 重新生成导入 JSON，两者内容需保持一致。
+`moon-phase.js` 是自动更新使用的完整脚本，玩家下载到的就是它。
+
+## 源码结构
+
+仓库里的源码是拆开的（`src/` 下 26 个模块），但**玩家拿到的始终是一个完整脚本**——由 GitHub Actions 在每次改动后自动拼好：
+
+```
+src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
+                                   └─►  Galgame攻略系统-酒馆助手导入.json
+```
+
+改动流程：
+
+1. 改 `src/` 里对应的模块（模块表见 [`src/README.md`](src/README.md)）；
+2. 本地跑一次 `node scripts/build.mjs`（需要 Node.js），生成 `moon-phase.js` 和导入 JSON；
+3. 提交推送。就算第 2 步忘了，`push` 到 `main` 后 Actions 也会自动构建并把产物提交回来。
+
+**不要直接改 `moon-phase.js`**，它下次构建会被覆盖。`scripts/build.mjs --check` 可以只检查产物是否与源码同步（PR 里会跑这个）。
 
 ## 更新
 

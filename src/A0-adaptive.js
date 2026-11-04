@@ -1,0 +1,342 @@
+  function shouldShowAdaptiveOpening() {
+    if (getCardMode() === 'multi') return null;
+    // ① 当前对话已有有效角色数据 → 不弹
+    const data = readMvuLatest();
+    if (data && data.stat_data && data.stat_data.角色) {
+      const chars = data.stat_data.角色;
+      for (const n in chars) {
+        if (chars[n] && !isCharSkeleton(chars[n])) return null;
+      }
+    }
+    // ② 有待迁移的打包数据 → 不弹（走迁移流程）
+    try {
+      const raw = (getStorage() || localStorage).getItem(PENDING_MIGRATION_KEY);
+      if (raw) return null;
+    } catch (e) {}
+    const cardName = getCurrentCardName();
+    if (!cardName || cardName === '(未知卡牌)') return null;
+    return { charName: cardName, data: data };
+  }
+
+  async function runAdaptiveOpeningFlow() {
+    if (isAdaptiveFlowRunning) return;
+    const info = shouldShowAdaptiveOpening();
+    if (!info) return;
+    isAdaptiveFlowRunning = true;
+    showAdaptiveStartDialog(info.charName);
+  }
+
+
+  function showAdaptiveStartDialog(charName) {
+    const savedPref = (function() { try { return mainWin.localStorage.getItem(ADAPT_MODEL_PREF_KEY) || ''; } catch (e) { return ''; } })();
+    const cardMode = getCardMode(); const isMulti = cardMode === 'multi';
+    const tipHtml = isMulti ? '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· 这张卡有好几个人，AI 会把出过场的都认出来<br>· 已经聊过的，按聊过的内容算</div>' : '<div style="margin-top:10px;color:#fbbf24;line-height:1.7;">· AI 会读完聊天记录，估一个起始数值<br>· 刚开始的对话，就照开场白和角色卡算</div>';
+    const html = '<div>这个对话还没有角色档案，现在给你建一份。</div>' + tipHtml +
+      '<div style="margin-top:14px;font-size:11px;color:#94a3b8;margin-bottom:6px;">用哪个 AI 来读？（没填过 API 也没关系，点「开始」会弹出填写框）</div>' +
+      '<div style="display:flex;gap:8px;">' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-adapt-model" value="custom" ' + ((savedPref === 'custom' || savedPref === 'extra' || (!savedPref && hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-adapt-model" value="main" ' + ((savedPref === 'main' || (!savedPref && !hasValidCustomAIConfig())) ? 'checked' : '') + '><span style="font-size:12px;">🎭 就用酒馆现在这个 AI</span></label>' +
+      '</div><label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#94a3b8;cursor:pointer;"><input type="checkbox" id="moon-adapt-remember"> 记住我的选择</label>';
+    showModalDialogCancelable('🌅 开始建角色档案', html,
+      function() {
+        const mask = mainDoc.getElementById('moon-modal-mask');
+        const sel = mask ? mask.querySelector('input[name="moon-adapt-model"]:checked') : null;
+        const provider = sel ? sel.value : 'main';
+        const rememberEl = mask ? mask.querySelector('#moon-adapt-remember') : null;
+        if (rememberEl && rememberEl.checked) { try { mainWin.localStorage.setItem(ADAPT_MODEL_PREF_KEY, provider); } catch (e) {} }
+        try { if (mask) mask.remove(); } catch (e) {}
+        runAdaptiveFirstPass(charName, provider); isAdaptiveFlowRunning = false;
+      },
+      function() {
+        if (getCardMode() !== 'multi' && charName && charName !== '(多人卡)') {
+          const data = readMvuLatest();
+          if (data && data.stat_data && data.stat_data.角色 && data.stat_data.角色[charName]) {
+            const q = data.stat_data.角色[charName]._quota || {}; q.自适应开局已完成 = true;
+            data.stat_data.角色[charName]._quota = q; writeMvuLatest(data.stat_data);
+          }
+        }
+        toast('这次先不建，随时可以回来点「开局适配」', 'info'); isAdaptiveFlowRunning = false;
+      },
+      { confirmText: '开始', cancelText: '跳过' });
+  }
+
+  async function runAdaptiveFirstPass(charName, provider) {
+    if (getCardMode() === 'multi') { await runMultiCardAdaptiveFirstPass(provider, ''); return; }
+    const ctxData = collectOpeningContext(charName);
+    const tpl = getPromptTemplates().opening;
+    const vars = { playerName: ctxData.playerName, playerPersona: ctxData.playerPersona, charName: ctxData.charName, charDesc: ctxData.charDesc, charPersonality: ctxData.charPersonality, charScenario: ctxData.charScenario, charFirstMes: ctxData.charFirstMes, charCreatorNotes: ctxData.charCreatorNotes, chatHistory: ctxData.hasHistory ? ctxData.chatHistory : '(无对话历史)' };
+    showLoadingDialog(ctxData.hasHistory ? '正在通读对话历史...' : '正在根据开场白推断...');
+    let reply = '';
+    try { reply = await callOpeningModel(provider, renderPromptTemplate(tpl.sys, vars), renderPromptTemplate(tpl.user, vars)); }
+    catch (e) { closeLoadingDialog(); toast('调用模型失败：' + (e.message || e), 'warning'); return; }
+    closeLoadingDialog();
+    if (typeof reply !== 'string') reply = (reply && (reply.content || reply.text)) || String(reply);
+    const parsed = extractJson(reply);
+    if (!parsed) { showModalDialog('❌ 解析失败', '<div>模型未返回合法 JSON。</div>', null, { confirmText: '关闭' }); return; }
+    openAdaptiveResultDialog(charName, provider, parsed);
+  }
+
+  function openAdaptiveResultDialog(charName, provider, initial) {
+    const initE = Number(initial.好感度) || 0; const initP = Number(initial.肉体值) || 0;
+    const initI = Number(initial.嫉妒值) || 0; const initEmoji = String(initial.情绪 || '😐');
+    const initVoice = String(initial.心声 || '……'); const initReason = String(initial.推断理由 || '');
+    const initStage = getRStageFromE(initE);
+    const html = '<div style="display:flex;flex-direction:column;gap:10px;">' +
+      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">好感度（可改）</div><input id="moon-open-e" type="number" step="0.5" value="' + initE + '" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:13px;"></div>' +
+      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">肉体值（可改）</div><input id="moon-open-p" type="number" step="0.5" value="' + initP + '" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:13px;"></div>' +
+      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">阶段值（自动推导）</div><div id="moon-open-r" style="padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.15);background:#05070e;font-size:12px;color:#a5f3fc;">' + initStage.r + ' · ' + initStage.name + '</div></div>' +
+      '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">I / emoji / 心声（只读）</div><div style="padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.15);background:#05070e;font-size:12px;color:#cbd5e1;">I' + initI + ' · ' + initEmoji + ' · ' + initVoice + '</div></div>' +
+      (initReason ? '<div><div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">AI 推断理由</div><div style="padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.15);background:#05070e;font-size:11px;color:#94a3b8;">' + initReason + '</div></div>' : '') + '</div>';
+    showModalDialogCancelable('🌅 自适应开局 · 确认', html,
+      function() {
+        const mask = mainDoc.getElementById('moon-modal-mask');
+        const finalE = Number(mask.querySelector('#moon-open-e').value) || 0; const finalP = Number(mask.querySelector('#moon-open-p').value) || 0;
+        const finalStage = getRStageFromE(finalE); try { mask.remove(); } catch (e) {}
+        applyAdaptiveOpening(charName, { e: finalE, p: finalP, r: finalStage.r, i: initI, emoji: initEmoji, voice: initVoice });
+      },
+      function() { toast('已取消', 'info'); },
+      { confirmText: '确认并写入', cancelText: '取消',
+        onOpen: function(mask) {
+          const eInput = mask.querySelector('#moon-open-e'); const rDisplay = mask.querySelector('#moon-open-r');
+          eInput.addEventListener('input', function() { const st = getRStageFromE(Number(eInput.value) || 0); rDisplay.textContent = st.r + ' · ' + st.name; });
+        }
+      });
+  }
+
+async function applyAdaptiveOpening(charName, values) {
+    const data = readMvuLatest();
+    if (!data || !data.stat_data || !data.stat_data.角色 || !data.stat_data.角色[charName]) {
+      await forceBootstrapVariables(charName, values);
+      return;
+    }
+    const ch = data.stat_data.角色[charName];
+    ch.好感度 = values.e;
+    ch.肉体值 = values.p;
+    ch.阶段值 = values.r;
+    ch.嫉妒值 = values.i;
+    ch.情绪 = values.emoji;
+    ch.心声 = values.voice;
+    if (!ch._quota) ch._quota = {};
+    ch._quota.自适应开局已完成 = true;
+    if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
+    if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
+    const ok = await writeMvuLatest(data.stat_data);
+    if (ok) {
+      toast('自适应开局完成', 'success');
+      try { refreshPanel(); } catch (e) {}
+    } else {
+      toast('写入失败', 'warning');
+    }
+  }
+
+  async function forceBootstrapVariables(charName, values) {
+    const now = '2000年01月01日 · 星期六 · 00:00';
+    let data = readMvuLatest();
+    let statData = (data && data.stat_data) ? data.stat_data : null;
+    if (!statData) {
+      statData = { 世界: { 时间: values.worldTime || now, _内部流逝天数: 0, _上次推进时间: values.worldTime || now }, 角色: {} };
+      statData[MIGRATED_FLAG] = true;
+    }
+    if (!statData.角色 || typeof statData.角色 !== 'object') statData.角色 = {};
+    if (!statData.世界) statData.世界 = { 时间: values.worldTime || now, _内部流逝天数: 0, _上次推进时间: values.worldTime || now };
+    const name = charName || '主角';
+    if (!statData.角色[name]) {
+      statData.角色[name] = {
+        语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+        好感度: values.e || 0, 肉体值: values.p || 0, 阶段值: values.r || 0, 嫉妒值: values.i || 0,
+        情绪: values.emoji || '😐', 心声: values.voice || '……',
+        在场: true, 重要度: values.importance || '主要',
+        _invidia: { 重力等级: '', 骰子判定阈值: 0, 每日衰减基数: 0, 大失败反噬值: 0, 主动互动阈值: 30 },
+        _lastRoll: { 事件类型: '', 方向: '', 主维度: '', 基础值: 0 },
+        _quota: {
+          好感度周上限已用: values.好感度周上限已用 || 0,
+          周上限起始: values.worldTime || now, R阶段门: false,
+          下次暗掷: values.worldTime || now, 玩家本周已掷: false, 玩家冷却至: values.worldTime || now,
+          表白期排除: values.表白期排除 || false, 表白期排除理由: '', 对用户特殊状态: '',
+          表白期已通过: values.表白期已通过 || false, 表白期冷却至: '',
+          自适应开局已完成: true,
+          _playerConfession: false,
+          _firstMeetDone: false,
+          _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
+          _timelineCompleted: values.已触发时间线事件名 || [],
+          _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
+        }
+      };
+    } else {
+      const ch = statData.角色[name];
+      ch.好感度 = values.e || 0;
+      ch.肉体值 = values.p || 0;
+      ch.阶段值 = values.r || 0;
+      ch.嫉妒值 = values.i || 0;
+      ch.情绪 = values.emoji || '😐';
+      ch.心声 = values.voice || '……';
+      if (!ch._quota) ch._quota = {};
+      ch._quota.好感度周上限已用 = values.好感度周上限已用 || 0;
+      ch._quota.周上限起始 = values.worldTime || now;
+      ch._quota.表白期已通过 = values.表白期已通过 || false;
+      ch._quota.表白期排除 = values.表白期排除 || false;
+      ch._quota.自适应开局已完成 = true;
+      if (ch._quota._playerConfession === undefined) ch._quota._playerConfession = false;
+      if (ch._quota._firstMeetDone === undefined) ch._quota._firstMeetDone = false;
+      if (!ch._quota._eventState) {
+        ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
+      }
+      ch._quota._timelineCompleted = values.已触发时间线事件名 || [];
+      if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
+    }
+    const ok = await writeMvuLatest(statData);
+    if (ok) { toast('变量已从零建立', 'success'); try { refreshPanel(); } catch (e) {} }
+    else toast('写入失败：' + (lastWriteError || '未知原因'), 'warning');
+    return ok;
+  }
+  /* ───────────────────────────────────────────────────────── */
+  async function runMultiCardAdaptiveFirstPass(provider, manualNames) {
+    const ctxData = collectChatHistoryContext(10000);
+    const hasHistory = ctxData.chat && ctxData.chat.length >= 30;
+    let charInfo = ''; let charFirstMes = ''; let charScenario = '';
+    try {
+      const ctx = getSTCtx();
+      if (ctx && ctx.characters && ctx.characterId != null) {
+        const ch = ctx.characters[ctx.characterId];
+        if (ch) {
+          charInfo = ['角色卡名称：' + (ch.name || '(未命名)'), '简介：' + (ch.description || '(无)').slice(0, 1200), '性格：' + (ch.personality || '(无)').slice(0, 600)].join('\n');
+          charScenario = (ch.scenario || '').slice(0, 800);
+          charFirstMes = (ch.first_mes || '').slice(0, 2000);
+        }
+      }
+    } catch (e) {}
+    if (!charInfo) charInfo = '(无法读取角色卡信息)';
+    const sysPrompt = [
+      '你是月相多维情感系统的「多人卡批量建档」助手。',
+      '【背景】玩家使用多人卡，剧情里会涉及多个角色。你需要通读上下文，识别实际出场并与玩家有互动的角色，为每个角色推断初始四维数值。',
+      '【输出】严格 JSON 数组：',
+      '[{"名字":"角色正名","重要度":"主要"|"次要"|"NPC","好感度":number,"肉体值":number,"嫉妒值":number,"情绪":"单个emoji","心声":"15~30字第一人称","推断理由":"≤80字"}]',
+      '【重要度判定】与玩家存在情感线/性张力、且是玩家主要互动对象的角色 = 主要；有互动但非情感线（同伴、对手、老师等）= 次要；只做背景出场 = NPC。玩家明确点名要攻略的角色必须是主要。',
+      '【硬性要求】名字必须是剧情里最常出现、最正式的那个名字；至少识别 1 个，最多 10 个；只输出 JSON 数组。'
+    ].join('\n');
+    let userPrompt = '【角色卡信息】\n' + charInfo + '\n\n';
+    if (charScenario) userPrompt += '【场景】\n' + charScenario + '\n\n';
+    if (charFirstMes) userPrompt += '【开场白】\n' + charFirstMes + '\n\n';
+    userPrompt += '【玩家设定】\n名字：' + (ctxData.playerName || '(未命名玩家)') + '\n描述：' + (ctxData.playerPersona || '(无)') + '\n\n';
+    if (manualNames) userPrompt += '【玩家指定角色】\n' + manualNames + '\n\n';
+    if (hasHistory) userPrompt += '【对话历史】\n' + ctxData.chat + '\n\n请分析对话，识别出场角色，输出 JSON 数组。';
+    else userPrompt += '【对话历史】\n(无对话历史)\n\n请根据角色卡+开场白+玩家设定，识别出场角色，输出 JSON 数组。';
+    showLoadingDialog(hasHistory ? 'AI 正在扫描对话历史...' : 'AI 正在分析开场白...');
+    let reply = '';
+    try { reply = await callOpeningModel(provider, sysPrompt, userPrompt); }
+    catch (e) { closeLoadingDialog(); toast('调用模型失败：' + (e.message || e), 'warning'); return; }
+    closeLoadingDialog();
+    if (typeof reply !== 'string') reply = (reply && (reply.content || reply.text)) || String(reply);
+    reply = String(reply).trim();
+    const m = reply.match(/```(?:json)?\s*([\s\S]*?)```/i); if (m) reply = m[1].trim();
+    let list = null;
+    try { list = JSON.parse(reply); } catch (e) {}
+    if (!list) { const m2 = reply.match(/\[[\s\S]*\]/); if (m2) { try { list = JSON.parse(m2[0]); } catch (e) {} } }
+    if (!Array.isArray(list) || !list.length) { showModalDialog('❌ 解析失败', '<div>AI 未返回合法数组。</div>', null, { confirmText: '关闭' }); return; }
+    const valid = list.filter(function(item) { return item && typeof item === 'object' && typeof item.名字 === 'string' && item.名字.trim(); });
+    if (!valid.length) { showModalDialog('❌ 无有效角色', '<div>AI 返回的数组里没有有效角色名。</div>', null, { confirmText: '关闭' }); return; }
+    openMultiCardAdaptiveResultDialog(valid);
+  }
+
+  function openMultiCardAdaptiveResultDialog(chars) {
+    const rows = chars.map(function(c, idx) {
+      const e = Number(c.好感度) || 0; const p = Number(c.肉体值) || 0;
+      const name = String(c.名字 || '').trim(); const imp = String(c.重要度 || '主要');
+      const emoji = String(c.情绪 || '😐'); const voice = String(c.心声 || '……'); const reason = String(c.推断理由 || '');
+      const stage = getRStageFromE(e);
+      return '<div class="moon-mc-row" data-idx="' + idx + '" style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:8px;">' +
+        '<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#f8fafc;margin-bottom:8px;cursor:pointer;"><input type="checkbox" class="moon-mc-check" data-idx="' + idx + '" checked><span>' + name + '</span><span style="font-size:10px;color:#94a3b8;font-weight:400;">· ' + imp + ' · ' + emoji + '</span></label>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
+        '<div><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">E</div><input type="number" step="0.5" class="moon-mc-e" data-idx="' + idx + '" value="' + e + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:12px;"></div>' +
+        '<div><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">P</div><input type="number" step="0.5" class="moon-mc-p" data-idx="' + idx + '" value="' + p + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:12px;"></div>' +
+        '<div><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">R</div><div class="moon-mc-r" data-idx="' + idx + '" style="padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#0a0c16;color:#a5f3fc;font-size:12px;">' + stage.r + ' · ' + stage.name + '</div></div></div>' +
+        '<div style="margin-top:6px;font-size:10px;color:#94a3b8;">' + emoji + ' · ' + voice.replace(/</g, '&lt;') + '</div>' +
+        '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;"><span style="font-size:10px;color:#94a3b8;">角色定位</span>' +
+        '<select class="moon-mc-imp" data-idx="' + idx + '" style="flex:1;padding:5px 7px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:11px;font-family:inherit;">' +
+        ['主要', '次要', 'NPC'].map(function(v) { return '<option value="' + v + '"' + (imp === v ? ' selected' : '') + '>' + v + '</option>'; }).join('') +
+        '</select><span style="font-size:9.5px;color:#64748b;">主要=主攻略对象</span></div>' +
+        (reason ? '<div style="margin-top:4px;font-size:10px;color:#64748b;">💡 ' + reason.replace(/</g, '&lt;') + '</div>' : '') + '</div>';
+    }).join('');
+    const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">AI 识别到 <b style="color:#7dd3fc;">' + chars.length + '</b> 个出场角色。</div>' +
+      '<div style="max-height:52dvh;overflow-y:auto;padding-right:4px;">' + rows + '</div>' +
+      '<div style="margin-top:10px;font-size:10px;color:#64748b;line-height:1.6;">· 未勾选的角色不会写入<br>· 已存在的角色会被覆盖</div>';
+    showModalDialogCancelable('🌅 多人卡 · 确认建档', html,
+      async function() {
+        const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
+        const finalList = [];
+        mask.querySelectorAll('.moon-mc-row').forEach(function(row) {
+          const idx = Number(row.getAttribute('data-idx')); const ck = row.querySelector('.moon-mc-check');
+          if (!ck || !ck.checked) return;
+          const c = chars[idx]; const eVal = Number(row.querySelector('.moon-mc-e').value) || 0;
+          const pVal = Number(row.querySelector('.moon-mc-p').value) || 0; const stage = getRStageFromE(eVal);
+          const impEl = row.querySelector('.moon-mc-imp');
+          const impVal = impEl && ['主要', '次要', 'NPC'].indexOf(String(impEl.value)) >= 0 ? String(impEl.value) : (c.重要度 || '主要');
+          finalList.push({ 名字: c.名字, 重要度: impVal, 好感度: eVal, 肉体值: pVal, 阶段值: stage.r, 嫉妒值: Number(c.嫉妒值) || 0, 情绪: c.情绪 || '😐', 心声: c.心声 || '……' });
+        });
+        try { mask.remove(); } catch (e) {}
+        if (!finalList.length) { toast('未勾选任何角色', 'info'); return; }
+        await applyMultiCardAdaptiveOpening(finalList);
+      },
+      function() { toast('已取消', 'info'); },
+      { confirmText: '确认写入', cancelText: '取消',
+        onOpen: function(mask) {
+          mask.querySelectorAll('.moon-mc-e').forEach(function(input) {
+            input.addEventListener('input', function() {
+              const idx = input.getAttribute('data-idx'); const st = getRStageFromE(Number(input.value) || 0);
+              const rEl = mask.querySelector('.moon-mc-r[data-idx="' + idx + '"]');
+              if (rEl) rEl.textContent = st.r + ' · ' + st.name;
+            });
+          });
+        }
+      });
+  }
+
+  async function applyMultiCardAdaptiveOpening(list) {
+    let data = readMvuLatest();
+    let statData = (data && data.stat_data) ? data.stat_data : null;
+    const now = '2000年01月01日 · 星期六 · 00:00';
+    if (!statData) { statData = { 世界: { 时间: now, _内部流逝天数: 0, _上次推进时间: now }, 角色: {} }; statData[MIGRATED_FLAG] = true; }
+    if (!statData.角色 || typeof statData.角色 !== 'object') statData.角色 = {};
+    if (!statData.世界) statData.世界 = { 时间: now, _内部流逝天数: 0, _上次推进时间: now };
+    list.forEach(function(item) {
+      const name = item.名字;
+      if (!name) return;
+      const existed = statData.角色[name] && !isCharSkeleton(statData.角色[name]);
+      if (existed) {
+        const ch = statData.角色[name];
+        ch.好感度 = item.好感度; ch.肉体值 = item.肉体值; ch.阶段值 = item.阶段值;
+        ch.嫉妒值 = item.嫉妒值; ch.情绪 = item.情绪; ch.心声 = item.心声;
+        ch.重要度 = ['主要', '次要', 'NPC'].indexOf(String(item.重要度)) >= 0 ? item.重要度 : (ch.重要度 || '主要');
+        if (!ch._quota) ch._quota = {};
+        ch._quota.自适应开局已完成 = true;
+        if (ch._quota._playerConfession === undefined) ch._quota._playerConfession = false;
+        if (ch._quota._firstMeetDone === undefined) ch._quota._firstMeetDone = false;
+        if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
+        if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
+        if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
+      } else {
+        statData.角色[name] = {
+          语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+          好感度: item.好感度, 肉体值: item.肉体值, 阶段值: item.阶段值, 嫉妒值: item.嫉妒值,
+          情绪: item.情绪, 心声: item.心声, 在场: true, 重要度: item.重要度 || '主要',
+          _invidia: { 重力等级: '', 骰子判定阈值: 0, 每日衰减基数: 0, 大失败反噬值: 0, 主动互动阈值: 30 },
+          _lastRoll: { 事件类型: '', 方向: '', 主维度: '', 基础值: 0 },
+          _quota: {
+            好感度周上限已用: 0, 周上限起始: now, R阶段门: false, 下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
+            表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '', 表白期已通过: false, 表白期冷却至: '', 自适应开局已完成: true,
+            _playerConfession: false,
+            _firstMeetDone: false,
+            _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
+            _timelineCompleted: [],
+            _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
+          }
+        };
+      }
+    });
+    const ok = await writeMvuLatest(statData);
+    if (ok) { toast('多人卡批量建档完成：' + list.length + ' 个角色', 'success'); try { refreshPanel(); } catch (e) {} }
+    else toast('写入失败：' + (lastWriteError || '未知原因'), 'warning');
+  }
+
+  const PENDING_MIGRATION_KEY = 'moon_phase_pending_migration';
+

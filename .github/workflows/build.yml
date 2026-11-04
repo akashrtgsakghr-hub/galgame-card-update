@@ -1,0 +1,65 @@
+name: build
+
+# 仓库里维护的是拆分后的源码 src/*.js；
+# 这个 workflow 负责把它们拼成玩家实际使用的单文件 moon-phase.js，
+# 并重建酒馆助手导入 JSON，然后自动提交回仓库。
+# 所以玩家下载 / 自动更新拿到的永远是完整脚本，仓库里才看得到拆分结构。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 拼接源码并重建导入 JSON
+        run: node scripts/build.mjs
+
+      - name: PR 只校验产物是否同步
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! git diff --quiet -- moon-phase.js "Galgame攻略系统-酒馆助手导入.json"; then
+            echo "::error::src/ 改动后没有一起提交构建产物。请在仓库根目录运行 node scripts/build.mjs，再把 moon-phase.js 和导入 JSON 一起提交。"
+            git --no-pager diff --stat -- moon-phase.js "Galgame攻略系统-酒馆助手导入.json"
+            exit 1
+          fi
+          echo "产物与 src/ 同步 ✅"
+
+      - name: 提交构建产物
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet -- moon-phase.js "Galgame攻略系统-酒馆助手导入.json"; then
+            echo "产物没有变化，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add moon-phase.js "Galgame攻略系统-酒馆助手导入.json"
+          git commit -m "chore(build): 由 src/ 自动生成单文件脚本 [skip ci]"
+          git push
+          echo "已提交构建产物 ✅"
