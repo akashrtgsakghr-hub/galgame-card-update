@@ -600,6 +600,8 @@
   }
 
   async function callImageGenerationApi(prompt, customNegativePrompt) {
+    // 图片模式闸门：只有「月相内置」才允许发请求；第三方接管 / 手动 / 纯文字一律拒绝
+    galAssertImageGenerationAllowed();
     const config = getImageGenConfig();
     const composed = composeFullCgPrompts(prompt, customNegativePrompt);
     const input = composed.positive;
@@ -705,9 +707,14 @@
 
   async function developCGItem(item) {
     if (!item || !item.prompt) { toast('这条回忆没有图片提示词', 'warning'); return; }
+    const gate = galImageGenerationAllowed();
+    if (!gate.allowed) { toast(gate.reason, 'warning'); return; }
+    const taskToken = galImageTaskToken();
     showLoadingDialog('正在显影这段回忆 CG…');
     try {
       const generated = await callImageGenerationApi(item.prompt, item.uc);
+      // 生成期间玩家可能已经把模式切成第三方 / 关闭：这时结果必须丢弃，不能继续归档
+      if (!galImageTaskStillValid(taskToken)) { closeLoadingDialog(); return; }
       const stored = await persistGalleryImage(item.id, generated);
       const list = getGalleryList();
       const index = list.findIndex(function(row) { return row.id === item.id; });

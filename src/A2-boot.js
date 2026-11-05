@@ -31,6 +31,8 @@
         }
       });
     } catch(e) {}
+    // 🎮 沉浸模式入口：独立一项，不动原来的「🌕 月相系统」
+    try { injectGalMenuEntry(); } catch (e) {}
   }
 
   
@@ -205,6 +207,8 @@ function tryAutoReloadOnce() {
  * ========================================================= */
 injectStyle();
 setupListeners();
+// 🎮 Galgame 沉浸层启动（样式 / 菜单 / 全局入口 / 恢复上次开关状态）
+try { galBoot(); } catch (e) {}
 
 // 预热「旧世界书是否还在」的探测结果，供首次生成前决定要不要注入内置规则
 try { refreshCoreWorldbookCache(); } catch (e) {}

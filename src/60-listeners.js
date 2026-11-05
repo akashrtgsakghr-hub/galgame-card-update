@@ -52,12 +52,15 @@
     trySubscribe('message_received', function() {
       isWaitingForExtraModel = false;
       onGenerationEnd();
+      // Galgame 沉浸层：只记记忆、接收第三方图片、刷新展示，不碰聊天记录
+      try { onGalMessageReceived(galLatestAiIndex()); } catch (e) {}
     });
     trySubscribe('character_message_rendered', function() {
       setTimeout(function() {
         sanitizeSylveinaRegexTail();
         beautifySylveinaTagsInDom();
       }, 150);
+      setTimeout(function() { try { onGalDomRendered(); } catch (e) {} }, 260);
     });
     trySubscribe('mag_variable_update_ended', function() {
       isWaitingForExtraModel = false;
@@ -74,6 +77,8 @@
       if (loadAnchor()) { const anchor = loadAnchor(); if (anchor) injectFateCollapse(anchor); }
       injectCorePrompt();
       injectGlossaryPrompt();
+      // 剧情记忆：三模式互斥，非内置时这里只会把旧注入清空
+      try { injectGalMemoryPrompt(); } catch (e) {}
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);
@@ -92,6 +97,7 @@
       setTimeout(function() { autoBootstrapCharacter('chat-open'); }, 1100);
       setTimeout(function() { applyBackendVariablesFromLatest(); }, 1200);
       setTimeout(function() { refreshMessageSkins(); }, 1400);
+      setTimeout(function() { try { onGalChatChanged(); } catch (e) {} }, 700);
     });
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 600);
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 2200);

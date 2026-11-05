@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.19';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.19 脚本说了算 · 校准越权与时间】\n1. 🔒 等级归脚本：事件类型只认事件导演。以前模型在标签里写 H，就能把日常戏按重大事件结算（触发成就、吃周上限）；现在一律按脚本定的档位走。\n2. 📏 区间归脚本：脚本给的 0.5~2.0 / 3.0~5.0 / 6.0~10.0，结算时自己执行。模型写 99 只取上界；写 0 表示这一轮没打动她，不会被抬成下界。\n3. 💥 初见加成只认 0/+3/+6/+9 与 0/-3/-6，写 +999 也只按 +9 算。\n4. 🐛 修掉一个藏了很久的解析 bug：字符类 [+-＋－−—] 被当作「+ 到 ＋」的 Unicode 范围，把数字也吞了进去，导致 +10 被读成 +1、+12 读成 +2。两位数基础值现在完整。\n5. 🕰 时间不再凭空走快：AI 明确写了时间就以它为准，不再额外叠加 10 分钟；同一楼层重复触发也不会重复推进。\n6. 🌅 开场白不占回合：玩家还没说话时，时间与回合都不动。\n7. 🎬 AI 自己冒出来的结局报幕只渲染、不进图鉴；只有你点了周目结算才归档。\n8. 🧾 每轮留痕：面板能看到这一轮 AI 写的等级与基础值，以及脚本怎么校准的。\n9. 📦 测试增至 327 条（新增 17 条「脚本主导权」用例）。";
+  const MOON_FORMULA_VERSION = '4.7.0';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.0 Galgame 沉浸模式】\n1. 🎮 新增沉浸模式：在酒馆原生聊天与 Galgame 界面之间随时切换，只改展示，不动聊天记录，每条聊天独立记开关。\n2. 🏷 标签映射：内置 17 条月相标准标签，也支持把你预设里的写法映射过来（正文 / 旁白 / 心声 / 选项 / 背景 / 立绘 / CG），能增删改、查重复、查缺项，按预设与聊天分别保存。\n3. 📖 自动分页：按屏幕实际容量和段落断句分页，不按字数硬切；一句话不会被劈成两半。\n4. 💬 选项交互：识别到选项才出按钮，普通数字列表不会被当成选项；点击后走原生输入框与原生发送。\n5. 🖼 图片四模式：内置生图 / 第三方接管 / 手动素材 / 纯文字。选第三方就彻底停掉内置生图，连显影任务一起中止，不会再偷偷调用。\n6. 💾 存档读档：存档记录楼层、页、背景、立绘、CG 与指纹；读档前先预检会退回几层，只在你确认后才真的回退。\n7. 📚 阅读进度：按「楼层 + swipe」分开记，退出再进仍停在原来那页；快速跳过只跳已读，遇到未读自动停。\n8. 🧠 记忆三模式：内置记忆 / 第三方接管 / 完全关闭。第三方失效会明确提醒，不会悄悄切回内置造成记忆断层。\n9. 🔒 原生优先：不动聊天记录，不另建 AI 通道；删楼、重生成、swipe、切聊天都会同步清理分页与进度。\n10. 🧪 测试增至 391 条（新增 63 条沉浸模式用例），并修好了三套测试「失败不报错」的漏洞。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';

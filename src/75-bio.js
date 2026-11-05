@@ -1,4 +1,6 @@
   function onMessageDeletedOrSwiped() {
+    // Galgame 层：清掉越界分页进度并刷新展示（不改聊天记录）
+    setTimeout(function() { try { onGalMessageMutated(); } catch (e) {} }, 120);
     setTimeout(function() {
       // 只看锚点是否存在，不看当前好感度：锁一旦落下就不会因为「刷回正数」而失效
       const anchor = loadAnchor(); if (!anchor) return;

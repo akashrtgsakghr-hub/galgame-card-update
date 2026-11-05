@@ -68,17 +68,43 @@
       // 就以它为准，不再叠加默认步长。以前这里会再加 10 分钟，导致每轮时间凭空走快。
       if (world._时钟已由正文确定 === true) {
         delete world._时钟已由正文确定;
-        const prevDate = parseGameTime(String(world._上次推进时间 || stateTime));
+        const prevStr = String(world._上次推进时间 || stateTime);
+        const prevDate = parseGameTime(prevStr);
         const curDate = parseGameTime(stateTime);
-        // 正文写成「第二天」「三天后」时，天数照样要记账，否则主线倒计时和游戏日会停在原地
-        const declaredDays = (prevDate && curDate) ? Math.max(0, calendarDayDiff(prevDate, curDate)) : 0;
-        out.ok = true; out.from = String(world._上次推进时间 || stateTime); out.to = stateTime;
-        out.source = 'declared'; out.minutes = 0; out.days = declaredDays;
-        world._上次推进时间 = stateTime;
-        if (declaredDays > 0) {
-          world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + declaredDays;
+        if (!prevDate || !curDate) {
+          out.ok = true; out.from = prevStr; out.to = stateTime;
+          out.source = 'declared'; out.minutes = 0; out.days = 0;
+          world._上次推进时间 = stateTime;
+          return out;
+        }
+        const step = getTurnMinutes();
+        const playerText = getLatestUserMessageText();
+        const narrativeDays = detectRelativeElapsedDays(latestAiText);
+        // 授权来源与默认步长分支同一套判定，避免「正文报时间」成为绕过闸门的后门
+        const granted = TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
+        out.granted = granted;
+
+        let target = curDate;
+        let source = 'declared';
+        let deltaMin = Math.round((curDate.getTime() - prevDate.getTime()) / 60000);
+        if (deltaMin < 0) {
+          // 倒退一律拒绝：正文写了个更早的时间时，时钟留在上一次推进时间，不跟着往回走
+          target = prevDate; deltaMin = 0; source = 'rejected';
+        } else if (deltaMin > step * 3 && !granted) {
+          // 超过单轮步长 3 倍的跨度必须有授权，否则压回一个步长
+          target = new Date(prevDate.getTime() + step * 60000);
+          deltaMin = step; source = 'clamped'; out.clamped = true;
+        }
+        const toStr = formatGameTime(target) || stateTime;
+        const dayDelta = Math.max(0, calendarDayDiff(prevDate, target));
+        world.时间 = toStr;
+        world._上次推进时间 = toStr;
+        if (dayDelta > 0) {
+          world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + dayDelta;
           world._内部流逝天数 = world._游戏日;
         }
+        out.ok = true; out.from = prevStr; out.to = toStr;
+        out.minutes = deltaMin; out.days = dayDelta; out.source = source;
         return out;
       }
       // 基准用「上次推进时间」：本轮的 世界.时间 可能已被后台变量摄入提前写掉
