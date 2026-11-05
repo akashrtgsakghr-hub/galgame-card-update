@@ -37,14 +37,19 @@
      点「🚀 开局适配」用 AI 校准一次（会覆盖这套 0 值）。 */
   const AUTO_BOOTSTRAP_MIN_REPLIES = 1;
 
+  /* 只数「玩家说过话之后，对面回的楼层」。
+     新对话自带的开场白也是 AI 楼层，但它不算回复——否则一进聊天就建档，
+     「开局适配」的 AI 校准弹窗就永远没机会出现了。 */
   function countAiReplies() {
     try {
       const ctx = getSTCtx();
       if (!ctx || !Array.isArray(ctx.chat)) return 0;
-      let n = 0;
+      let n = 0; let userSpoke = false;
       for (let i = 0; i < ctx.chat.length; i++) {
         const m = ctx.chat[i];
-        if (m && !m.is_user && !m.is_system) n++;
+        if (!m || m.is_system) continue;
+        if (m.is_user) { userSpoke = true; continue; }
+        if (userSpoke) n++;
       }
       return n;
     } catch (e) { return 0; }
