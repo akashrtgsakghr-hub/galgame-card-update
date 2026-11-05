@@ -169,12 +169,20 @@
 
       const world = statData.世界 || (statData.世界 = {});
       const existingTime = String(world.时间 || '');
-      const hadRealTime = !!existingTime && existingTime.indexOf('2000年01月01日') !== 0;
+      // 世界已经在走（有回合 / 有天数 / 上次推进时间和当前时间不一致）时，不能再用正文去重猜，
+      // 否则会把已经正确的时间覆盖掉，还会让当轮时钟被重复推进一次。
+      const alreadyRunning = Number(world._回合) > 0 || Number(world._内部流逝天数) > 0
+        || (!!existingTime && !!world._上次推进时间 && world._上次推进时间 !== existingTime);
+      const hadRealTime = alreadyRunning || (!!existingTime && existingTime.indexOf('2000年01月01日') !== 0);
       const guessed = guessOpeningWorldTime([latestText, cardFirstMes]);
       const now = hadRealTime ? existingTime : (guessed || existingTime || '2000年01月01日 · 星期六 · 00:00');
-      world.时间 = now;
-      // 原来的默认时间没意义，用新起点重置；已有真实时间就别动
-      if (!hadRealTime) world._上次推进时间 = now;
+      if (!hadRealTime) {
+        world.时间 = now;
+        // 原来的默认时间没意义，用新起点重置；已有真实时间就别动
+        world._上次推进时间 = now;
+        // 起点是从正文猜到的，说明这一轮的时间已由正文给定，时钟不要再叠加默认步长
+        if (guessed) world._时钟已由正文确定 = true;
+      }
       if (world._内部流逝天数 === undefined || !isFinite(Number(world._内部流逝天数))) world._内部流逝天数 = 0;
       if (!statData.角色 || typeof statData.角色 !== 'object') statData.角色 = {};
 

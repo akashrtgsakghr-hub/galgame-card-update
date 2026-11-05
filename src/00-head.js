@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.18';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.18 修正：等级归脚本，不归 AI】\n1. 🔧 上一版词条把分工写错了：说 L / M / H 是「AI 按剧情分量自己挑一档」。实际等级由事件导演定好，注入时已经写死在输出格式里。\n2. ⚠️ 这个错不只是废话：脚本读到 H 就会把这轮按重大事件结算，教 AI 自己升级等于给它开了个偷偷改难度的口子。\n3. ✅ 现在明说：等级照抄注入的模板，不要改；你只负责方向和基础值。\n4. 📏 补了基础值怎么取：区间下段是客套、没戳到她的互动，上段是明显被触动、主动跨了一步，拿不准就取中间偏下。\n5. 🧾 7 节常驻规则、数值计算、外观和更新线路都没动，只改了这一条词条的说法。\n6. 📦 测试增至 310 条，新增 3 条锁住「不许教 AI 自己挑等级」。";
+  const MOON_FORMULA_VERSION = '4.6.19';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.19 脚本说了算 · 校准越权与时间】\n1. 🔒 等级归脚本：事件类型只认事件导演。以前模型在标签里写 H，就能把日常戏按重大事件结算（触发成就、吃周上限）；现在一律按脚本定的档位走。\n2. 📏 区间归脚本：脚本给的 0.5~2.0 / 3.0~5.0 / 6.0~10.0，结算时自己执行。模型写 99 只取上界；写 0 表示这一轮没打动她，不会被抬成下界。\n3. 💥 初见加成只认 0/+3/+6/+9 与 0/-3/-6，写 +999 也只按 +9 算。\n4. 🐛 修掉一个藏了很久的解析 bug：字符类 [+-＋－−—] 被当作「+ 到 ＋」的 Unicode 范围，把数字也吞了进去，导致 +10 被读成 +1、+12 读成 +2。两位数基础值现在完整。\n5. 🕰 时间不再凭空走快：AI 明确写了时间就以它为准，不再额外叠加 10 分钟；同一楼层重复触发也不会重复推进。\n6. 🌅 开场白不占回合：玩家还没说话时，时间与回合都不动。\n7. 🎬 AI 自己冒出来的结局报幕只渲染、不进图鉴；只有你点了周目结算才归档。\n8. 🧾 每轮留痕：面板能看到这一轮 AI 写的等级与基础值，以及脚本怎么校准的。\n9. 📦 测试增至 327 条（新增 17 条「脚本主导权」用例）。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -107,6 +107,8 @@
       hell: { 日常: 0.5, 关键: 1.0, 重大: 2.0 }
     },
     singleCap: 8.0, weeklyCap: { easy: 10.0, normal: 7.0, hard: 5.0, hell: 3.0 },
+    // 每种事件类型的基础值区间：注入时告诉 AI，结算时由脚本执行，AI 给超范围的值只取边界
+    eventBaseRange: { 日常: [0.5, 2.0], 关键: [3.0, 5.0], 重大: [6.0, 10.0], 彩蛋: [6.0, 10.0] },
     dimToField: { E: '好感度', P: '肉体值', R: '阶段值', I: '嫉妒值' },
     abyssCoeff: {
       easy: { pos: 0.8, neg: 1.0 }, normal: { pos: 0.5, neg: 1.5 },
@@ -168,7 +170,7 @@
   function readLastRoll(charData) {
     const lr = charData && charData._lastRoll;
     if (!lr || typeof lr !== 'object') return null;
-    return { 事件类型: lr.事件类型, 方向: lr.方向, 主维度: lr.主维度, 基础值: lr.基础值, _applied: lr._applied === true, _turnSig: lr._turnSig || '' };
+    return { 事件类型: lr.事件类型, 方向: lr.方向, 主维度: lr.主维度, 基础值: lr.基础值, _脚本校准: lr._脚本校准 || null, _applied: lr._applied === true, _turnSig: lr._turnSig || '' };
   }
   function getSTCtx() {
     try { if (mainWin.SillyTavern && mainWin.SillyTavern.getContext) return mainWin.SillyTavern.getContext(); } catch (e) {}

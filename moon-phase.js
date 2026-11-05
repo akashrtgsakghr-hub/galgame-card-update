@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.18';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.18 修正：等级归脚本，不归 AI】\n1. 🔧 上一版词条把分工写错了：说 L / M / H 是「AI 按剧情分量自己挑一档」。实际等级由事件导演定好，注入时已经写死在输出格式里。\n2. ⚠️ 这个错不只是废话：脚本读到 H 就会把这轮按重大事件结算，教 AI 自己升级等于给它开了个偷偷改难度的口子。\n3. ✅ 现在明说：等级照抄注入的模板，不要改；你只负责方向和基础值。\n4. 📏 补了基础值怎么取：区间下段是客套、没戳到她的互动，上段是明显被触动、主动跨了一步，拿不准就取中间偏下。\n5. 🧾 7 节常驻规则、数值计算、外观和更新线路都没动，只改了这一条词条的说法。\n6. 📦 测试增至 310 条，新增 3 条锁住「不许教 AI 自己挑等级」。";
+  const MOON_FORMULA_VERSION = '4.6.19';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.19 脚本说了算 · 校准越权与时间】\n1. 🔒 等级归脚本：事件类型只认事件导演。以前模型在标签里写 H，就能把日常戏按重大事件结算（触发成就、吃周上限）；现在一律按脚本定的档位走。\n2. 📏 区间归脚本：脚本给的 0.5~2.0 / 3.0~5.0 / 6.0~10.0，结算时自己执行。模型写 99 只取上界；写 0 表示这一轮没打动她，不会被抬成下界。\n3. 💥 初见加成只认 0/+3/+6/+9 与 0/-3/-6，写 +999 也只按 +9 算。\n4. 🐛 修掉一个藏了很久的解析 bug：字符类 [+-＋－−—] 被当作「+ 到 ＋」的 Unicode 范围，把数字也吞了进去，导致 +10 被读成 +1、+12 读成 +2。两位数基础值现在完整。\n5. 🕰 时间不再凭空走快：AI 明确写了时间就以它为准，不再额外叠加 10 分钟；同一楼层重复触发也不会重复推进。\n6. 🌅 开场白不占回合：玩家还没说话时，时间与回合都不动。\n7. 🎬 AI 自己冒出来的结局报幕只渲染、不进图鉴；只有你点了周目结算才归档。\n8. 🧾 每轮留痕：面板能看到这一轮 AI 写的等级与基础值，以及脚本怎么校准的。\n9. 📦 测试增至 327 条（新增 17 条「脚本主导权」用例）。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -107,6 +107,8 @@
       hell: { 日常: 0.5, 关键: 1.0, 重大: 2.0 }
     },
     singleCap: 8.0, weeklyCap: { easy: 10.0, normal: 7.0, hard: 5.0, hell: 3.0 },
+    // 每种事件类型的基础值区间：注入时告诉 AI，结算时由脚本执行，AI 给超范围的值只取边界
+    eventBaseRange: { 日常: [0.5, 2.0], 关键: [3.0, 5.0], 重大: [6.0, 10.0], 彩蛋: [6.0, 10.0] },
     dimToField: { E: '好感度', P: '肉体值', R: '阶段值', I: '嫉妒值' },
     abyssCoeff: {
       easy: { pos: 0.8, neg: 1.0 }, normal: { pos: 0.5, neg: 1.5 },
@@ -168,7 +170,7 @@
   function readLastRoll(charData) {
     const lr = charData && charData._lastRoll;
     if (!lr || typeof lr !== 'object') return null;
-    return { 事件类型: lr.事件类型, 方向: lr.方向, 主维度: lr.主维度, 基础值: lr.基础值, _applied: lr._applied === true, _turnSig: lr._turnSig || '' };
+    return { 事件类型: lr.事件类型, 方向: lr.方向, 主维度: lr.主维度, 基础值: lr.基础值, _脚本校准: lr._脚本校准 || null, _applied: lr._applied === true, _turnSig: lr._turnSig || '' };
   }
   function getSTCtx() {
     try { if (mainWin.SillyTavern && mainWin.SillyTavern.getContext) return mainWin.SillyTavern.getContext(); } catch (e) {}
@@ -783,7 +785,9 @@
         dimension = p.indexOf('肉') === 0 ? 'P' : (p.indexOf('阶') === 0 ? 'R' : (p.indexOf('嫉') === 0 ? 'I' : 'E'));
         continue;
       }
-      const numMatch = p.match(/^([+-＋－−—])?\s*(\d+(?:\.\d+)?)$/);
+      // 注意：短横必须放在字符类末尾或转义。写成 [+-＋－−—] 会被 JS 当成「+ 到 ＋」的
+      // Unicode 范围（U+002B–U+FF0B），把数字也吞进去，导致 +99 解析成 +9、+12 解析成 +2。
+      const numMatch = p.match(/^([+\-＋－−—])?\s*(\d+(?:\.\d+)?)$/);
       if (numMatch && isNaN(baseValue)) {
         if (!sign && numMatch[1]) {
           sign = (numMatch[1] === '-' || numMatch[1] === '－' || numMatch[1] === '−' || numMatch[1] === '—') ? '-' : '+';
@@ -852,7 +856,8 @@
 
   function extractFirstMeetTag(mes) {
     if (!mes) return null;
-    const m = String(mes).match(/[\[\u3014\u3010\uff3b]\s*初见\s*[|｜]\s*优势\s*([+-＋－]?\d+)\s*[|｜]\s*劣势\s*([+-＋－]?\d+)\s*[\]\u3015\u3011\uff3d]/);
+    // 同理，这里的 [+-＋－] 也必须转义短横，否则会把数字当成符号吞掉
+    const m = String(mes).match(/[\[\u3014\u3010\uff3b]\s*初见\s*[|｜]\s*优势\s*([+\-＋－]?\d+)\s*[|｜]\s*劣势\s*([+\-＋－]?\d+)\s*[\]\u3015\u3011\uff3d]/);
     if (!m) return null;
     const adv = Number(String(m[1]).replace('＋', '+').replace('－', '-')) || 0;
     const dis = Number(String(m[2]).replace('＋', '+').replace('－', '-')) || 0;
@@ -866,6 +871,23 @@
     return { fullMatch: m[0] };
   }
 
+  /* 初见加成只有 0/+3/+6/+9 与 0/-3/-6 这几档，由脚本执行：
+     AI 写 +999 或 -999 时只取最近的合法档位，不能靠一个数字直接把开局判定拉满。 */
+  const FIRST_MEET_ADV_TIERS = [0, 3, 6, 9];
+  const FIRST_MEET_DIS_TIERS = [0, -3, -6];
+  function nearestFirstMeetTier(v, tiers) {
+    const n = Number(v);
+    if (!isFinite(n)) return 0;
+    let best = 0; let bestDist = Infinity;
+    for (let i = 0; i < tiers.length; i++) {
+      const d = Math.abs(tiers[i] - n);
+      if (d < bestDist) { bestDist = d; best = tiers[i]; }
+    }
+    return best;
+  }
+  function clampFirstMeetAdv(v) { return nearestFirstMeetTier(v, FIRST_MEET_ADV_TIERS); }
+  function clampFirstMeetDis(v) { return nearestFirstMeetTier(v, FIRST_MEET_DIS_TIERS); }
+
   async function processFirstMeetForChar(charName, ch, mode) {
     const quota = ch._quota || (ch._quota = {});
     if (quota._firstMeetDone === true) return null;
@@ -875,9 +897,11 @@
     const mes = String(found.msg.mes || '');
     const tag = extractFirstMeetTag(mes);
     if (!tag) return null;
+    const advValue = clampFirstMeetAdv(tag.优势);
+    const disValue = clampFirstMeetDis(tag.劣势);
     const dice = Math.floor(Math.random() * 20) + 1;
     const threshold = (mode === 'easy') ? 8 : 13;
-    const total = dice + (Number(tag.优势) || 0) + (Number(tag.劣势) || 0);
+    const total = dice + advValue + disValue;
     let newE = Number(ch.好感度) || 0; let newR = Number(ch.阶段值) || 0; let resultText = '';
     if (dice === 20) { newE = 30; newR = 1; resultText = '大成功 → E=30, R=1'; }
     else if (dice === 1) { newE = Math.max(-15, -10); newR = 0; resultText = '大失败 → E=-10, R=0'; }
@@ -1519,6 +1543,18 @@ async function _collectAllWorldbooks(includeDisabled) {
   }
   function isCurrentlyInExtraAnalysis() { try { if (mainWin.Mvu && typeof mainWin.Mvu.isDuringExtraAnalysis === 'function') return mainWin.Mvu.isDuringExtraAnalysis(); } catch (e) {} return false; }
   /* ───────────────────────────────────────────────────────── */
+  /* 区间是脚本自己定的，就必须由脚本自己执行：
+     AI 把基础值写成 99 时只取区间上界，不能靠一个数字把一轮的分刷满。 */
+  function clampBaseToEventRange(value, eventType) {
+    const v = Number(value);
+    const type = String(eventType || '日常');
+    const range = MOON_FORMULA_PARAMS.eventBaseRange[type] || MOON_FORMULA_PARAMS.eventBaseRange.日常;
+    // 0 是「这一轮没打动她」的合法写法，不要被夹成下界，否则每轮都会被强制加分
+    if (!isFinite(v) || v === 0) return { value: 0, clamped: false, range: range };
+    if (v < range[0]) return { value: range[0], clamped: true, range: range };
+    if (v > range[1]) return { value: range[1], clamped: true, range: range };
+    return { value: roundHalf(v), clamped: false, range: range };
+  }
   function computeCharDelta(charData, lastRoll, mode) {
     if (!charData || !lastRoll) return null;
     const dim = String(lastRoll.主维度 || '').toUpperCase();
@@ -1679,6 +1715,8 @@ async function _collectAllWorldbooks(includeDisabled) {
           // 世界时间只进不退，防止回忆/闪回里的旧日期把面板时间改回去
           if (curDate && d.getTime() < curDate.getTime()) continue;
           statData.世界.时间 = normalized;
+          // 告诉时钟推进：这一轮的时间已经由正文给定了，别再叠加默认步长
+          statData.世界._时钟已由正文确定 = true;
           applied.push('世界时间→' + normalized);
         } else if (field === '地点') {
           const v = _cleanBackendValue(rawValue).slice(0, 60);
@@ -1838,6 +1876,23 @@ async function _collectAllWorldbooks(includeDisabled) {
       if (!world) return out;
       ensureWorldClockFields(world);
       const stateTime = String(world.时间 || '');
+      // 本轮的时间已经由正文/后台变量明确给出（AI 写了「世界.时间=…」或建档时按正文取到起点）：
+      // 就以它为准，不再叠加默认步长。以前这里会再加 10 分钟，导致每轮时间凭空走快。
+      if (world._时钟已由正文确定 === true) {
+        delete world._时钟已由正文确定;
+        const prevDate = parseGameTime(String(world._上次推进时间 || stateTime));
+        const curDate = parseGameTime(stateTime);
+        // 正文写成「第二天」「三天后」时，天数照样要记账，否则主线倒计时和游戏日会停在原地
+        const declaredDays = (prevDate && curDate) ? Math.max(0, calendarDayDiff(prevDate, curDate)) : 0;
+        out.ok = true; out.from = String(world._上次推进时间 || stateTime); out.to = stateTime;
+        out.source = 'declared'; out.minutes = 0; out.days = declaredDays;
+        world._上次推进时间 = stateTime;
+        if (declaredDays > 0) {
+          world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + declaredDays;
+          world._内部流逝天数 = world._游戏日;
+        }
+        return out;
+      }
       // 基准用「上次推进时间」：本轮的 世界.时间 可能已被后台变量摄入提前写掉
       const fromStr = String(world._上次推进时间 || stateTime);
       const fromDate = parseGameTime(fromStr) || parseGameTime(stateTime);
@@ -1857,7 +1912,9 @@ async function _collectAllWorldbooks(includeDisabled) {
       // ② 世界时间已被别处推进（后台变量摄入 / 手动校正）
       if (!target) {
         const cur = parseGameTime(stateTime);
-        if (cur && cur.getTime() > fromDate.getTime()) { target = cur; source = 'state_clock'; }
+        // 只比较「有没有变」，不比较「是不是更大」：_上次推进时间 可能刚被建档逻辑对齐到同一值，
+        // 那样 cur > from 不成立，就会白走一次默认步长。
+        if (cur && stateTime !== fromStr) { target = cur; source = 'state_clock'; }
       }
       // ③ 正文里的相对时间词
       if (!target) {
@@ -1921,6 +1978,12 @@ async function _collectAllWorldbooks(includeDisabled) {
       const mode = getCurrentMode();
       const latestAi = getLatestAiMessage();
       const latestAiText = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
+      const activeCharNames = Object.keys(chars).filter(function(k) {
+        return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
+      });
+      // 还没有任何有效角色（开场白楼层 / 空档）时，本轮不算一回合，也不推进世界时钟：
+      // 否则玩家一句话都没说，时间已经走了 10 分钟、回合数也先跳了 1。
+      if (activeCharNames.length === 0) return;
       ensureWorldClockFields(world);
       const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : 't:' + String(world.时间 || '');
       // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
@@ -1942,9 +2005,6 @@ async function _collectAllWorldbooks(includeDisabled) {
       const endingRequests = [];
       const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : stableFeatureHash(String(currentTime));
       const parsedTags = extractAllSylveinaTags(latestAiText);
-      const activeCharNames = Object.keys(chars).filter(function(k) {
-        return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
-      });
       const primaryTarget = pickPrimaryTarget(chars, activeCharNames);
 
       let wbEntries = [];
@@ -1972,16 +2032,25 @@ async function _collectAllWorldbooks(includeDisabled) {
         const floorNotRewound = (ch._quota._lastCalcFloor === undefined) || (latestFloorIdx >= Number(ch._quota._lastCalcFloor));
         if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature && floorNotRewound) {
           const esType = (ch._quota._eventState && ch._quota._eventState.事件类型) || '';
-          const resolvedEventType = (esType === '重大' || esType === '彩蛋' || matchedTag.level === 'H')
-            ? '重大'
-            : (matchedTag.eventType || esType || '日常');
+          // 【脚本主导】事件类型只认事件导演的判定，AI 标签里的 L/M/H 一律不参与。
+          // 否则模型填一个 H 就能把日常戏升格成重大事件，绕过事件导演去触发成就与额外结算。
+          const resolvedEventType = (esType === '重大' || esType === '彩蛋') ? '重大' : (esType || '日常');
+          // 区间是脚本定的，结算时必须由脚本执行：给了超范围的值只取边界
+          const baseClamped = clampBaseToEventRange(Number(matchedTag.baseValue) || 0, resolvedEventType);
           ch._lastRoll = {
             事件类型: resolvedEventType,
             方向: matchedTag.direction || '正向',
             主维度: matchedTag.dimension || 'E',
-            基础值: Number(matchedTag.baseValue) || 0,
+            基础值: baseClamped.value,
             _applied: false,
-            _turnSig: turnSignature
+            _turnSig: turnSignature,
+            // 留痕：面板/自检能看出这一轮 AI 有没有越权，以及脚本怎么处理的
+            _脚本校准: {
+              标签等级: matchedTag.level || '',
+              标签基础值: Number(matchedTag.baseValue) || 0,
+              等级来源: esType ? '事件导演' : '默认日常',
+              基础值已夹紧: baseClamped.clamped
+            }
           };
         }
 
@@ -2009,6 +2078,8 @@ async function _collectAllWorldbooks(includeDisabled) {
             方向: lastRoll.方向,
             主维度: lastRoll.主维度,
             基础值: lastRoll.基础值,
+            // 越权留痕要跟着走，否则面板/自检里看不到这一轮 AI 写了什么
+            _脚本校准: lastRoll._脚本校准 || null,
             _applied: true,
             _turnSig: turnSignature
           };
@@ -2521,10 +2592,10 @@ async function _collectAllWorldbooks(includeDisabled) {
     let R = Number(chObj.阶段值) || 0;
     let I = Number(chObj.嫉妒值) || 0;
     if (fields.stats) {
-      const mE = fields.stats.match(/(?:E|好感(?:度)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
-      const mP = fields.stats.match(/(?:P|肉体(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
-      const mR = fields.stats.match(/(?:R|阶段(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
-      const mI = fields.stats.match(/(?:I|嫉妒(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
+      const mE = fields.stats.match(/(?:E|好感(?:度)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
+      const mP = fields.stats.match(/(?:P|肉体(?:值)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
+      const mR = fields.stats.match(/(?:R|阶段(?:值)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
+      const mI = fields.stats.match(/(?:I|嫉妒(?:值)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
       if (mE) E = parseFloat(mE[1]);
       if (mP) P = parseFloat(mP[1]);
       if (mR) R = parseFloat(mR[1]);
@@ -2566,8 +2637,19 @@ async function _collectAllWorldbooks(includeDisabled) {
       cgPrompt: cgPrompt,
       createdAt: Date.now()
     };
-    ensureEndingRecordArchived(record);
+    // 结局归档闸门：只有玩家在面板里真正发起周目结算后才入图鉴。
+    // AI 自己冒出来的 [GalgameEnding|...] 照样渲染成报幕卡（老存档回放需要），但不写进档案。
+    if (consumeEndingFlowArm()) ensureEndingRecordArchived(record);
     return record;
+  }
+
+  let _endingFlowArmedAt = 0;
+  const ENDING_FLOW_ARM_TTL = 30 * 60 * 1000;
+  function armEndingFlow() { _endingFlowArmedAt = Date.now(); }
+  function consumeEndingFlowArm() {
+    const ok = _endingFlowArmedAt > 0 && (Date.now() - _endingFlowArmedAt) < ENDING_FLOW_ARM_TTL;
+    _endingFlowArmedAt = 0;
+    return ok;
   }
 
   function ensureEndingRecordArchived(record) {
@@ -8834,6 +8916,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
   }
 
   function injectAndSendEndingPromptToChatbox(charName, ch, endingType, reason) {
+    // 玩家真的发起了周目结算，才允许把这轮报幕归档进图鉴
+    try { armEndingFlow(); } catch (e) {}
     const built = buildChatboxEndingPrompt(charName, ch, endingType || 'TE', reason || '玩家主动结算周目');
     callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 4, 0, false);
 
@@ -12511,12 +12595,20 @@ function openTimelineKeywordDialog(panel, onDone) {
 
       const world = statData.世界 || (statData.世界 = {});
       const existingTime = String(world.时间 || '');
-      const hadRealTime = !!existingTime && existingTime.indexOf('2000年01月01日') !== 0;
+      // 世界已经在走（有回合 / 有天数 / 上次推进时间和当前时间不一致）时，不能再用正文去重猜，
+      // 否则会把已经正确的时间覆盖掉，还会让当轮时钟被重复推进一次。
+      const alreadyRunning = Number(world._回合) > 0 || Number(world._内部流逝天数) > 0
+        || (!!existingTime && !!world._上次推进时间 && world._上次推进时间 !== existingTime);
+      const hadRealTime = alreadyRunning || (!!existingTime && existingTime.indexOf('2000年01月01日') !== 0);
       const guessed = guessOpeningWorldTime([latestText, cardFirstMes]);
       const now = hadRealTime ? existingTime : (guessed || existingTime || '2000年01月01日 · 星期六 · 00:00');
-      world.时间 = now;
-      // 原来的默认时间没意义，用新起点重置；已有真实时间就别动
-      if (!hadRealTime) world._上次推进时间 = now;
+      if (!hadRealTime) {
+        world.时间 = now;
+        // 原来的默认时间没意义，用新起点重置；已有真实时间就别动
+        world._上次推进时间 = now;
+        // 起点是从正文猜到的，说明这一轮的时间已由正文给定，时钟不要再叠加默认步长
+        if (guessed) world._时钟已由正文确定 = true;
+      }
       if (world._内部流逝天数 === undefined || !isFinite(Number(world._内部流逝天数))) world._内部流逝天数 = 0;
       if (!statData.角色 || typeof statData.角色 !== 'object') statData.角色 = {};
 

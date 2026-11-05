@@ -64,6 +64,23 @@
       if (!world) return out;
       ensureWorldClockFields(world);
       const stateTime = String(world.时间 || '');
+      // 本轮的时间已经由正文/后台变量明确给出（AI 写了「世界.时间=…」或建档时按正文取到起点）：
+      // 就以它为准，不再叠加默认步长。以前这里会再加 10 分钟，导致每轮时间凭空走快。
+      if (world._时钟已由正文确定 === true) {
+        delete world._时钟已由正文确定;
+        const prevDate = parseGameTime(String(world._上次推进时间 || stateTime));
+        const curDate = parseGameTime(stateTime);
+        // 正文写成「第二天」「三天后」时，天数照样要记账，否则主线倒计时和游戏日会停在原地
+        const declaredDays = (prevDate && curDate) ? Math.max(0, calendarDayDiff(prevDate, curDate)) : 0;
+        out.ok = true; out.from = String(world._上次推进时间 || stateTime); out.to = stateTime;
+        out.source = 'declared'; out.minutes = 0; out.days = declaredDays;
+        world._上次推进时间 = stateTime;
+        if (declaredDays > 0) {
+          world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + declaredDays;
+          world._内部流逝天数 = world._游戏日;
+        }
+        return out;
+      }
       // 基准用「上次推进时间」：本轮的 世界.时间 可能已被后台变量摄入提前写掉
       const fromStr = String(world._上次推进时间 || stateTime);
       const fromDate = parseGameTime(fromStr) || parseGameTime(stateTime);
@@ -83,7 +100,9 @@
       // ② 世界时间已被别处推进（后台变量摄入 / 手动校正）
       if (!target) {
         const cur = parseGameTime(stateTime);
-        if (cur && cur.getTime() > fromDate.getTime()) { target = cur; source = 'state_clock'; }
+        // 只比较「有没有变」，不比较「是不是更大」：_上次推进时间 可能刚被建档逻辑对齐到同一值，
+        // 那样 cur > from 不成立，就会白走一次默认步长。
+        if (cur && stateTime !== fromStr) { target = cur; source = 'state_clock'; }
       }
       // ③ 正文里的相对时间词
       if (!target) {

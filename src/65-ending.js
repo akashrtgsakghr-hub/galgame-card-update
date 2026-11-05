@@ -45,10 +45,10 @@
     let R = Number(chObj.阶段值) || 0;
     let I = Number(chObj.嫉妒值) || 0;
     if (fields.stats) {
-      const mE = fields.stats.match(/(?:E|好感(?:度)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
-      const mP = fields.stats.match(/(?:P|肉体(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
-      const mR = fields.stats.match(/(?:R|阶段(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
-      const mI = fields.stats.match(/(?:I|嫉妒(?:值)?)[\s:：=]*([+-]?\d+(?:\.\d+)?)/i);
+      const mE = fields.stats.match(/(?:E|好感(?:度)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
+      const mP = fields.stats.match(/(?:P|肉体(?:值)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
+      const mR = fields.stats.match(/(?:R|阶段(?:值)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
+      const mI = fields.stats.match(/(?:I|嫉妒(?:值)?)[\s:：=]*([+\-]?\d+(?:\.\d+)?)/i);
       if (mE) E = parseFloat(mE[1]);
       if (mP) P = parseFloat(mP[1]);
       if (mR) R = parseFloat(mR[1]);
@@ -90,8 +90,19 @@
       cgPrompt: cgPrompt,
       createdAt: Date.now()
     };
-    ensureEndingRecordArchived(record);
+    // 结局归档闸门：只有玩家在面板里真正发起周目结算后才入图鉴。
+    // AI 自己冒出来的 [GalgameEnding|...] 照样渲染成报幕卡（老存档回放需要），但不写进档案。
+    if (consumeEndingFlowArm()) ensureEndingRecordArchived(record);
     return record;
+  }
+
+  let _endingFlowArmedAt = 0;
+  const ENDING_FLOW_ARM_TTL = 30 * 60 * 1000;
+  function armEndingFlow() { _endingFlowArmedAt = Date.now(); }
+  function consumeEndingFlowArm() {
+    const ok = _endingFlowArmedAt > 0 && (Date.now() - _endingFlowArmedAt) < ENDING_FLOW_ARM_TTL;
+    _endingFlowArmedAt = 0;
+    return ok;
   }
 
   function ensureEndingRecordArchived(record) {

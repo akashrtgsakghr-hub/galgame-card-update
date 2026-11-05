@@ -255,6 +255,18 @@
   }
   function isCurrentlyInExtraAnalysis() { try { if (mainWin.Mvu && typeof mainWin.Mvu.isDuringExtraAnalysis === 'function') return mainWin.Mvu.isDuringExtraAnalysis(); } catch (e) {} return false; }
   /* ───────────────────────────────────────────────────────── */
+  /* 区间是脚本自己定的，就必须由脚本自己执行：
+     AI 把基础值写成 99 时只取区间上界，不能靠一个数字把一轮的分刷满。 */
+  function clampBaseToEventRange(value, eventType) {
+    const v = Number(value);
+    const type = String(eventType || '日常');
+    const range = MOON_FORMULA_PARAMS.eventBaseRange[type] || MOON_FORMULA_PARAMS.eventBaseRange.日常;
+    // 0 是「这一轮没打动她」的合法写法，不要被夹成下界，否则每轮都会被强制加分
+    if (!isFinite(v) || v === 0) return { value: 0, clamped: false, range: range };
+    if (v < range[0]) return { value: range[0], clamped: true, range: range };
+    if (v > range[1]) return { value: range[1], clamped: true, range: range };
+    return { value: roundHalf(v), clamped: false, range: range };
+  }
   function computeCharDelta(charData, lastRoll, mode) {
     if (!charData || !lastRoll) return null;
     const dim = String(lastRoll.主维度 || '').toUpperCase();

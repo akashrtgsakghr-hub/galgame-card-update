@@ -31,7 +31,9 @@
         dimension = p.indexOf('肉') === 0 ? 'P' : (p.indexOf('阶') === 0 ? 'R' : (p.indexOf('嫉') === 0 ? 'I' : 'E'));
         continue;
       }
-      const numMatch = p.match(/^([+-＋－−—])?\s*(\d+(?:\.\d+)?)$/);
+      // 注意：短横必须放在字符类末尾或转义。写成 [+-＋－−—] 会被 JS 当成「+ 到 ＋」的
+      // Unicode 范围（U+002B–U+FF0B），把数字也吞进去，导致 +99 解析成 +9、+12 解析成 +2。
+      const numMatch = p.match(/^([+\-＋－−—])?\s*(\d+(?:\.\d+)?)$/);
       if (numMatch && isNaN(baseValue)) {
         if (!sign && numMatch[1]) {
           sign = (numMatch[1] === '-' || numMatch[1] === '－' || numMatch[1] === '−' || numMatch[1] === '—') ? '-' : '+';
@@ -100,7 +102,8 @@
 
   function extractFirstMeetTag(mes) {
     if (!mes) return null;
-    const m = String(mes).match(/[\[\u3014\u3010\uff3b]\s*初见\s*[|｜]\s*优势\s*([+-＋－]?\d+)\s*[|｜]\s*劣势\s*([+-＋－]?\d+)\s*[\]\u3015\u3011\uff3d]/);
+    // 同理，这里的 [+-＋－] 也必须转义短横，否则会把数字当成符号吞掉
+    const m = String(mes).match(/[\[\u3014\u3010\uff3b]\s*初见\s*[|｜]\s*优势\s*([+\-＋－]?\d+)\s*[|｜]\s*劣势\s*([+\-＋－]?\d+)\s*[\]\u3015\u3011\uff3d]/);
     if (!m) return null;
     const adv = Number(String(m[1]).replace('＋', '+').replace('－', '-')) || 0;
     const dis = Number(String(m[2]).replace('＋', '+').replace('－', '-')) || 0;
@@ -114,6 +117,23 @@
     return { fullMatch: m[0] };
   }
 
+  /* 初见加成只有 0/+3/+6/+9 与 0/-3/-6 这几档，由脚本执行：
+     AI 写 +999 或 -999 时只取最近的合法档位，不能靠一个数字直接把开局判定拉满。 */
+  const FIRST_MEET_ADV_TIERS = [0, 3, 6, 9];
+  const FIRST_MEET_DIS_TIERS = [0, -3, -6];
+  function nearestFirstMeetTier(v, tiers) {
+    const n = Number(v);
+    if (!isFinite(n)) return 0;
+    let best = 0; let bestDist = Infinity;
+    for (let i = 0; i < tiers.length; i++) {
+      const d = Math.abs(tiers[i] - n);
+      if (d < bestDist) { bestDist = d; best = tiers[i]; }
+    }
+    return best;
+  }
+  function clampFirstMeetAdv(v) { return nearestFirstMeetTier(v, FIRST_MEET_ADV_TIERS); }
+  function clampFirstMeetDis(v) { return nearestFirstMeetTier(v, FIRST_MEET_DIS_TIERS); }
+
   async function processFirstMeetForChar(charName, ch, mode) {
     const quota = ch._quota || (ch._quota = {});
     if (quota._firstMeetDone === true) return null;
@@ -123,9 +143,11 @@
     const mes = String(found.msg.mes || '');
     const tag = extractFirstMeetTag(mes);
     if (!tag) return null;
+    const advValue = clampFirstMeetAdv(tag.优势);
+    const disValue = clampFirstMeetDis(tag.劣势);
     const dice = Math.floor(Math.random() * 20) + 1;
     const threshold = (mode === 'easy') ? 8 : 13;
-    const total = dice + (Number(tag.优势) || 0) + (Number(tag.劣势) || 0);
+    const total = dice + advValue + disValue;
     let newE = Number(ch.好感度) || 0; let newR = Number(ch.阶段值) || 0; let resultText = '';
     if (dice === 20) { newE = 30; newR = 1; resultText = '大成功 → E=30, R=1'; }
     else if (dice === 1) { newE = Math.max(-15, -10); newR = 0; resultText = '大失败 → E=-10, R=0'; }

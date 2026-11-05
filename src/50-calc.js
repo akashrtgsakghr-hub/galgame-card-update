@@ -8,6 +8,12 @@
       const mode = getCurrentMode();
       const latestAi = getLatestAiMessage();
       const latestAiText = latestAi && latestAi.msg ? String(latestAi.msg.mes || '') : '';
+      const activeCharNames = Object.keys(chars).filter(function(k) {
+        return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
+      });
+      // 还没有任何有效角色（开场白楼层 / 空档）时，本轮不算一回合，也不推进世界时钟：
+      // 否则玩家一句话都没说，时间已经走了 10 分钟、回合数也先跳了 1。
+      if (activeCharNames.length === 0) return;
       ensureWorldClockFields(world);
       const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : 't:' + String(world.时间 || '');
       // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
@@ -29,9 +35,6 @@
       const endingRequests = [];
       const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : stableFeatureHash(String(currentTime));
       const parsedTags = extractAllSylveinaTags(latestAiText);
-      const activeCharNames = Object.keys(chars).filter(function(k) {
-        return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
-      });
       const primaryTarget = pickPrimaryTarget(chars, activeCharNames);
 
       let wbEntries = [];
@@ -59,16 +62,25 @@
         const floorNotRewound = (ch._quota._lastCalcFloor === undefined) || (latestFloorIdx >= Number(ch._quota._lastCalcFloor));
         if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature && floorNotRewound) {
           const esType = (ch._quota._eventState && ch._quota._eventState.事件类型) || '';
-          const resolvedEventType = (esType === '重大' || esType === '彩蛋' || matchedTag.level === 'H')
-            ? '重大'
-            : (matchedTag.eventType || esType || '日常');
+          // 【脚本主导】事件类型只认事件导演的判定，AI 标签里的 L/M/H 一律不参与。
+          // 否则模型填一个 H 就能把日常戏升格成重大事件，绕过事件导演去触发成就与额外结算。
+          const resolvedEventType = (esType === '重大' || esType === '彩蛋') ? '重大' : (esType || '日常');
+          // 区间是脚本定的，结算时必须由脚本执行：给了超范围的值只取边界
+          const baseClamped = clampBaseToEventRange(Number(matchedTag.baseValue) || 0, resolvedEventType);
           ch._lastRoll = {
             事件类型: resolvedEventType,
             方向: matchedTag.direction || '正向',
             主维度: matchedTag.dimension || 'E',
-            基础值: Number(matchedTag.baseValue) || 0,
+            基础值: baseClamped.value,
             _applied: false,
-            _turnSig: turnSignature
+            _turnSig: turnSignature,
+            // 留痕：面板/自检能看出这一轮 AI 有没有越权，以及脚本怎么处理的
+            _脚本校准: {
+              标签等级: matchedTag.level || '',
+              标签基础值: Number(matchedTag.baseValue) || 0,
+              等级来源: esType ? '事件导演' : '默认日常',
+              基础值已夹紧: baseClamped.clamped
+            }
           };
         }
 
@@ -96,6 +108,8 @@
             方向: lastRoll.方向,
             主维度: lastRoll.主维度,
             基础值: lastRoll.基础值,
+            // 越权留痕要跟着走，否则面板/自检里看不到这一轮 AI 写了什么
+            _脚本校准: lastRoll._脚本校准 || null,
             _applied: true,
             _turnSig: turnSignature
           };

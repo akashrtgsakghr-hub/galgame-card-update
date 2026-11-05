@@ -47,6 +47,8 @@
           // 世界时间只进不退，防止回忆/闪回里的旧日期把面板时间改回去
           if (curDate && d.getTime() < curDate.getTime()) continue;
           statData.世界.时间 = normalized;
+          // 告诉时钟推进：这一轮的时间已经由正文给定了，别再叠加默认步长
+          statData.世界._时钟已由正文确定 = true;
           applied.push('世界时间→' + normalized);
         } else if (field === '地点') {
           const v = _cleanBackendValue(rawValue).slice(0, 60);

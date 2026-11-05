@@ -982,6 +982,8 @@
   }
 
   function injectAndSendEndingPromptToChatbox(charName, ch, endingType, reason) {
+    // 玩家真的发起了周目结算，才允许把这轮报幕归档进图鉴
+    try { armEndingFlow(); } catch (e) {}
     const built = buildChatboxEndingPrompt(charName, ch, endingType || 'TE', reason || '玩家主动结算周目');
     callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 4, 0, false);
 
