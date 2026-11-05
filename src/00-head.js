@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.17';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.17 标签终于有说明书了】\n1. 🏷 新增「词条释义」：14 条说明讲清每个标签和状态到底是什么意思，不再只是给个格式让你照抄。\n2. 🎯 按需触发：只把这一轮真的用得上的发过去。判断依据是脚本本轮真的注入了什么，比世界书扫聊天猜要准。\n3. 🧠 重点补语义：L / M / H 各自对应多重的戏、基础值怎么挑、冷战后不许自己宣布和好、触到周上限别写成她变心。\n4. 🎚 面板新增三档：按需 / 全量 / 关，默认按需，普通回合只多带约 670 字（两条必带的标签语义）。\n5. 🧾 自检报告会报出本轮命中了哪几条，能直接看出 AI 到底拿没拿到说明。\n6. 🔒 释义只解释含义，不复述那 7 节禁令，两套不重复占上下文。\n7. 📦 测试增至 308 条，新增 29 条锁住触发规则、预算上限和开关。";
+  const MOON_FORMULA_VERSION = '4.6.18';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.18 修正：等级归脚本，不归 AI】\n1. 🔧 上一版词条把分工写错了：说 L / M / H 是「AI 按剧情分量自己挑一档」。实际等级由事件导演定好，注入时已经写死在输出格式里。\n2. ⚠️ 这个错不只是废话：脚本读到 H 就会把这轮按重大事件结算，教 AI 自己升级等于给它开了个偷偷改难度的口子。\n3. ✅ 现在明说：等级照抄注入的模板，不要改；你只负责方向和基础值。\n4. 📏 补了基础值怎么取：区间下段是客套、没戳到她的互动，上段是明显被触动、主动跨了一步，拿不准就取中间偏下。\n5. 🧾 7 节常驻规则、数值计算、外观和更新线路都没动，只改了这一条词条的说法。\n6. 📦 测试增至 310 条，新增 3 条锁住「不许教 AI 自己挑等级」。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
