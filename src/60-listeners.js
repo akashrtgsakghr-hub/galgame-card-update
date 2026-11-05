@@ -63,6 +63,7 @@
       isWaitingForExtraModel = false;
     });
     trySubscribe('chat_completion_prompt_ready', function() {
+      injectCorePrompt();
       injectCardModeNotice();
       injectEventPrompt();
       injectFanficEnhanceNotice();

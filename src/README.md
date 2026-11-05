@@ -28,7 +28,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 
 | 文件 | 行数 | 职责 |
 |---|---:|---|
-| `00-head.js` | 217 | IIFE 开头、窗口/文档引用、全部 localStorage key、数值参数、**版本号与更新公告** |
+| `00-head.js` | 219 | IIFE 开头、窗口/文档引用、全部 localStorage key、数值参数、**版本号与更新公告** |
 | `05-timeline.js` | 235 | 时间线文本解析、内置仓库（localStorage 按角色卡分档）、候选扫描 |
 | `10-context.js` | 178 | SillyTavern 上下文读写、历史采集、AI 模型调用入口 |
 | `15-state.js` | 107 | toast、角色档案库、提示词写入、本地存档读写 |
@@ -40,7 +40,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `45-clock.js` | 139 | 世界时钟推进（每轮分钟数 / 换日）、相对时间识别 |
 | `50-calc.js` | 270 | 主计算流程 `runMoonCalculation`、事件投掷与导演 |
 | `55-timejump.js` | 121 | 时间跳跃检测、倒计时与操作提示 |
-| `60-listeners.js` | 167 | 事件监听绑定、正则尾部清洗 |
+| `60-listeners.js` | 168 | 事件监听绑定、正则尾部清洗 |
 | `65-ending.js` | 507 | 结局 / 尾声解析与幕布渲染、标签美化、生成结束钩子 |
 | `70-anchor.js` | 134 | 锚点锁档（好感跌破 / 冷战固化，仅新对话解锁） |
 | `75-bio.js` | 1330 | 角色档案与玩家档案：生成、试镜、修订、库管理 |
@@ -48,13 +48,14 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `85-style.js` | 711 | 面板与 LCD 的全部 CSS |
 | `88-skin.js` | 2363 | 楼内状态卡：晨昏票根 / 月氏藏书票两套外观、数据适配、挂载与刷新 |
 | `90-panel.js` | 1383 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
-| `95-selfcheck.js` | 1091 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、FAQ |
+| `95-selfcheck.js` | 1105 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、FAQ |
+| `96-core.js` | 293 | 内置演绎规则：原世界书 7 条（总纲/输出/叙事/事件/小抄/时间线/结局）的注入与让位判定 |
 | `97-api.js` | 735 | 独立 API 请求层：端点/协议推导、错误分类、超时、Retry-After、通道降级与全局串行队列 |
 | `98-prompts.js` | 312 | 提示词模板与预设、AI 冲突扫描 |
 | `99-timeline-ui.js` | 396 | 时间线清单 / 转写 / 生成（结果写回内置仓库） |
 | `A0-adaptive.js` | 512 | 开局自适应：单卡与多卡建档、首条回复后自动建 0 值档 |
 | `A1-migrate.js` | 374 | 旧存档迁移（规则迁移 + AI 辅助迁移） |
-| `A2-boot.js` | 259 | 菜单注入、面板开关、首次启动流程、定时任务 |
+| `A2-boot.js` | 263 | 菜单注入、面板开关、首次启动流程、定时任务 |
 
 文件名前缀只是排序用的编号，`A*` 排在 `9*` 后面。
 
@@ -69,6 +70,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 - 改事件投掷节奏 → `50-calc.js`
 - 改时间线清单 → `05-timeline.js`（数据层）、`99-timeline-ui.js`（界面）
 - 改更新线路 → `97-api.js` 上面的更新模块区（`buildUpdateSourceChain` / `fetchUpdateSource`）
+- 改内置演绎规则（原世界书那 7 条） → `96-core.js` 顶部的 `CORE_RULE_SECTIONS`
 - 改楼内状态卡外观 → `88-skin.js`：文件顶部的 `SKIN_CSS_TICKET` / `SKIN_CSS_BOOK` 两段 CSS 直接改就行；渲染逻辑是从原来的两套正则美化移植的，数据入口已换成 `readMvuLatest()`
 
 ## 加新文件

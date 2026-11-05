@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.15';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.15 接口调用重写 · 429 不再白等】\n1. 🔁 429 按服务端说的等：接口回了「等几秒」就等那么久再试；要等超过 15 秒就不硬耗，直接告诉你过几分钟再点，而不是把面板卡在那儿。\n2. 🧠 分得清失败原因：Key 不对、模型名写错、额度用完、内容审核、上下文超长、中转站 5xx，各有各的说法和改法，不再一律显示成「HTTP 429」。\n3. ⏱️ 每个请求最多等 3 分钟：以前网络一卡就一直挂着，背后的队列跟着堵死；现在到点自己断，下一次照常能调。\n4. 🎫 中转站把报错网页当成正文返回时，会说「返回的是网页」，而不是莫名其妙的「格式异常」。\n5. 🧩 支持 Anthropic 原生协议：填 Claude 的地址会自动改用 /v1/messages 与 x-api-key 鉴权。\n6. 💭 思考模型（Gemini 2.5 / R1 这类）写在 <thinking> 里的推理会自动剥掉，只拿正文去解析 JSON；只剩思考没有正文时会明确告诉你。\n7. 🔀 代理与直连分工更清楚：限流、Key 错、模型名错这类换条路也没用的错，不再多跑一遍直连去撞。\n8. 🩺 自检里多了「独立 API」一栏：最近 5 次请求的通道、域名、耗时、状态都能回看，排查不用猜。";
+  const MOON_FORMULA_VERSION = '4.6.16';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.16 一个脚本就够了 · 世界书可选】\n1. 📜 世界书搬进脚本：原来那本《月相攻略系统世界书》的 7 条规则（总纲 / 输出规范 / 叙事规则 / 特殊事件 / 卡组与小抄 / 时间线 / 结局报幕）现在由脚本随每轮请求自动注入，只装脚本就能玩。\n2. 🧹 装过旧世界书的自动让位：检测到就用世界书那份，两套不会叠在一起打架。\n3. 🗑️ 想瘦身可以直接把世界书从酒馆删掉，下一轮自动切到内置规则；角色卡和存档都不用重建。\n4. 🎛️ 面板「系统选项 → 运行设定」新增「📜 演绎规则」：自动 / 强开 / 关，三档随时切。\n5. 🔍 自检报告里会写清楚现在用的是内置规则还是你那本世界书。\n6. 🧾 时间线、存档、好感结算本来就存在脚本里，这次把最后一块外部依赖也收回来了。\n7. 📦 仓库源码拆到 28 个片段（新增 src/96-core.js），玩家下载到的仍然是完整单文件。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto'
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;
