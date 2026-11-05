@@ -25,10 +25,23 @@
     } catch (e) {}
     return info || '(无法读取角色卡信息)';
   }
+  /* 本轮实际注入过的全部文本。词条库靠它判断「这一轮 AI 手里到底有没有那个标签」，
+     比扫聊天记录准得多——脚本刚注入的 [初见|…] 在对话里还不存在。 */
+  let _roundInjectedText = '';
+  function resetRoundInjectedText() { _roundInjectedText = ''; }
+  function getRoundInjectedText() { return _roundInjectedText; }
+  function setRoundInjectedText(t) { _roundInjectedText = String(t || ''); }
+  function appendRoundInjectedText(value) {
+    if (!value || typeof value !== 'string') return;
+    const room = 20000 - _roundInjectedText.length;
+    if (room <= 2) return;
+    _roundInjectedText += '\n' + (value.length > room ? value.slice(0, room) : value);
+  }
+
   function callSetPrompt(key, value, position, depth, scan) {
-    try { if (typeof mainWin.setExtensionPrompt === 'function') { mainWin.setExtensionPrompt(key, value, position, depth, scan); return true; } } catch (e) {}
-    try { if (typeof window.setExtensionPrompt === 'function') { window.setExtensionPrompt(key, value, position, depth, scan); return true; } } catch (e) {}
-    try { const ctx = getSTCtx(); if (ctx && typeof ctx.setExtensionPrompt === 'function') { ctx.setExtensionPrompt(key, value, position, depth, scan); return true; } } catch (e) {}
+    try { if (typeof mainWin.setExtensionPrompt === 'function') { mainWin.setExtensionPrompt(key, value, position, depth, scan); appendRoundInjectedText(value); return true; } } catch (e) {}
+    try { if (typeof window.setExtensionPrompt === 'function') { window.setExtensionPrompt(key, value, position, depth, scan); appendRoundInjectedText(value); return true; } } catch (e) {}
+    try { const ctx = getSTCtx(); if (ctx && typeof ctx.setExtensionPrompt === 'function') { ctx.setExtensionPrompt(key, value, position, depth, scan); appendRoundInjectedText(value); return true; } } catch (e) {}
     return false;
   }
 

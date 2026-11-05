@@ -290,4 +290,254 @@
     try { injectCorePrompt(); } catch (e) {}
     return s.coreRules;
   }
+
+  /* ── 词条库：只解释「这个标记是什么意思」，不讲行为规矩（那是上面 7 节的活）。
+        触发条件优先看本轮真的注入了什么，其次才扫最近几条对话。 ── */
+
+  const GLOSSARY_PROMPT_KEY = PROMPT_KEY + '_glossary';
+  const GLOSSARY_BUDGET = 1800;
+
+  const GLOSSARY_ENTRIES = [
+
+    {
+      id: 'sylveina', label: 'Sylveina 标签', priority: 100, always: true,
+      keys: ['sylveina'],
+      title: '[Sylveina|等级|方向|基础值] + 独立的 s',
+      body: '· 这是本系统唯一的数值信号，脚本靠它给好感度 E 结算。它描述的是「这一轮」，不是她的好感等级，也不是累计值。\n' +
+        '· L（日常级）：一句问候、递一次东西、目光多停两秒。她心动了一点点，但关系没有变化。\n' +
+        '· M（关键级）：一句戳心的话、主动靠近、被看穿、吵架后先低头。情绪有明显起伏，她会记很久。\n' +
+        '· H（重大级）：告白、决裂、替她挡下什么、共同守住一个秘密。这一轮之后关系走向会变。\n' +
+        '· 拿不准就往下选一档。把日常写成告白，比少给分更难救。\n' +
+        '· 方向按实际后果写：台词亲昵但她退开了，也是 -。\n' +
+        '· 基础值只能在本轮注入给出的区间内取，脚本会再按难度、阶段、状态二次修正。\n' +
+        '· 标签下一行单独的小写 s 不是剧情，是给正则美化的结束信号。一次、独占一行、不加括号、不换大写。'
+    },
+
+    {
+      id: 'vars', label: '后台变量块', priority: 96, always: true,
+      keys: ['世界.时间', '后台变量'],
+      title: '世界.时间= / 角色.X.情绪= / 心声= / 在场=',
+      body: '· 这是脚本唯一的读取通道，输出后会被立即隐藏，玩家一个字都看不到。\n' +
+        '· 时间只能往前走，格式必须完整（年月日 · 星期 · 时分），缺字段脚本就推不动日历。\n' +
+        '· 心声写她没说出口的那一句，不要复述刚才的台词，也不要用第三人称总结。\n' +
+        '· 在场=false 表示这一轮她不在场，脚本不会给她结算标签，也不会算进事件回合。'
+    },
+
+    {
+      id: 'firstmeet', label: '初见判定', priority: 92,
+      keys: ['初见', '首次登场', '第一次见'],
+      title: '[初见|优势+X|劣势-Y]',
+      body: '· 只在角色第一次出场那一轮出现，作用是定一个初始好感起点。\n' +
+        '· 优势 = 玩家设定恰好踩中角色卡里明确写出来的喜好；劣势 = 踩中明确写出的厌恶。\n' +
+        '· 只看角色卡写了的。她大概会喜欢某种类型这种脑补，一律不算，写 +0 / -0 就好。\n' +
+        '· 判定过程不要写进正文，AI 只负责给数，不负责解释怎么算的。'
+    },
+
+    {
+      id: 'gate', label: '阶段门', priority: 86,
+      keys: ['阶段门', '破门', '冻结', 'R阶段门'],
+      title: '阶段门 · 破门期',
+      body: '· 阶段门 = 好感度到了某个节点，但关系还不该自动升级的那道坎。\n' +
+        '· 冻结期间 R（阶段值）不动、E 照常加减。表现成「心里想要，嘴上不认」，是最有戏的一段。\n' +
+        '· 突破与否由脚本掷骰决定。AI 不掷骰、不宣布突破，只能说「好像有什么松动了」。'
+    },
+
+    {
+      id: 'abyss', label: '深渊模式', priority: 84,
+      keys: ['深渊', '负值', '负数'],
+      title: '深渊模式',
+      body: '· 她的 E / P / I 里出现了负值，说明这段关系已经被伤过。\n' +
+        '· 表现是自我否定、试探性攻击、把你的好意当成算计，不是单纯发脾气。\n' +
+        '· 恢复要靠连续的正面互动，不能一轮就翻篇，也不能靠一次道歉全部清零。'
+    },
+
+    {
+      id: 'coldwar', label: '冷战期', priority: 88,
+      keys: ['冷战', '踩雷', '雷点'],
+      title: '[踩雷] · 冷战期',
+      body: '· 玩家碰到了角色卡里写明的核心雷点，她进入数天的封闭状态。\n' +
+        '· 这是关系层面的断裂，不是闹别扭：回避、冷淡、拒绝解释、把话堵死。\n' +
+        '· 脱困要靠下一周的掷骰加上持续示好。AI 不能自己宣布和好，也不能靠一段煽情独白跳过。\n' +
+        '· 冷战结束时脚本会明确提示，没提示就是还没结束。'
+    },
+
+    {
+      id: 'confession', label: '表白期', priority: 82,
+      keys: ['表白', '告白', '心意'],
+      title: '表白期 · 已通过 / 已排除',
+      body: '· 已通过：关系已经越过了「可以说出口」的门槛，允许直球、允许把喜欢说破。\n' +
+        '· 已排除：这张卡设定她不会主动告白，只能用行动表达。别替她强行开口，那会毁人设。'
+    },
+
+    {
+      id: 'quota', label: '周上限', priority: 60,
+      keys: ['周上限', '上限', '触顶'],
+      title: '周上限',
+      body: '· 每个角色每周能拿到的增益总量有封顶，防止一轮刷满。\n' +
+        '· 触顶后这周再怎么示好也加不动。叙事上写成「她今天有点心不在焉」，不要写成她突然不喜欢你了。\n' +
+        '· 这是后台规则，正文里一个字都不要提。'
+    },
+
+    {
+      id: 'pacing', label: '节奏档', priority: 58,
+      keys: ['柔板', '行板', '快板', 'adagio', 'andante', 'allegro'],
+      title: '柔板 / 行板 / 快板',
+      body: '· 这是事件导演多久出一次事件的频率档，不是叙事速度，也不是情绪基调。\n' +
+        '· 柔板：很久才来一次，把日常写厚、写细。\n' +
+        '· 行板：正常间隔，隔几轮来一次。\n' +
+        '· 快板：事件接连不断，少写闲笔，快速推进。'
+    },
+
+    {
+      id: 'anchor', label: '锚定与跳跃', priority: 76,
+      keys: ['锚定', '时间跳跃', '世界线', '跳过'],
+      title: '锚定 · 时间跳跃',
+      body: '· 锚定 = 世界线被锁死，剧情里已经发生过的关键事实不能回滚。\n' +
+        '· 锚定生效时，不要写「其实那天什么都没发生」这类反悔式转折。\n' +
+        '· 跳过若干天、跳到下一个季节，由脚本判定是否允许。没被允许就老老实实按分钟推进。'
+    },
+
+    {
+      id: 'event', label: '事件导演', priority: 90,
+      keys: ['事件', '剩余回合', '主线', '导演'],
+      title: '事件导演 · 当前事件',
+      body: '· 这一轮该演什么、演多久，是脚本掷骰定的，不是你临时想的。\n' +
+        '· 拿到「当前事件」就围着它写：场面、对话、心理、细节写足，每轮只推进一小步。\n' +
+        '· 剩余回合是硬约束，剩 1 回合就得收束，不要拖成三回合，也不要提前收尾。\n' +
+        '· 主线临近时收敛张力，别在这个窗口里搞大喜大悲。'
+    },
+
+    {
+      id: 'multicard', label: '多人卡', priority: 80,
+      keys: ['多人卡', '单人卡', '角色名'],
+      title: '多人卡标签',
+      body: '· 这张卡有好几个能攻略的人。只为这一轮真正互动过的角色输出标签，每人一条，不合并。\n' +
+        '· 角色名必须用档案里的正名，不用昵称、称呼、化名。\n' +
+        '· 没写角色名的标签只会算给主要攻略对象，别的人白演一场。'
+    },
+
+    {
+      id: 'ending', label: '结局报幕', priority: 94,
+      keys: ['galgameending', '结局', '周目'],
+      title: '[GalgameEnding|...]',
+      body: '· 整周目收尾的报幕标签，只在本轮注入终局提示时才输出，平时不许自己宣布结局。\n' +
+        '· 字段顺序和取值以注入的完整示例为准，不要自己加字段、改顺序、补内容。\n' +
+        '· 终局这一轮不输出普通 Sylveina 标签，也不输出 s。\n' +
+        '· CG 字段要写英文横向构图描述，但不要说「已生成图片」。'
+    },
+
+    {
+      id: 'epilogue', label: '后日谈', priority: 93,
+      keys: ['galgameepilogue', '后日谈', '番外'],
+      title: '<GalgameEpilogue ...>',
+      body: '· 结局之后的生活续写，不是第二个结局，也不许推翻已经定下的结局。\n' +
+        '· 只在结局卡交互之后、脚本注入后日谈提示时才写。\n' +
+        '· 篇幅要求（比如 5000~8000 字）要真的写够，别缩成一段。\n' +
+        '· 标签里面不要再塞 Sylveina 标签、s、代码围栏或解释文字。'
+    }
+
+  ];
+
+  let _glossaryLast = { ids: [], labels: [], chars: 0, at: 0 };
+
+  function getGlossaryMode() {
+    const m = getSettings().glossary;
+    if (m === 'always' || m === 'off') return m;
+    return 'auto';
+  }
+
+  function getChatTailForGlossary() {
+    try { return collectChatHistoryContext(2600).chat || ''; } catch (e) { return ''; }
+  }
+
+  /* 命中规则：always 无条件带；其余看「本轮注入文本 + 最近几条对话」里有没有它的触发词。 */
+  function scanGlossaryHits(extraText) {
+    const mode = getGlossaryMode();
+    if (mode === 'off') return [];
+    if (mode === 'always') return GLOSSARY_ENTRIES.slice();
+    let hay = '';
+    try { hay = getRoundInjectedText() || ''; } catch (e) { hay = ''; }
+    hay += '\n' + (extraText || '') + '\n' + getChatTailForGlossary();
+    hay = hay.toLowerCase();
+    const out = [];
+    for (let i = 0; i < GLOSSARY_ENTRIES.length; i++) {
+      const e = GLOSSARY_ENTRIES[i];
+      if (e.always) { out.push(e); continue; }
+      const keys = e.keys || [];
+      for (let k = 0; k < keys.length; k++) {
+        if (hay.indexOf(String(keys[k]).toLowerCase()) >= 0) { out.push(e); break; }
+      }
+    }
+    return out;
+  }
+
+  /* 超预算时按优先级砍尾巴，至少留一条，避免一条都没进去。 */
+  function buildGlossaryText(hits) {
+    const sorted = hits.slice().sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
+    const blocks = []; const labels = []; const ids = [];
+    let used = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const e = sorted[i];
+      const block = '【' + e.label + '】' + e.title + '\n' + e.body;
+      if (used + block.length > GLOSSARY_BUDGET && blocks.length > 0) continue;
+      blocks.push(block); labels.push(e.label); ids.push(e.id); used += block.length;
+    }
+    return { text: blocks.join('\n\n'), used: used, labels: labels, ids: ids };
+  }
+
+  function injectGlossaryPrompt() {
+    try {
+      const hits = scanGlossaryHits();
+      if (!hits.length) {
+        callSetPrompt(GLOSSARY_PROMPT_KEY, '', 4, 1, false);
+        _glossaryLast = { ids: [], labels: [], chars: 0, at: Date.now() };
+        return false;
+      }
+      const built = buildGlossaryText(hits);
+      const head = '═══════════════════════════════════\n' +
+        '【月相系统 · 标签与状态释义】\n' +
+        '下面只列出本轮真的用得上的条目；没列到的标签，这一轮不会出现，不要主动去写。';
+      const text = head + '\n\n' + built.text;
+      /* 释义本身也含「阶段门」「冷战」这些词，不挡住就会自己命中自己，
+         一轮里多调几次就雪球成全量。写完把记录还原回去。 */
+      const snapshot = getRoundInjectedText();
+      callSetPrompt(GLOSSARY_PROMPT_KEY, text, 4, 1, false);
+      setRoundInjectedText(snapshot);
+      _glossaryLast = { ids: built.ids, labels: built.labels, chars: text.length, at: Date.now() };
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function getGlossaryHint() {
+    const mode = getGlossaryMode();
+    const total = GLOSSARY_ENTRIES.length;
+    if (mode === 'off') return '关：不解释标签，AI 只按本轮给的格式照抄';
+    if (mode === 'always') return '全量：' + total + ' 条全部常驻（每条都占上下文）';
+    const last = _glossaryLast.labels || [];
+    if (!last.length) return '自动 · 按需：' + total + ' 条里命中哪条发哪条（还没生成过）';
+    return '自动 · 按需：' + total + ' 条里本轮命中 ' + last.length + ' 条 · ' + last.join('、');
+  }
+
+  function glossaryPickStyle(on) {
+    return 'padding:5px 9px;border-radius:7px;border:1px solid ' + (on ? 'rgba(167,139,250,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (on ? '#241a3f' : '#0f172a') + ';color:' + (on ? '#c4b5fd' : '#94a3b8') + ';font-size:10.5px;font-family:inherit;font-weight:700;cursor:pointer;';
+  }
+
+  function renderGlossaryPickerHtml() {
+    const cur = getGlossaryMode();
+    const items = [['auto', '按需'], ['always', '全量'], ['off', '关']];
+    const tips = { auto: '只发本轮用得到的词条（推荐）', always: '所有词条每轮都发，最稳但费上下文', off: '不解释标签含义' };
+    return '<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">' +
+      items.map(function(it) {
+        return '<button type="button" data-glossary="' + it[0] + '" title="' + tips[it[0]] + '"' +
+          ' style="' + glossaryPickStyle(cur === it[0]) + '">' + it[1] + '</button>';
+      }).join('') + '</div>';
+  }
+
+  function setGlossaryMode(m) {
+    const s = getSettings();
+    s.glossary = (m === 'always' || m === 'off') ? m : 'auto';
+    saveSettings(s);
+    try { injectGlossaryPrompt(); } catch (e) {}
+    return s.glossary;
+  }
   /* ───────────────────────────────────────────────────────── */

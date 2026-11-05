@@ -63,13 +63,17 @@
       isWaitingForExtraModel = false;
     });
     trySubscribe('chat_completion_prompt_ready', function() {
-      injectCorePrompt();
+      /* 先清空「本轮注入了什么」的记录，再按顺序注；核心规则和词条放到最后，
+         这样它们能读到这一轮别人都往 prompt 里塞了些什么。 */
+      try { resetRoundInjectedText(); } catch (e) {}
       injectCardModeNotice();
       injectEventPrompt();
       injectFanficEnhanceNotice();
       injectEnabledBios();
       injectUserBio();
       if (loadAnchor()) { const anchor = loadAnchor(); if (anchor) injectFateCollapse(anchor); }
+      injectCorePrompt();
+      injectGlossaryPrompt();
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);

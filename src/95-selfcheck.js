@@ -244,6 +244,9 @@
       '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
       renderCoreRulePickerHtml() + '</div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🏷 词条释义</div><div class="mp-toggle-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div></div>' +
+      renderGlossaryPickerHtml() + '</div>' +
+      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🎫 楼内状态卡</div><div class="mp-toggle-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div></div>' +
       renderSkinPickerHtml() + '</div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
@@ -429,6 +432,16 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
         });
       }
     })();
+    (function() {
+      const glBtns = panel.querySelectorAll('[data-glossary]');
+      for (let i = 0; i < glBtns.length; i++) {
+        glBtns[i].addEventListener('click', function() {
+          const v = setGlossaryMode(this.getAttribute('data-glossary'));
+          toast('词条释义：' + ({ auto: '按需注入', always: '全量常驻', off: '关闭' }[v] || v), 'info');
+          refreshPanel();
+        });
+      }
+    })();
     panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
     panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">⚡ 捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
@@ -474,6 +487,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
     info('自动建档：' + (getSettings().autoBootstrap === false ? 'OFF（要手动点开局适配）' : 'ON（对面首条回复后自动立档）'));
     info('演绎规则：' + getCoreRuleHint());
+    info('词条释义：' + getGlossaryHint());
     const pacingName = { Adi: 'Adagio · 柔板', And: 'Andante · 行板', All: 'Allegro · 快板' }[getEventPacing()] || getEventPacing();
     info('推进节奏：' + pacingName);
     info('同人台词补强：' + (getFanficEnhance() ? 'ON' : 'OFF'));

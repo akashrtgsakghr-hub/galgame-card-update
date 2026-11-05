@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.16';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.16 一个脚本就够了 · 世界书可选】\n1. 📜 世界书搬进脚本：原来那本《月相攻略系统世界书》的 7 条规则（总纲 / 输出规范 / 叙事规则 / 特殊事件 / 卡组与小抄 / 时间线 / 结局报幕）现在由脚本随每轮请求自动注入，只装脚本就能玩。\n2. 🧹 装过旧世界书的自动让位：检测到就用世界书那份，两套不会叠在一起打架。\n3. 🗑️ 想瘦身可以直接把世界书从酒馆删掉，下一轮自动切到内置规则；角色卡和存档都不用重建。\n4. 🎛️ 面板「系统选项 → 运行设定」新增「📜 演绎规则」：自动 / 强开 / 关，三档随时切。\n5. 🔍 自检报告里会写清楚现在用的是内置规则还是你那本世界书。\n6. 🧾 时间线、存档、好感结算本来就存在脚本里，这次把最后一块外部依赖也收回来了。\n7. 📦 仓库源码拆到 28 个片段（新增 src/96-core.js），玩家下载到的仍然是完整单文件。";
+  const MOON_FORMULA_VERSION = '4.6.17';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.17 标签终于有说明书了】\n1. 🏷 新增「词条释义」：14 条说明讲清每个标签和状态到底是什么意思，不再只是给个格式让你照抄。\n2. 🎯 按需触发：只把这一轮真的用得上的发过去。判断依据是脚本本轮真的注入了什么，比世界书扫聊天猜要准。\n3. 🧠 重点补语义：L / M / H 各自对应多重的戏、基础值怎么挑、冷战后不许自己宣布和好、触到周上限别写成她变心。\n4. 🎚 面板新增三档：按需 / 全量 / 关，默认按需，普通回合只多带约 670 字（两条必带的标签语义）。\n5. 🧾 自检报告会报出本轮命中了哪几条，能直接看出 AI 到底拿没拿到说明。\n6. 🔒 释义只解释含义，不复述那 7 节禁令，两套不重复占上下文。\n7. 📦 测试增至 308 条，新增 29 条锁住触发规则、预算上限和开关。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto'
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto'
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;

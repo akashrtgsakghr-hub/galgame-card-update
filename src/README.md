@@ -31,7 +31,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `00-head.js` | 219 | IIFE 开头、窗口/文档引用、全部 localStorage key、数值参数、**版本号与更新公告** |
 | `05-timeline.js` | 235 | 时间线文本解析、内置仓库（localStorage 按角色卡分档）、候选扫描 |
 | `10-context.js` | 178 | SillyTavern 上下文读写、历史采集、AI 模型调用入口 |
-| `15-state.js` | 107 | toast、角色档案库、提示词写入、本地存档读写 |
+| `15-state.js` | 120 | toast、角色档案库、提示词写入（含「本轮注入了什么」记录）、本地存档读写 |
 | `20-tag.js` | 167 | Sylveina 标签解析、首见加成、减益处理 |
 | `25-modal.js` | 196 | 弹窗队列、loading、结果弹窗、街机挂载 |
 | `30-time.js` | 149 | 时间字符串解析、token 估算、世界书条目收集 |
@@ -49,7 +49,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `88-skin.js` | 2363 | 楼内状态卡：晨昏票根 / 月氏藏书票两套外观、数据适配、挂载与刷新 |
 | `90-panel.js` | 1383 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
 | `95-selfcheck.js` | 1105 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、FAQ |
-| `96-core.js` | 293 | 内置演绎规则：原世界书 7 条（总纲/输出/叙事/事件/小抄/时间线/结局）的注入与让位判定 |
+| `96-core.js` | 543 | 内置演绎规则（原世界书 7 条）的注入与让位判定 + 词条释义库（14 条，按本轮注入内容触发） |
 | `97-api.js` | 735 | 独立 API 请求层：端点/协议推导、错误分类、超时、Retry-After、通道降级与全局串行队列 |
 | `98-prompts.js` | 312 | 提示词模板与预设、AI 冲突扫描 |
 | `99-timeline-ui.js` | 396 | 时间线清单 / 转写 / 生成（结果写回内置仓库） |
@@ -71,6 +71,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 - 改时间线清单 → `05-timeline.js`（数据层）、`99-timeline-ui.js`（界面）
 - 改更新线路 → `97-api.js` 上面的更新模块区（`buildUpdateSourceChain` / `fetchUpdateSource`）
 - 改内置演绎规则（原世界书那 7 条） → `96-core.js` 顶部的 `CORE_RULE_SECTIONS`
+- 加 / 改词条释义（标签和状态是什么意思） → `96-core.js` 的 `GLOSSARY_ENTRIES`，每条给 `id / label / priority / keys / title / body`，`always: true` 表示每轮必发
 - 改楼内状态卡外观 → `88-skin.js`：文件顶部的 `SKIN_CSS_TICKET` / `SKIN_CSS_BOOK` 两段 CSS 直接改就行；渲染逻辑是从原来的两套正则美化移植的，数据入口已换成 `readMvuLatest()`
 
 ## 加新文件

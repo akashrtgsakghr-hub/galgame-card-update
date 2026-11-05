@@ -209,6 +209,7 @@ setupListeners();
 // 预热「旧世界书是否还在」的探测结果，供首次生成前决定要不要注入内置规则
 try { refreshCoreWorldbookCache(); } catch (e) {}
 try { injectCorePrompt(); } catch (e) {}
+try { resetRoundInjectedText(); injectGlossaryPrompt(); } catch (e) {}
 
 // 判断是否需要刷新
 let _needAutoReload = false;
