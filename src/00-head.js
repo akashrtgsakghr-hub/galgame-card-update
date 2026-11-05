@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.14';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.14 不点开局适配也能玩 · 自动建档】\n1. 🧾 自动建档：玩家说过话、对面回过之后，如果还没有角色档案，脚本会自己建一份 0 值档，掷骰、好感加减、每周上限立刻正常工作，不用再点「🚀 开局适配」。\n2. 🔍 以前为什么不动：角色表是空的，所有数值结算都会因为「找不到角色」被直接跳过；世界书只能提供提示词，建不出档案。\n3. 0 值 = 陌生人，不预设任何好感，适合人设里没写固定起始值的卡。\n4. 📅 开场白或第一条回复里写了日期，会直接拿来当世界时间；没写就照常从默认时间往前推。\n5. 🧩 世界书或别的插件留下的半截骨架会被补齐，不会另建一份重名档案。\n6. 👥 多人卡不瞎猜：只按首条回复里带名字的标签、或「角色.X.…」这种后台变量建档；猜不出名字就不建，免得建出一堆错名。\n7. 🎛️ 「系统选项 → 运行设定」新增「🧾 自动建档」开关，默认开；关掉就回到「必须手动开局适配」。\n8. 🔁 想更贴合开场，随时还能点「🚀 开局适配」让 AI 校准一次，会覆盖这套 0 值。";
+  const MOON_FORMULA_VERSION = '4.6.15';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.15 接口调用重写 · 429 不再白等】\n1. 🔁 429 按服务端说的等：接口回了「等几秒」就等那么久再试；要等超过 15 秒就不硬耗，直接告诉你过几分钟再点，而不是把面板卡在那儿。\n2. 🧠 分得清失败原因：Key 不对、模型名写错、额度用完、内容审核、上下文超长、中转站 5xx，各有各的说法和改法，不再一律显示成「HTTP 429」。\n3. ⏱️ 每个请求最多等 3 分钟：以前网络一卡就一直挂着，背后的队列跟着堵死；现在到点自己断，下一次照常能调。\n4. 🎫 中转站把报错网页当成正文返回时，会说「返回的是网页」，而不是莫名其妙的「格式异常」。\n5. 🧩 支持 Anthropic 原生协议：填 Claude 的地址会自动改用 /v1/messages 与 x-api-key 鉴权。\n6. 💭 思考模型（Gemini 2.5 / R1 这类）写在 <thinking> 里的推理会自动剥掉，只拿正文去解析 JSON；只剩思考没有正文时会明确告诉你。\n7. 🔀 代理与直连分工更清楚：限流、Key 错、模型名错这类换条路也没用的错，不再多跑一遍直连去撞。\n8. 🩺 自检里多了「独立 API」一栏：最近 5 次请求的通道、域名、耗时、状态都能回看，排查不用猜。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';

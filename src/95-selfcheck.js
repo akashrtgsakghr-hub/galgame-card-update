@@ -467,6 +467,29 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     info('锚定：' + (getAntiSL() ? '🔒 ON' : '⚠️ OFF'));
     info('当前难度：' + (LUNAR_META[getCurrentMode()]?.name || getCurrentMode()));
 
+    lines.push('<div class="mp-log-subhead">── 独立 API ──</div>');
+    const aiCfg = getCustomAIConfig();
+    if (aiCfg && aiCfg.url && aiCfg.key && aiCfg.model) {
+      const target = aiEndpointFor(aiCfg.rawUrl || aiCfg.url);
+      info('接口：' + _aiHost(target.endpoint) + ' · ' + (target.protocol === 'anthropic' ? 'Anthropic 协议' : 'OpenAI 兼容'));
+      info('模型：' + aiCfg.model);
+    } else {
+      info('还没配独立 API —— 后台任务会先试酒馆当前模型');
+    }
+    const recents = getAiRecentRequests();
+    if (!recents.length) {
+      info('这次开页面还没调过接口');
+    } else {
+      const tail = recents.slice(-5);
+      for (let i = 0; i < tail.length; i++) {
+        const r = tail[i];
+        const secs = Math.round((r.ms || 0) / 100) / 10;
+        const lineText = (r.via || '?') + ' · ' + (r.host || '?') + ' · ' + (r.model || '?') + ' · '
+          + (r.code === 'ok' ? '成功' : (r.code || '失败')) + (r.status ? '（HTTP ' + r.status + '）' : '') + ' · ' + secs + 's';
+        if (r.code === 'ok') ok(lineText); else warn(lineText);
+      }
+    }
+
 lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     const stateKey = getChatStateKey();
     const localRaw = (getStorage() || localStorage).getItem(stateKey);
