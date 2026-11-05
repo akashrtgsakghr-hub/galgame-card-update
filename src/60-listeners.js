@@ -84,6 +84,7 @@
       setTimeout(function() { checkAndPromptBackfill(); }, 3800);
       setTimeout(function() { checkAndPromptBioEnable(); }, 4600);
       setTimeout(function() { beautifySylveinaTagsInDom(); }, 1000);
+      setTimeout(function() { autoBootstrapCharacter('chat-open'); }, 1100);
       setTimeout(function() { applyBackendVariablesFromLatest(); }, 1200);
       setTimeout(function() { refreshMessageSkins(); }, 1400);
     });

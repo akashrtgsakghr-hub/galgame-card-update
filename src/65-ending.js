@@ -462,6 +462,9 @@
     if (timeJumpCooldown > 0) timeJumpCooldown--;
     injectSafetyLockStatus();
     injectFanficEnhanceNotice();
+    // ⓪ 对面已经回过话、但还没有档案 → 先立一份 0 值档案
+    //    （必须先于 ①：否则后台变量和后面的掷骰都找不到角色，整轮被跳过）
+    try { autoBootstrapCharacter('first-reply'); } catch (e) {}
     // ① 先把 AI 写的后台变量（世界时间 / 情绪 / 心声 / 在场）吃进本地状态
     try { applyBackendVariablesFromLatest(); } catch (e) {}
     sanitizeSylveinaRegexTail();

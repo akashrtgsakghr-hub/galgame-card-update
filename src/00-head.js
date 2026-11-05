@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.13';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.13 楼内状态卡 · 两套美化搬进脚本】\n1. 🎫 新增「楼内状态卡」：在每条回复下面挂一张状态卡，不用再装正则、不用建世界书，脚本自己画。\n2. 🖼️ 两套外观随你挑：晨昏票根（可撕副券 · 展开房间与名册）／月氏藏书票（笺纸名札 · 双面翻转）。\n3. ⚙️ 在「系统选项 → 运行设定 → 楼内状态卡」一键切换，选「不显示」就只剩正文。\n4. 🔄 卡片跟着存档走：好感/肉体/阶段/嫉妒、情绪、心声、时间地点天气，都是实时读你自己的档。\n5. 🎨 两套都带日夜模式：票根点 MODE，藏书票点左上角小印，各记各的偏好。\n6. 🧹 切皮肤会自动清掉旧卡片，不会两层叠在一起。";
+  const MOON_FORMULA_VERSION = '4.6.14';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.14 不点开局适配也能玩 · 自动建档】\n1. 🧾 自动建档：对面第一次回话后，如果还没有角色档案，脚本会自己建一份 0 值档，掷骰、好感加减、每周上限立刻正常工作，不用再点「🚀 开局适配」。\n2. 🔍 以前为什么不动：角色表是空的，所有数值结算都会因为「找不到角色」被直接跳过；世界书只能提供提示词，建不出档案。\n3. 0 值 = 陌生人，不预设任何好感，适合人设里没写固定起始值的卡。\n4. 📅 开场白或第一条回复里写了日期，会直接拿来当世界时间；没写就照常从默认时间往前推。\n5. 🧩 世界书或别的插件留下的半截骨架会被补齐，不会另建一份重名档案。\n6. 👥 多人卡不瞎猜：只按首条回复里带名字的标签、或「角色.X.…」这种后台变量建档；猜不出名字就不建，免得建出一堆错名。\n7. 🎛️ 「系统选项 → 运行设定」新增「🧾 自动建档」开关，默认开；关掉就回到「必须手动开局适配」。\n8. 🔁 想更贴合开场，随时还能点「🚀 开局适配」让 AI 校准一次，会覆盖这套 0 值。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10
+    turnMinutes: 10, autoBootstrap: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;

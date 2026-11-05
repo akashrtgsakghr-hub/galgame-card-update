@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.6.13';
-  const MOON_FORMULA_CHANGELOG = "【v4.6.13 楼内状态卡 · 两套美化搬进脚本】\n1. 🎫 新增「楼内状态卡」：在每条回复下面挂一张状态卡，不用再装正则、不用建世界书，脚本自己画。\n2. 🖼️ 两套外观随你挑：晨昏票根（可撕副券 · 展开房间与名册）／月氏藏书票（笺纸名札 · 双面翻转）。\n3. ⚙️ 在「系统选项 → 运行设定 → 楼内状态卡」一键切换，选「不显示」就只剩正文。\n4. 🔄 卡片跟着存档走：好感/肉体/阶段/嫉妒、情绪、心声、时间地点天气，都是实时读你自己的档。\n5. 🎨 两套都带日夜模式：票根点 MODE，藏书票点左上角小印，各记各的偏好。\n6. 🧹 切皮肤会自动清掉旧卡片，不会两层叠在一起。";
+  const MOON_FORMULA_VERSION = '4.6.14';
+  const MOON_FORMULA_CHANGELOG = "【v4.6.14 不点开局适配也能玩 · 自动建档】\n1. 🧾 自动建档：对面第一次回话后，如果还没有角色档案，脚本会自己建一份 0 值档，掷骰、好感加减、每周上限立刻正常工作，不用再点「🚀 开局适配」。\n2. 🔍 以前为什么不动：角色表是空的，所有数值结算都会因为「找不到角色」被直接跳过；世界书只能提供提示词，建不出档案。\n3. 0 值 = 陌生人，不预设任何好感，适合人设里没写固定起始值的卡。\n4. 📅 开场白或第一条回复里写了日期，会直接拿来当世界时间；没写就照常从默认时间往前推。\n5. 🧩 世界书或别的插件留下的半截骨架会被补齐，不会另建一份重名档案。\n6. 👥 多人卡不瞎猜：只按首条回复里带名字的标签、或「角色.X.…」这种后台变量建档；猜不出名字就不建，免得建出一堆错名。\n7. 🎛️ 「系统选项 → 运行设定」新增「🧾 自动建档」开关，默认开；关掉就回到「必须手动开局适配」。\n8. 🔁 想更贴合开场，随时还能点「🚀 开局适配」让 AI 校准一次，会覆盖这套 0 值。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10
+    turnMinutes: 10, autoBootstrap: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;
@@ -2375,6 +2375,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       setTimeout(function() { checkAndPromptBackfill(); }, 3800);
       setTimeout(function() { checkAndPromptBioEnable(); }, 4600);
       setTimeout(function() { beautifySylveinaTagsInDom(); }, 1000);
+      setTimeout(function() { autoBootstrapCharacter('chat-open'); }, 1100);
       setTimeout(function() { applyBackendVariablesFromLatest(); }, 1200);
       setTimeout(function() { refreshMessageSkins(); }, 1400);
     });
@@ -2919,6 +2920,9 @@ async function _collectAllWorldbooks(includeDisabled) {
     if (timeJumpCooldown > 0) timeJumpCooldown--;
     injectSafetyLockStatus();
     injectFanficEnhanceNotice();
+    // ⓪ 对面已经回过话、但还没有档案 → 先立一份 0 值档案
+    //    （必须先于 ①：否则后台变量和后面的掷骰都找不到角色，整轮被跳过）
+    try { autoBootstrapCharacter('first-reply'); } catch (e) {}
     // ① 先把 AI 写的后台变量（世界时间 / 情绪 / 心声 / 在场）吃进本地状态
     try { applyBackendVariablesFromLatest(); } catch (e) {}
     sanitizeSylveinaRegexTail();
@@ -9361,6 +9365,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const anchorLocked = !!loadAnchor();
     const extraSetting = getExtraModelMode();
     const cardMode = getCardMode();
+    const autoBoot = getSettings().autoBootstrap !== false;
     const pacing = getEventPacing();
     const fateActive = isFateCollapseTriggered();
     const currentMeta = LUNAR_META[mode] || LUNAR_META.hell;
@@ -9449,6 +9454,9 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '这张卡有好几个能攻略的人' : '这张卡只有一个人') + '</div></div>' +
       '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
+      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话后，自动建一份 0 值档案，直接能加减' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
+      '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🎫 楼内状态卡</div><div class="mp-toggle-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div></div>' +
       renderSkinPickerHtml() + '</div>' +
@@ -9624,6 +9632,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
+    panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
     panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
     panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">⚡ 捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
@@ -9667,6 +9676,7 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     info('UI 名称：' + SYSTEM_UI_NAME);
     info('特殊标签：Sylveina');
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
+    info('自动建档：' + (getSettings().autoBootstrap === false ? 'OFF（要手动点开局适配）' : 'ON（对面首条回复后自动立档）'));
     const pacingName = { Adi: 'Adagio · 柔板', And: 'Andante · 行板', All: 'Allegro · 快板' }[getEventPacing()] || getEventPacing();
     info('推进节奏：' + pacingName);
     info('同人台词补强：' + (getFanficEnhance() ? 'ON' : 'OFF'));
@@ -11390,6 +11400,176 @@ function openTimelineKeywordDialog(panel, onDone) {
     showAdaptiveStartDialog(info.charName);
   }
 
+  /* ── 自动建档：没点「开局适配」也能正常加减 ─────────────────
+     以前只有两条路进档：玩家点「AI 智能建档」，或者世界书里已经放着
+     现成的变量。两条都没走，角色表就是空的 —— 掷骰、加好感、阶段门
+     全部因为「找不到角色」被跳过，看起来像系统没生效。
+
+     这里补第三条路：对面回过至少一句话之后，用 0 值把档案立起来。
+     0 值 = 陌生人，不预设任何好感，正好适合「人设不需要给固定起始值」
+     的卡；之后照常吃 Sylveina 标签加减。想更贴合开场，随时可以再去
+     点「🚀 开局适配」用 AI 校准一次（会覆盖这套 0 值）。 */
+  const AUTO_BOOTSTRAP_MIN_REPLIES = 1;
+
+  function countAiReplies() {
+    try {
+      const ctx = getSTCtx();
+      if (!ctx || !Array.isArray(ctx.chat)) return 0;
+      let n = 0;
+      for (let i = 0; i < ctx.chat.length; i++) {
+        const m = ctx.chat[i];
+        if (m && !m.is_user && !m.is_system) n++;
+      }
+      return n;
+    } catch (e) { return 0; }
+  }
+
+  function getAutoBootstrapCardName() {
+    const n = getCurrentCardName();
+    if (!n || n === '(未知卡牌)') return '';
+    return String(n).replace(/[。\.]+$/, '').trim();
+  }
+
+  // 从开场白 / 第一条回复里捞一个世界时间，捞不到就留给后面推进
+  function guessOpeningWorldTime(texts) {
+    const list = texts || [];
+    for (let i = 0; i < list.length; i++) {
+      const t = String(list[i] || '');
+      if (!t) continue;
+      const m = t.match(/(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^\r\n]{0,20}?\d{1,2}\s*[:点时]\s*\d{1,2}(?:\s*分)?)/);
+      if (!m) continue;
+      const d = parseGameTime(m[1] || m[0]);
+      if (d && !isNaN(d.getTime())) return formatGameTime(d);
+    }
+    return '';
+  }
+
+  function buildAutoBootstrapEntry(worldTime) {
+    const now = String(worldTime || '2000年01月01日 · 星期六 · 00:00');
+    const stage = getRStageFromE(0);
+    return {
+      语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+      好感度: 0, 肉体值: 0, 阶段值: stage.r, 嫉妒值: 0,
+      情绪: '😐', 心声: '……', 在场: true, 重要度: '主要',
+      _invidia: { 重力等级: '', 骰子判定阈值: 0, 每日衰减基数: 0, 大失败反噬值: 0, 主动互动阈值: 30 },
+      _lastRoll: { 事件类型: '', 方向: '', 主维度: '', 基础值: 0 },
+      _quota: {
+        好感度周上限已用: 0, 周上限起始: now, R阶段门: false,
+        下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
+        表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '',
+        表白期已通过: false, 表白期冷却至: '',
+        自适应开局已完成: false,
+        _autoBootstrapped: true, _autoBootstrapAt: now,
+        _playerConfession: false, _firstMeetDone: false,
+        _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
+        _timelineCompleted: [],
+        _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
+      }
+    };
+  }
+
+  // 世界书/别的插件可能已经塞了半截骨架，保留它有的字段，只补缺的
+  function fillSkeletonEntry(target, fresh) {
+    for (const k in fresh) {
+      if (k === '_quota') {
+        if (!target._quota || typeof target._quota !== 'object') target._quota = {};
+        for (const qk in fresh._quota) {
+          if (target._quota[qk] === undefined) target._quota[qk] = fresh._quota[qk];
+        }
+        continue;
+      }
+      if (target[k] === undefined) target[k] = fresh[k];
+    }
+    return target;
+  }
+
+  /* reason: 'first-reply'（对面第一次回复后触发）| 'chat-open'（打开已有聊天时补建） */
+  async function autoBootstrapCharacter(reason) {
+    try {
+      if (isAdaptiveFlowRunning) {
+        // 弹窗还开着就别抢；已经被关掉却忘了复位的话，这里顺手复位
+        if (mainDoc.getElementById('moon-modal-mask')) return null;
+        isAdaptiveFlowRunning = false;
+      }
+      if (getSettings().autoBootstrap === false) return null;
+      if (countAiReplies() < AUTO_BOOTSTRAP_MIN_REPLIES) return null;
+      try { if (getStorage() && getStorage().getItem(PENDING_MIGRATION_KEY)) return null; } catch (e) {}
+
+      const data = readMvuLatest();
+      if (!data || !data.stat_data) return null;
+      const statData = data.stat_data;
+      // 已经有真档案（哪怕是别的插件建的）就不插手
+      if (!isCharsTableEmpty(statData.角色)) return null;
+
+      const mode = getCardMode();
+      const names = [];
+      const cardName = getAutoBootstrapCardName();
+      if (mode !== 'multi') {
+        if (!cardName) return null;
+        names.push(cardName);
+      } else {
+        // 多人卡不猜名字：只认第一条回复里带名字的标签 / 后台变量
+        const latestTagMsg = getLatestAiMessage();
+        const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
+        const tags = extractAllSylveinaTags(latestText);
+        for (let i = 0; i < tags.length; i++) {
+          const n = String((tags[i] && tags[i].charName) || '').trim();
+          if (n && names.indexOf(n) < 0) names.push(n);
+        }
+        // 没写标签、只写了「角色.X.心声=…」的也算
+        const nameRe = /角色\s*[.．]\s*([^\r\n=＝:：.．]{1,30}?)\s*[.．]/g;
+        let nm;
+        while ((nm = nameRe.exec(latestText)) !== null) {
+          const n = String(nm[1] || '').trim();
+          if (n && names.indexOf(n) < 0) names.push(n);
+        }
+        if (!names.length) return null;
+      }
+      if (!names.length) return null;
+
+      const latest = getLatestAiMessage();
+      const latestText = latest ? String(latest.msg.mes || '') : '';
+      let cardFirstMes = '';
+      try {
+        const ctx = getSTCtx();
+        const c = ctx && ctx.characters && ctx.characterId != null ? ctx.characters[ctx.characterId] : null;
+        if (c) cardFirstMes = String(c.first_mes || '');
+      } catch (e) {}
+
+      const world = statData.世界 || (statData.世界 = {});
+      const existingTime = String(world.时间 || '');
+      const hadRealTime = !!existingTime && existingTime.indexOf('2000年01月01日') !== 0;
+      const guessed = guessOpeningWorldTime([latestText, cardFirstMes]);
+      const now = hadRealTime ? existingTime : (guessed || existingTime || '2000年01月01日 · 星期六 · 00:00');
+      world.时间 = now;
+      // 原来的默认时间没意义，用新起点重置；已有真实时间就别动
+      if (!hadRealTime) world._上次推进时间 = now;
+      if (world._内部流逝天数 === undefined || !isFinite(Number(world._内部流逝天数))) world._内部流逝天数 = 0;
+      if (!statData.角色 || typeof statData.角色 !== 'object') statData.角色 = {};
+
+      const fresh = buildAutoBootstrapEntry(now);
+      const made = [];
+      for (let i = 0; i < names.length; i++) {
+        const n = names[i];
+        if (!n) continue;
+        const exist = statData.角色[n];
+        if (exist && !isCharSkeleton(exist)) continue;
+        statData.角色[n] = exist ? fillSkeletonEntry(exist, fresh) : JSON.parse(JSON.stringify(fresh));
+        made.push(n);
+      }
+      if (!made.length) return null;
+      statData[MIGRATED_FLAG] = true;
+
+      const ok = await writeMvuLatest(statData);
+      if (!ok) return null;
+      try { console.log('[月相] 自动建档：' + made.join('、')); } catch (e) {}
+      if (reason !== 'silent') {
+        toast('已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准', 'info');
+      }
+      try { refreshPanel(); } catch (e) {}
+      return made;
+    } catch (e) { return null; }
+  }
 
   function showAdaptiveStartDialog(charName) {
     const savedPref = (function() { try { return mainWin.localStorage.getItem(ADAPT_MODEL_PREF_KEY) || ''; } catch (e) { return ''; } })();

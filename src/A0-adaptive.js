@@ -26,6 +26,176 @@
     showAdaptiveStartDialog(info.charName);
   }
 
+  /* ── 自动建档：没点「开局适配」也能正常加减 ─────────────────
+     以前只有两条路进档：玩家点「AI 智能建档」，或者世界书里已经放着
+     现成的变量。两条都没走，角色表就是空的 —— 掷骰、加好感、阶段门
+     全部因为「找不到角色」被跳过，看起来像系统没生效。
+
+     这里补第三条路：对面回过至少一句话之后，用 0 值把档案立起来。
+     0 值 = 陌生人，不预设任何好感，正好适合「人设不需要给固定起始值」
+     的卡；之后照常吃 Sylveina 标签加减。想更贴合开场，随时可以再去
+     点「🚀 开局适配」用 AI 校准一次（会覆盖这套 0 值）。 */
+  const AUTO_BOOTSTRAP_MIN_REPLIES = 1;
+
+  function countAiReplies() {
+    try {
+      const ctx = getSTCtx();
+      if (!ctx || !Array.isArray(ctx.chat)) return 0;
+      let n = 0;
+      for (let i = 0; i < ctx.chat.length; i++) {
+        const m = ctx.chat[i];
+        if (m && !m.is_user && !m.is_system) n++;
+      }
+      return n;
+    } catch (e) { return 0; }
+  }
+
+  function getAutoBootstrapCardName() {
+    const n = getCurrentCardName();
+    if (!n || n === '(未知卡牌)') return '';
+    return String(n).replace(/[。\.]+$/, '').trim();
+  }
+
+  // 从开场白 / 第一条回复里捞一个世界时间，捞不到就留给后面推进
+  function guessOpeningWorldTime(texts) {
+    const list = texts || [];
+    for (let i = 0; i < list.length; i++) {
+      const t = String(list[i] || '');
+      if (!t) continue;
+      const m = t.match(/(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^\r\n]{0,20}?\d{1,2}\s*[:点时]\s*\d{1,2}(?:\s*分)?)/);
+      if (!m) continue;
+      const d = parseGameTime(m[1] || m[0]);
+      if (d && !isNaN(d.getTime())) return formatGameTime(d);
+    }
+    return '';
+  }
+
+  function buildAutoBootstrapEntry(worldTime) {
+    const now = String(worldTime || '2000年01月01日 · 星期六 · 00:00');
+    const stage = getRStageFromE(0);
+    return {
+      语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+      好感度: 0, 肉体值: 0, 阶段值: stage.r, 嫉妒值: 0,
+      情绪: '😐', 心声: '……', 在场: true, 重要度: '主要',
+      _invidia: { 重力等级: '', 骰子判定阈值: 0, 每日衰减基数: 0, 大失败反噬值: 0, 主动互动阈值: 30 },
+      _lastRoll: { 事件类型: '', 方向: '', 主维度: '', 基础值: 0 },
+      _quota: {
+        好感度周上限已用: 0, 周上限起始: now, R阶段门: false,
+        下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
+        表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '',
+        表白期已通过: false, 表白期冷却至: '',
+        自适应开局已完成: false,
+        _autoBootstrapped: true, _autoBootstrapAt: now,
+        _playerConfession: false, _firstMeetDone: false,
+        _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
+        _timelineCompleted: [],
+        _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
+      }
+    };
+  }
+
+  // 世界书/别的插件可能已经塞了半截骨架，保留它有的字段，只补缺的
+  function fillSkeletonEntry(target, fresh) {
+    for (const k in fresh) {
+      if (k === '_quota') {
+        if (!target._quota || typeof target._quota !== 'object') target._quota = {};
+        for (const qk in fresh._quota) {
+          if (target._quota[qk] === undefined) target._quota[qk] = fresh._quota[qk];
+        }
+        continue;
+      }
+      if (target[k] === undefined) target[k] = fresh[k];
+    }
+    return target;
+  }
+
+  /* reason: 'first-reply'（对面第一次回复后触发）| 'chat-open'（打开已有聊天时补建） */
+  async function autoBootstrapCharacter(reason) {
+    try {
+      if (isAdaptiveFlowRunning) {
+        // 弹窗还开着就别抢；已经被关掉却忘了复位的话，这里顺手复位
+        if (mainDoc.getElementById('moon-modal-mask')) return null;
+        isAdaptiveFlowRunning = false;
+      }
+      if (getSettings().autoBootstrap === false) return null;
+      if (countAiReplies() < AUTO_BOOTSTRAP_MIN_REPLIES) return null;
+      try { if (getStorage() && getStorage().getItem(PENDING_MIGRATION_KEY)) return null; } catch (e) {}
+
+      const data = readMvuLatest();
+      if (!data || !data.stat_data) return null;
+      const statData = data.stat_data;
+      // 已经有真档案（哪怕是别的插件建的）就不插手
+      if (!isCharsTableEmpty(statData.角色)) return null;
+
+      const mode = getCardMode();
+      const names = [];
+      const cardName = getAutoBootstrapCardName();
+      if (mode !== 'multi') {
+        if (!cardName) return null;
+        names.push(cardName);
+      } else {
+        // 多人卡不猜名字：只认第一条回复里带名字的标签 / 后台变量
+        const latestTagMsg = getLatestAiMessage();
+        const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
+        const tags = extractAllSylveinaTags(latestText);
+        for (let i = 0; i < tags.length; i++) {
+          const n = String((tags[i] && tags[i].charName) || '').trim();
+          if (n && names.indexOf(n) < 0) names.push(n);
+        }
+        // 没写标签、只写了「角色.X.心声=…」的也算
+        const nameRe = /角色\s*[.．]\s*([^\r\n=＝:：.．]{1,30}?)\s*[.．]/g;
+        let nm;
+        while ((nm = nameRe.exec(latestText)) !== null) {
+          const n = String(nm[1] || '').trim();
+          if (n && names.indexOf(n) < 0) names.push(n);
+        }
+        if (!names.length) return null;
+      }
+      if (!names.length) return null;
+
+      const latest = getLatestAiMessage();
+      const latestText = latest ? String(latest.msg.mes || '') : '';
+      let cardFirstMes = '';
+      try {
+        const ctx = getSTCtx();
+        const c = ctx && ctx.characters && ctx.characterId != null ? ctx.characters[ctx.characterId] : null;
+        if (c) cardFirstMes = String(c.first_mes || '');
+      } catch (e) {}
+
+      const world = statData.世界 || (statData.世界 = {});
+      const existingTime = String(world.时间 || '');
+      const hadRealTime = !!existingTime && existingTime.indexOf('2000年01月01日') !== 0;
+      const guessed = guessOpeningWorldTime([latestText, cardFirstMes]);
+      const now = hadRealTime ? existingTime : (guessed || existingTime || '2000年01月01日 · 星期六 · 00:00');
+      world.时间 = now;
+      // 原来的默认时间没意义，用新起点重置；已有真实时间就别动
+      if (!hadRealTime) world._上次推进时间 = now;
+      if (world._内部流逝天数 === undefined || !isFinite(Number(world._内部流逝天数))) world._内部流逝天数 = 0;
+      if (!statData.角色 || typeof statData.角色 !== 'object') statData.角色 = {};
+
+      const fresh = buildAutoBootstrapEntry(now);
+      const made = [];
+      for (let i = 0; i < names.length; i++) {
+        const n = names[i];
+        if (!n) continue;
+        const exist = statData.角色[n];
+        if (exist && !isCharSkeleton(exist)) continue;
+        statData.角色[n] = exist ? fillSkeletonEntry(exist, fresh) : JSON.parse(JSON.stringify(fresh));
+        made.push(n);
+      }
+      if (!made.length) return null;
+      statData[MIGRATED_FLAG] = true;
+
+      const ok = await writeMvuLatest(statData);
+      if (!ok) return null;
+      try { console.log('[月相] 自动建档：' + made.join('、')); } catch (e) {}
+      if (reason !== 'silent') {
+        toast('已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准', 'info');
+      }
+      try { refreshPanel(); } catch (e) {}
+      return made;
+    } catch (e) { return null; }
+  }
 
   function showAdaptiveStartDialog(charName) {
     const savedPref = (function() { try { return mainWin.localStorage.getItem(ADAPT_MODEL_PREF_KEY) || ''; } catch (e) { return ''; } })();
