@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.0';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.0 Galgame 沉浸模式】\n1. 🎮 新增沉浸模式：在酒馆原生聊天与 Galgame 界面之间随时切换，只改展示，不动聊天记录，每条聊天独立记开关。\n2. 🏷 标签映射：内置 17 条月相标准标签，也支持把你预设里的写法映射过来（正文 / 旁白 / 心声 / 选项 / 背景 / 立绘 / CG），能增删改、查重复、查缺项，按预设与聊天分别保存。\n3. 📖 自动分页：按屏幕实际容量和段落断句分页，不按字数硬切；一句话不会被劈成两半。\n4. 💬 选项交互：识别到选项才出按钮，普通数字列表不会被当成选项；点击后走原生输入框与原生发送。\n5. 🖼 图片四模式：内置生图 / 第三方接管 / 手动素材 / 纯文字。选第三方就彻底停掉内置生图，连显影任务一起中止，不会再偷偷调用。\n6. 💾 存档读档：存档记录楼层、页、背景、立绘、CG 与指纹；读档前先预检会退回几层，只在你确认后才真的回退。\n7. 📚 阅读进度：按「楼层 + swipe」分开记，退出再进仍停在原来那页；快速跳过只跳已读，遇到未读自动停。\n8. 🧠 记忆三模式：内置记忆 / 第三方接管 / 完全关闭。第三方失效会明确提醒，不会悄悄切回内置造成记忆断层。\n9. 🔒 原生优先：不动聊天记录，不另建 AI 通道；删楼、重生成、swipe、切聊天都会同步清理分页与进度。\n10. 🧪 测试增至 391 条（新增 63 条沉浸模式用例），并修好了三套测试「失败不报错」的漏洞。";
+  const MOON_FORMULA_VERSION = '4.7.1';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.1 预言家日报】楼内状态卡新增第三套皮肤\n1. 📰 新增「预言家日报」：哈利波特电影道具风格的报纸头版——报头、4px 双线、首字下沉、人物档案侧栏、简讯栏、页脚，全是版面上真排出来的，不是贴图。\n2. 🗞 数据是真的：好感度 / 身体状况 / 阶段 / 暗涌 / 心声 / 签名 / 世界时间地点天气，全部取自当前存档。头条按阶段值生成新闻句，不是写死的模板文案。\n3. 👥 多人卡不打架：主角上头版，其他在场角色进「简讯」，不在场的角色不占版面。\n4. 📐 默认折叠成一条，点一下才展开整版；数据更新重画时会保留你已经展开的状态，不会自己合上。\n5. 🎨 样式全部 mpp- 前缀并作用域隔离，就算你装过原版「预言家日报」扩展，两边也不会串味。\n6. 🧪 测试增至 405 条（新增 14 条日报用例，含折叠、多人、空档、重画保留展开态）。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
