@@ -1207,63 +1207,84 @@
 
   const SKIN_CSS_PROPHET = `/* ══════════════════════════════════════════════════════════════════
  * 88-skin.js · 楼内状态卡「预言家日报」样式
- * 视觉参考：prophet-daily-extension（哈利波特电影道具风格的报纸头版）
- * 只取风格与排版，不带扩展的 launcher / 设置面板 / IndexedDB 图库。
+ *
+ * 视觉依据（对照 MinaLima 为电影做的实际报纸道具）：
+ *   · 报头 DAILY ⚡ PROPHET 横排一行，中间夹小型社徽，不是三段居中堆叠
+ *   · 报头下方一条「分类广告带」，其中一格黑底反白（道具里就有一块
+ *     10000 GALLEONS 的黑底悬赏）
+ *   · 正文区被左右两条竖向窄栏夹住，窄栏里是竖排小字——这是道具最
+ *     显眼的结构特征，也是「一眼认出是巫师报纸」的关键
+ *   · 头版头条左对齐、阶梯式（大字压小字），行距紧到 .94
+ *   · 正文两栏，栏间竖线，图片跨栏放在顶部，图片下方小字图注
+ *   · 照片一律黑白 + 半调网点，纸张是暖白新闻纸而非深米黄信纸
+ *   · 全版只有一个强调色：魔法部印泥红，只给栏目标签
  *
  * 隔离约定：
  *   1. 所有选择器以 .mp-skin-prophet 开头，类名统一 mpp- 前缀，
  *      不与玩家已安装的原扩展（.dp-*）争样式。
  *   2. 不写 body / :root / 通配符，不影响酒馆任何原生元素。
  *   3. @keyframes 名字带 mpp- 前缀，避免与其他皮肤撞名。
+ *   4. 不 @import 任何外部字体：酒馆可能离线。
  * ══════════════════════════════════════════════════════════════════ */
 
 .mp-skin-prophet {
-  --mpp-paper: #e9dfc5;
-  --mpp-paper-deep: #d8caa8;
-  --mpp-ink: #211d17;
-  --mpp-ink-soft: #4a4030;
-  --mpp-rule: #3c3327;
-  --mpp-rule-soft: #9b8967;
-  --mpp-gold: #a58b5d;
-  --mpp-gold-deep: #6c5830;
+  /* 纸与墨 */
+  --mpp-paper: #f5eddb;
+  --mpp-paper-2: #e6dcc8;
+  --mpp-ink: #17130e;
+  --mpp-ink-2: #3f3629;
+  --mpp-ink-3: #5e5443;
+  --mpp-hair: rgba(23, 19, 14, .58);
+  --mpp-rule: #17130e;
+  /* 唯一强调色：印泥红 */
+  --mpp-seal: #8d2f21;
+  /* 社徽金，只给徽记 */
+  --mpp-gold: #a3823f;
+
+  container-type: inline-size;
   margin: 10px 0 2px;
-  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
   color: var(--mpp-ink);
+  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", Georgia, serif;
   line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── 折叠条：不展开时只有这一行，不占版面 ─────────────────────── */
+/* ── 折叠条 ───────────────────────────────────────────────────
+   不展开时只有这一条，像报童递过来的一折报纸 */
 .mp-skin-prophet .mpp-fold {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   text-align: left;
-  padding: 9px 13px;
-  background: linear-gradient(90deg, #2d251d, #51402b, #2d251d);
-  color: #f0e1bf;
-  border: 1px solid #9d8456;
-  font: 700 13px Georgia, "Noto Serif SC", "Songti SC", serif;
-  letter-spacing: .6px;
+  padding: 7px 11px;
+  background: var(--mpp-paper);
+  color: var(--mpp-ink);
+  border: 1px solid var(--mpp-rule);
+  box-shadow: inset 0 0 0 3px var(--mpp-paper), inset 0 0 0 4px rgba(23, 19, 14, .35);
+  font: 900 12px/1.4 "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+  letter-spacing: .1em;
   cursor: pointer;
   box-sizing: border-box;
-  transition: filter .12s, border-color .12s;
+  transition: background-color .16s ease-out;
 }
-.mp-skin-prophet .mpp-fold:hover {
-  filter: brightness(1.14);
-  border-color: #c3a874;
+.mp-skin-prophet .mpp-fold:hover { background: var(--mpp-paper-2); }
+.mp-skin-prophet .mpp-fold:focus-visible {
+  outline: 2px solid var(--mpp-seal);
+  outline-offset: 2px;
 }
-.mp-skin-prophet .mpp-fold-star {
-  color: #d7bd86;
-  font-size: 12px;
+.mp-skin-prophet .mpp-fold-emblem {
   flex: 0 0 auto;
+  width: 24px;
+  height: 16px;
+  color: var(--mpp-ink);
 }
+.mp-skin-prophet .mpp-fold-emblem svg { display: block; width: 100%; height: 100%; }
 .mp-skin-prophet .mpp-fold-hint {
   margin-left: auto;
-  font-size: 10px;
-  font-weight: 400;
-  opacity: .78;
-  letter-spacing: .3px;
+  font: 400 9px/1 "Songti SC", "SimSun", serif;
+  letter-spacing: .18em;
+  color: var(--mpp-ink-3);
   white-space: nowrap;
 }
 .mp-skin-prophet .mpp-fold-open { display: none; }
@@ -1275,326 +1296,603 @@
 
 .mp-skin-prophet .mpp-paper {
   position: relative;
-  isolation: isolate;
+  display: flow-root;
   box-sizing: border-box;
   width: 100%;
   margin-top: 6px;
-  padding: clamp(12px, 2.2vw, 24px);
+  padding: clamp(9px, 1.5cqw, 14px) clamp(10px, 1.8cqw, 16px) 7px;
   background-color: var(--mpp-paper);
   background-image:
-    repeating-linear-gradient(0deg,
-      rgba(108, 88, 48, .13) 0, rgba(108, 88, 48, .13) 1px,
-      transparent 1px, transparent 4px),
-    linear-gradient(95deg, rgba(0, 0, 0, .05), transparent 7%, rgba(255, 255, 255, .16) 49%, rgba(0, 0, 0, .05));
-  border: 1px solid #a18d66;
-  box-shadow: inset 0 0 22px rgba(121, 103, 68, .22), 2px 4px 10px rgba(0, 0, 0, .28);
-  animation: mpp-unfold .42s ease both;
+    /* 四角压暗，模拟纸张边缘的旧色 */
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .5), transparent 60%),
+    radial-gradient(90% 110% at 0% 100%, rgba(120, 100, 66, .13), transparent 62%),
+    radial-gradient(90% 110% at 100% 0%, rgba(120, 100, 66, .1), transparent 58%);
+  border: 1px solid #b3a486;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .6) inset,
+    0 6px 16px -6px rgba(0, 0, 0, .45);
+  animation: mpp-unfold .34s cubic-bezier(.16, 1, .3, 1) both;
 }
 
-/* 纸面中缝与上下旧化 */
+/* 印刷网点：极淡一层，让纸面不是纯色块 */
 .mp-skin-prophet .mpp-paper::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: -1;
-  background:
-    linear-gradient(90deg, transparent 49.6%, rgba(111, 92, 61, .10) 50%, transparent 50.4%),
-    linear-gradient(180deg, rgba(255, 255, 255, .28) 0, transparent 14%, transparent 86%, rgba(107, 87, 48, .16) 100%);
+  z-index: 0;
+  opacity: .18;
+  background-image: radial-gradient(circle at center, rgba(60, 48, 30, .5) .5px, transparent .6px);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
 }
+.mp-skin-prophet .mpp-paper > * { position: relative; z-index: 1; }
 
 @keyframes mpp-unfold {
   /* 不从 0 起：展开放大动画不该有一帧整张白纸看不见 */
-  from { opacity: .62; transform: perspective(900px) rotateX(-4deg) scaleY(.97); }
+  from { opacity: .7; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
 
-/* ── 报头 ─────────────────────────────────────────────────── */
-.mp-skin-prophet .mpp-topline,
-.mp-skin-prophet .mpp-edition,
-.mp-skin-prophet .mpp-foot {
+/* ── 报头顶栏：刊号 / 地点 / 价格 ─────────────────────────── */
+.mp-skin-prophet .mpp-topline {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 8.5px;
-  letter-spacing: .35px;
-  color: var(--mpp-ink-soft);
-}
-.mp-skin-prophet .mpp-topline {
-  border-bottom: 1px solid var(--mpp-rule);
-  padding-bottom: 4px;
-}
-.mp-skin-prophet .mpp-mast {
-  text-align: center;
-  padding: 6px 0 4px;
-  border-bottom: 4px double #241f19;
-}
-.mp-skin-prophet .mpp-mast-small {
-  font-size: 7.5px;
-  letter-spacing: 2.2px;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 7px;
+  letter-spacing: .18em;
   text-transform: uppercase;
+  color: var(--mpp-ink-2);
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--mpp-hair);
 }
-.mp-skin-prophet .mpp-mast-cn {
-  font-size: clamp(30px, 6.4vw, 52px);
-  font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: .14em;
-  text-indent: .14em;
-  text-shadow: 1px 1px rgba(255, 255, 255, .55), -1px -1px rgba(76, 64, 46, .18);
+.mp-skin-prophet .mpp-topline em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--mpp-ink);
+}
+
+/* ── 报头：DAILY ⚡ PROPHET 一行 ──────────────────────────── */
+.mp-skin-prophet .mpp-mast {
+  padding: 2px 0 2px;
+  border-bottom: 2px solid var(--mpp-rule);
 }
 .mp-skin-prophet .mpp-mast-en {
-  font-size: 9px;
-  letter-spacing: 4.6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .04em;
+  font-family: Georgia, "Times New Roman", "Songti SC", serif;
   font-weight: 700;
+  /* 字号按容器宽算：报头要撑满整行，中缝才不会空出一大块 */
+  font-size: clamp(21px, 10.2cqw, 92px);
+  line-height: .84;
+  letter-spacing: -.018em;
   text-transform: uppercase;
-  opacity: .82;
+  color: var(--mpp-ink);
+  -webkit-text-stroke: .35px currentColor; /* 合成一层厚度，接近道具的粗衬线 */
+  overflow: hidden;
 }
-.mp-skin-prophet .mpp-edition { padding: 5px 0; }
-.mp-skin-prophet .mpp-rule-d {
-  height: 0;
-  border-top: 1px solid var(--mpp-rule);
-  margin: 1px 0 7px;
+.mp-skin-prophet .mpp-mast-word { flex: 0 0 auto; }
+.mp-skin-prophet .mpp-emblem {
+  flex: 0 0 auto;
+  width: .6em;
+  height: .4em;
+  color: var(--mpp-gold);
+  align-self: center;
+  transform: translateY(-.02em);
+}
+.mp-skin-prophet .mpp-emblem svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* 报头副行：中文刊名 + 拉丁副题，像道具报头下那行小字 */
+.mp-skin-prophet .mpp-mast-sub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 3px 0 4px;
+  border-bottom: 1px solid var(--mpp-hair);
+  font-size: 7px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--mpp-ink-2);
+}
+.mp-skin-prophet .mpp-mast-cn {
+  font: 900 13px/1 "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+  letter-spacing: .3em;
+  text-indent: .3em;
+  color: var(--mpp-ink);
+}
+.mp-skin-prophet .mpp-mast-sub i {
+  font-style: normal;
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--mpp-hair);
+  max-width: 46px;
 }
 
-/* ── 头条 ─────────────────────────────────────────────────── */
-.mp-skin-prophet .mpp-headline {
-  font-size: clamp(18px, 3.6vw, 30px);
-  line-height: 1.15;
-  font-weight: 900;
+/* ── 分类广告带：道具报头下那排小方框 ─────────────────────── */
+.mp-skin-prophet .mpp-adbar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--mpp-rule);
+}
+.mp-skin-prophet .mpp-adbar span {
+  font-size: 7px;
+  line-height: 1.35;
+  letter-spacing: .1em;
   text-align: center;
-  letter-spacing: .04em;
-  padding: 2px 1% 4px;
+  padding: 3px 3px 2px;
+  border-right: 1px solid var(--mpp-hair);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-skin-prophet .mpp-adbar span:last-child { border-right: 0; }
+/* 道具里必有一格黑底反白，学的就是这个 */
+.mp-skin-prophet .mpp-adbar span.is-invert {
+  background: var(--mpp-ink);
+  color: var(--mpp-paper);
+  font-weight: 700;
+}
+
+/* ── 三栏骨架：左窄栏 / 正文 / 右窄栏 ─────────────────────── */
+.mp-skin-prophet .mpp-frame {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) 19px;
+}
+.mp-skin-prophet .mpp-rail {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 0;
+  font-size: 7px;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: var(--mpp-ink-2);
+  border-right: 1px solid var(--mpp-hair);
+  overflow: hidden;
+  white-space: nowrap;
+  user-select: none;
+}
+.mp-skin-prophet .mpp-rail-r {
+  border-right: 0;
+  border-left: 1px solid var(--mpp-hair);
+  justify-content: flex-end;
+}
+
+/* ── 正文区 ───────────────────────────────────────────────── */
+.mp-skin-prophet .mpp-core {
+  position: relative;
+  padding: 6px 9px 7px;
+  min-width: 0;
+}
+
+/* 「号外」印泥章：补头条右侧的空白，也是全版的记忆点 */
+.mp-skin-prophet .mpp-stamp {
+  position: absolute;
+  right: 7px;
+  top: 8px;
+  transform: rotate(-9deg);
+  padding: 2px 5px 3px;
+  border: 2px solid var(--mpp-seal);
+  box-shadow: inset 0 0 0 1px rgba(141, 47, 33, .45);
+  font: 900 clamp(11px, 2.2cqw, 16px)/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .16em;
+  text-indent: .16em;
+  color: var(--mpp-seal);
+  opacity: .78;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 栏目标签：全版唯一的红色 */
+.mp-skin-prophet .mpp-kicker {
+  display: inline-block;
+  font: 700 7.5px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .22em;
+  text-indent: .22em;
+  padding: 1px 5px;
+  border: 1px solid var(--mpp-ink);
+  color: var(--mpp-ink);
+  text-transform: uppercase;
+}
+.mp-skin-prophet .mpp-kicker.is-seal {
+  color: var(--mpp-seal);
+  border-color: var(--mpp-seal);
+}
+
+/* 头条：左对齐阶梯，大字压小字 */
+.mp-skin-prophet .mpp-headline {
+  margin: 4px 0 0;
+  font-family: "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-weight: 900;
+  line-height: .95;
+  letter-spacing: -.005em;
+  color: var(--mpp-ink);
   text-wrap: balance;
 }
+.mp-skin-prophet .mpp-hl-a {
+  display: block;
+  font-size: clamp(25px, 8.4cqw, 52px);
+  -webkit-text-stroke: .3px currentColor;
+}
+.mp-skin-prophet .mpp-hl-b {
+  display: block;
+  font-size: clamp(19px, 6.4cqw, 38px);
+  -webkit-text-stroke: .25px currentColor;
+  margin-top: .06em;
+}
+
+/* 引题 */
 .mp-skin-prophet .mpp-deck {
-  text-align: center;
-  font-size: 9.5px;
-  color: var(--mpp-ink-soft);
-  border-bottom: 1px solid #40372a;
-  padding-bottom: 7px;
-  margin-bottom: 9px;
-  letter-spacing: .3px;
+  margin: 5px 0 0;
+  padding: 3px 0;
+  border-top: 1px solid var(--mpp-hair);
+  font-size: 10px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--mpp-ink-2);
 }
 
-/* ── 双栏 ─────────────────────────────────────────────────── */
-.mp-skin-prophet .mpp-cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(128px, .85fr);
-  gap: 12px;
-}
-.mp-skin-prophet .mpp-main {
-  min-width: 0;
-  display: flow-root; /* 收住浮动，免得正文比剪影短时下面拖一大块空 */
+/* 署名行 */
+.mp-skin-prophet .mpp-byline {
+  font-size: 7px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--mpp-ink-3);
+  padding: 2px 0 3px;
+  border-bottom: 3px double var(--mpp-rule);
 }
 
-/* 人物肖像：没有图就用报纸剪影，绝不空一块白 */
-.mp-skin-prophet .mpp-photo-frame {
+/* ── 正文两栏 ─────────────────────────────────────────────── */
+.mp-skin-prophet .mpp-copy {
+  margin-top: 6px;
+  columns: 2;
+  column-gap: 11px;
+  column-rule: 1px solid rgba(23, 19, 14, .26);
+  font-size: 11px;
+  line-height: 1.62;
+  text-align: justify;
+  text-justify: inter-ideograph;
+  hyphens: auto;
+}
+.mp-skin-prophet .mpp-copy p {
+  margin: 0 0 .5em;
+  break-inside: avoid-column;
+}
+.mp-skin-prophet .mpp-copy p:last-child { margin-bottom: 0; }
+/* 首段首字下沉（中文用「据」字起） */
+.mp-skin-prophet .mpp-copy p.is-lead::first-letter {
   float: left;
-  width: min(40%, 180px);
-  margin: 2px 11px 7px 0;
-  padding: 4px;
-  background: #d2c5a7;
-  border: 1px solid #786849;
-  box-shadow: 1px 2px 4px rgba(0, 0, 0, .25);
+  font: 900 1.85em/.82 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  padding: .06em .1em 0 0;
+}
+
+/* 照片跨栏置顶：矮横幅，别把整张卡撑成一米高 */
+.mp-skin-prophet .mpp-photo-frame {
+  column-span: all;
+  margin: 0 0 5px;
+  padding: 0;
+  break-inside: avoid;
 }
 .mp-skin-prophet .mpp-photo {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 4 / 3;
-  background: linear-gradient(160deg, #cbbd9d, #b8a884);
+  height: clamp(88px, 15cqw, 124px);
+  /* 灰阶夜空：没有立绘时拍的是城堡远景，而不是硬画一个人 */
+  background: linear-gradient(180deg, #8d8977 0%, #65614e 38%, #333025 66%, #17140f 100%);
+  border: 1px solid var(--mpp-rule);
 }
 .mp-skin-prophet .mpp-photo img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: sepia(.14) contrast(1.03);
+  filter: grayscale(1) contrast(1.18) brightness(.98);
+}
+/* 半调网点压在照片上：这是「印刷品」和「贴图」的区别 */
+.mp-skin-prophet .mpp-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at center, rgba(0, 0, 0, .5) .6px, transparent .7px),
+                    radial-gradient(circle at center, rgba(255, 255, 255, .14) .5px, transparent .6px);
+  background-size: 2.6px 2.6px, 2.6px 2.6px;
+  background-position: 0 0, 1.3px 1.3px;
+  opacity: .42;
+  mix-blend-mode: multiply;
+}
+/* 城堡远景：一轮月亮 + 一排哥特尖顶，窗口点着灯 */
+.mp-skin-prophet .mpp-silhouette {
+  position: absolute;
+  inset: 0;
 }
 .mp-skin-prophet .mpp-silhouette i,
 .mp-skin-prophet .mpp-silhouette b {
   position: absolute;
-  left: 50%;
   display: block;
-  background: #9a8a67;
-  transform: translateX(-50%);
 }
-.mp-skin-prophet .mpp-silhouette i {
-  top: 20%;
-  width: 32%;
+.mp-skin-prophet .mpp-silhouette i { /* 月亮 */
+  top: 12%;
+  right: 17%;
+  width: clamp(26px, 4.4cqw, 40px);
   aspect-ratio: 1;
   border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #f2ecda, #b3ac94);
+  box-shadow: 0 0 20px 7px rgba(238, 231, 209, .22);
 }
-.mp-skin-prophet .mpp-silhouette b {
-  bottom: -16%;
-  width: 74%;
-  height: 56%;
-  border-radius: 50% 50% 0 0;
-  background: #8d7d5e;
+.mp-skin-prophet .mpp-silhouette b { /* 塔楼群 */
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 78%;
+  background:
+    radial-gradient(circle at 45% 62%, rgba(239, 211, 142, .9) 0 1.1px, transparent 1.6px),
+    radial-gradient(circle at 45% 76%, rgba(239, 211, 142, .8) 0 1.1px, transparent 1.6px),
+    radial-gradient(circle at 29% 70%, rgba(239, 211, 142, .75) 0 1.1px, transparent 1.6px),
+    radial-gradient(circle at 66% 68%, rgba(239, 211, 142, .75) 0 1.1px, transparent 1.6px),
+    radial-gradient(circle at 85% 78%, rgba(239, 211, 142, .7) 0 1.1px, transparent 1.6px),
+    linear-gradient(180deg, #363326, #11100b);
+  clip-path: polygon(
+    0 100%, 0 64%, 5% 64%, 9% 38%, 13% 64%,
+    20% 64%, 24% 52%, 28% 24%, 32% 52%,
+    39% 52%, 45% 6%, 51% 52%,
+    58% 52%, 62% 42%, 66% 26%, 70% 42%,
+    77% 42%, 81% 58%, 85% 32%, 89% 58%,
+    95% 58%, 98% 68%, 100% 68%, 100% 100%);
 }
 .mp-skin-prophet .mpp-silhouette em {
   position: absolute;
   right: 5px;
   bottom: 3px;
-  font-size: 8.5px;
+  font: 700 7px/1 Georgia, serif;
   font-style: normal;
-  letter-spacing: .18em;
-  color: #5c503a;
+  letter-spacing: .1em;
+  color: rgba(243, 236, 223, .82);
+  z-index: 1;
 }
+/* 「会动的照片」：极缓慢的光影起伏，别做成动画 gif */
+@media (prefers-reduced-motion: no-preference) {
+  .mp-skin-prophet .mpp-photo.is-animated {
+    animation: mpp-breathe 7s ease-in-out infinite;
+  }
+}
+@keyframes mpp-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.06); }
+}
+
 .mp-skin-prophet .mpp-caption {
   display: block;
-  font-size: 8.5px;
-  text-align: center;
-  padding-top: 3px;
-  color: var(--mpp-ink-soft);
+  font-size: 7.5px;
+  line-height: 1.45;
+  letter-spacing: .06em;
+  color: var(--mpp-ink-2);
+  padding-top: 2px;
+  border-bottom: 1px solid var(--mpp-hair);
+  padding-bottom: 3px;
 }
 
-.mp-skin-prophet .mpp-lead {
-  font-size: 12.5px;
-  line-height: 1.72;
-  margin: 0 0 7px;
-  text-align: justify;
+/* ── 底部小框：天气 + 开奖 ────────────────────────────────── */
+.mp-skin-prophet .mpp-strip {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 7px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 3px double var(--mpp-rule);
 }
-.mp-skin-prophet .mpp-lead::first-letter {
-  font-size: 24px;
-  float: left;
-  line-height: .92;
-  padding: 2px 3px 0 0;
-  font-weight: 700;
-}
-.mp-skin-prophet .mpp-bodycopy {
-  font-size: 11px;
-  line-height: 1.62;
-  text-align: justify;
-  margin: 0 0 6px;
-  color: var(--mpp-ink-soft);
-}
-
-/* ── 侧栏：人物档案 ───────────────────────────────────────── */
-.mp-skin-prophet .mpp-side {
-  border-left: 1px solid #77664a;
-  padding-left: 10px;
-  font-size: 10.5px;
+.mp-skin-prophet .mpp-box {
+  border: 1px solid var(--mpp-rule);
+  padding: 3px 5px 4px;
   min-width: 0;
 }
-.mp-skin-prophet .mpp-side-head {
-  font-size: 13.5px;
-  font-weight: 700;
-  text-align: center;
-  border-top: 3px double var(--mpp-rule);
-  border-bottom: 1px solid var(--mpp-rule);
-  padding: 4px 0;
+.mp-skin-prophet .mpp-box-head {
+  font: 700 7px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--mpp-hair);
+  padding-bottom: 2px;
   margin-bottom: 3px;
-  letter-spacing: .18em;
-  text-indent: .18em;
-}
-.mp-skin-prophet .mpp-stat {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 6px;
-  border-bottom: 1px dotted var(--mpp-rule-soft);
-  padding: 4px 0;
+  gap: 4px;
 }
-.mp-skin-prophet .mpp-stat b { font-weight: 400; color: var(--mpp-ink-soft); white-space: nowrap; }
-.mp-skin-prophet .mpp-stat span { text-align: right; font-weight: 700; overflow-wrap: anywhere; }
-.mp-skin-prophet .mpp-stat-num { font-variant-numeric: tabular-nums; }
-
-.mp-skin-prophet .mpp-quote {
-  margin-top: 9px;
-  padding: 7px 8px;
-  background: #d9ceb2;
-  border-left: 3px solid #776344;
-  font-size: 10.5px;
+.mp-skin-prophet .mpp-box-head b { font-weight: 700; color: var(--mpp-seal); }
+.mp-skin-prophet .mpp-box-body {
+  font-size: 8px;
   line-height: 1.55;
+  color: var(--mpp-ink-2);
+  overflow-wrap: anywhere;
+}
+.mp-skin-prophet .mpp-box-body strong {
+  color: var(--mpp-ink);
+  font-weight: 700;
+}
+.mp-skin-prophet .mpp-lotto {
+  font: 700 15px/1.1 Georgia, "Times New Roman", serif;
+  letter-spacing: .16em;
+  font-variant-numeric: tabular-nums;
+  color: var(--mpp-ink);
+}
+
+/* ── 人物档案：横排数字栏，报纸底部的「资料框」 ───────────── */
+.mp-skin-prophet .mpp-dossier {
+  margin-top: 6px;
+  border-top: 3px double var(--mpp-rule);
+  border-bottom: 1px solid var(--mpp-rule);
+  padding: 4px 0 5px;
+}
+.mp-skin-prophet .mpp-dossier-head {
+  font: 700 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.mp-skin-prophet .mpp-dossier-head span {
+  color: var(--mpp-ink-3);
+  letter-spacing: .12em;
+  margin-left: 5px;
+}
+.mp-skin-prophet .mpp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.mp-skin-prophet .mpp-stat {
+  padding: 0 6px;
+  border-left: 1px solid var(--mpp-hair);
+  min-width: 0;
+}
+.mp-skin-prophet .mpp-stat:first-child { border-left: 0; padding-left: 0; }
+.mp-skin-prophet .mpp-stat b {
+  display: block;
+  font: 400 7px/1.6 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .16em;
+  color: var(--mpp-ink-3);
+  white-space: nowrap;
+}
+.mp-skin-prophet .mpp-stat span {
+  display: block;
+  font: 700 13px/1.3 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  color: var(--mpp-ink);
+  overflow-wrap: anywhere;
+}
+.mp-skin-prophet .mpp-stat-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+
+/* ── 引文：pull quote ─────────────────────────────────────── */
+.mp-skin-prophet .mpp-quote {
+  margin-top: 6px;
+  padding: 5px 0 5px 9px;
+  border-left: 2px solid var(--mpp-seal);
+  font-size: 11px;
+  line-height: 1.6;
   font-style: italic;
+  color: var(--mpp-ink);
   overflow-wrap: anywhere;
 }
 .mp-skin-prophet .mpp-quote-title {
+  font: 700 7px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   font-style: normal;
-  font-weight: 700;
-  font-size: 9px;
-  letter-spacing: .12em;
-  margin-bottom: 3px;
-  color: var(--mpp-ink-soft);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--mpp-seal);
+  margin-bottom: 1px;
 }
 .mp-skin-prophet .mpp-sign {
-  text-align: right;
-  margin-top: 6px;
-  font-size: 9.5px;
-  color: var(--mpp-ink-soft);
+  font: 400 8px/1.5 "Songti SC", "SimSun", serif;
+  font-style: normal;
+  color: var(--mpp-ink-3);
+  margin-top: 2px;
+  letter-spacing: .05em;
 }
 
-/* ── 简讯：其他在场角色一行一条 ───────────────────────────── */
+/* ── 简讯：底部通栏 ───────────────────────────────────────── */
 .mp-skin-prophet .mpp-briefs {
-  margin-top: 10px;
-  border-top: 3px double var(--mpp-rule);
-  padding-top: 6px;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--mpp-rule);
 }
 .mp-skin-prophet .mpp-briefs-head {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .2em;
-  text-indent: .2em;
-  margin-bottom: 3px;
+  font: 700 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.mp-skin-prophet .mpp-briefs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  column-gap: 14px;
 }
 .mp-skin-prophet .mpp-brief {
   display: flex;
-  gap: 8px;
+  gap: 5px;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 9.5px;
-  color: var(--mpp-ink);
-  padding: 3px 0;
-  border-bottom: 1px dotted var(--mpp-rule-soft);
+  font-size: 8.5px;
+  line-height: 1.6;
+  padding: 1px 0;
+  border-bottom: 1px dotted rgba(23, 19, 14, .32);
+  min-width: 0;
 }
-.mp-skin-prophet .mpp-brief span:first-child { font-weight: 700; overflow-wrap: anywhere; }
-.mp-skin-prophet .mpp-brief span:last-child { color: var(--mpp-ink-soft); white-space: nowrap; }
+.mp-skin-prophet .mpp-brief:last-child { border-bottom: 0; }
+.mp-skin-prophet .mpp-brief span:first-child {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-skin-prophet .mpp-brief span:last-child {
+  color: var(--mpp-ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── 页脚 ─────────────────────────────────────────────────── */
 .mp-skin-prophet .mpp-foot {
-  border-top: 3px double #30281e;
-  margin-top: 10px;
-  padding-top: 5px;
-  font-size: 8.5px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 5px;
+  padding-top: 3px;
+  border-top: 1px solid var(--mpp-hair);
+  font-size: 7px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--mpp-ink-3);
 }
 
 /* 空态：没有角色档案时也要像一张报纸 */
 .mp-skin-prophet .mpp-empty {
-  padding: 22px 6px;
+  padding: 18px 4px;
   text-align: center;
-  font-size: 12px;
-  line-height: 1.9;
-  letter-spacing: .05em;
+  font: 900 13px/1.7 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .12em;
 }
 .mp-skin-prophet .mpp-empty small {
   display: block;
-  font-size: 9.5px;
-  color: var(--mpp-ink-soft);
+  font: 400 8px/1.8 "Songti SC", "SimSun", serif;
+  letter-spacing: .16em;
+  color: var(--mpp-ink-3);
   margin-top: 3px;
 }
 
-/* ── 窄屏：收成单栏，侧栏掉到正文下方 ─────────────────────── */
-@media (max-width: 620px) {
-  .mp-skin-prophet .mpp-paper { padding: 11px; }
-  .mp-skin-prophet .mpp-cols { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .mp-skin-prophet .mpp-side {
-    border-left: 0;
-    border-top: 3px double var(--mpp-rule);
-    padding: 7px 0 0;
-    margin-top: 8px;
-  }
-  .mp-skin-prophet .mpp-photo-frame { width: 34%; margin-right: 8px; }
-  .mp-skin-prophet .mpp-mast-cn { font-size: clamp(26px, 9vw, 40px); }
-  .mp-skin-prophet .mpp-headline { font-size: clamp(17px, 5.2vw, 24px); }
-  .mp-skin-prophet .mpp-topline,
-  .mp-skin-prophet .mpp-edition,
-  .mp-skin-prophet .mpp-foot { font-size: 7.5px; }
-  .mp-skin-prophet .mpp-lead { font-size: 11.5px; }
+/* ── 窄屏：拆掉两侧竖栏，正文收单栏 ─────────────────────── */
+@media (max-width: 560px) {
+  .mp-skin-prophet .mpp-frame { grid-template-columns: minmax(0, 1fr); }
+  .mp-skin-prophet .mpp-rail { display: none; }
+  .mp-skin-prophet .mpp-core { padding: 5px 1px 6px; }
+  .mp-skin-prophet .mpp-copy { columns: 1; font-size: 11.5px; }
+  .mp-skin-prophet .mpp-photo { height: clamp(84px, 26cqw, 116px); }
+  .mp-skin-prophet .mpp-strip { grid-template-columns: 1fr; }
+  .mp-skin-prophet .mpp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 5px; }
+  .mp-skin-prophet .mpp-stat:nth-child(3) { border-left: 0; padding-left: 0; }
+  .mp-skin-prophet .mpp-briefs-grid { grid-template-columns: minmax(0, 1fr); }
+  .mp-skin-prophet .mpp-adbar span:nth-child(3) { display: none; }
+  .mp-skin-prophet .mpp-adbar { grid-template-columns: repeat(2, 1fr); }
+  .mp-skin-prophet .mpp-fold { font-size: 11.5px; padding: 7px 9px; }
 }
 
-/* ── 宽屏：图片缩回一点，正文保持单栏（楼内宽度撑两栏会把句子切碎）── */
-@media (min-width: 760px) {
-  .mp-skin-prophet .mpp-photo-frame { width: min(33%, 170px); }
+/* ── 宽屏：给竖栏一点余量，正文栏宽不至于过窄 ─────────────── */
+@media (min-width: 780px) {
+  .mp-skin-prophet .mpp-frame { grid-template-columns: 22px minmax(0, 1fr) 22px; }
+  .mp-skin-prophet .mpp-core { padding: 7px 12px 8px; }
+  .mp-skin-prophet .mpp-copy { column-gap: 15px; font-size: 11.5px; }
+}
+
+/* 尊重系统的「减少动态效果」 */
+@media (prefers-reduced-motion: reduce) {
+  .mp-skin-prophet .mpp-paper { animation: none; }
+  .mp-skin-prophet .mpp-photo.is-animated { animation: none; }
 }`;
 
   const SKIN_TICKET_TPL = `<div class="tkt-container" data-theme="auto">
@@ -2411,64 +2709,110 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
   /* ── 预言家日报：手写皮肤（报纸头版版式）─────────────── */
   /* ── 预言家日报：把状态数据排成一张头版 ─────────────────────
-     数据来自脚本自己的 stat_data，不依赖任何外部扩展。
-     版式参考 prophet-daily-extension，但字段与文案是自己生成的。 */
+     数据全部来自脚本自己的 stat_data，不依赖任何外部扩展。
+     文案按《预言家日报》的腔调写：官方口吻 + 具体细节 + 不表态的结尾。 */
 
+  /* 社徽：带翼盾牌，报头中间与折叠条共用 */
+  const PROPHET_EMBLEM =
+    '<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false">' +
+      '<path d="M26 15C20 9 12 6 3 9c6 1 9 4 11 8-5-1-10 1-12 5 6-1 10 1 14 4" ' +
+        'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<path d="M34 15c6-6 14-9 23-6-6 1-9 4-11 8 5-1 10 1 12 5-6-1-10 1-14 4" ' +
+        'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<path d="M30 6l11 4v10c0 7.5-6 12-11 14-5-2-11-6.5-11-14V10z" ' +
+        'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>' +
+      '<path d="M30 13.5l1.7 4.5h4.6l-3.8 3 1.4 4.6L30 22.8l-3.9 2.8 1.4-4.6-3.8-3h4.6z" fill="currentColor"/>' +
+    '</svg>';
+
+  /* 十一档：head 上头条（短），deck 作引题，line 进首段，desk 收尾 */
   const PROPHET_STAGES = {
     '-5': {
       name: '势不两立',
       head: '与访客彻底决裂',
-      line: '据信双方已无任何往来，任何同框都被目击者形容为「火药味十足」。'
+      kicker: '社会新闻',
+      deck: '任何一次同框，都被目击者形容为「两支魔杖同时举起」',
+      line: '本报记者多方求证，得到的答复出奇一致：两人之间已无任何往来。',
+      desk: '分析人士指出，此类僵局往往比表面看起来更难化解。'
     },
     '-4': {
       name: '不共戴天',
       head: '公开场合拒绝同席',
-      line: '本报记者多次尝试求证，均被其本人以沉默回绝。'
+      kicker: '社会新闻',
+      deck: '本报记者多次尝试求证，均被其本人以沉默回绝',
+      line: '据在场人士描述，只要对方出现，她便起身离席，连寒暄也一并省去。',
+      desk: '沉默有时比咒语更有分量。'
     },
     '-3': {
       name: '仇视敌对',
       head: '对来访者报以冷眼',
-      line: '目击者称，她对他每一次出现都只报以冷眼，未置一词。'
+      kicker: '社会新闻',
+      deck: '目击者称，她对他每一次出现都只报以冷眼，未置一词',
+      line: '据本报了解，双方的接触已降至最低限度，谈话多由第三人转达。',
+      desk: '本报曾试图就此事向双方求证，截至发稿仍未获回应。'
     },
     '-2': {
       name: '明确敌意',
       head: '与某人保持距离',
-      line: '据知情人士透露，两人目前连招呼都不打，气氛颇为僵硬。'
+      kicker: '本市人事',
+      deck: '知情人士称，两人目前连招呼都不打，气氛颇为僵硬',
+      line: '接近她的人士透露，她对这段关系的态度相当明确：保持距离。',
+      desk: '关系一旦开始计量距离，往往已无回头之路。'
     },
     '-1': {
       name: '轻微反感',
       head: '对访客仍存戒心',
-      line: '接近她的人士表示，她尚未放下防备，言谈间多有保留。'
+      kicker: '本市人事',
+      deck: '接近她的人士表示，她尚未放下防备，言谈间多有保留',
+      line: '据观察，她在回应时惯于先停顿片刻，仿佛在心里过一遍措辞。',
+      desk: '防备不是拒绝，只是还没决定要不要打开门。'
     },
     '0': {
       name: '拒绝认识',
       head: '尚未进入本报视野',
-      line: '双方目前尚无正式往来，本报将持续关注后续进展。'
+      kicker: '本市人事',
+      deck: '双方目前尚无正式往来，本报将持续关注后续进展',
+      line: '按现有记录，两人之间还没有值得写进报纸的交集。',
+      desk: '本报提醒读者：一切尚未开始的故事，都还有很长的余地。'
     },
     '1': {
       name: '愿意认识',
       head: '一段新关系悄然成形',
-      line: '有邻居称，近来常见两人同行，虽未言明，气氛已不似从前。'
+      kicker: '本市人事',
+      deck: '有邻居称，近来常见两人同行，虽未言明，气氛已不似从前',
+      line: '据邻里反映，两人碰面时的停顿比从前短了些，这被视为某种信号。',
+      desk: '本报将持续关注这段关系的下一步走向。'
     },
     '2': {
       name: '犹豫观望',
       head: '态度出现微妙松动',
-      line: '知情人士称她仍在观望，尚未决定要不要再靠近一步。'
+      kicker: '社交专栏',
+      deck: '知情人士称她仍在观望，尚未决定要不要再靠近一步',
+      line: '她的态度被认为出现了松动，但幅度小到只有熟人察觉得出来。',
+      desk: '观望本身，也是一种已经作出了一半的决定。'
     },
     '3': {
       name: '愿意尝试',
       head: '被目击与某人同行',
-      line: '两人关系正处于试探阶段，知情者称她「嘴上不说，脚步倒是没停」。'
+      kicker: '社交专栏',
+      deck: '两人关系正处于试探阶段，知情者称她「嘴上不说，脚步倒是没停」',
+      line: '本报记者注意到，她近来出现在公共场合的频率明显上升，且鲜少独行。',
+      desk: '试探阶段的每一步，都算数。'
     },
     '4': {
       name: '认真经营',
       head: '关系升温引发关注',
-      line: '身边人已把这段关系视作「认真」在处理，不再是随口的玩笑。'
+      kicker: '社交专栏',
+      deck: '身边人已把这段关系视作「认真」在处理，不再是随口的玩笑',
+      line: '据最亲近的几位人士透露，这段关系已被双方当作正经事对待。',
+      desk: '从「试试看」到「认真」，中间隔着的往往只是一句话。'
     },
     '5': {
       name: '渴望永恒',
       head: '已对未来作出暗示',
-      line: '据最亲近的人透露，她近日多次提起「很久以后」，语气笃定。'
+      kicker: '社交专栏',
+      deck: '据最亲近的人透露，她近日多次提起「很久以后」，语气笃定',
+      line: '本报获悉，她在私下谈话中数次提到「很久以后」，措辞平静却不含糊。',
+      desk: '在巫师界，敢谈「很久以后」的人，通常已经想清楚了。'
     }
   };
 
@@ -2501,10 +2845,6 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return s || fallback || '';
   }
 
-  function prophetJoiner(parts) {
-    return parts.filter(function(x) { return !!x; }).join('，');
-  }
-
   function prophetPickLead(chars) {
     const present = chars.filter(function(n) { return chars && chars[n] && chars[n].在场 !== false; });
     const pool = present.length ? present : chars;
@@ -2526,86 +2866,173 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return parts.join(' ');
   }
 
+  /* 报头竖栏要整条日期，标题行不换行 */
+  function prophetLongDate(text) {
+    const s = String(text == null ? '' : text).replace(/[·•]/g, ' ');
+    return s.replace(/\s+/g, ' ').trim();
+  }
+
+  /* 魔法气象司的口吻：按关键词给一句，别把天气照抄一遍 */
+  function prophetWeatherLine(weather) {
+    const w = String(weather == null ? '' : weather);
+    if (/雨/.test(w)) return '气象司提醒：今日有雨，飞行课移入室内，坩埚请加盖。';
+    if (/雪|霜|冰/.test(w)) return '高地上空落雪，禁林边缘已结薄冰，出行宜缓。';
+    if (/雾|霾/.test(w)) return '雾气中检出微量魔法残留，建议随身携带照明咒。';
+    if (/雷|暴/.test(w)) return '气象司发布预警：本日雷暴，请勿在塔楼顶端施展咒语。';
+    if (/风/.test(w)) return '高地阵风偏强，请妥善固定扫帚与坩埚。';
+    if (/晴/.test(w)) return '天光清朗，适宜户外活动与扫帚试飞。';
+    if (/阴|云/.test(w)) return '云层低垂，猫头鹰邮路可能略有延误。';
+    return '气象司：本日天象平稳，未观测到异常魔法扰动。';
+  }
+
+  /* 道具报头下那排分类小广告，其中一格黑底反白 */
+  const PROPHET_ADS = [
+    { text: '悬赏 1000 加隆 · 在逃', invert: true },
+    { text: '光轮系列 · 本月七折', invert: false },
+    { text: '猫头鹰饲料 · 每日鲜制', invert: false }
+  ];
+
+  function prophetNumTag(msgId) {
+    const n = Math.abs(Math.round(((Number(msgId) || 0) * 71 + 1337) % 9000)) + 1000;
+    return String(n);
+  }
+
   function prophetArticleHtml(leadName, c, world, others, msgId) {
     const stage = prophetStageOf(c && c.阶段值);
+    const stageVal = prophetNum(c && c.阶段值);
     const slot = prophetSlot(world.时间);
     const place = prophetText(world.地点, '');
     const weather = prophetText(world.天气, '');
     const temp = prophetText(world.温度, '');
     const timeText = prophetText(world.时间, '');
-
-    const headline = leadName + stage.head;
-    const deckParts = [];
-    if (slot) deckParts.push(slot);
-    if (place) deckParts.push(place);
-    deckParts.push('本报特派记者追踪报道');
-    const deckText = deckParts.join('｜');
-
     const shortTime = prophetShortTime(timeText);
+    const longDate = prophetLongDate(timeText);
+
+    /* 栏目标签：负面用印泥红，其余用墨黑 */
+    const kickerCls = 'mpp-kicker' + (stageVal <= -2 ? ' is-seal' : '');
+
+    /* 引题：时段 + 地点 + 阶段钩子 */
+    const deckParts = [];
+    if (slot) deckParts.push(slot + '时分');
+    if (place) deckParts.push(place);
+    deckParts.push(stage.deck);
+    const deckText = deckParts.join('｜') + '。';
+
+    /* 首段：时间地点天气 + 事件 */
     const ambient = [];
     if (weather) ambient.push('当时' + weather);
     if (temp) ambient.push('气温' + temp);
-    const ambientText = ambient.length ? (ambient.join('、') + '。') : '';
+    const whereText = place ? ('现身' + place) : '的行踪';
+    const leadText = '据本报了解，' + (shortTime ? shortTime + '，' : '') + leadName + whereText + '，' +
+      (ambient.length ? ambient.join('、') + '。' : '') + stage.line;
 
-    const leadText = place
-      ? ('据本报了解，' + (shortTime ? shortTime + '，' : '') + leadName + '现身' + place + '，' + ambientText + stage.line)
-      : ('据本报了解，' + leadName + '近日的行踪引起本报注意，' + ambientText + stage.line);
-
-    const bodyParts = ['本报记者注意到，她目前的身体状况为「' + prophetNum(c && c.肉体值) + '」'];
+    /* 次段：数值与神态，写具体，别只报数字 */
+    const bodyParts = [];
+    bodyParts.push('本报记者注意到，其身体状况为「' + prophetNum(c && c.肉体值) + '」');
     const emo = prophetText(c && c.情绪, '');
-    if (emo) bodyParts.push('神情是「' + emo + '」');
-    bodyParts.push('相关情况仍在进一步核实，魔法部暂未发表正式声明');
+    if (emo) bodyParts.push('神情「' + emo + '」');
+    bodyParts.push('相关情况仍在核实，魔法部暂未发表正式声明');
     const bodyText = bodyParts.join('，') + '。';
 
     const voice = prophetText(c && c.心声, '……');
     const sign = prophetText(c && c.签名, leadName);
     const seal = prophetText(c && c.英文名, '').slice(0, 1).toUpperCase();
 
-    const idx = 'No.' + ('0000' + String((Number(msgId) || 0) + 1)).slice(-4);
+    const page = ('000' + String((Number(msgId) || 0) + 1)).slice(-4);
+    const lotto = prophetNumTag(msgId);
+
+    /* 左右竖栏：左侧日期与地点，右侧天气与版次 */
+    const railL = [longDate || '今日', place].filter(Boolean).join('　').replace(/\s+/g, ' ');
+    const railR = [weather ? weather + (temp ? ' ' + temp : '') : (temp || '天象未记'), 'VOL.CXLI'].filter(Boolean).join('　');
 
     let html = '<article class="mpp-paper">' +
-      '<div class="mpp-topline"><span>巫师界权威新闻 · 猫头鹰邮递</span><span>霍格沃茨特别版 · 每周七日发行</span></div>' +
+      '<div class="mpp-topline">' +
+        '<span>VOL. CXLI · No. <em>' + page + '</em></span>' +
+        '<span>伦敦 · 对角巷</span>' +
+        '<span>价格 七便士</span>' +
+      '</div>' +
       '<header class="mpp-mast">' +
-        '<div class="mpp-mast-small">The Wizarding World&rsquo;s No.1 Newspaper</div>' +
-        '<div class="mpp-mast-cn">预言家日报</div>' +
-        '<div class="mpp-mast-en">The Daily Prophet</div>' +
-      '</header>' +
-      '<div class="mpp-edition"><span>伦敦版 · 特别报道</span><span>' + idx + ' · 今日头版</span><span>价格：七便士</span></div>' +
-      '<div class="mpp-rule-d"></div>' +
-      '<div class="mpp-headline">' + skinEsc(headline) + '</div>' +
-      '<div class="mpp-deck">' + skinEsc(deckText) + '</div>' +
-      '<div class="mpp-cols">' +
-        '<div class="mpp-main">' +
-          '<div class="mpp-photo-frame">' +
-            '<div class="mpp-photo mpp-silhouette"><i></i><b></b><em>' + skinEsc(seal || 'M') + '</em></div>' +
-            '<span class="mpp-caption">本期人物：' + skinEsc(leadName) + '</span>' +
-          '</div>' +
-          '<p class="mpp-lead">' + skinEsc(leadText) + '</p>' +
-          '<p class="mpp-bodycopy">' + skinEsc(bodyText) + '</p>' +
+        '<div class="mpp-mast-en">' +
+          '<span class="mpp-mast-word">Daily</span>' +
+          '<span class="mpp-emblem">' + PROPHET_EMBLEM + '</span> ' +
+          '<span class="mpp-mast-word">Prophet</span>' +
         '</div>' +
-        '<aside class="mpp-side">' +
-          '<div class="mpp-side-head">人物档案</div>' +
+      '</header>' +
+      '<div class="mpp-mast-sub">' +
+        '<i></i><span class="mpp-mast-cn">预言家日报</span>' +
+        '<span>The Wizarding World&rsquo;s Only Daily</span><i></i>' +
+      '</div>' +
+      '<div class="mpp-adbar">' +
+        PROPHET_ADS.map(function(ad) {
+          return '<span' + (ad.invert ? ' class="is-invert"' : '') + '>' + skinEsc(ad.text) + '</span>';
+        }).join('') +
+      '</div>' +
+      '<div class="mpp-frame">' +
+        '<aside class="mpp-rail mpp-rail-l" aria-hidden="true">' + skinEsc(railL) + '</aside>' +
+        '<div class="mpp-core">' +
+          '<span class="mpp-stamp" aria-hidden="true">号外</span>' +
+          '<span class="' + kickerCls + '">' + skinEsc(stage.kicker) + '</span>' +
+          '<h2 class="mpp-headline">' +
+            '<span class="mpp-hl-a">' + skinEsc(leadName) + '</span>' +
+            '<span class="mpp-hl-b">' + skinEsc(stage.head) + '</span>' +
+          '</h2>' +
+          '<div class="mpp-deck">' + skinEsc(deckText) + '</div>' +
+          '<div class="mpp-byline">本报驻霍格沃茨记者 · 综合报道</div>' +
+          '<div class="mpp-copy">' +
+            '<figure class="mpp-photo-frame">' +
+              '<div class="mpp-photo is-animated">' +
+                '<div class="mpp-silhouette"><i></i><b></b><em>' + skinEsc(seal || 'M') + '</em></div>' +
+              '</div>' +
+              '<figcaption class="mpp-caption">资料照片 · ' +
+                (place ? '摄于' + skinEsc(place) : '摄于霍格沃茨') +
+                '　｜　本期人物：' + skinEsc(leadName) + '</figcaption>' +
+            '</figure>' +
+            '<p class="is-lead">' + skinEsc(leadText) + '</p>' +
+            '<p>' + skinEsc(bodyText) + '</p>' +
+            '<p>' + skinEsc(stage.desk) + '</p>' +
+          '</div>' +
+          '<div class="mpp-strip">' +
+            '<div class="mpp-box">' +
+              '<div class="mpp-box-head"><span>魔法天气</span><b>' + skinEsc(weather || '未见记载') + '</b></div>' +
+              '<div class="mpp-box-body">' + skinEsc(prophetWeatherLine(weather)) +
+                (temp ? ' <strong>' + skinEsc(temp) + '</strong>' : '') + '</div>' +
+            '</div>' +
+            '<div class="mpp-box">' +
+              '<div class="mpp-box-head"><span>金加隆开奖</span><b>第 ' + page + ' 期</b></div>' +
+              '<div class="mpp-box-body"><span class="mpp-lotto">' + lotto + '</span><br>中奖者请携魔杖至对角巷兑付</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<aside class="mpp-rail mpp-rail-r" aria-hidden="true">' + skinEsc(railR) + '</aside>' +
+      '</div>' +
+      '<div class="mpp-dossier">' +
+        '<div class="mpp-dossier-head">人物档案<span>本报资料室</span></div>' +
+        '<div class="mpp-stats">' +
           '<div class="mpp-stat"><b>好感度</b><span class="mpp-stat-num">' + prophetNum(c && c.好感度) + '</span></div>' +
-          '<div class="mpp-stat"><b>身体状况</b><span>' + prophetNum(c && c.肉体值) + '</span></div>' +
+          '<div class="mpp-stat"><b>身体状况</b><span class="mpp-stat-num">' + prophetNum(c && c.肉体值) + '</span></div>' +
           '<div class="mpp-stat"><b>当前阶段</b><span>' + skinEsc(stage.name) + '</span></div>' +
           '<div class="mpp-stat"><b>暗涌</b><span class="mpp-stat-num">' + prophetNum(c && c.嫉妒值) + '</span></div>' +
-          '<div class="mpp-quote"><div class="mpp-quote-title">未公开的心声</div>「' + skinEsc(voice) + '」</div>' +
-          '<div class="mpp-sign">—— ' + skinEsc(sign) + '</div>' +
-        '</aside>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mpp-quote">' +
+        '<div class="mpp-quote-title">未公开的心声</div>「' + skinEsc(voice) + '」' +
+        '<div class="mpp-sign">—— ' + skinEsc(sign) + '</div>' +
       '</div>';
 
     if (others && others.length) {
-      html += '<div class="mpp-briefs"><div class="mpp-briefs-head">简讯</div>' +
+      html += '<div class="mpp-briefs"><div class="mpp-briefs-head">本市简讯</div>' +
+        '<div class="mpp-briefs-grid">' +
         others.map(function(item) {
-          return '<div class="mpp-brief"><span>' + skinEsc(item.name) + '</span><span>' +
-            skinEsc(item.stage) + ' · 好感 ' + item.affection + '</span></div>';
+          return '<div class="mpp-brief"><span>' + skinEsc(item.name) + '　' + skinEsc(item.stage) +
+            '</span><span>好感 ' + item.affection + '</span></div>';
         }).join('') +
-        '</div>';
+        '</div></div>';
     }
 
-    html += '<div class="mpp-foot"><span>未经许可，禁止复制本报内容</span><span>' +
-      skinEsc(slot ? slot + '版' : '今日版') + ' · 下一版：敬请期待</span></div>' +
-      '</article>';
+    html += '<div class="mpp-foot">' +
+      '<span>未经许可，禁止复制本报内容</span>' +
+      '<span>' + skinEsc(slot ? slot + '版' : '今日版') + ' · 猫头鹰邮递 · 每日发行</span>' +
+      '</div></article>';
 
     return html;
   }
@@ -2629,16 +3056,16 @@ var worldData = (rawVars && rawVars['世界']) || {};
     }
 
     const fold = '<button type="button" class="mpp-fold" aria-expanded="' + (keepOpen ? 'true' : 'false') + '">' +
-      '<span class="mpp-fold-star">✦</span>' +
-      '<span class="mpp-fold-title">展开《预言家日报》</span>' +
-      '<span class="mpp-fold-hint"><span class="mpp-fold-closed">点击阅读</span><span class="mpp-fold-open">收起报纸</span></span>' +
+      '<span class="mpp-fold-emblem" aria-hidden="true">' + PROPHET_EMBLEM + '</span>' +
+      '<span class="mpp-fold-title">预言家日报</span>' +
+      '<span class="mpp-fold-hint"><span class="mpp-fold-closed">展开今日头版</span><span class="mpp-fold-open">收起</span></span>' +
       '</button>';
 
     if (!names.length) {
       scope.classList.remove('is-open');
       scope.innerHTML = '<div class="mpp-wrap">' + fold +
         '<div class="mpp-body" hidden><article class="mpp-paper"><div class="mpp-empty">' +
-        '本报今日暂无人物档案<br><small>（先点「开局适配」建档，头版才有内容可登）</small>' +
+        '本报今日暂无人物档案<br><small>先点「开局适配」建档，头版才有内容可登</small>' +
         '</div></article></div></div>';
       return false;
     }

@@ -46,7 +46,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `75-bio.js` | 1330 | 角色档案与玩家档案：生成、试镜、修订、库管理 |
 | `80-bio-queue.js` | 331 | 批量建档队列（静默生成，逐个填入） |
 | `85-style.js` | 711 | 面板与 LCD 的全部 CSS |
-| `88-skin.js` | 3043 | 楼内状态卡：晨昏票根 / 月氏藏书票 / 预言家日报三套外观、数据适配、挂载与刷新 |
+| `88-skin.js` | 3470 | 楼内状态卡：晨昏票根 / 月氏藏书票 / 预言家日报三套外观、数据适配、挂载与刷新 |
 | `90-panel.js` | 1383 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
 | `95-selfcheck.js` | 1105 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、FAQ |
 | `96-core.js` | 543 | 内置演绎规则（原世界书 7 条）的注入与让位判定 + 词条释义库（14 条，按本轮注入内容触发） |
@@ -79,7 +79,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 - 改更新线路 → `97-api.js` 上面的更新模块区（`buildUpdateSourceChain` / `fetchUpdateSource`）
 - 改内置演绎规则（原世界书那 7 条） → `96-core.js` 顶部的 `CORE_RULE_SECTIONS`
 - 加 / 改词条释义（标签和状态是什么意思） → `96-core.js` 的 `GLOSSARY_ENTRIES`，每条给 `id / label / priority / keys / title / body`，`always: true` 表示每轮必发
-- 改楼内状态卡外观 → `88-skin.js` 是**生成物**，别直接手改：票根 / 藏书票改 `moon/tools/skin-runtime.js` 骨架与两份正则 JSON，预言家日报改 `moon/tools/skin-prophet.css` 与 `skin-prophet.js`（头条文案表 `PROPHET_STAGES` 在里面），改完跑 `node moon/tools/gen-skin.mjs` 重新生成。数据入口统一是 `readMvuLatest()`
+- 改楼内状态卡外观 → `88-skin.js` 是**生成物**：票根 / 藏书票的来源是 `moon/tools/skin-runtime.js` 骨架与两份正则 JSON，预言家日报的来源是 `moon/tools/skin-prophet.css` 与 `skin-prophet.js`（头条文案表 `PROPHET_STAGES` 在里面），改完跑 `node moon/tools/gen-skin.mjs` 重新生成。注意 `moon/` 是本地开发目录，**不在本仓库内**；只 clone 到本仓库时，直接编辑 `src/88-skin.js` 里的 `SKIN_CSS_*` / `renderProphetSkin` 段落即可。数据入口统一是 `readMvuLatest()`
 
 ## 加新文件
 

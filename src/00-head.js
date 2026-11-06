@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.1';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.1 预言家日报】楼内状态卡新增第三套皮肤\n1. 📰 新增「预言家日报」：哈利波特电影道具风格的报纸头版——报头、4px 双线、首字下沉、人物档案侧栏、简讯栏、页脚，全是版面上真排出来的，不是贴图。\n2. 🗞 数据是真的：好感度 / 身体状况 / 阶段 / 暗涌 / 心声 / 签名 / 世界时间地点天气，全部取自当前存档。头条按阶段值生成新闻句，不是写死的模板文案。\n3. 👥 多人卡不打架：主角上头版，其他在场角色进「简讯」，不在场的角色不占版面。\n4. 📐 默认折叠成一条，点一下才展开整版；数据更新重画时会保留你已经展开的状态，不会自己合上。\n5. 🎨 样式全部 mpp- 前缀并作用域隔离，就算你装过原版「预言家日报」扩展，两边也不会串味。\n6. 🧪 测试增至 405 条（新增 14 条日报用例，含折叠、多人、空档、重画保留展开态）。";
+  const MOON_FORMULA_VERSION = '4.7.2';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.2 预言家日报·道具版复刻】按电影原版报纸重排头版\n1. 📰 对照 MinaLima 为电影做的真实报纸道具重做：报头改为 DAILY ⚡ PROPHET 一行横排，中间夹带翼盾徽，中文刊名退为副标。\n2. 🗞 补上报头下的分类广告带（含一格黑底反白悬赏）、左右两条竖排窄栏、阶梯式左对齐头条、正文两栏与栏间竖线。\n3. 🖼 照片改成灰阶霍格沃茨远景加半调网点，会极缓慢地明暗起伏；没有立绘时不再出现假人像。\n4. 🌦 新增魔法天气框与金加隆开奖框，头条右侧加「号外」印泥章，全版只用这一个红色。\n5. ✍️ 文案按预言家日报腔调重写十一档：官方口吻、具体细节、不表态的收尾；负面阶段栏目自动转红。\n6. 📱 窄屏自动收单栏并藏起竖栏，系统「减少动态效果」下关闭全部动效。测试增至 414 条（新增 9 条版式用例）。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
