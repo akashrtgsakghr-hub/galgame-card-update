@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.3';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.3 护眼配色 · UI 细节规范】十条布局规则全量落地\n1. 🫧 全站不再用纯黑、纯白和黑色描边；背景改成 9/11/13/15% 四层微明度递进，层级靠 1-3% 的明度差和发丝线区分。\n2. 🔍 输入框聚焦不再描边，换成「内亮环 + 外深环 + 内凹加深」的双环阴影，暗色界面字重从 700 统一降到 600。\n3. 📐 图标下移 0.125em 对齐中文基线，数字统一等宽不抖，正文开启 pretty 换行。\n4. 📖 折叠动画改用 Grid 0fr→1fr，不再用 max-height 魔法数；保留 hidden 语义并屏蔽读屏器，展开态不会被重画合上。\n5. 🌀 弹簧参数按物理解析解生成曲线：1200/80 是过阻尼零回弹（滑动、折叠、工具栏），380/18 是约 19% 微弹（选项点选、复制对勾）。\n6. ✅ 复制成功的对勾改成 2.5 秒自行淡出，两个复制分支合并成一个函数，连点也不会提前复位。\n7. 📰 预言家日报的纸与墨换成暖近白和暖墨褐，规则线不再是黑框，阴影改暖墨；电影道具的版式结构一点没动。\n8. 🛡 新增护眼归一化模块并接入皮肤生成器；外部皮肤 JSON 若把违禁色值带回来，生成时直接报错而不是混进产物。\n9. ♿ 「减少动态效果」下关掉全部弹簧与对勾动画；四层背景、聚焦双环、字重降级都有对应回归用例。\n10. 🧪 新增 18 条规范用例，全套 15 个测试套件共 432 条全部通过。";
+  const MOON_FORMULA_VERSION = '4.7.4';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.4 朱丝栏邸报 · 护眼最高法则优先】新增第四套楼内状态卡\n1. 📜 新增「朱丝栏邸报」：参考清代京报与宋刻本形制，朱丝界行、鱼尾版心、书耳、天头地脚、宫门钞／上谕／奏折三段、朱文印章。\n2. 🛡 法则优先于还原度：不做白纸黑字，改「灯下夜读的暗调抄本」；四层背景直接引用全局 9/11/13/15% 微明度，相邻差 2%，不另起一套配色。\n3. 🚫 全版无纯黑纯白、无黑框，边界只用发丝线；字重只到 600；朱砂提到暖橙才有 5.60:1 对比，原来的深朱在暗底只有 2.41:1。\n4. 📖 点题签「展阅」展开、再点「收卷」收起：Grid 0fr→1fr + 1200/80 零回弹弹簧；朱印落章用 380/18 微弹。\n5. 🔍 聚焦禁描边改三环阴影，图标下移 0.125em，数字等宽，正文 pretty 换行，「减少动态效果」下动画全关。\n6. 🀄 标题竖排、正文横排；窄屏自动退化成横排标题与两格档案，横向不溢出。\n7. 🗂 数据全部读真实存档：时辰由世界时间推算，头条按十一档阶段值生成（非随机），书耳吃时辰／地点／天气／气温，奏折四格吃好感／体气／等第／暗涌，引文取心声，另讯只列在场角色。\n8. 🔒 数据刷新保留展开态，已展卷的邸报不会自己合上；样式只注入一次，切换皮肤清干净旧节点。\n9. 🎛 面板「楼内状态卡」四选一改五选一（不显示／票根／藏书票／日报／邸报），老三套外观一个字节未动。\n10. 🧪 新增 19 条 D 系列用例（含四层明度、无纯黑白、Grid 折叠、弹簧 token、时辰边界），全套 15 个测试套件共 451 条全部通过。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -8668,9 +8668,10 @@ function openUpdateConfigDialog(panel) {
       '｜图片：' + img.label + '｜记忆：' + mem.label +
       '｜标签：' + tag.presetName + '（' + tag.enabledCount + ' 条）';
   }
-/* 88-skin.js —— 楼内状态卡皮肤：晨昏票根 / 月氏藏书票 / 预言家日报（玩家自选）
+/* 88-skin.js —— 楼内状态卡皮肤：晨昏票根 / 月氏藏书票 / 预言家日报 / 朱丝栏邸报（玩家自选）
    前两套由 tools/gen-skin.mjs 从正则美化 JSON 生成；
-   预言家日报是后加的手写皮肤（skin-prophet.css / skin-prophet.js），同样经 gen-skin 注入。
+   预言家日报与朱丝栏邸报是后加的手写皮肤
+   （skin-prophet.* / skin-dibao.*），同样经 gen-skin 注入。
    不要直接手改生成段落。本片段依赖：getStorage()、readMvuLatest()、mainDoc、mainWin。 */
 
   const SKIN_KEY = 'moon_phase_message_skin_v1';
@@ -8682,7 +8683,8 @@ function openUpdateConfigDialog(panel) {
     { id: 'none', short: '不显示', name: '不显示', hint: '只留正文，最干净' },
     { id: 'ticket', short: '票根', name: '晨昏票根', hint: '可撕副券 · 展开房间与名册' },
     { id: 'book', short: '藏书票', name: '月氏藏书票', hint: '笺纸名札 · 双面翻转' },
-    { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' }
+    { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' },
+    { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' }
   ];
 
   const SKIN_CSS_TICKET = `@import url("https://fontsapi.zeoseven.com/802/main/result.css");
@@ -10597,6 +10599,528 @@ function openUpdateConfigDialog(panel) {
   .mp-skin-prophet .mpp-body-clip { transition: none; }
 }`;
 
+  const SKIN_CSS_DIBAO = `/* 朱丝栏邸报 · 灯下夜读的暗调抄本
+   ─────────────────────────────────────────────────────────────
+   护眼最高法则优先于形制还原：古籍的「白纸黑字」必须让位。
+   四层背景直接引用全局 --mp-l0..l3（HSL 明度 9/11/13/15%，相邻 2%），
+   只在纸面叠一层 3% 暖棕气色，不改明度分层；边界只用发丝线，
+   没有黑框、没有纯黑纯白、没有粗朱边。
+   全部规则作用域在 .mp-skin-dibao 下，类名 db- 前缀，不与原扩展冲突。 */
+
+.mp-skin-dibao {
+  --db-l0: var(--mp-l0, hsl(228 16% 9%));
+  --db-l1: var(--mp-l1, hsl(228 15% 11%));
+  --db-l2: var(--mp-l2, hsl(228 14% 13%));
+  --db-l3: var(--mp-l3, hsl(228 13% 15%));
+  --db-fg: var(--mp-fg, #e6e3dc);
+  --db-fg-soft: var(--mp-fg-soft, #b9b6af);
+  --db-hair: var(--mp-hair, rgba(230, 227, 220, .09));
+  --db-hair-strong: var(--mp-hair-strong, rgba(230, 227, 220, .17));
+  --db-shadow: var(--mp-ink-shadow, rgba(18, 20, 26, .55));
+  --db-fw: var(--mp-fw-strong, 600);
+  --db-dur-drag: var(--mp-dur-drag, 300ms);
+  --db-dur-like: var(--mp-dur-like, 550ms);
+  --db-ease-drag: var(--mp-ease-drag, cubic-bezier(.16, 1, .3, 1));
+  --db-ease-like: var(--mp-ease-like, cubic-bezier(.16, 1, .3, 1));
+  /* 朱砂提到 #d08a6f 才在 L3 上有 5.60:1；原来的 #9c3b2e 只有 2.41:1，不达标 */
+  --db-seal: #d08a6f;
+  --db-seal-soft: rgba(208, 138, 111, .16);
+
+  container-type: inline-size;
+  color: var(--db-fg);
+  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", Georgia, serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* L0 案面：整张卡的最外层，比纸面暗一档 */
+.mp-skin-dibao .db-wrap {
+  background: var(--db-l0);
+  border: 1px solid var(--db-hair);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+/* ── 题签（折叠按钮）──────────────────────────────────────── */
+.mp-skin-dibao .db-fold {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  background: var(--db-l3);
+  border: 1px solid var(--db-hair);
+  border-radius: 3px;
+  color: var(--db-fg);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: var(--db-fw);
+  line-height: 1.4;
+  letter-spacing: .08em;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 180ms ease-out, box-shadow 180ms ease-out;
+}
+.mp-skin-dibao .db-fold:hover { background: var(--db-l2); }
+/* 聚焦：禁描边，与 85-style 逐值一致的内亮环 + 外深环 + 内凹加深 */
+.mp-skin-dibao .db-fold:focus-visible {
+  outline: none;
+  border-color: var(--db-hair-strong);
+  box-shadow:
+    0 0 0 1px rgba(230, 227, 220, .24),
+    0 0 0 5px rgba(18, 20, 26, .62),
+    inset 0 2px 7px rgba(18, 20, 26, .48);
+}
+/* 图标基线：与中文标题的视觉中心对齐 */
+.mp-skin-dibao .db-fold-ico {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 15px;
+  color: var(--db-seal);
+  transform: translateY(.125em);
+}
+.mp-skin-dibao .db-fold-ico svg { display: block; width: 100%; height: 100%; }
+.mp-skin-dibao .db-fold-title {
+  font-size: 13px;
+  letter-spacing: .22em;
+}
+.mp-skin-dibao .db-fold-meta {
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: .1em;
+  color: var(--db-fg-soft);
+  opacity: .82;
+  white-space: nowrap;
+}
+.mp-skin-dibao .db-fold-hint {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: .16em;
+  color: var(--db-seal);
+  white-space: nowrap;
+}
+.mp-skin-dibao .db-fold-open { display: none; }
+.mp-skin-dibao.is-open .db-fold-open { display: inline; }
+.mp-skin-dibao.is-open .db-fold-closed { display: none; }
+
+/* ── 折叠：Grid 0fr → 1fr ──────────────────────────────────
+   不用 max-height 魔法数，也不用 display:none 硬切。作者样式覆盖 UA 的
+   [hidden]{display:none}，hidden 只当状态位；收起态另加延迟的
+   visibility:hidden 让读屏器跳过被卷起来的内容。
+   缓动 --db-ease-drag 即全局 1200/80 过阻尼弹簧，零回弹。 */
+.mp-skin-dibao .db-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--db-dur-drag) var(--db-ease-drag),
+    visibility 0s linear var(--db-dur-drag);
+}
+.mp-skin-dibao .db-body:not([hidden]) {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.mp-skin-dibao .db-body-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── L1 纸面 ───────────────────────────────────────────────── */
+.mp-skin-dibao .db-leaf {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 5px;
+  /* 底部留白专供朱印落章，避免压住另讯数字或书口页脚 */
+  padding: 14px 16px 62px;
+  background-color: var(--db-l1);
+  /* 3% 暖棕气色，只改色相不改明度分层；纯 CSS，无外部图 */
+  background-image: linear-gradient(128deg, rgba(168, 118, 76, .035), transparent 62%);
+  border: 1px solid var(--db-hair);
+  border-radius: 2px;
+  box-shadow: 0 8px 24px -14px var(--db-shadow);
+}
+.mp-skin-dibao .db-leaf::before {
+  /* 天头：一条发丝线，取代文武边栏的粗框 */
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 8px;
+  height: 1px;
+  background: var(--db-hair);
+  pointer-events: none;
+}
+
+/* 书耳：L3，右上角小方块，放时辰 / 地点 / 天气 / 气温 */
+.mp-skin-dibao .db-ear {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+  max-width: 42%;
+  padding: 5px 8px;
+  background: var(--db-l3);
+  border: 1px solid var(--db-hair);
+  border-radius: 2px;
+  font-size: 9.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: .06em;
+  color: var(--db-fg-soft);
+  text-align: right;
+  text-wrap: pretty;
+}
+.mp-skin-dibao .db-ear b {
+  color: var(--db-seal);
+  font-weight: var(--db-fw);
+}
+
+/* 版心：鱼尾 + 卷次 + 刊名 */
+.mp-skin-dibao .db-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 10px;
+  border-bottom: 1px solid var(--db-hair);
+}
+.mp-skin-dibao .db-fish {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 20px;
+  color: var(--db-seal);
+  transform: translateY(.125em);
+}
+.mp-skin-dibao .db-fish svg { display: block; width: 100%; height: 100%; }
+.mp-skin-dibao .db-banner-title {
+  font-size: clamp(15px, 3.1cqw, 21px);
+  font-weight: var(--db-fw);
+  letter-spacing: .34em;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.mp-skin-dibao .db-banner-vol {
+  margin-left: auto;
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  color: var(--db-fg-soft);
+  white-space: nowrap;
+}
+
+/* ── L2 栏格 + 朱丝界行 ─────────────────────────────────────
+   界行是很淡的朱色发丝线，不是框；四层里的第三层落在这一格。 */
+.mp-skin-dibao .db-frame {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 11px;
+  padding: 12px 14px 13px;
+  background-color: var(--db-l2);
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent 2.6em,
+    rgba(208, 138, 111, .085) 2.6em,
+    rgba(208, 138, 111, .085) calc(2.6em + 1px)
+  );
+  border: 1px solid var(--db-hair);
+  border-radius: 2px;
+}
+
+/* 竖排书耳栏：栏目名 + 阶梯式竖排头条 */
+.mp-skin-dibao .db-rail {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  border-right: 1px solid var(--db-hair);
+  padding-right: 10px;
+  min-height: 186px;
+}
+.mp-skin-dibao .db-rail-label {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-size: 9.5px;
+  font-weight: var(--db-fw);
+  letter-spacing: .34em;
+  color: var(--db-seal);
+  white-space: nowrap;
+}
+.mp-skin-dibao .db-headline {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-size: clamp(15px, 2.9cqw, 19px);
+  font-weight: var(--db-fw);
+  line-height: 1.2;
+  letter-spacing: .08em;
+  color: var(--db-fg);
+  /* 只放短事件句，8–9 字恰好单列，不会再向左溢出换列 */
+  max-height: 186px;
+  text-wrap: pretty;
+}
+.mp-skin-dibao .db-headline-plain {
+  /* 竖排在窄屏会退化，这里留一版横排兜底（默认隐藏） */
+  display: none;
+}
+
+/* 横排正文：宫门钞 / 上谕两段 */
+.mp-skin-dibao .db-copy {
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.86;
+  color: var(--db-fg);
+  text-align: justify;
+  text-justify: inter-ideograph;
+  text-wrap: pretty;
+}
+.mp-skin-dibao .db-copy p { margin: 0 0 .7em; }
+.mp-skin-dibao .db-copy p:last-child { margin-bottom: 0; }
+.mp-skin-dibao .db-copy .db-lead-word {
+  color: var(--db-seal);
+  font-weight: var(--db-fw);
+}
+.mp-skin-dibao .db-deck {
+  margin: 0 0 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--db-hair);
+  font-size: 10px;
+  letter-spacing: .08em;
+  line-height: 1.7;
+  color: var(--db-fg-soft);
+  text-wrap: pretty;
+}
+.mp-skin-dibao .db-desk {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--db-hair);
+  font-size: 10.5px;
+  color: var(--db-fg-soft);
+  text-wrap: pretty;
+}
+
+/* ── 奏折：朱丝栏四格人物档案 ─────────────────────────────── */
+.mp-skin-dibao .db-dossier {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 11px;
+  border: 1px solid var(--db-hair);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.mp-skin-dibao .db-cell {
+  min-width: 0;
+  padding: 8px 10px 9px;
+  background: var(--db-l2);
+  border-right: 1px solid var(--db-hair);
+}
+.mp-skin-dibao .db-cell:last-child { border-right: 0; }
+.mp-skin-dibao .db-cell-label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: .22em;
+  color: var(--db-fg-soft);
+  white-space: nowrap;
+}
+.mp-skin-dibao .db-cell-value {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+  font-weight: var(--db-fw);
+  line-height: 1.2;
+  color: var(--db-fg);
+  font-variant-numeric: tabular-nums;
+}
+.mp-skin-dibao .db-cell-value.is-seal { color: var(--db-seal); }
+.mp-skin-dibao .db-cell-unit {
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: .06em;
+  color: var(--db-fg-soft);
+}
+
+/* ── 心声引文：朱线引首 ───────────────────────────────────── */
+.mp-skin-dibao .db-quote {
+  display: flex;
+  gap: 10px;
+  margin-top: 11px;
+  padding: 9px 12px;
+  background: var(--db-l3);
+  border: 1px solid var(--db-hair);
+  border-left: 2px solid var(--db-seal);
+  border-radius: 2px;
+}
+.mp-skin-dibao .db-quote-mark {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--db-seal);
+  transform: translateY(.125em);
+}
+.mp-skin-dibao .db-quote-body {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.78;
+  color: var(--db-fg);
+  text-wrap: pretty;
+}
+.mp-skin-dibao .db-quote-sign {
+  display: block;
+  margin-top: 4px;
+  font-size: 9.5px;
+  letter-spacing: .12em;
+  color: var(--db-fg-soft);
+  text-align: right;
+}
+
+/* ── 另讯：其他在场角色 ───────────────────────────────────── */
+.mp-skin-dibao .db-briefs {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--db-hair);
+}
+.mp-skin-dibao .db-briefs-title {
+  font-size: 9.5px;
+  letter-spacing: .26em;
+  color: var(--db-seal);
+  margin: 0 0 5px;
+}
+.mp-skin-dibao .db-brief {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10.5px;
+  line-height: 1.7;
+  padding: 2px 0;
+  color: var(--db-fg-soft);
+}
+.mp-skin-dibao .db-brief + .db-brief { border-top: 1px dotted var(--db-hair); }
+.mp-skin-dibao .db-brief-name {
+  color: var(--db-fg);
+  font-weight: var(--db-fw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-skin-dibao .db-brief-num {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── 书口页脚 ─────────────────────────────────────────────── */
+.mp-skin-dibao .db-colophon {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 7px;
+  border-top: 1px solid var(--db-hair);
+  font-size: 9px;
+  letter-spacing: .14em;
+  color: var(--db-fg-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 朱文急件章：380/18 微弹落章 ──────────────────────────
+   没有「拖拽 / 点赞」控件，微弹落在真实的落章反馈上。 */
+.mp-skin-dibao .db-seal {
+  position: absolute;
+  right: 18px;
+  bottom: 10px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--db-seal-soft);
+  border-radius: 3px;
+  color: var(--db-seal);
+  font-size: 25px;
+  font-weight: var(--db-fw);
+  line-height: 1;
+  letter-spacing: 0;
+  background: var(--db-seal-soft);
+  opacity: .9;
+  transform: rotate(-9deg) scale(1);
+  transform-origin: center;
+  transition: transform var(--db-dur-like) var(--db-ease-like), opacity 200ms ease-out;
+  pointer-events: none;
+}
+.mp-skin-dibao.is-open .db-seal {
+  animation: db-stamp var(--db-dur-like) var(--db-ease-like) both;
+}
+@keyframes db-stamp {
+  /* 起始帧不能是 opacity:0 —— 万一动画没跑（无头浏览器、虚拟时间、
+     用户禁用动画），印章会整个消失。基础态本来就可见，这里只做微弹。 */
+  from { transform: rotate(-9deg) scale(1.19); opacity: .6; }
+  to { transform: rotate(-9deg) scale(1); opacity: .9; }
+}
+.mp-skin-dibao .db-seal.is-urgent {
+  border-color: var(--db-seal-soft);
+  color: var(--db-seal);
+}
+
+/* 空态 */
+.mp-skin-dibao .db-empty {
+  padding: 22px 12px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.9;
+  color: var(--db-fg-soft);
+  text-wrap: pretty;
+}
+.mp-skin-dibao .db-empty small { font-size: 9.5px; opacity: .78; }
+
+/* ── 窄屏：竖排退化成横排，四格改两格 ───────────────────── */
+@media (max-width: 600px) {
+  .mp-skin-dibao .db-leaf { padding: 12px 11px 56px; }
+  .mp-skin-dibao .db-ear {
+    position: static;
+    max-width: none;
+    margin: 0 0 8px;
+    text-align: left;
+  }
+  .mp-skin-dibao .db-frame {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    padding: 10px 11px 11px;
+  }
+  .mp-skin-dibao .db-rail { display: none; }
+  .mp-skin-dibao .db-headline-plain {
+    display: block;
+    margin: 0 0 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--db-hair);
+    font-size: 16px;
+    font-weight: var(--db-fw);
+    line-height: 1.45;
+    letter-spacing: .1em;
+    color: var(--db-fg);
+    text-wrap: pretty;
+  }
+  .mp-skin-dibao .db-dossier { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mp-skin-dibao .db-cell:nth-child(2) { border-right: 0; }
+  .mp-skin-dibao .db-cell:nth-child(-n+2) { border-bottom: 1px solid var(--db-hair); }
+  .mp-skin-dibao .db-seal { width: 38px; height: 38px; font-size: 21px; right: 12px; bottom: 9px; }
+  .mp-skin-dibao .db-banner-vol { display: none; }
+}
+
+/* 系统「减少动态效果」：弹簧与落章全关 */
+@media (prefers-reduced-motion: reduce) {
+  .mp-skin-dibao .db-body,
+  .mp-skin-dibao .db-body-clip,
+  .mp-skin-dibao .db-fold,
+  .mp-skin-dibao .db-seal { transition: none; }
+  .mp-skin-dibao.is-open .db-seal { animation: none; }
+}`;
+
   const SKIN_TICKET_TPL = `<div class="tkt-container" data-theme="auto">
   <div class="tkt-board">
     <div class="tkt-notch-top"></div>
@@ -10831,6 +11355,7 @@ function openUpdateConfigDialog(panel) {
     styleEl.id = styleId;
     styleEl.textContent = (id === 'ticket') ? SKIN_CSS_TICKET
       : (id === 'book') ? SKIN_CSS_BOOK
+      : (id === 'dibao') ? SKIN_CSS_DIBAO
       : SKIN_CSS_PROPHET;
     (mainDoc.head || mainDoc.documentElement).appendChild(styleEl);
   }
@@ -11797,6 +12322,372 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return true;
   }
 
+  /* ── 朱丝栏邸报：手写皮肤（暗调抄本，护眼四层）────────── */
+  /* ── 朱丝栏邸报：把状态数据排成一页中式抄本 ───────────────
+     数据全部来自脚本自己的 stat_data，不依赖任何外部扩展。
+     文案按清代京报的公文腔写：兹闻 / 据报 / 照录原委，未加评议。
+     头条由阶段值决定，不随机抽取。 */
+
+  /* 版心鱼尾：题签与版心共用一枚矢量徽记 */
+  const DIBAO_FISH =
+    '<svg viewBox="0 0 40 24" aria-hidden="true" focusable="false">' +
+      '<path d="M2 4h36M2 20h36" fill="none" stroke="currentColor" stroke-width="1" opacity=".55"/>' +
+      '<path d="M20 4l9 8-9 8-9-8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' +
+      '<path d="M20 7.5v9M16.5 12h7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>' +
+    '</svg>';
+
+  /* 十一档：head 上竖排头条，deck 作引题，line 进宫门钞，desk 是记者按语 */
+  const DIBAO_STAGES = {
+    '-5': {
+      name: '势不两立',
+      head: '与访客彻底决裂',
+      kicker: '宫门钞',
+      deck: '闻两人已断绝往来，凡有同席，皆不终席而去',
+      line: '兹闻双方往来已绝，凡遇同席，多由第三人传语，未尝面洽。',
+      desk: '照录原委，未加评议。'
+    },
+    '-4': {
+      name: '不共戴天',
+      head: '公开场合拒不同席',
+      kicker: '宫门钞',
+      deck: '本报屡次遣人问讯，俱以默然见却',
+      line: '据报，凡其人至，辄起座引避，寒暄亦省。',
+      desk: '事出有因，姑存其说，以俟后闻。'
+    },
+    '-3': {
+      name: '仇视敌对',
+      head: '对来访者报以冷眼',
+      kicker: '宫门钞',
+      deck: '目击者称，每值其人至，未尝措一词',
+      line: '兹闻两人交接已减至最寡，言语多由旁人转达。',
+      desk: '原委未明，不敢臆断。'
+    },
+    '-2': {
+      name: '明确敌意',
+      head: '与某人保持距离',
+      kicker: '本市人事',
+      deck: '识者云：相见不通款曲，气色颇僵',
+      line: '据报，其于这段往来持论甚明，曰「宜远」。',
+      desk: '此后有无转圜，容再探录。'
+    },
+    '-1': {
+      name: '轻微反感',
+      head: '对访客仍存戒心',
+      kicker: '本市人事',
+      deck: '近侍言其尚未弛备，应对多所保留',
+      line: '兹闻每有问对，必先止息片刻，似斟酌其辞而后发。',
+      desk: '存而不论，俟其自明。'
+    },
+    '0': {
+      name: '拒绝认识',
+      head: '尚未入本报纪载',
+      kicker: '本市人事',
+      deck: '查双方尚无正式往还，本报当续观其后',
+      line: '按现存簿录，两人之间犹无可登之交集。',
+      desk: '凡未始者，皆有余地，谨识于此。'
+    },
+    '1': {
+      name: '愿意认识',
+      head: '一段新交悄然成形',
+      kicker: '本市人事',
+      deck: '邻右言：近颇见偕行，虽未明言，气色已异于前',
+      line: '兹闻两人相见时停顿较昔为短，识者以为微兆。',
+      desk: '其后如何，当续登报端。'
+    },
+    '2': {
+      name: '犹豫观望',
+      head: '态度微有松动',
+      kicker: '社交纪事',
+      deck: '知者云其尚在观望，未决再进与否',
+      line: '据报，意向稍转，然其度甚微，惟熟识者能察。',
+      desk: '观望亦已半决，姑并存之。'
+    },
+    '3': {
+      name: '愿意尝试',
+      head: '被目击与某人同行',
+      kicker: '社交纪事',
+      deck: '知者称「口虽不言，足未尝止」',
+      line: '兹闻其近日履公所较频，且罕独行。',
+      desk: '试探之步，亦当在录。'
+    },
+    '4': {
+      name: '认真经营',
+      head: '两人过从渐密',
+      kicker: '社交纪事',
+      deck: '左右称其相见有常，言笑不设防',
+      line: '据报，往来已有定时，虽未宣告，众目共睹。',
+      desk: '此事不烦饰词，据实以书。'
+    },
+    '5': {
+      name: '渴望永恒',
+      head: '闻有久远之约',
+      kicker: '宫门钞',
+      deck: '近侍言其语及来日，辞气甚定',
+      line: '兹闻两人言及久后之事，旁听者谓其意甚坚。',
+      desk: '能言久远者，多已思之熟矣，谨录以备考。'
+    }
+  };
+
+  const DIBAO_HAN = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+
+  function dibaoHanNum(n) {
+    let v = Math.abs(Math.round(Number(n) || 0));
+    if (v > 99) return String(v);
+    if (v < 10) return DIBAO_HAN[v];
+    if (v < 20) return '十' + (v % 10 ? DIBAO_HAN[v % 10] : '');
+    return DIBAO_HAN[Math.floor(v / 10)] + '十' + (v % 10 ? DIBAO_HAN[v % 10] : '');
+  }
+
+  function dibaoDayNum(n) {
+    const v = Math.abs(Math.round(Number(n) || 0));
+    if (v < 10) return '初' + DIBAO_HAN[v];
+    if (v === 10) return '初十';
+    if (v < 20) return '十' + DIBAO_HAN[v % 10];
+    if (v === 20) return '二十';
+    if (v < 30) return '廿' + DIBAO_HAN[v % 10];
+    if (v === 30) return '三十';
+    return '三十一';
+  }
+
+  /* 时辰：从「2024年10月03日 · 星期四 · 19:42」里取小时 */
+  function dibaoShichen(text) {
+    const m = String(text == null ? '' : text).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return '';
+    const h = Number(m[1]);
+    if (h >= 23 || h < 1) return '子时';
+    if (h < 3) return '丑时';
+    if (h < 5) return '寅时';
+    if (h < 7) return '卯时';
+    if (h < 9) return '辰时';
+    if (h < 11) return '巳时';
+    if (h < 13) return '午时';
+    if (h < 15) return '未时';
+    if (h < 17) return '申时';
+    if (h < 19) return '酉时';
+    if (h < 21) return '戌时';
+    return '亥时';
+  }
+
+  /* 长日期压成「十月初三 酉时」，进正文才不撑行 */
+  function dibaoShortDate(text) {
+    const s = String(text == null ? '' : text);
+    const d = s.match(/(\d{1,2})月(\d{1,2})日/);
+    const t = dibaoShichen(s);
+    const parts = [];
+    if (d) parts.push(dibaoHanNum(d[1]) + '月' + dibaoDayNum(d[2]));
+    if (t) parts.push(t);
+    return parts.join(' · ');
+  }
+
+  function dibaoStageOf(value) {
+    let r = Number(value);
+    if (isNaN(r)) r = 0;
+    r = Math.max(-5, Math.min(5, Math.round(r)));
+    return DIBAO_STAGES[String(r)] || DIBAO_STAGES['0'];
+  }
+
+  function dibaoNum(value) {
+    const n = Number(value);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function dibaoText(value, fallback) {
+    const s = String(value == null ? '' : value).trim();
+    return s || fallback || '';
+  }
+
+  function dibaoPickLead(names, chars) {
+    const present = names.filter(function(n) { return chars[n] && chars[n].在场 !== false; });
+    const pool = present.length ? present : names;
+    for (let i = 0; i < pool.length; i++) {
+      const c = chars[pool[i]] || {};
+      if (String(c.重要度 || '') === '主要') return pool[i];
+    }
+    return pool[0] || '';
+  }
+
+  /* 钦天监口吻：按关键词给一句，不照抄天气 */
+  function dibaoAlmanac(weather) {
+    const w = String(weather == null ? '' : weather);
+    if (/雨/.test(w)) return '钦天监奏：今夜有雨，宜闭户添灯。';
+    if (/雪|霜|冰/.test(w)) return '钦天监奏：高处落霜，行路宜缓。';
+    if (/雾|霾/.test(w)) return '钦天监奏：雾气蔽野，宜携灯而行。';
+    if (/雷|暴/.test(w)) return '钦天监奏：雷气未平，忌登高阁。';
+    if (/风/.test(w)) return '钦天监奏：风自西北，宜掩卷避尘。';
+    if (/晴/.test(w)) return '钦天监奏：天光清朗，宜出行访客。';
+    if (/阴|云/.test(w)) return '钦天监奏：云低欲暝，邮传恐迟。';
+    return '钦天监奏：天象如常，无异常可纪。';
+  }
+
+  function dibaoVolTag(msgId) {
+    const n = Math.abs(Math.round(Number(msgId) || 0)) + 1;
+    return { han: '卷之' + dibaoHanNum(n), num: ('0000' + n).slice(-4) };
+  }
+
+  function dibaoLeafHtml(leadName, c, world, others, msgId) {
+    const stage = dibaoStageOf(c && c.阶段值);
+    const stageVal = dibaoNum(c && c.阶段值);
+    const vol = dibaoVolTag(msgId);
+    const shichen = dibaoShichen(world.时间);
+    const dateShort = dibaoShortDate(world.时间);
+    const place = dibaoText(world.地点, '');
+    const weather = dibaoText(world.天气, '');
+    const temp = dibaoText(world.温度, '');
+    const affection = dibaoNum(c && c.好感度);
+    const body = dibaoNum(c && c.肉体值);
+    const envy = dibaoNum(c && c.嫉妒值);
+    const mood = dibaoText(c && c.情绪, '未录');
+    const voice = dibaoText(c && c.心声, '……');
+    const sign = dibaoText(c && c.签名, leadName);
+    const urgent = stageVal <= -2 || stageVal >= 4;
+
+    /* 书耳：缺项就少一句，不拼「时辰 ·  · 」这种残句 */
+    const earParts = [];
+    if (shichen) earParts.push('<b>' + skinEsc(shichen) + '</b>');
+    if (place) earParts.push(skinEsc(place));
+    if (weather) earParts.push(skinEsc(weather));
+    if (temp) earParts.push(skinEsc(temp));
+    const earHtml = earParts.length
+      ? '<div class="db-ear">' + earParts.join(' · ') + '</div>'
+      : '';
+
+    /* 宫门钞首段：日期时辰 + 地点 + 天气气温作状语，阶段正文自带「兹闻／据报」，
+       中间用逗号断开，别把「姓名」和「日期」粘成一句读不通的话 */
+    const ambient = [];
+    if (weather) ambient.push('其值' + weather);
+    if (temp) ambient.push('寒暑' + temp);
+    const leadLine =
+      (dateShort ? dateShort + '，' : '') +
+      (place ? '于' + place + '，' : '') +
+      (ambient.length ? ambient.join('、') + '。' : '') +
+      stage.line;
+
+    /* 上谕次段：身体状况 / 情绪 / 阶段判语，缺项自动省 */
+    const secondBits = [];
+    if (c && (c.肉体值 !== undefined && c.肉体值 !== null && c.肉体值 !== '')) {
+      secondBits.push('体气录作 ' + body);
+    }
+    if (mood !== '未录') secondBits.push('神色记为「' + mood + '」');
+    secondBits.push('其交游等第，今定作「' + stage.name + '」');
+    const secondLine = '又据簿录：' + secondBits.join('；') + '。';
+
+    const cell = function(label, value, unit, seal) {
+      return '<div class="db-cell">' +
+        '<span class="db-cell-label">' + skinEsc(label) + '</span>' +
+        '<span class="db-cell-value' + (seal ? ' is-seal' : '') + '">' + skinEsc(String(value)) +
+        (unit ? '<span class="db-cell-unit"> ' + skinEsc(unit) + '</span>' : '') + '</span>' +
+        '</div>';
+    };
+
+    const briefsHtml = others.length
+      ? '<div class="db-briefs"><p class="db-briefs-title">另讯</p>' +
+        others.map(function(o) {
+          return '<div class="db-brief"><span class="db-brief-name">' + skinEsc(o.name) +
+            ' · ' + skinEsc(o.stage) + '</span>' +
+            '<span class="db-brief-num">好感 ' + o.affection + '</span></div>';
+        }).join('') + '</div>'
+      : '';
+
+    return '<article class="db-leaf">' +
+      earHtml +
+      '<div class="db-banner">' +
+        '<span class="db-fish" aria-hidden="true">' + DIBAO_FISH + '</span>' +
+        '<span class="db-banner-title">月相邸报</span>' +
+        '<span class="db-banner-vol">' + skinEsc(vol.han) + ' · 第 ' + vol.num + ' 号</span>' +
+      '</div>' +
+      '<div class="db-frame">' +
+        '<div class="db-rail">' +
+          '<span class="db-rail-label">' + skinEsc(stage.kicker) + '</span>' +
+          '<span class="db-headline">' + skinEsc(stage.head) + '</span>' +
+        '</div>' +
+        '<div class="db-copy">' +
+          '<div class="db-headline-plain">' + skinEsc(leadName + stage.head) + '</div>' +
+          '<p class="db-deck">' + skinEsc(stage.deck) + '</p>' +
+          '<p><span class="db-lead-word">宫门钞</span>　' + skinEsc(leadLine) + '</p>' +
+          '<p><span class="db-lead-word">上谕</span>　' + skinEsc(secondLine) + '</p>' +
+          '<p class="db-desk">' + skinEsc(dibaoAlmanac(weather)) + ' ' + skinEsc(stage.desk) + '</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="db-dossier">' +
+        cell('好感', affection, '', false) +
+        cell('体气', body, '', false) +
+        cell('等第', (stageVal > 0 ? '+' + stageVal : stageVal), '阶', true) +
+        cell('暗涌', envy, '', false) +
+      '</div>' +
+      '<div class="db-quote">' +
+        '<span class="db-quote-mark" aria-hidden="true">「</span>' +
+        '<div class="db-quote-body">' + skinEsc(voice) +
+          '<span class="db-quote-sign">—— ' + skinEsc(sign) + ' 谨识</span>' +
+        '</div>' +
+      '</div>' +
+      briefsHtml +
+      '<div class="db-colophon"><span>' + skinEsc(vol.han) + ' · 第 ' + vol.num + ' 号</span>' +
+        '<span>' + skinEsc(shichen || '时刻未录') + ' 谨录 · 照原簿，不增一字</span></div>' +
+      '<div class="db-seal' + (urgent ? ' is-urgent' : '') + '" aria-label="' +
+        (urgent ? '急件章' : '存录章') + '">' + (urgent ? '急' : '录') + '</div>' +
+      '</article>';
+  }
+
+  function renderDibaoSkin(scope, statData, msgId, keepOpen) {
+    if (!scope) return false;
+
+    const src = statData || {};
+    const world = (src.世界 && typeof src.世界 === 'object') ? src.世界 : {};
+    const chars = (src.角色 && typeof src.角色 === 'object') ? src.角色 : {};
+
+    let names = Object.keys(chars).filter(function(k) {
+      return k && k !== '示例角色' && k !== '{{char}}' && chars[k] && typeof chars[k] === 'object';
+    });
+
+    /* 兼容「只有一个角色、字段直接摊在顶层」的旧存档 */
+    if (!names.length && (src.好感度 !== undefined || src.阶段值 !== undefined || src.肉体值 !== undefined)) {
+      const solo = src.姓名 || src.签名 || src.name || '核心角色';
+      chars[solo] = src;
+      names = [solo];
+    }
+
+    const vol = dibaoVolTag(msgId);
+    const fold = '<button type="button" class="db-fold" aria-expanded="' + (keepOpen ? 'true' : 'false') + '">' +
+      '<span class="db-fold-ico" aria-hidden="true">' + DIBAO_FISH + '</span>' +
+      '<span class="db-fold-title">月相邸报</span>' +
+      '<span class="db-fold-meta">' + skinEsc(vol.han) + ' · 第 ' + vol.num + ' 号</span>' +
+      '<span class="db-fold-hint"><span class="db-fold-closed">展阅</span><span class="db-fold-open">收卷</span></span>' +
+      '</button>';
+
+    if (!names.length) {
+      scope.classList.remove('is-open');
+      scope.innerHTML = '<div class="db-wrap">' + fold +
+        '<div class="db-body" hidden><div class="db-body-clip"><article class="db-leaf"><div class="db-empty">' +
+        '本卷尚无人物可录<br><small>先点「开局适配」建档，邸报才有内容可登</small>' +
+        '</div></article></div></div></div>';
+      return false;
+    }
+
+    const leadName = dibaoPickLead(names, chars);
+    const lead = chars[leadName] || {};
+    const others = names.filter(function(n) {
+      if (n === leadName) return false;
+      const c = chars[n] || {};
+      if (c.在场 === false) return false;
+      return true;
+    }).slice(0, 4).map(function(n) {
+      const c = chars[n] || {};
+      return {
+        name: n,
+        stage: dibaoStageOf(c.阶段值).name,
+        affection: dibaoNum(c.好感度)
+      };
+    });
+
+    const leaf = dibaoLeafHtml(leadName, lead, world, others, msgId);
+
+    scope.classList.toggle('is-open', !!keepOpen);
+    scope.innerHTML = '<div class="db-wrap">' + fold +
+      '<div class="db-body"' + (keepOpen ? '' : ' hidden') + '>' +
+      '<div class="db-body-clip">' + leaf + '</div></div></div>';
+    return true;
+  }
+
   /* ── 月氏藏书票：移植自原正则（换数据入口 + 主题作用域）── */
   const SKIN_BOOK_STAGES = {
     '-5': '势不两立', '-4': '不共戴天', '-3': '仇视敌对',
@@ -12000,6 +12891,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
       holder.innerHTML = SKIN_TICKET_TPL;
     } else if (skin === 'prophet') {
       holder.innerHTML = '<div class="mp-skin-prophet"><div class="mpp-wrap"></div></div>';
+    } else if (skin === 'dibao') {
+      holder.innerHTML = '<div class="mp-skin-dibao"><div class="db-wrap"></div></div>';
     } else {
       holder.innerHTML = '<div class="mp-skin-book"><div class="namecard-deck"></div></div>';
     }
@@ -12017,6 +12910,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
         if (rootEl) renderTicketSkin(rootEl, adaptStatForSkin(statData), msgId);
       } else if (skin === 'prophet') {
         renderProphetSkin(holder.querySelector('.mp-skin-prophet'), statData, msgId, !!keepOpen);
+      } else if (skin === 'dibao') {
+        renderDibaoSkin(holder.querySelector('.mp-skin-dibao'), statData, msgId, !!keepOpen);
       } else {
         renderBookSkin(holder.querySelector('.mp-skin-book'), statData);
       }
@@ -12067,8 +12962,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
       let keepOpen = false;
       if (existing) {
         if (!opts.force && existing.getAttribute('data-mp-sig') === sig) continue;
-        /* 数据变了要重画，但玩家已经展开的报纸不该自己合上 */
-        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"]');
+        /* 数据变了要重画，但玩家已经展开的报纸／邸报不该自己合上 */
+        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"]');
         if (existing.parentNode) existing.parentNode.removeChild(existing);
       }
       mountSkinIntoMessage(mesEl, statData, skin, sig, keepOpen);
@@ -12146,6 +13041,21 @@ var worldData = (rawVars && rawVars['世界']) || {};
           body.hidden = !show;
           fold.setAttribute('aria-expanded', String(show));
           const scope = prophetHolder.querySelector('.mp-skin-prophet');
+          if (scope) scope.classList.toggle('is-open', show);
+          return;
+        }
+
+        /* 朱丝栏邸报：展卷 / 收卷（与日报同一套 Grid 0fr→1fr） */
+        const dibaoHolder = target.closest('.' + SKIN_HOLDER_CLASS + '-dibao');
+        if (dibaoHolder) {
+          const fold = target.closest('.db-fold');
+          if (!fold) return;
+          const body = dibaoHolder.querySelector('.db-body');
+          if (!body) return;
+          const show = body.hidden;
+          body.hidden = !show;
+          fold.setAttribute('aria-expanded', String(show));
+          const scope = dibaoHolder.querySelector('.mp-skin-dibao');
           if (scope) scope.classList.toggle('is-open', show);
           return;
         }
