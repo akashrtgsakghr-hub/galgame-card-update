@@ -3,22 +3,22 @@
     if (!el) { el = mainDoc.createElement('style'); el.id = STYLE_ID; mainDoc.head.appendChild(el); }
     el.textContent = '#moon-phase-mask{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483640;background:radial-gradient(circle at center,rgba(15,23,42,0.85) 0%,rgba(2,6,23,0.92) 100%);backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}' +
       '#moon-phase-mask.open{display:flex;animation:moon-fade 0.28s cubic-bezier(0.16,1,0.3,1);}' +
-      '#moon-phase-panel{background:linear-gradient(170deg,rgba(20,24,38,0.95) 0%,rgba(10,12,22,0.98) 100%);color:#e2e8f0;border:1px solid rgba(148,163,184,0.18);border-radius:20px;padding:22px;width:100%;max-width:460px;max-height:88dvh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 25px 60px rgba(0,0,0,0.75);box-sizing:border-box;}' +
+      '#moon-phase-panel{background:linear-gradient(170deg,rgba(20,24,38,0.95) 0%,rgba(10,12,22,0.98) 100%);color:#e2e8f0;border:1px solid rgba(148,163,184,0.18);border-radius:20px;padding:22px;width:100%;max-width:460px;max-height:88dvh;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 25px 60px rgba(18, 20, 26, 0.75);box-sizing:border-box;}' +
       '#moon-phase-panel .mp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid rgba(148,163,184,0.12);}' +
       '#moon-phase-panel .mp-title-orb{font-size:20px;}' +
-      '#moon-phase-panel .mp-title{font-size:15px;font-weight:700;color:#f8fafc;letter-spacing:1px;}' +
+      '#moon-phase-panel .mp-title{font-size:15px;font-weight:600;color:#f8fafc;letter-spacing:1px;}' +
       '#moon-phase-panel .mp-badge{font-size:9px;background:rgba(148,163,184,0.12);padding:2px 7px;border-radius:12px;color:#94a3b8;border:1px solid rgba(148,163,184,0.2);font-weight:600;}' +
       '#moon-phase-panel .mp-close{background:transparent;border:none;color:#64748b;font-size:18px;cursor:pointer;padding:4px;border-radius:8px;}' +
       '.mp-card{background:rgba(15,23,42,0.5);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:12px 14px;margin-bottom:12px;}' +
-      '.mp-label{font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}' +
+      '.mp-label{font-size:10.5px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}' +
       '.mp-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}' +
       '.mp-toggle-info{font-size:11.5px;line-height:1.4;}' +
-      '.mp-toggle-title{font-weight:700;color:#f1f5f9;display:flex;align-items:center;gap:5px;}' +
+      '.mp-toggle-title{font-weight:600;color:#f1f5f9;display:flex;align-items:center;gap:5px;}' +
       '.mp-toggle-desc{font-size:10px;color:#64748b;margin-top:2px;}' +
       '#moon-phase-panel .mp-antisl,#moon-phase-panel .mp-extra-btn,#moon-phase-panel .mp-cardmode-btn,#moon-phase-panel .mp-fanfic-btn,#moon-phase-panel .mp-safelock-btn,#moon-phase-panel .mp-pacing-btn{padding:6px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.15);background:#0f172a;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}' +
-      '#moon-phase-panel .mp-antisl.on{border-color:rgba(239,68,68,0.6);background:#991b1b;color:#fff;}' +
-      '#moon-phase-panel .mp-extra-btn.on{border-color:rgba(56,189,248,0.6);background:#0369a1;color:#fff;}' +
-      '#moon-phase-panel .mp-cardmode-btn.on{border-color:rgba(168,85,247,0.6);background:#4c1d95;color:#fff;}' +
+      '#moon-phase-panel .mp-antisl.on{border-color:rgba(239,68,68,0.6);background:#991b1b;color:#f4f1ea;}' +
+      '#moon-phase-panel .mp-extra-btn.on{border-color:rgba(56,189,248,0.6);background:#0369a1;color:#f4f1ea;}' +
+      '#moon-phase-panel .mp-cardmode-btn.on{border-color:rgba(168,85,247,0.6);background:#4c1d95;color:#f4f1ea;}' +
       '#moon-phase-panel .mp-pacing-btn.Adi{border-color:rgba(56,189,248,0.6);background:rgba(56,189,248,0.15);color:#7dd3fc;}' +
       '#moon-phase-panel .mp-pacing-btn.And{border-color:rgba(168,85,247,0.6);background:rgba(168,85,247,0.15);color:#c084fc;}' +
       '#moon-phase-panel .mp-pacing-btn.All{border-color:rgba(244,63,94,0.6);background:rgba(244,63,94,0.15);color:#fda4af;}' +
@@ -33,8 +33,8 @@
       '#moon-phase-panel .mp-btn:hover{background:#1e293b;color:#f8fafc;}' +
       '#moon-phase-panel .mp-btn-highlight{border-color:rgba(56,189,248,0.3) !important;background:#0c2540 !important;color:#7dd3fc !important;}' +
       '#moon-phase-panel .mp-btn-user{border-color:rgba(244,114,182,0.3) !important;background:#3b0a2a !important;color:#f9a8d4 !important;}' +
-      '#moon-phase-panel .mp-status{background:#05070e;border:1px solid rgba(148,163,184,0.1);border-radius:12px;padding:12px 14px;font-size:10.5px;color:#94a3b8;line-height:1.65;max-height:230px;overflow-y:auto;font-family:monospace;}' +
-      '.mp-log-subhead{margin-top:8px;margin-bottom:4px;color:#fde047;font-size:11px;font-weight:700;}' +
+      '#moon-phase-panel .mp-status{background:#171a22;border:1px solid rgba(148,163,184,0.1);border-radius:12px;padding:12px 14px;font-size:10.5px;color:#94a3b8;line-height:1.65;max-height:230px;overflow-y:auto;font-family:monospace;}' +
+      '.mp-log-subhead{margin-top:8px;margin-bottom:4px;color:#fde047;font-size:11px;font-weight:600;}' +
       '@keyframes moon-fade{from{opacity:0;transform:scale(0.96) translateY(4px);}to{opacity:1;transform:scale(1) translateY(0);}}' +
       '@keyframes moon-progress-slide{0%{left:-40%;}100%{left:105%;}}' +
       '@keyframes moon-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}' +
@@ -42,7 +42,7 @@
       '#moon-phase-panel{background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0,rgba(255,255,255,.012) 1px,transparent 1px,transparent 4px),linear-gradient(180deg,#160b18 0%,#09060d 100%) !important;border:2px solid #f472d0 !important;border-radius:4px !important;padding:16px !important;font-family:"Courier New",monospace !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.26) !important;image-rendering:pixelated;}' +
       '#moon-phase-panel .mp-head{border-bottom:2px dashed rgba(244,114,208,.45) !important;}' +
       '#moon-phase-panel .mp-display-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:10px 0;padding:4px;background:#0b080d;border:1px solid #59304d;box-shadow:inset 0 0 0 1px rgba(244,114,208,.04);}' +
-      '#moon-phase-panel .mp-display-mode-switch button{min-height:37px;padding:7px 9px;border:1px solid #42253a;background:#160e18;color:#b7a2b4;font:700 12px/1.4 "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;letter-spacing:.3px;cursor:pointer;}' +
+      '#moon-phase-panel .mp-display-mode-switch button{min-height:37px;padding:7px 9px;border:1px solid #42253a;background:#160e18;color:#b7a2b4;font:600 12px/1.4 "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;letter-spacing:.3px;cursor:pointer;}' +
       '#moon-phase-panel .mp-display-mode-switch button.active{border-color:#f472d0;background:#35142e;color:#ffd3ef;box-shadow:inset 0 0 0 1px rgba(255,190,232,.12),2px 2px 0 #35152f;}' +
       '#moon-phase-panel.mp-display-arcade .mp-system-content{display:none !important;}' +
       '#moon-phase-panel.mp-display-arcade .mp-mode-select-card{margin-bottom:0;}' +
@@ -90,7 +90,7 @@
       '#moon-phase-panel .mp-lcd-difficulty>strong{font-size:14px;}' +
       '#moon-phase-panel .mp-lcd-selection{min-height:94px;}' +
       '#moon-phase-panel .mp-lcd-page-nav{display:grid;grid-template-columns:38px 1fr 38px;align-items:center;gap:8px;margin-top:6px;padding-top:7px;border-top:1px solid #182019;}' +
-      '#moon-phase-panel .mp-lcd-page-nav button,#moon-phase-panel .mp-lcd-small-btn{min-height:30px;padding:4px 7px;border:1px solid #182019;background:#707d63;color:#182019;font:700 12px "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;cursor:pointer;}' +
+      '#moon-phase-panel .mp-lcd-page-nav button,#moon-phase-panel .mp-lcd-small-btn{min-height:30px;padding:4px 7px;border:1px solid #182019;background:#707d63;color:#182019;font:600 12px "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;cursor:pointer;}' +
       '#moon-phase-panel .mp-lcd-page-nav button:active,#moon-phase-panel .mp-lcd-small-btn:active{transform:translate(1px,1px);}' +
       '#moon-phase-panel .mp-lcd-page-indicator{display:flex;justify-content:center;align-items:center;gap:9px;text-align:center;font-size:11px;}' +
       '#moon-phase-panel .mp-lcd-page-indicator b{font-size:12px;}' +
@@ -148,7 +148,7 @@
       '.mp-arcade-brand{font-size:12px;letter-spacing:1px;color:#18271a;margin-bottom:8px;}' +
       '.mp-arcade-title{font-size:13px;line-height:1.6;color:#18271a;margin:0 auto 8px;max-width:320px;}' +
       '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:12px;color:#18271a;margin:0 auto 5px;max-width:320px;}' +
-      '.mp-arcade-hud b{color:#f0ffdb;font-weight:700;margin-left:4px;text-shadow:0 0 5px rgba(200,230,171,.24);}' +
+      '.mp-arcade-hud b{color:#f0ffdb;font-weight:600;margin-left:4px;text-shadow:0 0 5px rgba(200,230,171,.24);}' +
       '.mp-arcade-record-time{margin:-1px auto 5px;color:#18271a;font-size:8px;letter-spacing:.4px;}' +
       '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:2px solid #64775e;background:#17241b;box-shadow:inset 0 0 12px rgba(8,16,10,.5);image-rendering:pixelated;touch-action:manipulation;}' +
       '.mp-arcade-state{min-height:18px;margin-top:8px;color:#18271a;font-size:12px;letter-spacing:.5px;}' +
@@ -164,12 +164,12 @@
       '.mp-lcd-game .mp-arcade-foot{font-size:11px;}' +
       '#moon-loading-mask.mp-pixel-loading{font-family:"Courier New",monospace !important;}' +
       '.mp-settings-fold{margin:-2px 0 10px;}' +
-      '.mp-settings-fold>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 11px;background:#180d1a;border:1px solid #70345f;color:#ffc4e9;font:700 11px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
+      '.mp-settings-fold>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 11px;background:#180d1a;border:1px solid #70345f;color:#ffc4e9;font:600 11px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
       '.mp-settings-fold>summary::-webkit-details-marker{display:none;}' +
       '.mp-settings-fold>summary span{color:#f472d0;transition:transform .15s;}' +
       '.mp-settings-fold[open]>summary{margin-bottom:11px;border-color:#f472d0;background:#251024;}' +
       '.mp-settings-fold[open]>summary span{transform:rotate(180deg);}' +
-      '.mp-menu-label,.mp-sub-label{font:700 9px "Courier New",monospace;color:#f472d0;letter-spacing:1.5px;margin:0 0 9px;text-shadow:1px 1px #45153a;}' +
+      '.mp-menu-label,.mp-sub-label{font:600 9px "Courier New",monospace;color:#f472d0;letter-spacing:1.5px;margin:0 0 9px;text-shadow:1px 1px #45153a;}' +
       '.mp-menu-grid{display:grid;grid-template-columns:1fr;gap:8px;}' +
       '.mp-menu-card{width:100%;min-height:54px;display:flex;align-items:center;gap:10px;padding:8px 10px;text-align:left;background:linear-gradient(180deg,#1c1020,#100a13);border:1px solid #74355f;color:#ffe1f5;font-family:"Courier New",monospace;cursor:pointer;box-shadow:3px 3px 0 #35152f;}' +
       '.mp-menu-card:hover,.mp-menu-card:focus{background:#2a1226;border-color:#ff78d6;transform:translate(-1px,-1px);outline:none;}' +
@@ -179,18 +179,18 @@
       '.mp-menu-card small{font:9px "Courier New",monospace;color:#bc8eaf;line-height:1.35;min-width:0;overflow-wrap:anywhere;}' +
       '.mp-menu-card i{font:20px "Courier New",monospace;color:#f472d0;font-style:normal;}' +
       '.mp-menu-controls{display:flex;justify-content:space-between;gap:5px;margin-top:13px;padding-top:9px;border-top:1px dashed #502747;color:#a8819e;font:8px "Courier New",monospace;letter-spacing:.3px;}' +
-      '.mp-menu-controls kbd{padding:2px 4px;border:1px solid #9e4b84;background:#2a1126;color:#ffc4e9;font:700 8px "Courier New",monospace;box-shadow:1px 1px #35152f;}' +
+      '.mp-menu-controls kbd{padding:2px 4px;border:1px solid #9e4b84;background:#2a1126;color:#ffc4e9;font:600 8px "Courier New",monospace;box-shadow:1px 1px #35152f;}' +
       '.mp-menu-page-head{display:flex;align-items:center;gap:10px;margin-bottom:13px;padding:8px;background:#100a13;border:1px solid #693253;box-shadow:inset 0 0 0 1px rgba(244,114,208,.05);}' +
-      '.mp-menu-back{padding:8px 9px;background:#291124;border:1px solid #a94d8b;color:#ffc4e9;font:700 10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
+      '.mp-menu-back{padding:8px 9px;background:#291124;border:1px solid #a94d8b;color:#ffc4e9;font:600 10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;}' +
       '.mp-menu-page-head>div{display:flex;flex:1;flex-direction:column;gap:3px;}' +
       '.mp-menu-page-head small{font:8px "Courier New",monospace;color:#a8819e;letter-spacing:1px;}' +
-      '.mp-menu-page-head b{font:700 12px "Courier New",monospace;color:#ffb8eb;}' +
+      '.mp-menu-page-head b{font:600 12px "Courier New",monospace;color:#ffb8eb;}' +
       '.mp-page-led{width:7px;height:7px;border-radius:50%;background:#ff5fc8;box-shadow:0 0 7px #ff5fc8;}' +
       '.mp-menu-subpage .mp-grid{margin-bottom:4px;}' +
       '.mp-action-fold{margin:0 0 9px;border:1px solid #74355f;background:linear-gradient(180deg,#180d1a,#100a13);box-shadow:2px 2px 0 #35152f;}' +
       '.mp-action-fold>summary{position:relative;list-style:none;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:38px;padding:9px 34px 9px 11px;cursor:pointer;}' +
       '.mp-action-fold>summary::-webkit-details-marker{display:none;}' +
-      '.mp-action-fold>summary>span{font:700 11px "Courier New",monospace;color:#ffe1f5;}' +
+      '.mp-action-fold>summary>span{font:600 11px "Courier New",monospace;color:#ffe1f5;}' +
       '.mp-action-fold>summary>small{font:9px "Courier New",monospace;color:#bc8eaf;}' +
       '.mp-action-fold>summary>i{position:absolute;right:11px;top:50%;transform:translateY(-50%);font:18px "Courier New",monospace;font-style:normal;color:#f472d0;transition:transform .12s;}' +
       '.mp-action-fold[open]{border-color:#bf5a9c;background:#1b0d1b;}' +
@@ -204,18 +204,18 @@
       '#moon-phase-panel .mp-update-hitbox .mp-title{display:block;flex:1 1 170px;min-width:0;max-width:none;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.35;}' +
       '#moon-phase-panel .mp-update-hitbox .mp-badge{display:inline-block;flex:0 0 auto;}' +
       '@media(max-width:480px){#moon-phase-panel{max-height:92dvh !important;padding:12px !important;}#moon-phase-panel .mp-update-hitbox{max-width:calc(100% - 30px);gap:6px;}#moon-phase-panel .mp-update-hitbox .mp-title{flex-basis:140px;font-size:11px !important;letter-spacing:0 !important;}#moon-phase-panel .mp-lcd-screen{padding:9px;font-size:13px;line-height:1.65;}#moon-phase-panel .mp-lcd-stats{grid-template-columns:repeat(2,1fr);}.mp-arcade-box{padding:12px 9px;}.mp-menu-controls{font-size:7px;}}' +
-      '#moon-phase-panel .mp-console-bezel{display:flex;justify-content:space-between;align-items:center;padding:3px 6px 6px;color:#b8ccb0;font:700 9px "Courier New",monospace;letter-spacing:0.8px;}' +
+      '#moon-phase-panel .mp-console-bezel{display:flex;justify-content:space-between;align-items:center;padding:3px 6px 6px;color:#b8ccb0;font:600 9px "Courier New",monospace;letter-spacing:0.8px;}' +
       '#moon-phase-panel .mp-power-led{display:inline-flex;align-items:center;gap:5px;color:#ffb8eb;font-size:9px;}' +
       '#moon-phase-panel .mp-power-led i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4ecd;box-shadow:0 0 6px #ff4ecd;}' +
       '#moon-phase-panel .mp-lcd-quick-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #182019;}' +
-      '#moon-phase-panel .mp-lcd-quick-tab{padding:3px 2px;border:1px solid #182019;background:#707d63;color:#182019;font:700 11px "MP Fusion Pixel","Zpix","Courier New",monospace;cursor:pointer;text-align:center;}' +
+      '#moon-phase-panel .mp-lcd-quick-tab{padding:3px 2px;border:1px solid #182019;background:#707d63;color:#182019;font:600 11px "MP Fusion Pixel","Zpix","Courier New",monospace;cursor:pointer;text-align:center;}' +
       '#moon-phase-panel .mp-lcd-quick-tab.active{background:#182019;color:#7d896f !important;}' +
       '#moon-phase-panel .mp-console-pillbar{display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 11px;padding:4px 6px;}' +
-      '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #a94d8b;border-radius:999px;background:linear-gradient(180deg,#2a1126,#150916);color:#ffc4e9;font:700 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;letter-spacing:0.4px;}' +
-      '#moon-phase-panel .mp-select-start-btn:hover{border-color:#f472d0;background:#3b1535;color:#fff;transform:translate(-1px,-1px);}' +
+      '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #a94d8b;border-radius:999px;background:linear-gradient(180deg,#2a1126,#150916);color:#ffc4e9;font:600 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;letter-spacing:0.4px;}' +
+      '#moon-phase-panel .mp-select-start-btn:hover{border-color:#f472d0;background:#3b1535;color:#f4f1ea;transform:translate(-1px,-1px);}' +
       '#moon-phase-panel .mp-select-start-btn.unconfigured{border-color:#fbbf24;color:#fde047;}' +
       '#moon-phase-panel .mp-subpage-switch{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;}' +
-      '#moon-phase-panel .mp-subpage-tab{padding:6px 2px;border:1px solid #643052;background:#140b16;color:#bc8eaf;font:700 10px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;text-align:center;box-shadow:1px 1px 0 #35152f;}' +
+      '#moon-phase-panel .mp-subpage-tab{padding:6px 2px;border:1px solid #643052;background:#140b16;color:#bc8eaf;font:600 10px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;text-align:center;box-shadow:1px 1px 0 #35152f;}' +
       '#moon-phase-panel .mp-subpage-tab.active{border-color:#f472d0;background:#32112b;color:#ffe1f5;}' +
       '#moon-phase-panel .mp-btn{flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 6px !important;min-height:48px;}' +
       '#moon-phase-panel .mp-btn small{display:block;font-size:9px;color:#bc8eaf;font-weight:400;line-height:1.25;min-width:0;overflow-wrap:anywhere;}' +
@@ -244,7 +244,7 @@
   max-height: 92dvh !important;
   overflow-y: auto !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif !important;
-  box-shadow: inset 1px 1px 0 rgba(255,184,235,0.15), inset -3px -3px 0 rgba(0,0,0,0.8), 0 0 0 3px #230d22, 0 25px 65px rgba(0,0,0,0.9), 0 0 25px rgba(244,114,208,0.2) !important;
+  box-shadow: inset 1px 1px 0 rgba(255,184,235,0.15), inset -3px -3px 0 rgba(18, 20, 26, 0.8), 0 0 0 3px #230d22, 0 25px 65px rgba(18, 20, 26, 0.9), 0 0 25px rgba(244,114,208,0.2) !important;
   box-sizing: border-box !important;
   position: relative !important;
 }
@@ -275,7 +275,7 @@
 }
 #moon-phase-panel .mp-title {
   font-size: 13px !important;
-  font-weight: 800 !important;
+  font-weight: 600 !important;
   color: #ffb8eb !important;
   letter-spacing: 0.8px !important;
   text-transform: uppercase !important;
@@ -289,7 +289,7 @@
   border-radius: 4px !important;
   color: #ffc4e9 !important;
   border: 1px solid #9e3e7f !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   font-family: monospace !important;
   box-shadow: 1px 1px 0 #140512 !important;
 }
@@ -305,7 +305,7 @@
 }
 #moon-phase-panel .mp-close:hover {
   background: #ef4444 !important;
-  color: #fff !important;
+  color: #f4f1ea !important;
   border-color: #f87171 !important;
 }
 
@@ -316,7 +316,7 @@
   border-radius: 12px !important;
   padding: 10px 10px 12px !important;
   margin-bottom: 12px !important;
-  box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8), inset -1px -1px 0 rgba(244,114,208,0.12), 0 0 0 1px #0a040b !important;
+  box-shadow: inset 2px 2px 5px rgba(18, 20, 26, 0.8), inset -1px -1px 0 rgba(244,114,208,0.12), 0 0 0 1px #0a040b !important;
 }
 
 /* 玻璃框顶部丝印与粉红电源灯 */
@@ -326,7 +326,7 @@
   align-items: center !important;
   padding: 2px 6px 8px !important;
   color: #d898c6 !important;
-  font: 700 9px "Courier New", monospace !important;
+  font: 600 9px "Courier New", monospace !important;
   letter-spacing: 0.6px !important;
   border-bottom: 1px solid rgba(244,114,208,0.2) !important;
   margin-bottom: 8px !important;
@@ -337,7 +337,7 @@
   gap: 5px !important;
   color: #ff8cdb !important;
   font-size: 8.5px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 #moon-phase-panel .mp-power-led i {
   display: inline-block !important;
@@ -363,7 +363,7 @@
   -webkit-font-smoothing: none !important;
   font-smooth: never !important;
   image-rendering: pixelated !important;
-  background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1px) !important;
+  background-image: radial-gradient(rgba(18, 20, 26, 0.06) 1px, transparent 1px) !important;
   background-size: 3px 3px !important;
 }
 #moon-phase-panel .mp-lcd-screen-head {
@@ -396,7 +396,7 @@
   border: 1px solid #182019 !important;
   background: #707d63 !important;
   color: #182019 !important;
-  font: 700 11px "MP Fusion Pixel","Courier New",monospace !important;
+  font: 600 11px "MP Fusion Pixel","Courier New",monospace !important;
   cursor: pointer !important;
   text-align: center !important;
   box-shadow: inset 1px 1px 0 rgba(255,255,255,0.15) !important;
@@ -404,7 +404,7 @@
 #moon-phase-panel .mp-lcd-quick-tab.active {
   background: #182019 !important;
   color: #7d896f !important;
-  font-weight: 800 !important;
+  font-weight: 600 !important;
 }
 
 /* RPG 四维状态槽 (点阵墨墨黑) */
@@ -498,7 +498,7 @@
 }
 .mp-dpad-btn:active {
   background: #3e123a;
-  color: #fff;
+  color: #f4f1ea;
 }
 .mp-dpad-up { top: 0; left: 24px; width: 24px; height: 26px; border-radius: 4px 4px 0 0; }
 .mp-dpad-down { bottom: 0; left: 24px; width: 24px; height: 26px; border-radius: 0 0 4px 4px; }
@@ -524,14 +524,14 @@
   border: 1px solid #9e3e7f;
   border-radius: 10px;
   color: #ffc4e9;
-  font: 700 9.5px monospace;
+  font: 600 9.5px monospace;
   cursor: pointer;
   box-shadow: 1px 2px 0 #1a0817;
   letter-spacing: 0.5px;
 }
 .mp-select-key:hover, .mp-start-key:hover {
   background: #47173e;
-  color: #fff;
+  color: #f4f1ea;
 }
 .mp-select-key:active, .mp-start-key:active {
   transform: rotate(-25deg) translate(1px, 1px);
@@ -540,7 +540,7 @@
 .mp-pill-labels {
   display: flex;
   gap: 12px;
-  font: 700 8.5px "Courier New", monospace;
+  font: 600 8.5px "Courier New", monospace;
   color: #e2a6d1;
   letter-spacing: 0.8px;
   margin-top: 2px;
@@ -565,8 +565,8 @@
   border-radius: 50%;
   background: #d946a6;
   border: 2px solid #83185b;
-  color: #fff;
-  font: 800 13px "Courier New", monospace;
+  color: #f4f1ea;
+  font: 600 13px "Courier New", monospace;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -618,7 +618,7 @@
   background: #130715;
   color: #f3c2e6;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   text-align: center;
   font-family: inherit;
@@ -666,7 +666,7 @@
   background: #2b122e;
   border-color: #ff8cdb;
   border-left-color: #ff8cdb;
-  color: #fff;
+  color: #f4f1ea;
   transform: translateX(2px);
   box-shadow: 3px 3px 0 #20081d, 0 0 10px rgba(244,114,208,0.25);
 }
@@ -708,4 +708,148 @@
 }
 `;
   }
+
+  /* ══════════════════════════════════════════════════════════════════
+   * 护眼基础层（独立 style，injectStyle 每次调用都只覆盖同一个 id）
+   *
+   * 设计约束：
+   *   · 不用纯黑 #17181d / 纯白 #f4f1ea，不用黑色描边；阴影改暖墨 rgba(18,20,26,*)
+   *   · 四层背景按 HSL 明度 9 / 11 / 13 / 15%，相邻层差 2%（1-3% 区间内）
+   *   · 层级靠「微明度 + 发丝线」区分，不靠黑框
+   *   · 暗色界面字重降一档：700 → 600。规范里的「降 40」（700→660）在
+   *     静态系统字体上没有可变字重轴，浏览器会按最近可用字重舍回 700，
+   *     等于没降；取 600 才是真实生效的最近档位。
+   *   · 弹簧曲线由 k/c 解析解采样而来，不依赖动画库：
+   *       1200/80 → ζ=1.155 过阻尼，单调收敛、零回弹
+   *       380/18  → ζ=0.462 欠阻尼，峰值 1.191（约 19% 微弹）
+   * ══════════════════════════════════════════════════════════════════ */
+  let eyeEl = mainDoc.getElementById('moon-eyecare-style');
+  if (!eyeEl) {
+    eyeEl = mainDoc.createElement('style');
+    eyeEl.id = 'moon-eyecare-style';
+    mainDoc.head.appendChild(eyeEl);
+  }
+  eyeEl.textContent = `
+:root {
+  /* 四层：相邻明度差 2%，无纯黑 */
+  --mp-l0: hsl(228 16% 9%);
+  --mp-l1: hsl(228 15% 11%);
+  --mp-l2: hsl(228 14% 13%);
+  --mp-l3: hsl(228 13% 15%);
+  --mp-fg: #e6e3dc;
+  --mp-fg-soft: #b9b6af;
+  --mp-ink-shadow: rgba(18, 20, 26, .55);
+  --mp-hair: rgba(230, 227, 220, .09);
+  --mp-hair-strong: rgba(230, 227, 220, .17);
+  --mp-fw-strong: 600;
+  --mp-dur-drag: 300ms;
+  --mp-dur-like: 550ms;
+  /* 1200/80：过阻尼，采样点单调上升，无 overshoot */
+  --mp-ease-drag: linear(0, 0.0921, 0.2594, 0.4237, 0.5619, 0.6709, 0.7543, 0.8172, 0.8643, 0.8993, 0.9254, 0.9447, 0.9590, 0.9696, 0.9775, 0.9833, 0.9877, 0.9909, 0.9932, 0.9950, 0.9963, 1);
+  /* 380/18：欠阻尼，越过 1 约 19% 后回落 */
+  --mp-ease-like: linear(0, 0.1198, 0.3877, 0.6865, 0.9380, 1.1050, 1.1836, 1.1909, 1.1531, 1.0961, 1.0402, 0.9972, 0.9716, 0.9623, 0.9649, 0.9743, 0.9857, 0.9958, 1.0029, 1.0066, 1.0074, 1);
+}
+
+/* ── 四层背景分层：遮罩 L0 → 沉浸层 L1 → 卡片 L2 → 输入域 L3 ──
+   只覆盖没有专属主题的容器；#moon-phase-panel 保留掌机/街机主题配色，
+   避免后注入的 !important 把玩家的选主题洗掉。 */
+#moon-phase-mask {
+  background: radial-gradient(circle at center, rgba(19, 22, 29, .86) 0%, rgba(15, 17, 23, .90) 100%) !important;
+}
+.mp-gal-root { background: var(--mp-l1) !important; }
+.mp-gal-sheet, .mp-gal-dialog, .mp-card {
+  background: var(--mp-l2) !important;
+  border: 1px solid var(--mp-hair) !important;
+  box-shadow: 0 8px 26px var(--mp-ink-shadow) !important;
+}
+.mp-gal-sheet-mask { background: rgba(15, 17, 23, .72) !important; }
+
+/* 输入域：四层的第三层；边界是微明度发丝线，不是黑框 */
+#moon-phase-panel :is(input, textarea, select),
+#moon-phase-mask :is(input, textarea, select),
+.mp-gal-root :is(input, textarea, select),
+.mp-gal-sheet :is(input, textarea, select) {
+  background: var(--mp-l3) !important;
+  border: 1px solid var(--mp-hair) !important;
+  color: var(--mp-fg) !important;
+  font-variant-numeric: tabular-nums;
+}
+.mp-status, .mp-gal-text { background: var(--mp-l3) !important; }
+
+/* 聚焦：禁描边，改「内亮环 + 外深环 + 内凹加深」双环阴影 */
+#moon-phase-panel :is(input, textarea, select, [contenteditable="true"]):focus,
+#moon-phase-mask :is(input, textarea, select, [contenteditable="true"]):focus,
+.mp-gal-root :is(input, textarea, select, [contenteditable="true"]):focus,
+.mp-gal-sheet :is(input, textarea, select, [contenteditable="true"]):focus {
+  outline: none !important;
+  border-color: var(--mp-hair-strong) !important;
+  background: var(--mp-l3) !important;
+  box-shadow:
+    0 0 0 1px rgba(230, 227, 220, .24),
+    0 0 0 5px rgba(18, 20, 26, .62),
+    inset 0 2px 7px rgba(18, 20, 26, .48) !important;
+}
+
+/* 暗色字重降档：内联写法（font-weight:600 / font:600 …）一并命中 */
+#moon-phase-panel :is([style*="font-weight:600"], [style*="font:700"]),
+#moon-phase-mask :is([style*="font-weight:600"], [style*="font:700"]),
+.mp-gal-root :is([style*="font-weight:600"], [style*="font:700"]),
+.mp-gal-sheet :is([style*="font-weight:600"], [style*="font:700"]) {
+  font-weight: var(--mp-fw-strong) !important;
+}
+
+/* 数字锁等宽、正文 pretty 换行、图标基线 */
+#moon-phase-panel, #moon-phase-mask, .mp-gal-root, .mp-gal-sheet,
+.mp-skin-prophet, .mp-skin-book, .tkt-container {
+  font-variant-numeric: tabular-nums;
+}
+#moon-phase-panel p, #moon-phase-panel li,
+.mp-gal-text, .mp-gal-sheet p, .mp-skin-prophet .mpp-copy p {
+  text-wrap: pretty;
+}
+.mp-ico, .mpp-ico {
+  display: inline-block;
+  line-height: 1;
+  transform: translateY(.125em);
+}
+
+/* 弹簧落点：滑动/折叠用 1200/80 零回弹，点选用 380/18 微弹。
+   选择器带 .mp-gal-root 前缀提高特异性：沉浸模式样式是打开时才注入的，
+   同特异性会被它后发覆盖，前缀保证这条始终生效。 */
+.mp-gal-root .mp-gal-toolbar,
+.mp-gal-root .mp-gal-dialog {
+  transition-timing-function: cubic-bezier(.16, 1, .3, 1);
+  transition-timing-function: var(--mp-ease-drag);
+  transition-property: transform, opacity;
+  transition-duration: var(--mp-dur-drag);
+}
+.mp-gal-root .mp-gal-choice {
+  transition: transform var(--mp-dur-like) var(--mp-ease-like),
+              background 160ms ease-out, border-color 160ms ease-out;
+}
+.mp-gal-root .mp-gal-choice:active { transform: scale(.972); }
+
+/* 复制对勾：2.5s 自隐。项目里没有点赞按钮，380/18 的 19% 微弹
+   落在等价的「轻确认反馈」上——对勾入场的 1.19 峰值就是这条弹簧。 */
+.mp-ico-tick {
+  display: inline-block;
+  transform: translateY(.125em);
+  animation: mpCopyTick 2.5s linear both;
+}
+@keyframes mpCopyTick {
+  0%   { opacity: 0; transform: translateY(.125em) scale(.82); }
+  6%   { opacity: 1; transform: translateY(.125em) scale(1.19); }
+  13%  { opacity: 1; transform: translateY(.125em) scale(1); }
+  82%  { opacity: 1; transform: translateY(.125em) scale(1); }
+  100% { opacity: 0; transform: translateY(.125em) scale(.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-gal-root .mp-gal-toolbar, .mp-gal-root .mp-gal-dialog,
+  .mp-gal-root .mp-gal-choice, .mp-skin-prophet .mpp-body {
+    transition-duration: 0ms !important;
+  }
+  .mp-ico-tick { animation: none; opacity: 1; }
+}
+`;
   /* ───────────────────────────────────────────────────────── */

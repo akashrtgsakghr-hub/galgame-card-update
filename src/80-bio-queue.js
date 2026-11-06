@@ -146,7 +146,7 @@
       return;
     }
     const rows = activeNames.map(function(name) {
-      return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:6px;cursor:pointer;">' +
+      return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:6px;cursor:pointer;">' +
         '<input type="checkbox" class="moon-aud-char-check" data-name="' + name.replace(/"/g, '&quot;') + '" checked>' +
         '<span style="font-size:12px;color:#e2e8f0;">' + name + '</span></label>';
     }).join('');
@@ -157,23 +157,23 @@
       '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;"><input type="radio" name="moon-aud-duo-mode" value="solo" checked> 单人独白（只有该角色，聚焦内心戏）</label>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;"><input type="radio" name="moon-aud-duo-mode" value="player"> 与玩家对戏</label>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;"><input type="radio" name="moon-aud-duo-mode" value="npc"> 与 AI 配角对戏</label></div>' +
-      '<div id="moon-aud-duo-config" style="display:none;padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;">' +
-      '<div id="moon-aud-duo-player-box" style="display:none;margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">玩家角色设定（可选，会作为对戏参考）</div><textarea id="moon-aud-player-desc" placeholder="例如：性格温和，不擅长表达感情。" style="width:100%;box-sizing:border-box;min-height:50px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;font-family:inherit;"></textarea></div>' +
-      '<div id="moon-aud-duo-npc-box" style="display:none;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">配角名（例如：中原中也）</div><input id="moon-aud-npc-name" type="text" placeholder="角色名" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;"></div></div>' +
+      '<div id="moon-aud-duo-config" style="display:none;padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;">' +
+      '<div id="moon-aud-duo-player-box" style="display:none;margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">玩家角色设定（可选，会作为对戏参考）</div><textarea id="moon-aud-player-desc" placeholder="例如：性格温和，不擅长表达感情。" style="width:100%;box-sizing:border-box;min-height:50px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;font-family:inherit;"></textarea></div>' +
+      '<div id="moon-aud-duo-npc-box" style="display:none;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">配角名（例如：中原中也）</div><input id="moon-aud-npc-name" type="text" placeholder="角色名" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;"></div></div>' +
       '<div style="max-height:28dvh;overflow-y:auto;padding-right:4px;margin-bottom:10px;">' + rows + '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">试镜场景来源：</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;"><input type="radio" name="moon-aud-scene-mode" value="ai" checked> AI 自选</label>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;"><input type="radio" name="moon-aud-scene-mode" value="recent"> 从最近对话抽</label>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;"><input type="radio" name="moon-aud-scene-mode" value="custom"> 自定义场景</label></div>' +
-      '<div id="moon-aud-custom-box" style="display:none;padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;">' +
-      '<div style="margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">时间</div><input id="moon-aud-scene-time" type="text" placeholder="例如：雨夜" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;"></div>' +
-      '<div style="margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-aud-scene-place" type="text" placeholder="例如：天台" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;"></div>' +
-      '<div style="margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">同时在场（可选）</div><input id="moon-aud-scene-chars" type="text" placeholder="例如：中原中也" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;"></div>' +
-      '<div><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">情境描述</div><textarea id="moon-aud-scene-desc" placeholder="例如：玩家递给他一把伞" style="width:100%;box-sizing:border-box;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;font-family:inherit;"></textarea></div></div>' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">小抄字数：<span id="moon-aud-bio-label" style="color:#7dd3fc;font-weight:700;">260</span> 字</div>' +
+      '<div id="moon-aud-custom-box" style="display:none;padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;">' +
+      '<div style="margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">时间</div><input id="moon-aud-scene-time" type="text" placeholder="例如：雨夜" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;"></div>' +
+      '<div style="margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-aud-scene-place" type="text" placeholder="例如：天台" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;"></div>' +
+      '<div style="margin-bottom:6px;"><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">同时在场（可选）</div><input id="moon-aud-scene-chars" type="text" placeholder="例如：中原中也" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;"></div>' +
+      '<div><div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">情境描述</div><textarea id="moon-aud-scene-desc" placeholder="例如：玩家递给他一把伞" style="width:100%;box-sizing:border-box;min-height:60px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;font-family:inherit;"></textarea></div></div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">小抄字数：<span id="moon-aud-bio-label" style="color:#7dd3fc;font-weight:600;">260</span> 字</div>' +
       '<input id="moon-aud-bio-slider" type="range" min="150" max="400" step="10" value="260" style="width:100%;margin-bottom:8px;">' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">试镜片段字数：<span id="moon-aud-seg-label" style="color:#7dd3fc;font-weight:700;">200</span> 字</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">试镜片段字数：<span id="moon-aud-seg-label" style="color:#7dd3fc;font-weight:600;">200</span> 字</div>' +
       '<input id="moon-aud-seg-slider" type="range" min="100" max="400" step="10" value="200" style="width:100%;margin-bottom:10px;">' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;"><input type="checkbox" id="moon-aud-use-chat" checked> 生成小抄时参考最近对话</label>';
     showModalDialogCancelable('🎬 角色试镜', html,
@@ -255,21 +255,21 @@
     const safeName = String(name).replace(/</g, '&lt;');
     const safeAud = String(draft.audition || '').replace(/</g, '&lt;');
     const html = '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">角色 ' + current + ' / ' + total + '</div>' +
-      '<div style="font-size:13px;font-weight:700;color:#f8fafc;margin-bottom:10px;">🎬 ' + safeName + '</div>' +
+      '<div style="font-size:13px;font-weight:600;color:#f8fafc;margin-bottom:10px;">🎬 ' + safeName + '</div>' +
       '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">试镜片段</div>' +
-      '<div style="padding:12px 14px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:10px;font-size:12px;line-height:1.8;color:#e2e8f0;white-space:pre-wrap;max-height:38dvh;overflow-y:auto;margin-bottom:12px;">' + safeAud + '</div>' +
+      '<div style="padding:12px 14px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:10px;font-size:12px;line-height:1.8;color:#e2e8f0;white-space:pre-wrap;max-height:38dvh;overflow-y:auto;margin-bottom:12px;">' + safeAud + '</div>' +
       '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">导演意见</div>' +
-      '<textarea id="moon-aud-feedback" placeholder="例如：他应该更冷淡一些。" style="width:100%;box-sizing:border-box;min-height:70px;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;resize:vertical;font-family:inherit;margin-bottom:10px;"></textarea>' +
+      '<textarea id="moon-aud-feedback" placeholder="例如：他应该更冷淡一些。" style="width:100%;box-sizing:border-box;min-height:70px;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;resize:vertical;font-family:inherit;margin-bottom:10px;"></textarea>' +
       '<div style="display:flex;gap:6px;">' +
-      '<button id="moon-aud-retry" style="flex:1.2;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🎭 让 AI 重演</button>' +
-      '<button id="moon-aud-ok" style="flex:1;padding:9px;border-radius:8px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 确认</button>' +
-      '<button id="moon-aud-skip" style="flex:0.7;padding:9px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">⏭️ 跳过</button></div>';
+      '<button id="moon-aud-retry" style="flex:1.2;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🎭 让 AI 重演</button>' +
+      '<button id="moon-aud-ok" style="flex:1;padding:9px;border-radius:8px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✅ 确认</button>' +
+      '<button id="moon-aud-skip" style="flex:0.7;padding:9px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">⏭️ 跳过</button></div>';
     let mask = mainDoc.getElementById('moon-modal-mask');
     if (mask) { try { mask.remove(); } catch (e) {} }
     mask = mainDoc.createElement('div'); mask.id = 'moon-modal-mask';
     mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483650;background:radial-gradient(circle at center,rgba(15,23,42,0.92) 0%,rgba(2,6,12,0.96) 100%);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
-    mask.innerHTML = '<div style="background:linear-gradient(175deg,#141826 0%,#0a0c16 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:18px;padding:22px;width:100%;max-width:520px;max-height:88dvh;overflow-y:auto;font-family:sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.8);box-sizing:border-box;">' +
-      '<div style="font-size:15px;font-weight:700;color:#fde047;text-align:center;margin-bottom:16px;border-bottom:1px solid rgba(148,163,184,0.18);padding-bottom:12px;">🎬 试镜中</div>' +
+    mask.innerHTML = '<div style="background:linear-gradient(175deg,#141826 0%,#22262f 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:18px;padding:22px;width:100%;max-width:520px;max-height:88dvh;overflow-y:auto;font-family:sans-serif;box-shadow:0 20px 60px rgba(18, 20, 26, 0.8);box-sizing:border-box;">' +
+      '<div style="font-size:15px;font-weight:600;color:#fde047;text-align:center;margin-bottom:16px;border-bottom:1px solid rgba(148,163,184,0.18);padding-bottom:12px;">🎬 试镜中</div>' +
       '<div style="font-size:11.5px;line-height:1.8;color:#cbd5e1;margin-bottom:6px;">' + html + '</div></div>';
     mainDoc.body.appendChild(mask);
     function closeMask() { try { mask.remove(); } catch (e) {} }
@@ -322,7 +322,7 @@
     const saved = saveBioLibrary(lib);
     const skippedNames = Object.keys(state.confirmed).filter(function(n) { return state.confirmed[n].skipped; });
     let bodyHtml = '';
-    if (saved && savedCount > 0) bodyHtml = '<div style="color:#6ee7b7;font-size:12.5px;font-weight:700;margin-bottom:6px;">✔ 已为 ' + savedCount + ' 个角色建立试镜记录</div><div style="font-size:11px;color:#94a3b8;line-height:1.7;">数据已保存到本地。换设备前请自行导出备份。</div>';
+    if (saved && savedCount > 0) bodyHtml = '<div style="color:#6ee7b7;font-size:12.5px;font-weight:600;margin-bottom:6px;">✔ 已为 ' + savedCount + ' 个角色建立试镜记录</div><div style="font-size:11px;color:#94a3b8;line-height:1.7;">数据已保存到本地。换设备前请自行导出备份。</div>';
     else bodyHtml = '<div style="color:#94a3b8;font-size:12px;">本次没有角色被确认。</div>';
     if (skippedNames.length) bodyHtml += '<div style="margin-top:10px;padding:8px 10px;background:rgba(148,163,184,0.08);border-radius:8px;font-size:10.5px;color:#94a3b8;">跳过：' + skippedNames.join('、') + '</div>';
     showModalDialog('🎬 试镜完成', bodyHtml, null, { confirmText: '关闭' });

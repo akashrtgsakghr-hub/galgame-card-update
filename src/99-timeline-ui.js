@@ -1,3 +1,18 @@
+  /* 复制对勾：入场带 380/18 的 1.19 微弹，2.5s 后自行淡出并复位按钮。
+     两个复制分支（clipboard / execCommand 兜底）共用这一处，别再各写一遍。
+     放在文件开头：下面的对话框回调会引用它，避免 const 定义晚于调用。 */
+  const TIMELINE_COPY_LABEL = '<span class="mp-ico" aria-hidden="true">📋</span> 复制';
+  const TIMELINE_COPY_HIDE_MS = 2500;
+  function showTimelineCopied(btn) {
+    if (!btn) return;
+    btn.innerHTML = '<span class="mp-ico-tick" aria-hidden="true">✔</span> 已复制';
+    if (btn._mpCopyTimer) clearTimeout(btn._mpCopyTimer);
+    btn._mpCopyTimer = setTimeout(function() {
+      btn._mpCopyTimer = 0;
+      btn.innerHTML = TIMELINE_COPY_LABEL;
+    }, TIMELINE_COPY_HIDE_MS);
+  }
+
   async function runTimelineConvert(panel, cand) {
     const entry = (cand && cand.entry) || {};
     const rawContent = String(entry.content || '').slice(0, 8000);
@@ -37,7 +52,7 @@
     function buildHtml(text) {
       const preview = String(text).replace(/</g, '&lt;');
       return '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">整理好了。点下面「💾 存进脚本」就存进去，<b style="color:#6ee7b7;">不用新建世界书</b>。</div>' +
-        '<div id="moon-tl-result-box" style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.2);border-radius:9px;font-family:monospace;font-size:11px;color:#a5f3fc;white-space:pre-wrap;max-height:280px;overflow-y:auto;">' + preview + '</div>' +
+        '<div id="moon-tl-result-box" style="padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.2);border-radius:9px;font-family:monospace;font-size:11px;color:#a5f3fc;white-space:pre-wrap;max-height:280px;overflow-y:auto;">' + preview + '</div>' +
         '<div style="margin-top:12px;padding:10px 12px;background:rgba(110,231,183,0.08);border:1px solid rgba(110,231,183,0.3);border-radius:9px;font-size:11px;color:#6ee7b7;line-height:1.7;">来源：' + origTitle + '。存进去之后可以随时在「📋 时间线清单」里改时间、改类型、删除。</div>';
     }
     showModalDialog('🕰️ AI 转写结果', buildHtml(initialText), function() {
@@ -51,25 +66,25 @@
       onOpen: function(mask) {
         const confirmBtn = mask.querySelector('#moon-modal-confirm'); if (!confirmBtn) return;
         const copyBtn = mainDoc.createElement('button');
-        copyBtn.textContent = '📋 复制';
-        copyBtn.style.cssText = 'flex:1;padding:10px;border-radius:9px;border:1px solid rgba(56,189,248,0.5);background:#0c2540;color:#7dd3fc;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;';
+        copyBtn.innerHTML = TIMELINE_COPY_LABEL;
+        copyBtn.style.cssText = 'flex:1;padding:10px;border-radius:9px;border:1px solid rgba(56,189,248,0.5);background:#0c2540;color:#7dd3fc;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;';
         copyBtn.addEventListener('click', function() {
           try {
-            if (mainWin.navigator && mainWin.navigator.clipboard) mainWin.navigator.clipboard.writeText(currentText).then(function() { copyBtn.textContent = '✔ 已复制'; setTimeout(function() { copyBtn.textContent = '📋 复制'; }, 1500); });
+            if (mainWin.navigator && mainWin.navigator.clipboard) mainWin.navigator.clipboard.writeText(currentText).then(function() { showTimelineCopied(copyBtn); });
             else fallbackCopyTimeline(currentText, copyBtn);
           } catch (e) { fallbackCopyTimeline(currentText, copyBtn); }
         });
         const slimBtn = mainDoc.createElement('button');
-        slimBtn.textContent = '📉 精简';
-        slimBtn.style.cssText = 'flex:1;padding:10px;border-radius:9px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;';
+        slimBtn.innerHTML = '<span class="mp-ico" aria-hidden="true">📉</span> 精简';
+        slimBtn.style.cssText = 'flex:1;padding:10px;border-radius:9px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;';
         slimBtn.addEventListener('click', async function() {
           if (slimBtn.disabled) return;
-          slimBtn.disabled = true; slimBtn.textContent = '⏳';
+          slimBtn.disabled = true; slimBtn.innerHTML = '<span class="mp-ico" aria-hidden="true">⏳</span> 处理中';
           try {
             const out = await simplifyTimelineTokens(currentText);
             if (out) { currentText = out; const box = mask.querySelector('#moon-tl-result-box'); if (box) box.textContent = out; toast('已精简', 'success'); }
           } catch (e) { toast('精简失败', 'warning'); }
-          finally { slimBtn.disabled = false; slimBtn.textContent = '📉 精简'; }
+          finally { slimBtn.disabled = false; slimBtn.innerHTML = '<span class="mp-ico" aria-hidden="true">📉</span> 精简'; }
         });
         confirmBtn.parentNode.insertBefore(slimBtn, confirmBtn);
         confirmBtn.parentNode.insertBefore(copyBtn, confirmBtn);
@@ -87,13 +102,13 @@
     try {
       const ta = mainDoc.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
       mainDoc.body.appendChild(ta); ta.select(); mainDoc.execCommand('copy'); ta.remove();
-      if (btn) { btn.textContent = '✔ 已复制'; setTimeout(function() { btn.textContent = '📋 复制'; }, 1500); }
+      showTimelineCopied(btn);
     } catch (e) { toast('复制失败', 'warning'); }
   }
 
   function openManualTimelineInputDialog(panel) {
     const html = '<div style="font-size:11px;color:#cbd5e1;margin-bottom:10px;">把任意格式的时间线写进来，AI 转成系统标准格式。</div>' +
-      '<textarea id="moon-manual-tl" placeholder="例如：&#10;2016年4月5日 敦被赶出孤儿院&#10;2016年4月8日 敦加入侦探社（重大）" style="width:100%;box-sizing:border-box;min-height:160px;padding:10px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;line-height:1.7;resize:vertical;font-family:inherit;"></textarea>';
+      '<textarea id="moon-manual-tl" placeholder="例如：&#10;2016年4月5日 敦被赶出孤儿院&#10;2016年4月8日 敦加入侦探社（重大）" style="width:100%;box-sizing:border-box;min-height:160px;padding:10px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;line-height:1.7;resize:vertical;font-family:inherit;"></textarea>';
     showModalDialogCancelable('✍️ 手动输入时间线', html,
       async function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
@@ -132,9 +147,9 @@
       const typeBadge = e.isMajor
         ? '<span style="font-size:9.5px;padding:1px 6px;border-radius:6px;background:rgba(244,114,208,0.18);color:#f9a8d4;border:1px solid rgba(244,114,208,0.45);">重大</span>'
         : '<span style="font-size:9.5px;padding:1px 6px;border-radius:6px;background:rgba(56,189,248,0.15);color:#7dd3fc;border:1px solid rgba(56,189,248,0.35);">日常</span>';
-      return '<div style="padding:9px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.16);border-radius:9px;margin-bottom:6px;">' +
+      return '<div style="padding:9px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.16);border-radius:9px;margin-bottom:6px;">' +
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
-          typeBadge + '<span style="font-size:12px;font-weight:700;color:#e2e8f0;flex:1;min-width:0;overflow-wrap:anywhere;">' + escapeFeatureHtml(e.name) + '</span>' +
+          typeBadge + '<span style="font-size:12px;font-weight:600;color:#e2e8f0;flex:1;min-width:0;overflow-wrap:anywhere;">' + escapeFeatureHtml(e.name) + '</span>' +
           '<span style="font-size:9.5px;color:' + stateColor + ';">' + stateTxt + '</span>' +
         '</div>' +
         '<div style="font-size:10.5px;color:#94a3b8;margin-top:4px;">' + escapeFeatureHtml(e.time || '未写时间') + '</div>' +
@@ -151,9 +166,9 @@
         (nowStr ? '<br>当前世界时间：<b style="color:#e2e8f0;">' + escapeFeatureHtml(nowStr) + '</b>' : '') +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">' +
-        '<button id="moon-tl-add" style="flex:1;min-width:88px;padding:7px;border-radius:8px;border:1px solid rgba(110,231,183,0.4);background:#0d2b22;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">➕ 手动加一条</button>' +
-        '<button id="moon-tl-cls" style="flex:1;min-width:88px;padding:7px;border-radius:8px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">🤖 判日常/重大</button>' +
-        '<button id="moon-tl-clear" style="flex:0.8;min-width:66px;padding:7px;border-radius:8px;border:1px solid rgba(248,113,113,0.4);background:#2a1010;color:#fca5a5;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">🗑 清空</button>' +
+        '<button id="moon-tl-add" style="flex:1;min-width:88px;padding:7px;border-radius:8px;border:1px solid rgba(110,231,183,0.4);background:#0d2b22;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">➕ 手动加一条</button>' +
+        '<button id="moon-tl-cls" style="flex:1;min-width:88px;padding:7px;border-radius:8px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">🤖 判日常/重大</button>' +
+        '<button id="moon-tl-clear" style="flex:0.8;min-width:66px;padding:7px;border-radius:8px;border:1px solid rgba(248,113,113,0.4);background:#2a1010;color:#fca5a5;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">🗑 清空</button>' +
       '</div>' +
       '<div style="max-height:44dvh;overflow-y:auto;padding-right:4px;">' + rows + '</div>' +
       '<div style="margin-top:10px;font-size:10.5px;color:#64748b;line-height:1.6;">到点的事会自动变成「当前事件」并规定占几回合，AI 只负责把这件事写好看。</div>';
@@ -197,7 +212,7 @@
 
   function showTimelineTimeEditor(panel, item) {
     const html = '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">时间写法要能被认出来，例如：2024年5月3日 · 星期五 · 19:30</div>' +
-      '<input id="moon-tl-time-input" type="text" value="' + escapeFeatureHtml(item.time || '') + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;font-family:inherit;">';
+      '<input id="moon-tl-time-input" type="text" value="' + escapeFeatureHtml(item.time || '') + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;font-family:inherit;">';
     showModalDialogCancelable('⏱ 改时间', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
@@ -216,9 +231,9 @@
     const nowStr = (function() { try { const d = readMvuLatest(); return (d && d.stat_data && d.stat_data.世界 && d.stat_data.世界.时间) || ''; } catch (e) { return ''; } })();
     const html =
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">时间（例：2024年5月3日 · 星期五 · 19:30）</div>' +
-      '<input id="moon-tl-add-time" type="text" value="' + escapeFeatureHtml(nowStr) + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
+      '<input id="moon-tl-add-time" type="text" value="' + escapeFeatureHtml(nowStr) + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
       '<div style="font-size:11px;color:#94a3b8;margin:10px 0 4px;">会发生什么（一句话）</div>' +
-      '<input id="moon-tl-add-name" type="text" placeholder="例：文化祭当天，她鼓起勇气约你" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
+      '<input id="moon-tl-add-name" type="text" placeholder="例：文化祭当天，她鼓起勇气约你" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
       '<label style="display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11.5px;color:#cbd5e1;cursor:pointer;">' +
         '<input type="checkbox" id="moon-tl-add-major"> 这是重大事件（不加就是日常）</label>';
     showModalDialogCancelable('➕ 加一条时间线', html,
@@ -267,7 +282,7 @@
   function openTimelineGeneratorDialog(panel) {
     const html = '<div style="font-size:11px;color:#cbd5e1;margin-bottom:10px;">让 AI 根据角色卡 / 大纲，生成 [Timeline] 世界书条目。</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">剧情大纲（可选）</div>' +
-      '<textarea id="moon-tl-input" placeholder="例如：主角与角色共度四季、经历表白、吵架、和好……" style="width:100%;box-sizing:border-box;min-height:100px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;"></textarea>' +
+      '<textarea id="moon-tl-input" placeholder="例如：主角与角色共度四季、经历表白、吵架、和好……" style="width:100%;box-sizing:border-box;min-height:100px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:11.5px;line-height:1.6;resize:vertical;"></textarea>' +
       '<div style="margin-top:10px;font-size:11px;color:#94a3b8;margin-bottom:6px;">选择模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;">' +
       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-tl-model" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>' +
@@ -358,7 +373,7 @@ function openTimelineTagDialog(panel, onDone) {
     '填一个标签名（例如 <code style="color:#7dd3fc;">[WorldTimeline]</code> 或 <code style="color:#7dd3fc;">世界时间线</code>）。<br>' +
     '启用后扫描会优先匹配以此标签开头的条目。<br>' +
     '<span style="color:#fbbf24;">留空即关闭。</span></div>' +
-    '<input id="moon-tltag-input" type="text" value="' + String(cur || '').replace(/"/g, '&quot;') + '" placeholder="例如：[WorldTimeline]" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12.5px;">';
+    '<input id="moon-tltag-input" type="text" value="' + String(cur || '').replace(/"/g, '&quot;') + '" placeholder="例如：[WorldTimeline]" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12.5px;">';
   showModalDialogCancelable('📜 自定义时间线标签', html,
     function() {
       const mask = mainDoc.getElementById('moon-modal-mask');
@@ -378,7 +393,7 @@ function openTimelineKeywordDialog(panel, onDone) {
   const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:8px;">' +
     '扫描时会用这些关键词匹配世界书条目的<strong>标题和正文</strong>。<br>' +
     '<span style="color:#fbbf24;">默认：时间线 / 时间剧情 / 主线剧情</span></div>' +
-    '<textarea id="moon-tlkw-input" placeholder="每行一个关键词" style="width:100%;box-sizing:border-box;min-height:120px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;line-height:1.7;resize:vertical;font-family:inherit;">' + cur.join('\n') + '</textarea>' +
+    '<textarea id="moon-tlkw-input" placeholder="每行一个关键词" style="width:100%;box-sizing:border-box;min-height:120px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;line-height:1.7;resize:vertical;font-family:inherit;">' + cur.join('\n') + '</textarea>' +
     '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">每行一个，空行自动忽略。</div>';
   showModalDialogCancelable('🔍 时间线关键词', html,
     function() {

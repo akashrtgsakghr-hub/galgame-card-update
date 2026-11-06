@@ -79,7 +79,7 @@
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
       '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
-      '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:700;">' + lcdEscape(imp) + '</span>' +
+      '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:600;">' + lcdEscape(imp) + '</span>' +
       '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +
       '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + lcdEscape(ch.情绪 || '😐') + '</span></div>' +
       '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' + lcdEscape(ch.心声 || '暂无心声记录') + '</div></div></div>';
@@ -384,7 +384,7 @@
     const html = '<div style="font-size:11px;color:#f9a8d4;line-height:1.7;margin-bottom:8px;">' +
       '可保存多套<b>画师串、正面提示词、负面提示词</b>。启用后，显影 CG 时会自动将画师串与正面/负面提示词拼接到画面描述中。</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
-        '<button type="button" id="moon-cg-preset-new" style="flex:1;padding:8px;font-weight:700;cursor:pointer;">＋ 新建画风/画师串预设</button>' +
+        '<button type="button" id="moon-cg-preset-new" style="flex:1;padding:8px;font-weight:600;cursor:pointer;">＋ 新建画风/画师串预设</button>' +
       '</div>' +
       '<div style="max-height:46vh;overflow-y:auto;">' + (rows || '<div style="padding:16px;text-align:center;color:#94a3b8;">暂无预设，点击上方按钮新建一套吧！</div>') + '</div>';
 
@@ -850,7 +850,7 @@
       '</div>' +
       '<div style="padding:10px;background:#140b18;border:1px solid #f472d0;border-radius:4px;margin-bottom:8px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;">' +
-          '<select id="moon-image-provider" style="flex:1;padding:7px;background:#09060d;color:#ffb8eb;border:1px solid #f472d0;font-weight:700;">' + editOptions + '</select>' +
+          '<select id="moon-image-provider" style="flex:1;padding:7px;background:#09060d;color:#ffb8eb;border:1px solid #f472d0;font-weight:600;">' + editOptions + '</select>' +
           '<button type="button" id="moon-image-save-channel" style="padding:7px 10px;font-size:11px;cursor:pointer;">💾 单独保存此渠道</button>' +
         '</div>' +
         '<label style="display:block;margin-top:6px;font-size:11px;">接口地址 (API URL)<input id="moon-image-url" value="' + escapeFeatureHtml(initCh.apiUrl) + '" placeholder="留空则使用该渠道官方默认地址" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
@@ -1220,7 +1220,7 @@
       const gradient = ctx.createLinearGradient(0, 0, 1200, 675); gradient.addColorStop(0, '#211020'); gradient.addColorStop(1, '#09070d'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1200, 675);
       ctx.strokeStyle = '#c94b9f'; ctx.lineWidth = 4; ctx.strokeRect(18, 18, 1164, 639);
       ctx.fillStyle = '#f9a8d4'; ctx.font = 'bold 30px sans-serif'; ctx.fillText('MOON POCKET · 周目结算', 60, 80);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 42px sans-serif'; ctx.fillText(String(record.title || '终局').slice(0, 24), 60, 155);
+      ctx.fillStyle = '#f4f1ea'; ctx.font = 'bold 42px sans-serif'; ctx.fillText(String(record.title || '终局').slice(0, 24), 60, 155);
       ctx.fillStyle = '#e9c3dc'; ctx.font = '22px sans-serif'; ctx.fillText(String(record.endingType || 'TE') + ' · ' + String(record.charName || '角色').slice(0, 30), 60, 205);
       ctx.fillStyle = '#e5d8e2'; ctx.font = '20px sans-serif';
       const lines = String(record.summary || '').match(/.{1,38}/g) || [];

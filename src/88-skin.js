@@ -27,7 +27,7 @@
   @font-face {
     font-family: "ZSFT-fc";
     src: url("https://fontsapi.zeoseven.com/fc/bold.woff2") format("woff2");
-    font-style: normal; font-weight: 700; font-display: swap;
+    font-style: normal; font-weight: 600; font-display: swap;
   }
   @font-face {
     font-family: "ZSFT-fc";
@@ -88,7 +88,7 @@
 
     --t-shadow-plate: var(--t-border);
     --t-shadow-plate-border: var(--t-border);
-    --t-ambient-shadow: rgba(0, 0, 0, 0.55);
+    --t-ambient-shadow: rgba(18, 20, 26, 0.55);
 
     --t-watermark-color: rgba(195, 205, 220, 0.08);
     --t-watermark-blend: normal;
@@ -111,7 +111,7 @@
 
       --t-shadow-plate: var(--t-border);
       --t-shadow-plate-border: var(--t-border);
-      --t-ambient-shadow: rgba(0, 0, 0, 0.55);
+      --t-ambient-shadow: rgba(18, 20, 26, 0.55);
 
       --t-watermark-color: rgba(195, 205, 220, 0.08);
       --t-watermark-blend: normal;
@@ -210,8 +210,8 @@
     overflow: hidden;
     user-select: none;
     -webkit-font-smoothing: antialiased;
-    -webkit-mask-image: linear-gradient(to right, #000 75%, rgba(0,0,0,0.3) 95%, transparent 100%);
-            mask-image: linear-gradient(to right, #000 75%, rgba(0,0,0,0.3) 95%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #17181d 75%, rgba(18, 20, 26, 0.3) 95%, transparent 100%);
+            mask-image: linear-gradient(to right, #17181d 75%, rgba(18, 20, 26, 0.3) 95%, transparent 100%);
     transition: color 0.3s ease;
   }
   .tkt-watermark > span {
@@ -330,7 +330,7 @@
     background: var(--t-invert-bg);
     color: var(--t-invert-ink);
     padding: 2px 7px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 8.5px;
     letter-spacing: 1.4px;
     border-radius: 1px;
@@ -338,7 +338,7 @@
   }
   .tkt-curator-mark {
     font-size: 8.5px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1.2px;
     color: var(--t-dim);
     text-transform: uppercase;
@@ -346,7 +346,7 @@
   }
   .tkt-header-seq {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 10px;
     letter-spacing: 1.2px;
     opacity: 0.9;
@@ -378,7 +378,7 @@
   .tkt-title-text {
     font-family: "Byron Mark II", "Special Elite", "Courier Prime", "Courier New", monospace;
     font-size: 40px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 2.5px;
     line-height: 0.95;
     text-transform: uppercase;
@@ -401,7 +401,7 @@
     letter-spacing: 1.4px;
     color: var(--t-dim);
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
     opacity: 0.75;
     flex-shrink: 0;
@@ -477,7 +477,7 @@
     color: var(--t-dim);
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
     line-height: 1;
     margin-bottom: 4px;
@@ -486,7 +486,7 @@
     text-overflow: ellipsis;
   }
   .tkt-meta-txt {
-    font-weight: 700;
+    font-weight: 600;
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
@@ -509,7 +509,7 @@
     color: var(--t-dim);
     padding-top: 6px;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
     position: relative;
     z-index: 1;
@@ -558,7 +558,7 @@
   .tkt-stub-tag {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 7.5px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 2px;
     color: var(--t-dim);
     text-transform: uppercase;
@@ -571,7 +571,7 @@
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 15px;
     letter-spacing: 2.2px;
-    font-weight: 700;
+    font-weight: 600;
     text-align: center;
     position: relative;
     line-height: 1;
@@ -594,7 +594,7 @@
     color: var(--t-ink);
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 9px;
-    font-weight: 700;
+    font-weight: 600;
     padding: 4px 6px;
     cursor: pointer;
     letter-spacing: 1px;
@@ -639,7 +639,7 @@
     padding: 3px 8px;
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 9px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1.6px;
     text-transform: uppercase;
     text-align: center;
@@ -699,7 +699,7 @@
     font-size: 8.5px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 600;
     border-bottom: 1.2px solid var(--t-border);
     padding-bottom: 5px;
     margin-bottom: 12px;
@@ -738,7 +738,7 @@
   }
   .tkt-cell-val {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -771,14 +771,14 @@
   .tkt-entity-name {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 17px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.8px;
     text-transform: uppercase;
   }
   .tkt-pill {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 7.5px;
-    font-weight: 700;
+    font-weight: 600;
     padding: 2px 5px;
     border: 1px solid var(--t-border);
     text-transform: uppercase;
@@ -799,7 +799,7 @@
     display: flex;
     justify-content: space-between;
     font-size: 8.5px;
-    font-weight: 700;
+    font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
     letter-spacing: 0.6px;
   }
@@ -876,7 +876,7 @@
     text-align: left;
     line-height: 1.5;
   }
-  .tkt-warn strong { color: var(--t-ink); font-weight: 700; }
+  .tkt-warn strong { color: var(--t-ink); font-weight: 600; }
 
   .tkt-barcode-wrap {
     display: flex;
@@ -1102,7 +1102,7 @@
   --ink-secondary: #8c8f96; --ink-poem-origin: #dfc8a7;
   --ink-poem-trans: #ab9b86; --ink-seal-bg: rgba(184,51,42,0.2);
   --ink-seal-border: #b8332a; --ink-seal-text: #e06a61;
-  --divider: rgba(255,255,255,0.1); --shadow-color: rgba(0,0,0,0.45);
+  --divider: rgba(255,255,255,0.1); --shadow-color: rgba(18, 20, 26, 0.45);
 }.mp-skin-book[data-theme="day"]{
   --paper-bg: #f5f0e6; --paper-inner-bg: #f9f6ef;
   --frame-border: rgba(90,70,50,0.15); --ink-primary: #1f1b18;
@@ -1157,7 +1157,7 @@
   position: absolute; left: 18px; bottom: 16px; z-index: 3;
   display: flex; flex-direction: column; gap: 4px;
 }.mp-skin-book .char-latin-name{
-  font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 700;
+  font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 600;
   letter-spacing: 0.3em; text-transform: uppercase;
   color: var(--ink-secondary); line-height: 1;
 }.mp-skin-book .signature-row{ display: flex; align-items: baseline; gap: 8px; }.mp-skin-book .char-handwritten-signature{
@@ -1228,14 +1228,17 @@
  * ══════════════════════════════════════════════════════════════════ */
 
 .mp-skin-prophet {
-  /* 纸与墨 */
+  /* 纸与墨：护眼版。全部避开 #17181d / #f4f1ea / 纯黑描边——
+     墨色抬到暖褐黑（约 12:1 对比，仍远高于 4.5:1），
+     规则线用更浅的墨褐而不是黑框，阴影改暖墨半透明。 */
   --mpp-paper: #f5eddb;
   --mpp-paper-2: #e6dcc8;
-  --mpp-ink: #17130e;
-  --mpp-ink-2: #3f3629;
-  --mpp-ink-3: #5e5443;
-  --mpp-hair: rgba(23, 19, 14, .58);
-  --mpp-rule: #17130e;
+  --mpp-ink: #251f18;
+  --mpp-ink-2: #463d30;
+  --mpp-ink-3: #635849;
+  --mpp-hair: rgba(58, 50, 37, .38);
+  --mpp-rule: #3a3225;
+  --mpp-shadow: rgba(60, 50, 34, .28);
   /* 唯一强调色：印泥红 */
   --mpp-seal: #8d2f21;
   /* 社徽金，只给徽记 */
@@ -1246,6 +1249,7 @@
   color: var(--mpp-ink);
   font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", Georgia, serif;
   line-height: 1.55;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1278,6 +1282,8 @@
   width: 24px;
   height: 16px;
   color: var(--mpp-ink);
+  /* 图标基线：与中文标题的视觉中心对齐 */
+  transform: translateY(.125em);
 }
 .mp-skin-prophet .mpp-fold-emblem svg { display: block; width: 100%; height: 100%; }
 .mp-skin-prophet .mpp-fold-hint {
@@ -1292,14 +1298,37 @@
 .mp-skin-prophet.is-open .mpp-fold-closed { display: none; }
 
 /* ── 报纸本体 ─────────────────────────────────────────────── */
-.mp-skin-prophet .mpp-body[hidden] { display: none; }
+/* ── 折叠：Grid 0fr → 1fr ─────────────────────────────────────
+   不用 max-height 魔法数，也不用 display:none 硬切。作者样式覆盖 UA 的
+   [hidden]{display:none}，hidden 属性只当状态位；收起态另加
+   visibility:hidden（延迟到动画结束）让读屏器跳过被折起来的内容。
+   缓动用 --mp-ease-drag：1200/80 过阻尼弹簧，零回弹。 */
+.mp-skin-prophet .mpp-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--mp-dur-drag, 300ms) var(--mp-ease-drag, cubic-bezier(.16, 1, .3, 1)),
+    visibility 0s linear var(--mp-dur-drag, 300ms);
+}
+.mp-skin-prophet .mpp-body:not([hidden]) {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.mp-skin-prophet .mpp-body-clip {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 0;
+  transition: padding-top var(--mp-dur-drag, 300ms) var(--mp-ease-drag, cubic-bezier(.16, 1, .3, 1));
+}
+.mp-skin-prophet .mpp-body:not([hidden]) .mpp-body-clip { padding-top: 6px; }
 
 .mp-skin-prophet .mpp-paper {
   position: relative;
   display: flow-root;
   box-sizing: border-box;
   width: 100%;
-  margin-top: 6px;
   padding: clamp(9px, 1.5cqw, 14px) clamp(10px, 1.8cqw, 16px) 7px;
   background-color: var(--mpp-paper);
   background-image:
@@ -1309,9 +1338,9 @@
     radial-gradient(90% 110% at 100% 0%, rgba(120, 100, 66, .1), transparent 58%);
   border: 1px solid #b3a486;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, .6) inset,
-    0 6px 16px -6px rgba(0, 0, 0, .45);
-  animation: mpp-unfold .34s cubic-bezier(.16, 1, .3, 1) both;
+    0 1px 0 rgba(255, 252, 244, .45) inset,
+    0 6px 16px -6px var(--mpp-shadow);
+  animation: mpp-unfold var(--mp-dur-drag, 300ms) var(--mp-ease-drag, cubic-bezier(.16, 1, .3, 1)) both;
 }
 
 /* 印刷网点：极淡一层，让纸面不是纯色块 */
@@ -1329,9 +1358,9 @@
 .mp-skin-prophet .mpp-paper > * { position: relative; z-index: 1; }
 
 @keyframes mpp-unfold {
-  /* 不从 0 起：展开放大动画不该有一帧整张白纸看不见 */
-  from { opacity: .7; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  /* 只淡入：高度交给 Grid 0fr→1fr，不再叠加 translateY 免得抖动 */
+  from { opacity: .72; }
+  to { opacity: 1; }
 }
 
 /* ── 报头顶栏：刊号 / 地点 / 价格 ─────────────────────────── */
@@ -1350,7 +1379,7 @@
 .mp-skin-prophet .mpp-topline em {
   font-style: normal;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--mpp-ink);
 }
 
@@ -1365,7 +1394,7 @@
   justify-content: space-between;
   gap: .04em;
   font-family: Georgia, "Times New Roman", "Songti SC", serif;
-  font-weight: 700;
+  font-weight: 600;
   /* 字号按容器宽算：报头要撑满整行，中缝才不会空出一大块 */
   font-size: clamp(21px, 10.2cqw, 92px);
   line-height: .84;
@@ -1435,7 +1464,7 @@
 .mp-skin-prophet .mpp-adbar span.is-invert {
   background: var(--mpp-ink);
   color: var(--mpp-paper);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* ── 三栏骨架：左窄栏 / 正文 / 右窄栏 ─────────────────────── */
@@ -1494,7 +1523,7 @@
 /* 栏目标签：全版唯一的红色 */
 .mp-skin-prophet .mpp-kicker {
   display: inline-block;
-  font: 700 7.5px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 600 7.5px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   letter-spacing: .22em;
   text-indent: .22em;
   padding: 1px 5px;
@@ -1555,7 +1584,7 @@
   margin-top: 6px;
   columns: 2;
   column-gap: 11px;
-  column-rule: 1px solid rgba(23, 19, 14, .26);
+  column-rule: 1px solid rgba(58, 50, 37, .26);
   font-size: 11px;
   line-height: 1.62;
   text-align: justify;
@@ -1565,6 +1594,7 @@
 .mp-skin-prophet .mpp-copy p {
   margin: 0 0 .5em;
   break-inside: avoid-column;
+  text-wrap: pretty;
 }
 .mp-skin-prophet .mpp-copy p:last-child { margin-bottom: 0; }
 /* 首段首字下沉（中文用「据」字起） */
@@ -1602,8 +1632,8 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle at center, rgba(0, 0, 0, .5) .6px, transparent .7px),
-                    radial-gradient(circle at center, rgba(255, 255, 255, .14) .5px, transparent .6px);
+  background-image: radial-gradient(circle at center, rgba(50, 42, 30, .42) .6px, transparent .7px),
+                    radial-gradient(circle at center, rgba(255, 252, 244, .14) .5px, transparent .6px);
   background-size: 2.6px 2.6px, 2.6px 2.6px;
   background-position: 0 0, 1.3px 1.3px;
   opacity: .42;
@@ -1652,7 +1682,7 @@
   position: absolute;
   right: 5px;
   bottom: 3px;
-  font: 700 7px/1 Georgia, serif;
+  font: 600 7px/1 Georgia, serif;
   font-style: normal;
   letter-spacing: .1em;
   color: rgba(243, 236, 223, .82);
@@ -1695,7 +1725,7 @@
   min-width: 0;
 }
 .mp-skin-prophet .mpp-box-head {
-  font: 700 7px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 600 7px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   letter-spacing: .2em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--mpp-hair);
@@ -1705,7 +1735,7 @@
   justify-content: space-between;
   gap: 4px;
 }
-.mp-skin-prophet .mpp-box-head b { font-weight: 700; color: var(--mpp-seal); }
+.mp-skin-prophet .mpp-box-head b { font-weight: 600; color: var(--mpp-seal); }
 .mp-skin-prophet .mpp-box-body {
   font-size: 8px;
   line-height: 1.55;
@@ -1714,10 +1744,10 @@
 }
 .mp-skin-prophet .mpp-box-body strong {
   color: var(--mpp-ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 .mp-skin-prophet .mpp-lotto {
-  font: 700 15px/1.1 Georgia, "Times New Roman", serif;
+  font: 600 15px/1.1 Georgia, "Times New Roman", serif;
   letter-spacing: .16em;
   font-variant-numeric: tabular-nums;
   color: var(--mpp-ink);
@@ -1731,7 +1761,7 @@
   padding: 4px 0 5px;
 }
 .mp-skin-prophet .mpp-dossier-head {
-  font: 700 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 600 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   letter-spacing: .24em;
   text-transform: uppercase;
   margin-bottom: 3px;
@@ -1760,7 +1790,7 @@
 }
 .mp-skin-prophet .mpp-stat span {
   display: block;
-  font: 700 13px/1.3 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 600 13px/1.3 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   color: var(--mpp-ink);
   overflow-wrap: anywhere;
 }
@@ -1781,7 +1811,7 @@
   overflow-wrap: anywhere;
 }
 .mp-skin-prophet .mpp-quote-title {
-  font: 700 7px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 600 7px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   font-style: normal;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -1803,7 +1833,7 @@
   border-top: 1px solid var(--mpp-rule);
 }
 .mp-skin-prophet .mpp-briefs-head {
-  font: 700 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font: 600 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   letter-spacing: .24em;
   text-transform: uppercase;
   margin-bottom: 2px;
@@ -1826,7 +1856,7 @@
 }
 .mp-skin-prophet .mpp-brief:last-child { border-bottom: 0; }
 .mp-skin-prophet .mpp-brief span:first-child {
-  font-weight: 700;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1893,6 +1923,8 @@
 @media (prefers-reduced-motion: reduce) {
   .mp-skin-prophet .mpp-paper { animation: none; }
   .mp-skin-prophet .mpp-photo.is-animated { animation: none; }
+  .mp-skin-prophet .mpp-body,
+  .mp-skin-prophet .mpp-body-clip { transition: none; }
 }`;
 
   const SKIN_TICKET_TPL = `<div class="tkt-container" data-theme="auto">
@@ -2009,7 +2041,7 @@
       <!-- 撕下副券 (Stub) -->
       <div class="tkt-stub">
         <div class="tkt-stub-tag">PASS STUB</div>
-        <div class="tkt-stub-serial tkt-hook-stub-id">#000</div>
+        <div class="tkt-stub-serial tkt-hook-stub-id">№000</div>
 
         <div class="tkt-stub-actions">
           <button type="button" class="tkt-btn tkt-hook-btn-mode" title="切换夜间/日间展厅模式">
@@ -2659,7 +2691,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
             '<span class="tkt-pill ' + (present ? 'active' : '') + '">' + (present ? 'ON SITE' : 'OFF SITE') + '</span>' +
             '<span class="tkt-pill" style="border-color:var(--t-dim);color:var(--t-dim);">' + imp + '</span>' +
           '</div>' +
-          '<div style="font-size:16px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1));">' + emoji + '</div>' +
+          '<div style="font-size:16px;filter:drop-shadow(0 1px 2px rgba(18, 20, 26, 0.1));">' + emoji + '</div>' +
         '</div>' +
         '<div class="tkt-gauges">' +
           '<div class="tkt-gauge"><div class="tkt-gauge-lbl"><span>EMO / 情感</span><span class="gauge-code">' + emo + '</span></div><div class="tkt-gauge-track"><div class="tkt-gauge-bar" style="width:' + emoBar + '%;"></div></div></div>' +
@@ -3064,9 +3096,9 @@ var worldData = (rawVars && rawVars['世界']) || {};
     if (!names.length) {
       scope.classList.remove('is-open');
       scope.innerHTML = '<div class="mpp-wrap">' + fold +
-        '<div class="mpp-body" hidden><article class="mpp-paper"><div class="mpp-empty">' +
+        '<div class="mpp-body" hidden><div class="mpp-body-clip"><article class="mpp-paper"><div class="mpp-empty">' +
         '本报今日暂无人物档案<br><small>先点「开局适配」建档，头版才有内容可登</small>' +
-        '</div></article></div></div>';
+        '</div></article></div></div></div>';
       return false;
     }
 
@@ -3090,7 +3122,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
     scope.classList.toggle('is-open', !!keepOpen);
     scope.innerHTML = '<div class="mpp-wrap">' + fold +
-      '<div class="mpp-body"' + (keepOpen ? '' : ' hidden') + '>' + article + '</div></div>';
+      '<div class="mpp-body"' + (keepOpen ? '' : ' hidden') + '>' +
+      '<div class="mpp-body-clip">' + article + '</div></div></div>';
     return true;
   }
 
@@ -3392,7 +3425,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       (active ? 'rgba(244,114,208,0.55)' : 'rgba(148,163,184,0.18)') +
       ';background:' + (active ? '#2a1040' : '#0f172a') +
       ';color:' + (active ? '#ffc4e9' : '#94a3b8') +
-      ';font:700 10.5px inherit;font-family:inherit;cursor:pointer;white-space:nowrap;';
+      ';font:600 10.5px inherit;font-family:inherit;cursor:pointer;white-space:nowrap;';
   }
 
   function renderSkinPickerHtml() {

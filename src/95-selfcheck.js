@@ -86,7 +86,7 @@
       '<div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px dashed #74355f;">' +
         '<button type="button" id="moon-tut-prev" style="padding:8px 10px;font-size:11px;cursor:pointer;">◀ PREV</button>' +
         '<button type="button" id="moon-tut-api" style="padding:8px 10px;font-size:11px;cursor:pointer;">🔑 配置API</button>' +
-        '<button type="button" id="moon-tut-next" style="flex:1;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;">NEXT ▶</button>' +
+        '<button type="button" id="moon-tut-next" style="flex:1;padding:8px 10px;font-size:11px;font-weight:600;cursor:pointer;">NEXT ▶</button>' +
       '</div>';
 
     showModalDialog('📖 MOON POCKET · 掌机说明书（新手引导）', html, null, {
@@ -104,7 +104,7 @@
           const st = steps[curStep];
           pillsEl.innerHTML = steps.map(function(item, i) {
             const on = i === curStep;
-            return '<button type="button" class="moon-tut-step-btn" data-idx="' + i + '" style="padding:5px 2px;border:1px solid ' + (on ? '#f472d0' : '#643052') + ';background:' + (on ? '#37102f' : '#140b16') + ';color:' + (on ? '#ffe1f5' : '#bc8eaf') + ';font:700 10px monospace;cursor:pointer;">P0' + (i + 1) + '</button>';
+            return '<button type="button" class="moon-tut-step-btn" data-idx="' + i + '" style="padding:5px 2px;border:1px solid ' + (on ? '#f472d0' : '#643052') + ';background:' + (on ? '#37102f' : '#140b16') + ';color:' + (on ? '#ffe1f5' : '#bc8eaf') + ';font:600 10px monospace;cursor:pointer;">P0' + (i + 1) + '</button>';
           }).join('');
           pillsEl.querySelectorAll('.moon-tut-step-btn').forEach(function(b) {
             b.addEventListener('click', function() { renderStep(Number(b.getAttribute('data-idx')) || 0); });
@@ -163,7 +163,7 @@
     const hasRoster = Object.keys(_panelChars).some(function(n) { return !isCharSkeleton(_panelChars[n]); });
     const firstRunTip = hasRoster ? '' :
       '<div class="mp-card" style="border-color:rgba(244,114,208,0.45);background:rgba(244,114,208,0.07);">' +
-      '<div style="font-size:12px;font-weight:800;color:#ff8cdb;margin-bottom:6px;">🎮 第一次玩？照着做两步就好</div>' +
+      '<div style="font-size:12px;font-weight:600;color:#ff8cdb;margin-bottom:6px;">🎮 第一次玩？照着做两步就好</div>' +
       '<div style="font-size:11px;color:#e2e8f0;line-height:1.85;">' +
       '<b>第 1 步</b>　点下面的按钮 → AI 把聊天记录读一遍，自动建好角色档案。<br>' +
       '<b>第 2 步</b>　建好就关掉面板，正常聊天。她会自己涨好感。</div>' +
@@ -261,8 +261,8 @@
       '</details><div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
       '<span style="width:7px;height:7px;border-radius:50%;background:' + (fateActive ? '#f43f5e' : '#34d399') + ';"></span>' +
       '<span>' + (fateActive ? '🌑 锚定生效中' : '🌓 月相流转中 · 命运未定') + '</span></div></div>' +
-      (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:700;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
-      (enabledUserBio ? '<div class="mp-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.06);"><div style="font-size:11px;color:#f9a8d4;font-weight:700;">👤 已启用玩家小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">玩家：' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + ' · 覆盖 Persona 面板</div></div>' : '') +
+      (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:600;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
+      (enabledUserBio ? '<div class="mp-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.06);"><div style="font-size:11px;color:#f9a8d4;font-weight:600;">👤 已启用玩家小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">玩家：' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + ' · 覆盖 Persona 面板</div></div>' : '') +
       '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '"><div class="mp-menu-label">MOON POCKET · 主菜单（点哪进哪）</div><div class="mp-menu-grid">' +
       '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩点这里：建角色档案 · 重摇骰子 · 搬存档</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>认错主角就在这改 · 让 AI 演得像本人 · 结局相册</small></span><i>›</i></button>' +
@@ -570,7 +570,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     } catch (e) { warn('回忆档案尚未初始化'); }
     const verdict = _nFail ? ('✖ 有 ' + _nFail + ' 项不正常 —— 请把下面整段截图发帖')
       : (_nWarn ? ('⚠ 能用，但有 ' + _nWarn + ' 项要注意') : '✔ 一切正常，可以放心玩');
-    const verdictHtml = '<div style="padding:9px 11px;border-radius:9px;margin-bottom:10px;font-size:12px;font-weight:800;line-height:1.6;background:' +
+    const verdictHtml = '<div style="padding:9px 11px;border-radius:9px;margin-bottom:10px;font-size:12px;font-weight:600;line-height:1.6;background:' +
       (_nFail ? 'rgba(248,113,113,0.14);border:1px solid rgba(248,113,113,0.45);color:#fca5a5;' :
        _nWarn ? 'rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.4);color:#fde68a;' :
                 'rgba(110,231,183,0.12);border:1px solid rgba(110,231,183,0.4);color:#6ee7b7;') + '">' + verdict +
@@ -832,7 +832,7 @@ const stateKey = getChatStateKey();
       lines.push('<div style="color:#94a3b8;">你的全局设置' + (r.presetName ? '（' + String(r.presetName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#fbbf24;">' + _fmtK(r.preset) + '</span></div>');
       lines.push('<div style="color:#94a3b8;">其他设定: <span style="color:#fda4af;">' + _fmtK(r.worldbook) + '</span></div>');
       lines.push('<div style="border-top:1px dashed rgba(148,163,184,0.25);margin:6px 0;"></div>');
-      lines.push('<div style="color:#fde047;font-weight:700;">加起来: <span style="color:#fde047;">' + _fmtK(r.grand) + '</span></div>');
+      lines.push('<div style="color:#fde047;font-weight:600;">加起来: <span style="color:#fde047;">' + _fmtK(r.grand) + '</span></div>');
       lines.push('</div>');
       box.innerHTML = lines.join('');
     } catch (e) { box.innerHTML = '<span style="color:#f87171">✖ 算不出来：' + String(e && e.message || e).replace(/</g, '&lt;') + '</span>'; }
@@ -869,22 +869,22 @@ const stateKey = getChatStateKey();
       const ch = chars[n];
       const imp = String(ch.重要度 || '主要');
       const present = ch.在场 !== false;
-      return '<div class="moon-roster-row" data-name="' + escapeFeatureHtml(n) + '" data-idx="' + i + '" style="padding:10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:8px;">' +
+      return '<div class="moon-roster-row" data-name="' + escapeFeatureHtml(n) + '" data-idx="' + i + '" style="padding:10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:8px;">' +
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
         '<b style="font-size:12px;color:#f8fafc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeFeatureHtml(n) + '</b>' +
         '<span style="font-size:10px;color:#94a3b8;white-space:nowrap;">E' + (Number(ch.好感度) || 0) + ' P' + (Number(ch.肉体值) || 0) + ' R' + (Number(ch.阶段值) || 0) + ' I' + (Number(ch.嫉妒值) || 0) + '</span></div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
-        '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#0a0c16;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
-        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button></div>' +
-        '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="她心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#0a0c16;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
+        '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#22262f;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
+        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button></div>' +
+        '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="她心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
         '</div>';
     }).join('');
     const html = '<div style="padding:9px 11px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.3);border-radius:9px;font-size:10.8px;line-height:1.7;color:#bae6fd;margin-bottom:10px;">' +
       '<b>「主要」= 你真正想攻略的人</b>（AI 会把感情戏都写给她）<br>「次要」= 会出现、能聊几句的配角　「NPC」= 只露个脸的路人<br>改完点下面的「保存」就生效，<b>不用重开存档</b>。<br>时间卡住、内心话不动，这一页也能顺手改掉。' +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
-      '<div style="flex:1.6;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">世界时间</div><input id="moon-roster-world-time" value="' + escapeFeatureHtml(world.时间 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
-      '<div style="flex:1;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-roster-world-place" value="' + escapeFeatureHtml(world.地点 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"></div></div>' +
+      '<div style="flex:1.6;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">世界时间</div><input id="moon-roster-world-time" value="' + escapeFeatureHtml(world.时间 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
+      '<div style="flex:1;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-roster-world-place" value="' + escapeFeatureHtml(world.地点 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div></div>' +
       '<div style="max-height:46dvh;overflow-y:auto;padding-right:3px;">' + rows + '</div>';
     showModalDialog('👥 角色定位 · 顺便修时间和内心话', html, function() {
       const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
@@ -939,19 +939,19 @@ const stateKey = getChatStateKey();
     const charNames = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
     if (!charNames.length) { showModalDialog('🎲 数值重Roll', '<div>没有角色可供重Roll。</div>', null, { confirmText: '关闭' }); return; }
     const html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">给谁重摇？</div>' +
-      '<select id="moon-reroll-char" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' + charNames.map(function(n) { return '<option value="' + escapeFeatureHtml(n) + '">' + escapeFeatureHtml(n) + '</option>'; }).join('') + '</select>' +
-      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#05070e;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「🎲 重Roll」开始</div>' +
+      '<select id="moon-reroll-char" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;">' + charNames.map(function(n) { return '<option value="' + escapeFeatureHtml(n) + '">' + escapeFeatureHtml(n) + '</option>'; }).join('') + '</select>' +
+      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#171a22;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「🎲 重Roll」开始</div>' +
       '<div id="moon-reroll-manual" style="display:none;margin-top:10px;padding:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:8px;font-size:11px;color:#fde68a;">' +
         '<div style="margin-bottom:6px;">这一轮没找到 AI 的判定 → 你自己定一个：</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
-        '<select id="moon-reroll-dir" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="正向">正向</option><option value="负向">负向</option></select>' +
-        '<select id="moon-reroll-dim" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="E">好感 E</option><option value="P">肉体 P</option><option value="I">嫉妒 I</option></select>' +
-        '<input id="moon-reroll-base" type="number" step="0.5" min="0" max="10" style="width:74px;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#05070e;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
+        '<select id="moon-reroll-dir" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="正向">正向</option><option value="负向">负向</option></select>' +
+        '<select id="moon-reroll-dim" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="E">好感 E</option><option value="P">肉体 P</option><option value="I">嫉妒 I</option></select>' +
+        '<input id="moon-reroll-base" type="number" step="0.5" min="0" max="10" style="width:74px;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
         '<div style="margin-top:6px;color:#a16207;line-height:1.6;">这只用于这次重摇，不会改掉剧情里已经发生的事。</div>' +
       '</div>' +
       '<div style="margin-top:12px;display:flex;gap:8px;">' +
-      '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🎲 重Roll</button>' +
-      '<button id="moon-reroll-confirm" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(16,185,129,0.5);background:#052e20;color:#6ee7b7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;" disabled>确认覆盖</button></div>' +
+      '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 重Roll</button>' +
+      '<button id="moon-reroll-confirm" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(16,185,129,0.5);background:#052e20;color:#6ee7b7;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" disabled>确认覆盖</button></div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">每点一次就重摇一次，可以一直摇到满意，再点「确认覆盖」。</div>';
     let pendingResult = null; const mode = getCurrentMode();
     function eventRangeOf(ch) {
@@ -1095,8 +1095,8 @@ const stateKey = getChatStateKey();
 
     const html = '<div style="padding:10px 12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:9px;color:#fca5a5;font-size:11.5px;line-height:1.7;margin-bottom:12px;">' +
       '<b>🛑 遇到问题先做两步：</b><br>① 先看下面有没有你的问题　② 没有的话点 <b>⚙ 系统检修 → 🔭 系统自检</b>，把结果截图发帖。<br>' +
-      '<span style="color:#fde047;font-weight:700;">💡 不需要装 MVU，所有数据都存在这台掌机里。</span></div>' +
-      '<input id="moon-faq-search" placeholder="打个词搜一搜，比如「时间」「认错」" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:10px;">' +
+      '<span style="color:#fde047;font-weight:600;">💡 不需要装 MVU，所有数据都存在这台掌机里。</span></div>' +
+      '<input id="moon-faq-search" placeholder="打个词搜一搜，比如「时间」「认错」" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:10px;">' +
       '<div id="moon-faq-list" style="display:flex;flex-direction:column;gap:6px;"></div>';
     showModalDialog('❓ 常见问题', html, null, {
       confirmText: '关闭',
@@ -1108,8 +1108,8 @@ const stateKey = getChatStateKey();
           if (!items.length) { list.innerHTML = '<div style="color:#f87171;font-size:11px;">没找到，换个词试试。</div>'; return; }
           list.innerHTML = items.map(function(item, idx) {
             return '<div style="border:1px solid rgba(148,163,184,0.14);border-radius:9px;overflow:hidden;">' +
-              '<button class="moon-faq-q" data-idx="' + idx + '" style="width:100%;text-align:left;padding:8px 10px;background:#0f172a;color:#e2e8f0;border:none;cursor:pointer;font-size:11.5px;font-weight:700;font-family:inherit;">' + item.q + '</button>' +
-              '<div class="moon-faq-a" data-idx="' + idx + '" style="display:none;padding:8px 10px;background:#05070e;color:#94a3b8;font-size:11px;line-height:1.65;">' + item.a + '</div></div>';
+              '<button class="moon-faq-q" data-idx="' + idx + '" style="width:100%;text-align:left;padding:8px 10px;background:#0f172a;color:#e2e8f0;border:none;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;">' + item.q + '</button>' +
+              '<div class="moon-faq-a" data-idx="' + idx + '" style="display:none;padding:8px 10px;background:#171a22;color:#94a3b8;font-size:11px;line-height:1.65;">' + item.a + '</div></div>';
           }).join('');
           list.querySelectorAll('.moon-faq-q').forEach(function(btn) { btn.addEventListener('click', function() { const idx = btn.getAttribute('data-idx'); const a = list.querySelector('.moon-faq-a[data-idx="' + idx + '"]'); if (a) a.style.display = a.style.display === 'none' ? 'block' : 'none'; }); });
         }

@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.2';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.2 预言家日报·道具版复刻】按电影原版报纸重排头版\n1. 📰 对照 MinaLima 为电影做的真实报纸道具重做：报头改为 DAILY ⚡ PROPHET 一行横排，中间夹带翼盾徽，中文刊名退为副标。\n2. 🗞 补上报头下的分类广告带（含一格黑底反白悬赏）、左右两条竖排窄栏、阶梯式左对齐头条、正文两栏与栏间竖线。\n3. 🖼 照片改成灰阶霍格沃茨远景加半调网点，会极缓慢地明暗起伏；没有立绘时不再出现假人像。\n4. 🌦 新增魔法天气框与金加隆开奖框，头条右侧加「号外」印泥章，全版只用这一个红色。\n5. ✍️ 文案按预言家日报腔调重写十一档：官方口吻、具体细节、不表态的收尾；负面阶段栏目自动转红。\n6. 📱 窄屏自动收单栏并藏起竖栏，系统「减少动态效果」下关闭全部动效。测试增至 414 条（新增 9 条版式用例）。";
+  const MOON_FORMULA_VERSION = '4.7.3';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.3 护眼配色 · UI 细节规范】十条布局规则全量落地\n1. 🫧 全站不再用纯黑、纯白和黑色描边；背景改成 9/11/13/15% 四层微明度递进，层级靠 1-3% 的明度差和发丝线区分。\n2. 🔍 输入框聚焦不再描边，换成「内亮环 + 外深环 + 内凹加深」的双环阴影，暗色界面字重从 700 统一降到 600。\n3. 📐 图标下移 0.125em 对齐中文基线，数字统一等宽不抖，正文开启 pretty 换行。\n4. 📖 折叠动画改用 Grid 0fr→1fr，不再用 max-height 魔法数；保留 hidden 语义并屏蔽读屏器，展开态不会被重画合上。\n5. 🌀 弹簧参数按物理解析解生成曲线：1200/80 是过阻尼零回弹（滑动、折叠、工具栏），380/18 是约 19% 微弹（选项点选、复制对勾）。\n6. ✅ 复制成功的对勾改成 2.5 秒自行淡出，两个复制分支合并成一个函数，连点也不会提前复位。\n7. 📰 预言家日报的纸与墨换成暖近白和暖墨褐，规则线不再是黑框，阴影改暖墨；电影道具的版式结构一点没动。\n8. 🛡 新增护眼归一化模块并接入皮肤生成器；外部皮肤 JSON 若把违禁色值带回来，生成时直接报错而不是混进产物。\n9. ♿ 「减少动态效果」下关掉全部弹簧与对勾动画；四层背景、聚焦双环、字重降级都有对应回归用例。\n10. 🧪 新增 18 条规范用例，全套 15 个测试套件共 432 条全部通过。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';

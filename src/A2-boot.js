@@ -78,14 +78,14 @@
     mask.className = 'mp-pixel-modal';
     mask.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:2147483648;background:radial-gradient(circle at center,rgba(15,23,42,0.96) 0%,rgba(2,6,12,0.98) 100%);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
     mask.innerHTML = '' +
-      '<div style="background:linear-gradient(175deg,#141826 0%,#0a0c16 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:20px;padding:26px;width:100%;max-width:480px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;box-shadow:0 25px 70px rgba(0,0,0,0.85),0 0 40px rgba(99,102,241,0.25);box-sizing:border-box;">' +
-      '<div style="font-size:15px;font-weight:700;color:#fde047;text-align:center;margin-bottom:6px;letter-spacing:1px;">🌙 ' + SYSTEM_UI_NAME + '</div>' +
+      '<div style="background:linear-gradient(175deg,#141826 0%,#22262f 100%);color:#f1f5f9;border:1px solid rgba(148,163,184,0.25);border-radius:20px;padding:26px;width:100%;max-width:480px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;box-shadow:0 25px 70px rgba(18, 20, 26, 0.85),0 0 40px rgba(99,102,241,0.25);box-sizing:border-box;">' +
+      '<div style="font-size:15px;font-weight:600;color:#fde047;text-align:center;margin-bottom:6px;letter-spacing:1px;">🌙 ' + SYSTEM_UI_NAME + '</div>' +
       '<div style="font-size:10.5px;color:#94a3b8;text-align:center;margin-bottom:20px;">首次启动 · 系统初始化检测</div>' +
       '<div style="text-align:center;margin-bottom:20px;">' +
       '<div style="display:inline-block;width:64px;height:64px;border-radius:50%;border:3px solid rgba(148,163,184,0.2);border-top-color:#7dd3fc;border-right-color:#c084fc;animation:moon-spin 1.2s linear infinite;"></div>' +
       '</div>' +
-      '<div style="font-size:11px;color:#cbd5e1;line-height:1.8;margin-bottom:16px;padding:12px 14px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:10px;">' +
-      '<div style="color:#7dd3fc;font-weight:700;margin-bottom:6px;">📢 首次导入公告</div>' +
+      '<div style="font-size:11px;color:#cbd5e1;line-height:1.8;margin-bottom:16px;padding:12px 14px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:10px;">' +
+      '<div style="color:#7dd3fc;font-weight:600;margin-bottom:6px;">📢 首次导入公告</div>' +
       '欢迎使用本系统。检测到这是首次导入，系统将自动执行以下初始化检测：<br>' +
       '① 系统自检 · ② 公式测试 · ③ 环境冲突扫描<br>' +
       '每一步完成后会弹出结果窗口，请依次查看并关闭，全部完成后系统会自动刷新一次。' +

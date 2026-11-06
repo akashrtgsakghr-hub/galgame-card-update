@@ -16,8 +16,8 @@
     const html = '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
       '将当前对话的完整角色档案打包。切换到新对话窗口后，脚本会自动询问是否导入。' +
       '<br><span style="color:#fbbf24;">导入后会完整覆盖新对话的变量数据。</span></div>' +
-      '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;font-size:11px;color:#cbd5e1;line-height:1.7;">' +
-      '<div style="color:#7dd3fc;font-weight:700;margin-bottom:4px;">将打包以下内容（完整无删减）：</div>' +
+      '<div style="padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;font-size:11px;color:#cbd5e1;line-height:1.7;">' +
+      '<div style="color:#7dd3fc;font-weight:600;margin-bottom:4px;">将打包以下内容（完整无删减）：</div>' +
       '<div>· 世界时间 / 地点 / 内部流逝天数 / 上次推进时间</div>' +
       '<div>· ' + validNames.length + ' 个角色的完整档案：</div>' +
       '<div style="padding-left:14px;color:#94a3b8;">好感度 · 肉体值 · 阶段值 · 嫉妒值 · 情绪 · 心声 · 在场 · 重要度</div>' +
@@ -52,7 +52,7 @@
     showModalDialog('✅ 打包完成',
       '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
       '已打包 <b style="color:#7dd3fc;">' + charCount + '</b> 个角色的完整档案。</div>' +
-      '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(110,231,183,0.25);border-radius:9px;font-size:11px;color:#6ee7b7;line-height:1.7;">' +
+      '<div style="padding:10px 12px;background:#171a22;border:1px solid rgba(110,231,183,0.25);border-radius:9px;font-size:11px;color:#6ee7b7;line-height:1.7;">' +
       '🎯 接下来：切换到你想继续演的那个新对话窗口，脚本会自动弹窗询问是否导入。</div>',
       null, { confirmText: '知道了' });
   }
@@ -79,14 +79,14 @@
     const validNames = Object.keys(pending.stat_data.角色 || {}).filter(function(n) { return !isCharSkeleton(pending.stat_data.角色[n]); });
     const html = '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
       '检测到一份来自其他对话的打包数据：</div>' +
-      '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
+      '<div style="padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
       '<div>来源卡：<b style="color:#7dd3fc;">' + String(pending.fromCardName || '(未知)') + '</b></div>' +
       '<div>打包时间：' + new Date(pending.packedAt || 0).toLocaleString() + '</div>' +
       '<div>角色数：' + validNames.length + '</div>' +
       '<div>世界时间：' + String(pending.stat_data.世界 && pending.stat_data.世界.时间 || '(未知)') + '</div>' +
       '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">包含角色：</div>' +
-      '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;font-size:11px;color:#cbd5e1;line-height:1.7;max-height:100px;overflow-y:auto;">' + validNames.join('、') + '</div>' +
+      '<div style="padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;font-size:11px;color:#cbd5e1;line-height:1.7;max-height:100px;overflow-y:auto;">' + validNames.join('、') + '</div>' +
       '<div style="margin-top:10px;font-size:11px;color:#fbbf24;line-height:1.7;">⚠️ 导入后会完整覆盖当前对话的变量数据（含所有 _quota / _eventState / _debuff / _timelineCompleted 等字段）。</div>';
     showModalDialogCancelable('📦 检测到迁移数据', html,
       function() {
@@ -240,17 +240,17 @@
     actions.forEach(function(a, idx) {
       const colorMap = { keep: '#6ee7b7', rename: '#7dd3fc', delete: '#fca5a5', merge: '#c084fc' };
       const labelMap = { keep: '保留', rename: '重命名', delete: '删除', merge: '合并' };
-      html += '<label style="display:block;padding:8px 10px;background:#05070e;border-radius:9px;margin-bottom:6px;border:1px solid rgba(148,163,184,0.15);cursor:pointer;">'
+      html += '<label style="display:block;padding:8px 10px;background:#171a22;border-radius:9px;margin-bottom:6px;border:1px solid rgba(148,163,184,0.15);cursor:pointer;">'
         + '<input type="checkbox" class="moon-aimig-check" data-idx="' + idx + '" checked style="margin-right:8px;">'
-        + '<span style="padding:1px 7px;border-radius:6px;background:' + (colorMap[a.type] || '#cbd5e1') + ';color:#05070e;font-size:10px;font-weight:700;margin-right:6px;">' + (labelMap[a.type] || a.type) + '</span>'
+        + '<span style="padding:1px 7px;border-radius:6px;background:' + (colorMap[a.type] || '#cbd5e1') + ';color:#171a22;font-size:10px;font-weight:600;margin-right:6px;">' + (labelMap[a.type] || a.type) + '</span>'
         + '<b style="color:#e2e8f0;">' + a.from + '</b>'
         + (a.to && a.to !== a.from ? ' → ' + a.to : '')
         + (a.reason ? '<div style="font-size:10.5px;color:#94a3b8;margin-top:4px;">💡 ' + a.reason + '</div>' : '')
         + '</label>';
     });
     html += '<div style="margin-top:10px;display:flex;gap:6px;">'
-      + '<button id="moon-aimig-all" style="flex:0.7;padding:10px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">全选/全不选</button>'
-      + '<button id="moon-aimig-apply" style="flex:1.4;padding:10px;border-radius:9px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 应用</button></div>';
+      + '<button id="moon-aimig-all" style="flex:0.7;padding:10px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">全选/全不选</button>'
+      + '<button id="moon-aimig-apply" style="flex:1.4;padding:10px;border-radius:9px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✅ 应用</button></div>';
     showModalDialog('🤖 AI 辅助迁移 · 确认方案', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
@@ -343,10 +343,10 @@
     else detectHtml = '<div style="padding:10px 12px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.35);border-radius:9px;color:#7dd3fc;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>ℹ️ 这个对话还没有角色档案</b><br>现在建一份就好。卡组模式：<b>' + (cardMode === 'multi' ? '多人卡（好几个角色）' : '单人卡（一个角色）') + '</b></div>';
     const html = detectHtml +
       '<div style="display:flex;flex-direction:column;gap:8px;">' +
-      '<button id="moon-adapt-adaptive" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(56,189,248,0.6);background:linear-gradient(135deg,#0c2540,#075985);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🌅 AI 智能建档　👈 点这个就行<div style="font-size:10.5px;font-weight:400;color:#a5f3fc;margin-top:4px;">AI 把聊天记录读一遍，自动建好角色档案。<br>第一次玩、或者老对话第一次装这个插件，都点它。</div></button>' +
-      '<button id="moon-adapt-migrate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(251,191,36,0.6);background:linear-gradient(135deg,#2a1a05,#78350f);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🔄 兼容迁移<div style="font-size:10.5px;font-weight:400;color:#fcd34d;margin-top:4px;">只有一种情况用它：你以前装过旧版本，旧数值搬不过来。</div></button>' +
-      '<button id="moon-adapt-aimig" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.6);background:linear-gradient(135deg,#2a1040,#4c1d95);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">🤖 AI 辅助迁移<div style="font-size:10.5px;font-weight:400;color:#e9d5ff;margin-top:4px;">角色表里堆了很多乱七八糟的条目，让 AI 判断哪个留、哪个删。</div></button>' +
-      '<button id="moon-adapt-pack" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(110,231,183,0.6);background:linear-gradient(135deg,#052e20,#064e3b);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;text-align:left;">📦 打包迁移到新对话<div style="font-size:10.5px;font-weight:400;color:#6ee7b7;margin-top:4px;">想把档案搬到另一个聊天窗口继续玩，就用它。</div></button>' +
+      '<button id="moon-adapt-adaptive" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(56,189,248,0.6);background:linear-gradient(135deg,#0c2540,#075985);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🌅 AI 智能建档　👈 点这个就行<div style="font-size:10.5px;font-weight:400;color:#a5f3fc;margin-top:4px;">AI 把聊天记录读一遍，自动建好角色档案。<br>第一次玩、或者老对话第一次装这个插件，都点它。</div></button>' +
+      '<button id="moon-adapt-migrate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(251,191,36,0.6);background:linear-gradient(135deg,#2a1a05,#78350f);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🔄 兼容迁移<div style="font-size:10.5px;font-weight:400;color:#fcd34d;margin-top:4px;">只有一种情况用它：你以前装过旧版本，旧数值搬不过来。</div></button>' +
+      '<button id="moon-adapt-aimig" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.6);background:linear-gradient(135deg,#2a1040,#4c1d95);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🤖 AI 辅助迁移<div style="font-size:10.5px;font-weight:400;color:#e9d5ff;margin-top:4px;">角色表里堆了很多乱七八糟的条目，让 AI 判断哪个留、哪个删。</div></button>' +
+      '<button id="moon-adapt-pack" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(110,231,183,0.6);background:linear-gradient(135deg,#052e20,#064e3b);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">📦 打包迁移到新对话<div style="font-size:10.5px;font-weight:400;color:#6ee7b7;margin-top:4px;">想把档案搬到另一个聊天窗口继续玩，就用它。</div></button>' +
       '</div>';
     showModalDialog('🚀 开局适配 · 点第一个就行', html, null, {
       confirmText: '关闭',

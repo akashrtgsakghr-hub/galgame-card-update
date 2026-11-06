@@ -34,24 +34,24 @@
     const taskTabs = ['conflict', 'mode', 'custom', 'opening', 'openingPass2', 'backfill', 'timeline'].map(function(k) {
       const label = DEFAULT_PROMPTS[k].label;
       const active = k === curTask;
-      return '<button class="moon-tpl-tab" data-task="' + k + '" style="padding:7px 12px;border-radius:8px;border:1px solid ' + (active ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (active ? '#0c2540' : '#0f172a') + ';color:' + (active ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">' + label + '</button>';
+      return '<button class="moon-tpl-tab" data-task="' + k + '" style="padding:7px 12px;border-radius:8px;border:1px solid ' + (active ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (active ? '#0c2540' : '#0f172a') + ';color:' + (active ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">' + label + '</button>';
     }).join('');
     const html = '<div style="font-size:11px;color:#94a3b8;line-height:1.7;margin-bottom:10px;">可用占位符：<br><code style="color:#7dd3fc;font-size:10px;">' + DEFAULT_PROMPTS.placeholders.replace(/\s+/g, ' ') + '</code></div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">' + taskTabs + '</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">' +
-      '<select id="moon-preset-select" style="flex:1;padding:7px 9px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11.5px;"><option value="">— 载入预设 —</option>' + presetNames.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('') + '</select>' +
+      '<select id="moon-preset-select" style="flex:1;padding:7px 9px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:11.5px;"><option value="">— 载入预设 —</option>' + presetNames.map(function(n) { return '<option value="' + n + '">' + n + '</option>'; }).join('') + '</select>' +
       '<button id="moon-preset-load" style="padding:7px 10px;border-radius:8px;border:1px solid rgba(56,189,248,0.35);background:#0c2540;color:#7dd3fc;font-size:11px;cursor:pointer;font-family:inherit;">载入</button>' +
       '<button id="moon-preset-del" style="padding:7px 10px;border-radius:8px;border:1px solid rgba(239,68,68,0.35);background:#2a0a10;color:#fca5a5;font-size:11px;cursor:pointer;font-family:inherit;">删除</button></div>' +
-      '<div style="margin-bottom:6px;font-size:11px;color:#e2e8f0;font-weight:700;">系统提示词</div>' +
-      '<textarea id="moon-tpl-sys" style="width:100%;box-sizing:border-box;min-height:110px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11px;line-height:1.6;font-family:monospace;resize:vertical;"></textarea>' +
-      '<div style="margin:10px 0 6px;font-size:11px;color:#e2e8f0;font-weight:700;">用户提示词</div>' +
-      '<textarea id="moon-tpl-user" style="width:100%;box-sizing:border-box;min-height:160px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11px;line-height:1.6;font-family:monospace;resize:vertical;"></textarea>' +
+      '<div style="margin-bottom:6px;font-size:11px;color:#e2e8f0;font-weight:600;">系统提示词</div>' +
+      '<textarea id="moon-tpl-sys" style="width:100%;box-sizing:border-box;min-height:110px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:11px;line-height:1.6;font-family:monospace;resize:vertical;"></textarea>' +
+      '<div style="margin:10px 0 6px;font-size:11px;color:#e2e8f0;font-weight:600;">用户提示词</div>' +
+      '<textarea id="moon-tpl-user" style="width:100%;box-sizing:border-box;min-height:160px;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:11px;line-height:1.6;font-family:monospace;resize:vertical;"></textarea>' +
       '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">' +
-      '<input id="moon-preset-name" placeholder="预设名字" style="flex:1;min-width:120px;padding:7px 9px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#05070e;color:#e2e8f0;font-size:11.5px;">' +
-      '<button id="moon-preset-save" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(16,185,129,0.4);background:#052e20;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">另存为预设</button></div>' +
+      '<input id="moon-preset-name" placeholder="预设名字" style="flex:1;min-width:120px;padding:7px 9px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:11.5px;">' +
+      '<button id="moon-preset-save" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(16,185,129,0.4);background:#052e20;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">另存为预设</button></div>' +
       '<div style="margin-top:12px;display:flex;gap:6px;">' +
-      '<button id="moon-tpl-save" style="flex:1;padding:9px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;">保存</button>' +
-      '<button id="moon-tpl-reset" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;">恢复默认</button></div>';
+      '<button id="moon-tpl-save" style="flex:1;padding:9px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">保存</button>' +
+      '<button id="moon-tpl-reset" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">恢复默认</button></div>';
     showModalDialog('🧩 提示词编辑', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
@@ -101,7 +101,7 @@
       '<div><div style="font-size:11.5px;color:#94a3b8;margin-bottom:6px;">选择模型</div>' +
       '<select id="moon-provider-select" style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(148,163,184,0.35);background:#0f172a;color:#e2e8f0;font-size:12px;">' +
       providers.map(function(p) { return '<option value="' + p.key + '">' + p.label + '</option>'; }).join('') + '</select></div>' +
-      '<button id="moon-ai-run" style="padding:11px;border-radius:10px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700;">🚀 开始执行</button></div>';
+      '<button id="moon-ai-run" style="padding:11px;border-radius:10px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;">🚀 开始执行</button></div>';
     showModalDialog('🤖 AI 深度检测', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
@@ -227,8 +227,8 @@ async function openScanTimelineDialog(panel) {
     showModalDialog('🔎 扫描时间线',
       '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.7;">未找到任何与时间线相关的条目。</div>' +
       '<div style="margin-top:8px;font-size:11px;color:#64748b;">可以调整下方标签或关键词后再扫描。</div>' +
-      '<div style="margin-top:14px;"><button id="moon-scan-tag-btn" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.4);background:#2a1040;color:#c084fc;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:700;">📜 设置自定义标签</button></div>' +
-      '<div style="margin-top:6px;"><button id="moon-scan-kw-btn" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:700;">🔍 设置关键词</button></div>',
+      '<div style="margin-top:14px;"><button id="moon-scan-tag-btn" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.4);background:#2a1040;color:#c084fc;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:600;">📜 设置自定义标签</button></div>' +
+      '<div style="margin-top:6px;"><button id="moon-scan-kw-btn" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:600;">🔍 设置关键词</button></div>',
       null, {
         confirmText: '关闭',
         onOpen: function(mask) {
@@ -250,12 +250,12 @@ async function openScanTimelineDialog(panel) {
       ? '<span style="font-size:9.5px;color:#6ee7b7;">● 启用</span>'
       : '<span style="font-size:9.5px;color:#f87171;">○ 禁用</span>';
     const preview = String(e.content).replace(/</g, '&lt;');
-    return '<div class="moon-tl-item" data-idx="' + idx + '" style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:6px;">' +
+    return '<div class="moon-tl-item" data-idx="' + idx + '" style="padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:6px;">' +
       '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">' +
       '<input type="checkbox" class="moon-tl-check" data-idx="' + idx + '" checked style="margin-top:2px;flex-shrink:0;">' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
-          '<span style="font-size:12px;font-weight:700;color:#e2e8f0;">' + String(e.title || '(无标题)').replace(/</g, '&lt;') + '</span>' +
+          '<span style="font-size:12px;font-weight:600;color:#e2e8f0;">' + String(e.title || '(无标题)').replace(/</g, '&lt;') + '</span>' +
           '<span style="font-size:9.5px;padding:1px 6px;border-radius:6px;background:rgba(56,189,248,0.15);color:#7dd3fc;">' + typeLabel + '</span>' +
           status +
         '</div>' +
@@ -269,9 +269,9 @@ async function openScanTimelineDialog(panel) {
       '共发现 <b style="color:#7dd3fc;">' + entries.length + '</b> 个疑似时间线条目（含禁用条目）。' +
     '</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">' +
-      '<button id="moon-tl-selectall" style="flex:1;min-width:70px;padding:6px;border-radius:7px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:700;">全选 / 全不选</button>' +
-      '<button id="moon-tl-settag" style="flex:1;min-width:70px;padding:6px;border-radius:7px;border:1px solid rgba(168,85,247,0.4);background:#2a1040;color:#c084fc;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:700;">📜 标签：' + (curTag ? String(curTag).replace(/</g,'&lt;') : '未设') + '</button>' +
-      '<button id="moon-tl-setkw" style="flex:1;min-width:70px;padding:6px;border-radius:7px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:700;">🔍 关键词 (' + curKw.length + ')</button>' +
+      '<button id="moon-tl-selectall" style="flex:1;min-width:70px;padding:6px;border-radius:7px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:600;">全选 / 全不选</button>' +
+      '<button id="moon-tl-settag" style="flex:1;min-width:70px;padding:6px;border-radius:7px;border:1px solid rgba(168,85,247,0.4);background:#2a1040;color:#c084fc;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:600;">📜 标签：' + (curTag ? String(curTag).replace(/</g,'&lt;') : '未设') + '</button>' +
+      '<button id="moon-tl-setkw" style="flex:1;min-width:70px;padding:6px;border-radius:7px;border:1px solid rgba(56,189,248,0.4);background:#0c2540;color:#7dd3fc;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:600;">🔍 关键词 (' + curKw.length + ')</button>' +
     '</div>' +
     '<div style="max-height:46dvh;overflow-y:auto;padding-right:4px;margin-bottom:10px;">' + rows + '</div>' +
     '<div style="font-size:10.5px;color:#64748b;line-height:1.6;">' +

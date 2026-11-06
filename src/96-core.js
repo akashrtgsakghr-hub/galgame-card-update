@@ -270,7 +270,7 @@
   }
 
   function coreRulePickStyle(on) {
-    return 'padding:5px 9px;border-radius:7px;border:1px solid ' + (on ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (on ? '#0c2540' : '#0f172a') + ';color:' + (on ? '#7dd3fc' : '#94a3b8') + ';font-size:10.5px;font-family:inherit;font-weight:700;cursor:pointer;';
+    return 'padding:5px 9px;border-radius:7px;border:1px solid ' + (on ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (on ? '#0c2540' : '#0f172a') + ';color:' + (on ? '#7dd3fc' : '#94a3b8') + ';font-size:10.5px;font-family:inherit;font-weight:600;cursor:pointer;';
   }
 
   function renderCoreRulePickerHtml() {
@@ -521,7 +521,7 @@
   }
 
   function glossaryPickStyle(on) {
-    return 'padding:5px 9px;border-radius:7px;border:1px solid ' + (on ? 'rgba(167,139,250,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (on ? '#241a3f' : '#0f172a') + ';color:' + (on ? '#c4b5fd' : '#94a3b8') + ';font-size:10.5px;font-family:inherit;font-weight:700;cursor:pointer;';
+    return 'padding:5px 9px;border-radius:7px;border:1px solid ' + (on ? 'rgba(167,139,250,0.5)' : 'rgba(148,163,184,0.2)') + ';background:' + (on ? '#241a3f' : '#0f172a') + ';color:' + (on ? '#c4b5fd' : '#94a3b8') + ';font-size:10.5px;font-family:inherit;font-weight:600;cursor:pointer;';
   }
 
   function renderGlossaryPickerHtml() {

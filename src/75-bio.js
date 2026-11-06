@@ -111,10 +111,10 @@
         list.sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
         const anyEnabled = list.some(function(b) { return b.enabled === true; });
         const preview = list[0].versions && list[0].versions.current ? String(list[0].versions.current.content).substring(0, 50) : '';
-        return '<label style="display:block;padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:6px;cursor:pointer;">' +
+        return '<label style="display:block;padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:6px;cursor:pointer;">' +
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
           '<input type="checkbox" class="moon-bio-ask-check" data-char="' + charName.replace(/"/g, '&quot;') + '"' + (anyEnabled ? ' checked' : '') + '>' +
-          '<span style="font-size:12.5px;font-weight:700;color:#f8fafc;">' + charName.replace(/</g, '&lt;') + '</span>' +
+          '<span style="font-size:12.5px;font-weight:600;color:#f8fafc;">' + charName.replace(/</g, '&lt;') + '</span>' +
           (list.length > 1 ? '<span style="font-size:10px;color:#94a3b8;">共 ' + list.length + ' 份</span>' : '') +
           (anyEnabled ? '<span style="font-size:10px;color:#6ee7b7;margin-left:auto;">● 启用中</span>' : '<span style="font-size:10px;color:#94a3b8;margin-left:auto;">○ 未启用</span>') +
           '</div><div style="font-size:10.5px;color:#64748b;line-height:1.5;padding-left:22px;">' + preview.replace(/</g, '&lt;') + '……</div></label>';
@@ -210,14 +210,14 @@ if (!b.versions.current) {
     const currentContent = String(b.versions.current.content || '');
     const wordLimit = b.wordLimit || 260;
     const history = (b.versions && Array.isArray(b.versions.history)) ? b.versions.history : [];
-    const html = '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">字数：<span id="moon-bio-edit-count" style="color:#7dd3fc;font-weight:700;">' + currentContent.length + '</span> / ' + wordLimit + '</div>' +
-      '<textarea id="moon-bio-edit-textarea" style="width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + currentContent.replace(/</g, '&lt;') + '</textarea>' +
-      (history.length > 0 ? '<div style="margin-top:10px;border-top:1px dashed rgba(148,163,184,0.15);padding-top:8px;"><div style="font-size:10.5px;color:#c084fc;font-weight:700;margin-bottom:6px;">📜 历史版本（' + history.length + ' 个）</div>' +
+    const html = '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">字数：<span id="moon-bio-edit-count" style="color:#7dd3fc;font-weight:600;">' + currentContent.length + '</span> / ' + wordLimit + '</div>' +
+      '<textarea id="moon-bio-edit-textarea" style="width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + currentContent.replace(/</g, '&lt;') + '</textarea>' +
+      (history.length > 0 ? '<div style="margin-top:10px;border-top:1px dashed rgba(148,163,184,0.15);padding-top:8px;"><div style="font-size:10.5px;color:#c084fc;font-weight:600;margin-bottom:6px;">📜 历史版本（' + history.length + ' 个）</div>' +
         history.slice().reverse().map(function(h, i) {
           const idxNum = history.length - i;
           const timeAgo = (function() { const diff = Date.now() - (h.generatedAt || 0); const days = Math.floor(diff / 86400000); if (days >= 1) return days + '天前'; const hours = Math.floor(diff / 3600000); if (hours >= 1) return hours + '小时前'; return '刚刚'; })();
           return '<details style="margin-bottom:4px;"><summary style="cursor:pointer;font-size:10.5px;color:#94a3b8;padding:4px 0;">v' + idxNum + ' · ' + timeAgo + ' · R=' + (h.rValue !== null && h.rValue !== undefined ? h.rValue : '?') + '</summary>' +
-            '<textarea readonly style="width:100%;box-sizing:border-box;min-height:80px;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#0a0c16;color:#94a3b8;font-size:10.5px;line-height:1.6;font-family:inherit;resize:vertical;">' + String(h.content || '').replace(/</g, '&lt;') + '</textarea></details>';
+            '<textarea readonly style="width:100%;box-sizing:border-box;min-height:80px;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#22262f;color:#94a3b8;font-size:10.5px;line-height:1.6;font-family:inherit;resize:vertical;">' + String(h.content || '').replace(/</g, '&lt;') + '</textarea></details>';
         }).join('') + '</div>' : '') +
       '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">编辑只修改「当前版本」；原始备份不受影响。</div>';
     showModalDialogCancelable('✏️ 编辑角色小抄 · ' + String(b.charName || '未命名').replace(/</g, '&lt;'), html,
@@ -270,12 +270,12 @@ if (!b.versions.current) {
       const hasOriginal = !!original && original !== current;
       const history = (b.versions && Array.isArray(b.versions.history)) ? b.versions.history : [];
       const timeAgo = (function() { const diff = Date.now() - (b.updatedAt || b.createdAt || 0); const days = Math.floor(diff / 86400000); if (days >= 1) return days + '天前'; const hours = Math.floor(diff / 3600000); if (hours >= 1) return hours + '小时前'; return '刚刚'; })();
-      return '<div class="moon-bio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#05070e;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(251,191,36,0.35)') + ';border-radius:10px;overflow:hidden;">' +
+      return '<div class="moon-bio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#171a22;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(251,191,36,0.35)') + ';border-radius:10px;overflow:hidden;">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);">' +(!enabled ? '<div style="padding:5px 12px;background:rgba(251,191,36,0.08);color:#fbbf24;font-size:10px;border-bottom:1px solid rgba(251,191,36,0.2);">⚠️ 未启用 · 不影响查看/编辑/删除，点击右上角圆点或「启用所选」才会应用此小抄</div>' : '') +
         '<input type="checkbox" class="moon-bio-lib-check" data-id="' + b.id + '" style="flex-shrink:0;">' +
         '<div style="flex:1;min-width:0;">' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
-        '<span style="font-size:12.5px;font-weight:700;color:#f8fafc;">' + String(b.charName || '未命名').replace(/</g, '&lt;') + '</span>' +
+        '<span style="font-size:12.5px;font-weight:600;color:#f8fafc;">' + String(b.charName || '未命名').replace(/</g, '&lt;') + '</span>' +
         '<span class="moon-bio-toggle" data-id="' + b.id + '" style="font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;' + (enabled ? 'color:#6ee7b7;background:rgba(16,185,129,0.15);' : 'color:#94a3b8;background:rgba(148,163,184,0.1);') + '">' + (enabled ? '● 启用' : '○ 未启用') + '</span>' +
         '</div><div style="font-size:10px;color:#64748b;margin-top:2px;">' + String(b.cardName || '(未知卡)').replace(/</g, '&lt;') + ' · ' + wordCount + '字 · ' + timeAgo + (hasAudition ? ' · 🎬 已试镜' : '') + '</div></div>' +
         '<button class="moon-bio-expand" data-id="' + b.id + '" style="flex-shrink:0;background:transparent;border:none;color:#94a3b8;font-size:14px;cursor:pointer;padding:4px 6px;border-radius:6px;" title="展开原始版本">▼</button></div>' +
@@ -286,25 +286,25 @@ if (!b.versions.current) {
         '<button class="moon-bio-del-btn" data-id="' + b.id + '" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(239,68,68,0.4);background:#2a0a10;color:#fca5a5;font-size:10.5px;cursor:pointer;font-family:inherit;">🗑 删除</button></div>' +
         '<div class="moon-bio-original" data-id="' + b.id + '" style="display:none;padding:10px 12px;border-top:1px dashed rgba(148,163,184,0.15);background:rgba(15,23,42,0.5);">' +
         (hasOriginal
-          ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:10.5px;color:#fbbf24;font-weight:700;">📌 初始版本（玩家确认的那份）</div>' +
+          ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:10.5px;color:#fbbf24;font-weight:600;">📌 初始版本（玩家确认的那份）</div>' +
             '<button class="moon-bio-del-original" data-id="' + b.id + '" style="padding:3px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.4);background:#2a0a10;color:#fca5a5;font-size:9.5px;cursor:pointer;font-family:inherit;">删除原始版本</button></div>' +
-            '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:8px 10px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#0a0c16;color:#94a3b8;font-size:10.5px;line-height:1.6;font-family:inherit;resize:vertical;">' + String(original).replace(/</g, '&lt;') + '</textarea>'
+            '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:8px 10px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#22262f;color:#94a3b8;font-size:10.5px;line-height:1.6;font-family:inherit;resize:vertical;">' + String(original).replace(/</g, '&lt;') + '</textarea>'
           : '<div style="font-size:10.5px;color:#64748b;text-align:center;padding:6px;">（初始版本与当前版本一致）</div>') +
         (history.length > 0
-          ? '<div style="margin-top:10px;border-top:1px dashed rgba(148,163,184,0.15);padding-top:8px;"><div style="font-size:10.5px;color:#c084fc;font-weight:700;margin-bottom:6px;">📜 历史版本（' + history.length + ' 个）</div>' +
+          ? '<div style="margin-top:10px;border-top:1px dashed rgba(148,163,184,0.15);padding-top:8px;"><div style="font-size:10.5px;color:#c084fc;font-weight:600;margin-bottom:6px;">📜 历史版本（' + history.length + ' 个）</div>' +
             history.slice().reverse().map(function(h, i) {
               const idxNum = history.length - i;
               const timeAgo = (function() { const diff = Date.now() - (h.generatedAt || 0); const days = Math.floor(diff / 86400000); if (days >= 1) return days + '天前'; const hours = Math.floor(diff / 3600000); if (hours >= 1) return hours + '小时前'; return '刚刚'; })();
               return '<details style="margin-bottom:4px;"><summary style="cursor:pointer;font-size:10.5px;color:#94a3b8;padding:4px 0;">v' + idxNum + ' · ' + timeAgo + ' · R=' + (h.rValue !== null && h.rValue !== undefined ? h.rValue : '?') + '</summary>' +
-                '<textarea readonly style="width:100%;box-sizing:border-box;min-height:80px;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#0a0c16;color:#94a3b8;font-size:10.5px;line-height:1.6;font-family:inherit;resize:vertical;">' + String(h.content || '').replace(/</g, '&lt;') + '</textarea></details>';
+                '<textarea readonly style="width:100%;box-sizing:border-box;min-height:80px;padding:8px;margin-top:4px;border-radius:6px;border:1px solid rgba(148,163,184,0.15);background:#22262f;color:#94a3b8;font-size:10.5px;line-height:1.6;font-family:inherit;resize:vertical;">' + String(h.content || '').replace(/</g, '&lt;') + '</textarea></details>';
             }).join('') + '</div>' : '') +
         '</div></div>';
     }).join('');
     const html = '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">' +
-      '<button id="moon-bio-selectall" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">全选 / 全不选</button>' +
-      '<button id="moon-bio-batch-enable" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(16,185,129,0.4);background:#052e20;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">启用所选</button>' +
-      '<button id="moon-bio-batch-disable" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">停用所选</button>' +
-      '<button id="moon-bio-batch-del" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(239,68,68,0.4);background:#2a0a10;color:#fca5a5;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;">删除所选</button></div>' +
+      '<button id="moon-bio-selectall" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">全选 / 全不选</button>' +
+      '<button id="moon-bio-batch-enable" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(16,185,129,0.4);background:#052e20;color:#6ee7b7;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">启用所选</button>' +
+      '<button id="moon-bio-batch-disable" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#1e293b;color:#cbd5e1;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">停用所选</button>' +
+      '<button id="moon-bio-batch-del" style="flex:1;min-width:80px;padding:7px;border-radius:8px;border:1px solid rgba(239,68,68,0.4);background:#2a0a10;color:#fca5a5;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">删除所选</button></div>' +
       '<div style="max-height:52dvh;overflow-y:auto;padding-right:4px;">' + rows + '</div>';
     showModalDialog('📚 角色小抄库', html, null, {
       confirmText: '关闭',
@@ -355,9 +355,9 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
     showModalDialog('👁 ' + String(b.charName || '未命名').replace(/</g, '&lt;'),
       '<div style="font-size:10.5px;color:' + (b.enabled ? '#6ee7b7' : '#fbbf24') + ';margin-bottom:4px;">' +
         (b.enabled ? '● 已启用' : '○ 未启用（仅查看，不影响编辑）') + '</div>' +
-      '<textarea readonly style="width:100%;box-sizing:border-box;min-height:180px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(content).replace(/</g, '&lt;') + '</textarea>' +
+      '<textarea readonly style="width:100%;box-sizing:border-box;min-height:180px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(content).replace(/</g, '&lt;') + '</textarea>' +
       (aud ? '<div style="font-size:10.5px;color:#94a3b8;margin:10px 0 4px 0;">🎬 最近一次试镜片段</div>' +
-        '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(aud).replace(/</g, '&lt;') + '</textarea>' : ''),
+        '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(aud).replace(/</g, '&lt;') + '</textarea>' : ''),
       null, { confirmText: '关闭' });
   });
 });
@@ -407,10 +407,10 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
       const wordCount = String(current).length;
       const enabled = b.enabled === true;
       const timeAgo = (function() { const diff = Date.now() - (b.updatedAt || b.createdAt || 0); const days = Math.floor(diff / 86400000); if (days >= 1) return days + '天前'; const hours = Math.floor(diff / 3600000); if (hours >= 1) return hours + '小时前'; return '刚刚'; })();
-      return '<div class="moon-ubio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#05070e;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(148,163,184,0.15)') + ';border-radius:10px;overflow:hidden;">' +
+      return '<div class="moon-ubio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#171a22;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(148,163,184,0.15)') + ';border-radius:10px;overflow:hidden;">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);">' +
         '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;">' +
-        '<span style="font-size:12.5px;font-weight:700;color:#f8fafc;">' + String(b.userName || '未命名玩家').replace(/</g, '&lt;') + '</span>' +
+        '<span style="font-size:12.5px;font-weight:600;color:#f8fafc;">' + String(b.userName || '未命名玩家').replace(/</g, '&lt;') + '</span>' +
         '<span class="moon-ubio-toggle" data-id="' + b.id + '" style="font-size:10px;padding:1px 7px;border-radius:10px;cursor:pointer;' + (enabled ? 'color:#6ee7b7;background:rgba(16,185,129,0.15);' : 'color:#94a3b8;background:rgba(148,163,184,0.1);') + '">' + (enabled ? '● 启用' : '○ 未启用') + '</span>' +
         '</div><div style="font-size:10px;color:#64748b;margin-top:2px;">' + String(b.cardName || '(未知卡)').replace(/</g, '&lt;') + ' · ' + wordCount + '字 · ' + timeAgo + '</div></div></div>' +
         '<div style="padding:10px 12px;font-size:11px;color:#cbd5e1;line-height:1.6;">' + preview.replace(/</g, '&lt;') + (current.length > 80 ? '……' : '') + '</div>' +
@@ -443,9 +443,9 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
             const content = b.versions.current.content; const aud = b.audition && b.audition.latest ? b.audition.latest.content : '';
             showModalDialog('👁 ' + String(b.userName || '未命名玩家').replace(/</g, '&lt;'),
               '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">当前小传版本</div>' +
-              '<textarea readonly style="width:100%;box-sizing:border-box;min-height:180px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(content).replace(/</g, '&lt;') + '</textarea>' +
+              '<textarea readonly style="width:100%;box-sizing:border-box;min-height:180px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(content).replace(/</g, '&lt;') + '</textarea>' +
               (aud ? '<div style="font-size:10.5px;color:#94a3b8;margin:10px 0 4px 0;">🎬 最近一次试镜片段</div>' +
-                '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(aud).replace(/</g, '&lt;') + '</textarea>' : ''),
+                '<textarea readonly style="width:100%;box-sizing:border-box;min-height:100px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + String(aud).replace(/</g, '&lt;') + '</textarea>' : ''),
               null, { confirmText: '关闭' });
           });
         });
@@ -455,7 +455,7 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
             if (!b || !b.versions || !b.versions.current) return;
             const currentContent = String(b.versions.current.content || '');
             showModalDialogCancelable('✏️ 编辑玩家小抄',
-              '<textarea id="moon-ubio-edit-ta" style="width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + currentContent.replace(/</g, '&lt;') + '</textarea>',
+              '<textarea id="moon-ubio-edit-ta" style="width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + currentContent.replace(/</g, '&lt;') + '</textarea>',
               function() {
                 const m2 = mainDoc.getElementById('moon-modal-mask'); const ta = m2 ? m2.querySelector('#moon-ubio-edit-ta') : null;
                 if (!ta) return;
@@ -769,11 +769,11 @@ function _updateAttemptsHtml(attempts) {
     const color = ok ? '#6ee7b7' : (a.skipped ? '#94a3b8' : '#f87171');
     const mark = ok ? '✅ ' : (a.skipped ? '⏭ ' : '⛔ ');
     rows += '<div style="padding:6px 0;border-bottom:1px dashed rgba(148,163,184,0.15);">' +
-      '<div style="color:' + color + ';font-weight:700;">' + mark + _updEsc(a.label) + '</div>' +
+      '<div style="color:' + color + ';font-weight:600;">' + mark + _updEsc(a.label) + '</div>' +
       (a.error ? '<div style="color:#94a3b8;font-size:10px;margin-top:2px;">' + _updEsc(a.error) + '</div>' : '') +
     '</div>';
   });
-  return '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:10.5px;line-height:1.5;margin:8px 0 10px;">' + rows + '</div>';
+  return '<div style="padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:10.5px;line-height:1.5;margin:8px 0 10px;">' + rows + '</div>';
 }
 
 function showUpdateConnectFailedDialog(title, lead, attempts, onRetry) {
@@ -796,7 +796,7 @@ function showUpdateConnectFailedDialog(title, lead, attempts, onRetry) {
           if (!row) return;
           const btn = mainDoc.createElement('button');
           btn.textContent = '⚙️ 换源';
-          btn.style.cssText = 'flex:0 0 auto;padding:10px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:700;';
+          btn.style.cssText = 'flex:0 0 auto;padding:10px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;';
           btn.addEventListener('click', function() {
             try { mask.remove(); } catch (e) {}
             setTimeout(function() { openUpdateConfigDialog(null); }, 150);
@@ -814,7 +814,7 @@ function showUpdateAvailableDialog(remote) {
       (remote.sourceLabel ? '<br><span style="font-size:10.5px;color:#64748b;">线路：' + _updEsc(remote.sourceLabel) + (remote.sourceKind === 'mirror' ? '（直连不通，已自动切换）' : '') + '</span>' : '') +
     '</div>' +
     (remote.info
-      ? '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11px;color:#94a3b8;line-height:1.7;max-height:240px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">' + String(remote.info).replace(/</g, '&lt;') + '</div>'
+      ? '<div style="padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11px;color:#94a3b8;line-height:1.7;max-height:240px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">' + String(remote.info).replace(/</g, '&lt;') + '</div>'
       : '') +
     '<div style="font-size:10.5px;color:#64748b;line-height:1.6;">点「✅ 确定更新」后，脚本会自动下载新版本并写入，然后刷新页面。<br>直连下载不通会自动换国内镜像；若连写入也失败，会降级为「复制到剪贴板 + 提示手动替换」。</div>';
   showModalDialogCancelable('🔄 发现新版本 v' + remote.version, html,
@@ -847,7 +847,7 @@ function showUpdateAnnouncementOnce() {
   });
   const html = '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
     '已更新至 <b style="color:#fde047;">v' + safeVersion + '</b></div>' +
-    '<div style="padding:10px 12px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11.5px;color:#cbd5e1;line-height:1.8;white-space:pre-wrap;">' +
+    '<div style="padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11.5px;color:#cbd5e1;line-height:1.8;white-space:pre-wrap;">' +
     safeInfo + '</div>';
   showModalDialog('📢 更新公告', html, null, { confirmText: '知道了' });
   return true;
@@ -1170,7 +1170,7 @@ function openUpdateConfigDialog(panel) {
     '</div>' +
     '<div style="margin-bottom:8px;">' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">更新源 URL（留空则用内置地址，一般不用改）</div>' +
-      '<input id="moon-upd-url" type="text" value="' + String(cfg.url || DEFAULT_UPDATE_URL).replace(/"/g, '&quot;') + '" placeholder="https://raw.githubusercontent.com/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#05070e;color:#e2e8f0;font-size:12px;">' +
+      '<input id="moon-upd-url" type="text" value="' + String(cfg.url || DEFAULT_UPDATE_URL).replace(/"/g, '&quot;') + '" placeholder="https://raw.githubusercontent.com/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;">' +
     '</div>' +
     '<label style="display:flex;align-items:flex-start;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;margin-bottom:6px;line-height:1.6;">' +
       '<input type="checkbox" id="moon-upd-mirror" style="margin-top:2px;" ' + (cfg.mirrorFallback !== false ? 'checked' : '') + '> 直连下载不通时，自动换国内镜像（推荐开着）' +
@@ -1199,17 +1199,17 @@ function openUpdateConfigDialog(panel) {
     const html = '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
       'AI 将读取你右侧 Persona 面板的设定，提炼成一份「玩家角色灵魂小传」，然后按小传演一段单人戏。' +
       '<br><span style="color:#fbbf24;">生成完毕后你可以先检查小传内容，确认后再进入试镜。</span></div>' +
-      '<div style="padding:8px 10px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;font-size:11px;color:#cbd5e1;line-height:1.6;">' +
-      '<div style="color:#7dd3fc;font-weight:700;margin-bottom:4px;">当前 Persona 面板内容</div>' +
+      '<div style="padding:8px 10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:8px;margin-bottom:10px;font-size:11px;color:#cbd5e1;line-height:1.6;">' +
+      '<div style="color:#7dd3fc;font-weight:600;margin-bottom:4px;">当前 Persona 面板内容</div>' +
       (personaData.persona ? '<div style="white-space:pre-wrap;max-height:120px;overflow-y:auto;">' + personaData.persona.replace(/</g, '&lt;').substring(0, 500) + (personaData.persona.length > 500 ? '……' : '') + '</div>' : '<div style="color:#f87171;">（Persona 面板为空，请先在右侧填写）</div>') + '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">生成模型（未保存API时点开始会自动弹窗填写）：</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid #a94d8b;background:#241025;cursor:pointer;"><input type="radio" name="moon-ub-provider" value="custom" ' + (hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;color:#ffc4e9;">🔑 我自己的 API' + (hasValidCustomAIConfig() ? '（已填好）' : '（要先填）') + '</span></label>' +
       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:8px;border-radius:4px;border:1px solid rgba(148,163,184,0.25);cursor:pointer;"><input type="radio" name="moon-ub-provider" value="main" ' + (!hasValidCustomAIConfig() ? 'checked' : '') + '><span style="font-size:12px;">🎭 就用酒馆现在这个 AI</span></label>' +
       '</div>' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">小传字数：<span id="moon-ub-bio-label" style="color:#7dd3fc;font-weight:700;">260</span> 字</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">小传字数：<span id="moon-ub-bio-label" style="color:#7dd3fc;font-weight:600;">260</span> 字</div>' +
       '<input id="moon-ub-bio-slider" type="range" min="150" max="400" step="10" value="260" style="width:100%;margin-bottom:8px;">' +
-      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">试镜片段字数：<span id="moon-ub-seg-label" style="color:#7dd3fc;font-weight:700;">200</span> 字</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">试镜片段字数：<span id="moon-ub-seg-label" style="color:#7dd3fc;font-weight:600;">200</span> 字</div>' +
       '<input id="moon-ub-seg-slider" type="range" min="100" max="400" step="10" value="200" style="width:100%;margin-bottom:10px;">' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;cursor:pointer;"><input type="checkbox" id="moon-ub-use-chat" checked> 生成小传时参考最近对话</label>';
     showModalDialogCancelable('👤 玩家角色试镜', html,
@@ -1249,12 +1249,12 @@ function openUpdateConfigDialog(panel) {
       '这是 AI 提炼出的<b style="color:#7dd3fc;">玩家角色灵魂小传</b>。请检查内容是否准确。' +
       '<br>如有不满，可以写意见让 AI 重写，或直接编辑文本。</div>' +
       '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">小传内容（可直接编辑）</div>' +
-      '<textarea id="moon-ub-preview-text" style="width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + safeBio + '</textarea>' +
+      '<textarea id="moon-ub-preview-text" style="width:100%;box-sizing:border-box;min-height:220px;padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;font-family:inherit;resize:vertical;">' + safeBio + '</textarea>' +
       '<div style="font-size:10.5px;color:#94a3b8;margin:10px 0 4px 0;">修改意见（可选，AI 会按此重写）</div>' +
-      '<textarea id="moon-ub-preview-feedback" placeholder="例如：说话方式应该更简练；去掉不认识的背景细节。" style="width:100%;box-sizing:border-box;min-height:60px;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;resize:vertical;font-family:inherit;"></textarea>' +
+      '<textarea id="moon-ub-preview-feedback" placeholder="例如：说话方式应该更简练；去掉不认识的背景细节。" style="width:100%;box-sizing:border-box;min-height:60px;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;resize:vertical;font-family:inherit;"></textarea>' +
       '<div style="display:flex;gap:6px;margin-top:10px;">' +
-      '<button id="moon-ub-rewrite" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🔁 让 AI 重写</button>' +
-      '<button id="moon-ub-toaud" style="flex:1.4;padding:9px;border-radius:8px;border:1px solid transparent;background:#0369a1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🎬 确认小传，进入试镜</button></div>';
+      '<button id="moon-ub-rewrite" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🔁 让 AI 重写</button>' +
+      '<button id="moon-ub-toaud" style="flex:1.4;padding:9px;border-radius:8px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🎬 确认小传，进入试镜</button></div>';
     showModalDialog('👤 玩家角色小传 · 预览', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
@@ -1297,12 +1297,12 @@ function openUpdateConfigDialog(panel) {
   function _ub_openAuditionDialog(panel, provider, bioLimit, segLimit, bio, audition) {
     const safeAud = String(audition).replace(/</g, '&lt;');
     const html = '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">试镜片段</div>' +
-      '<div style="padding:12px 14px;background:#05070e;border:1px solid rgba(148,163,184,0.15);border-radius:10px;font-size:12px;line-height:1.8;color:#e2e8f0;white-space:pre-wrap;max-height:38dvh;overflow-y:auto;margin-bottom:12px;">' + safeAud + '</div>' +
+      '<div style="padding:12px 14px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:10px;font-size:12px;line-height:1.8;color:#e2e8f0;white-space:pre-wrap;max-height:38dvh;overflow-y:auto;margin-bottom:12px;">' + safeAud + '</div>' +
       '<div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;">导演意见（可选）</div>' +
-      '<textarea id="moon-ub-aud-feedback" placeholder="例如：这段表现太夸张了。" style="width:100%;box-sizing:border-box;min-height:60px;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0a0c16;color:#e2e8f0;font-size:11.5px;line-height:1.7;resize:vertical;font-family:inherit;margin-bottom:10px;"></textarea>' +
+      '<textarea id="moon-ub-aud-feedback" placeholder="例如：这段表现太夸张了。" style="width:100%;box-sizing:border-box;min-height:60px;padding:8px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#22262f;color:#e2e8f0;font-size:11.5px;line-height:1.7;resize:vertical;font-family:inherit;margin-bottom:10px;"></textarea>' +
       '<div style="display:flex;gap:6px;">' +
-      '<button id="moon-ub-aud-retry" style="flex:1.2;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🎭 让 AI 重演</button>' +
-      '<button id="moon-ub-aud-save" style="flex:1.4;padding:9px;border-radius:8px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 确认并保存</button></div>' +
+      '<button id="moon-ub-aud-retry" style="flex:1.2;padding:9px;border-radius:8px;border:1px solid rgba(168,85,247,0.5);background:#2a1040;color:#c084fc;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🎭 让 AI 重演</button>' +
+      '<button id="moon-ub-aud-save" style="flex:1.4;padding:9px;border-radius:8px;border:1px solid transparent;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✅ 确认并保存</button></div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">保存后会自动启用这份玩家小抄，同时停用其他玩家小抄。</div>';
     showModalDialog('👤 玩家角色试镜', html, null, {
       confirmText: '关闭',
