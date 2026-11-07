@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.5';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.5 实测问题集中修复】七处报上来的毛病，逐条对账\n1. 🔴 修掉启动自检里的 `_nWarn is not defined`：冲突扫描漏声明计数器，一进游戏就弹「扫描异常」。\n2. 🔄 堵住「酒馆一直自己刷新」：所有刷新改成一次性闸门，标记写不进去（隐私模式／存储满）时宁可不刷，也不反复重载；首次自检同一会话只跑一次。\n3. 🎮 沉浸模式入口不再单独占魔棒菜单，收进系统面板主菜单；开关按页面实际状态判断，不再出现「存档写着开着、点一下被判成关闭」的点了没反应。\n4. 🖼 沉浸层右上角新增「🌕 系统」，玩到一半也能直接调出面板；面板渲染出错不再静默失败，会直接把原因报出来。\n5. 🗂 改「单人卡／多人卡」「安全锁」这些开关后，面板不再把「运行设定」自己收回去：重绘前记住展开状态和滚动位置，重绘后还原。\n6. 📊 当前好感／阶段／肉体／嫉妒正式写进提示词（「当前状态·唯一事实来源」），AI 不会再自己编「好感度24」，并被明确禁止在正文复述数字。\n7. 🙈 新增「隐藏内心草稿」：AI 写在正文后面的 Phase.xxx、<角色名内置cot> 分析段整段收进隐藏块（原文不删），玩家只看到正文和状态卡；沉浸模式读到的正文同样过滤。\n8. 🧾 自动建档改成第一轮就建，不再等 AI 写标签；建档之后每一轮还会把新出场的角色补录进档案，新人先记「次要」，不抢主攻略对象的戏。\n9. 🧪 新增 H 系列 11 条回归用例，全套 16 个套件全部通过。";
+  const MOON_FORMULA_VERSION = '4.7.6';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.6 初见投资真正落地 · 数值方案定型】\n1. 🎲 自动建档当场就掷初见骰：不再等下一轮 AI 会不会写 [初见|…]。建档完成的那一刻，人物就已经有起点，不再是 0 一路干爬。\n2. 💰 初见失败也给 1d4 印象底分：以前失败 E 一分不加、却照样标记「已初见」，等于把开局投资永久作废。面板可关。\n3. 🧭 一个 [初见|…] 标签只给一个人用：同一轮里有刚建档的新人时，标签优先给新人，老存档角色不许截胡，多人卡不再出现「新人只能吃兜底档位」。\n4. 🔁 兜底补掷：建档时写入失败、或人还没到场，标记会留着；之后哪一轮点到他的名字就地补掷，不会永久错过。\n5. 🤝 数值方案定为「AI 评档位 + 脚本掷骰」：AI 只判断玩家设定踩中了哪些喜好（0/+3/+6/+9），最终数字永远由 1d20 掷出。AI 直接给数值会漂移、不可复现，也会把「唯一事实来源」交回模型。面板可在「骰子+AI」与「纯骰子」间切换。\n6. 📐 初见的阶段值改为由好感度推导：以前成功分支硬写 R=1，会出现「E=3 却显示愿意认识」的自相矛盾。\n7. 🗂 角色定位面板逐个显示初见结果（骰点／档位／投入／来源）；自己往变量里加的人可以点「🎲 补掷」手动补一次，不用等下一轮。\n8. 🧾 开局适配给出非 0 好感时直接标记「已结算」，避免 AI 估完再被初见骰二次加成。\n9. 🔍 自检新增「初见投资」一行：谁结算了、骰点多少、档位从哪来、还剩谁待结算。\n10. 🧪 新增 F 系列 16 条回归用例，全套 17 个测试套件全部通过。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,12 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true,
+    /* 初见投资的数值怎么来：
+       hybrid —— 骰子定数值，AI 只给「优势/劣势」档位（读过角色卡，判断人设契合度）
+       dice   —— 全看骰子，AI 写什么档位都不采信
+       firstMeetFloor：没过阈值也给 1d4 印象底分，避免建档完 E=0 一路干爬 */
+    firstMeetMode: 'hybrid', firstMeetFloor: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;
@@ -888,32 +893,88 @@
   function clampFirstMeetAdv(v) { return nearestFirstMeetTier(v, FIRST_MEET_ADV_TIERS); }
   function clampFirstMeetDis(v) { return nearestFirstMeetTier(v, FIRST_MEET_DIS_TIERS); }
 
-  async function processFirstMeetForChar(charName, ch, mode) {
+  /* 失败时的「印象底分」：至少 1d4。
+     初见不是「要么一见钟情要么当没这个人」，没通过也要留下一点印象，
+     否则建档完 E=0，后面全靠日常 0.5~2 一点点爬，玩家体感就是「根本没投资」。 */
+  const FIRST_MEET_FLOOR_DICE = 4;
+  function firstMeetThreshold(mode) { return mode === 'easy' ? 8 : 13; }
+  function firstMeetCoeff(mode) { return mode === 'easy' ? 1.5 : (mode === 'normal' ? 1.0 : 0.5); }
+  function firstMeetMode() { try { return getSettings().firstMeetMode === 'dice' ? 'dice' : 'hybrid'; } catch (e) { return 'hybrid'; } }
+  function firstMeetFloorOn() { try { return getSettings().firstMeetFloor !== false; } catch (e) { return true; } }
+
+  /* ── 初见投资：全系统唯一的掷骰入口 ──────────────────────
+     档位（优势/劣势）可以由 AI 给——它读过角色卡，判断「玩家设定踩中了哪些喜好」是它的强项；
+     但最终数值一定在这里掷出来，AI 写的任何「好感度=XX」都不进这条链路。
+     这样既有人设依据，又保留运气，还能被自检复现（骰点、档位、阈值全留痕）。
+     以前只有「AI 必须写标签」一条路：模型忘了写、或写了没过阈值，E 就停在 0，
+     于是出现了「自动建档之后初见投资等于没生效、从零开始加」的问题。 */
+  function rollFirstMeetInvestment(mode, advIn, disIn, opts) {
+    opts = opts || {};
+    const adv = clampFirstMeetAdv(advIn);
+    const dis = clampFirstMeetDis(disIn);
+    const dice = Math.floor(Math.random() * 20) + 1;
+    const threshold = firstMeetThreshold(mode);
+    const total = dice + adv + dis;
+    let tier = '失败'; let delta = 0; let floor = 0;
+    if (dice === 20) { tier = '大成功'; delta = 30; }
+    else if (dice === 1) { tier = '大失败'; delta = -10; }
+    else if (total >= threshold) { tier = '成功'; delta = roundHalf((total / 2) * firstMeetCoeff(mode)); }
+    else if (opts.floor !== false) { floor = Math.floor(Math.random() * FIRST_MEET_FLOOR_DICE) + 1; delta = floor; }
+    return { dice: dice, adv: adv, dis: dis, total: total, threshold: threshold, tier: tier, delta: delta, floor: floor };
+  }
+
+  /* 初见结算。opts：
+       allowScriptRoll —— 没有 AI 标签也照掷（建档、补录新角色时用）
+       adv / dis       —— 没有标签时的档位来源（角色卡推断 / 开局适配）
+       source          —— 写进 _初见.来源，自检能回溯这笔分是谁给的
+       force           —— 忽略「不在场」限制（刚建档还没轮到场次判定时）
+       floor           —— 是否给失败保底，默认跟设置走
+       noTag           —— 本轮不许碰 [初见|…]：一个标签只能被一个人消费，
+                          同一轮里有刚建档的新人时，先紧着他们，别让老角色截胡 */
+  async function processFirstMeetForChar(charName, ch, mode, opts) {
+    opts = opts || {};
     const quota = ch._quota || (ch._quota = {});
     if (quota._firstMeetDone === true) return null;
-    if (ch.在场 !== true) return null;
+    if (ch.在场 !== true && opts.force !== true) return null;
     const found = getLatestAiMessage();
-    if (!found || !found.msg) return null;
-    const mes = String(found.msg.mes || '');
-    const tag = extractFirstMeetTag(mes);
-    if (!tag) return null;
-    const advValue = clampFirstMeetAdv(tag.优势);
-    const disValue = clampFirstMeetDis(tag.劣势);
-    const dice = Math.floor(Math.random() * 20) + 1;
-    const threshold = (mode === 'easy') ? 8 : 13;
-    const total = dice + advValue + disValue;
-    let newE = Number(ch.好感度) || 0; let newR = Number(ch.阶段值) || 0; let resultText = '';
-    if (dice === 20) { newE = 30; newR = 1; resultText = '大成功 → E=30, R=1'; }
-    else if (dice === 1) { newE = Math.max(-15, -10); newR = 0; resultText = '大失败 → E=-10, R=0'; }
-    else if (total >= threshold) {
-      const coeff = (mode === 'easy') ? 1.5 : (mode === 'normal') ? 1.0 : 0.5;
-      const delta = Math.round((total / 2) * coeff * 2) / 2;
-      newE = roundHalf(newE + delta); newR = 1;
-      resultText = '成功 ' + total + '≥' + threshold + ' → E+=' + delta + ', R=1';
-    } else { resultText = '失败 ' + total + '<' + threshold + ' → E不变, R=0'; }
-    ch.好感度 = newE; ch.阶段值 = newR; quota._firstMeetDone = true;
-    try { found.msg.mes = String(found.msg.mes).replace(tag.fullMatch, '').trim(); } catch (e) {}
-    return { dice: dice, total: total, threshold: threshold, newE: newE, newR: newR, resultText: resultText };
+    if ((!found || !found.msg) && !opts.allowScriptRoll) return null;
+    const mes = String((found && found.msg && found.msg.mes) || '');
+    const tag = (firstMeetMode() === 'hybrid' && !opts.noTag) ? extractFirstMeetTag(mes) : null;
+    // 严格模式（dice）：只认脚本掷骰，连 AI 标签的档位都不采信
+    if (!tag && !opts.allowScriptRoll) return null;
+    const adv = tag ? tag.优势 : (opts.adv || 0);
+    const dis = tag ? tag.劣势 : (opts.dis || 0);
+    const useFloor = (opts.floor === undefined ? firstMeetFloorOn() : opts.floor !== false);
+    const inv = rollFirstMeetInvestment(mode, adv, dis, { floor: useFloor });
+    const before = Number(ch.好感度) || 0;
+    const newE = roundHalf(before + inv.delta);
+    ch.好感度 = newE;
+    // R 一律由 E 推导：以前成功分支硬写 R=1，会出现「E=3.5 却写着愿意认识」的自相矛盾
+    ch.阶段值 = getRStageFromE(newE).r;
+    quota._firstMeetDone = true;
+    try { delete quota._初见待结算; } catch (e) { quota._初见待结算 = false; }
+    let worldTime = String(opts.worldTime || '');
+    if (!worldTime) {
+      try { const d = readMvuLatest(); worldTime = String((d && d.stat_data && d.stat_data.世界 && d.stat_data.世界.时间) || ''); } catch (e) {}
+    }
+    quota._初见 = {
+      骰: inv.dice, 优势: inv.adv, 劣势: inv.dis, 合计: inv.total, 阈值: inv.threshold,
+      档: inv.tier, 投入: inv.delta, 底分: inv.floor,
+      来源: tag ? 'AI标签' : (opts.source || '脚本兜底'),
+      之前: before, 时间: worldTime
+    };
+    if (tag) { try { found.msg.mes = String(found.msg.mes).replace(tag.fullMatch, '').trim(); } catch (e) {} }
+    const diceTxt = '1d20=' + inv.dice + (inv.adv || inv.dis ? '（优势 ' + inv.adv + ' / 劣势 ' + inv.dis + '）' : '');
+    let resultText = '';
+    if (inv.tier === '大成功') resultText = '大成功 ' + diceTxt + ' → E+30，关系直接进入愿意认识';
+    else if (inv.tier === '大失败') resultText = '大失败 ' + diceTxt + ' → E-10，第一印象就是负的';
+    else if (inv.tier === '成功') resultText = '成功 ' + diceTxt + '，合计 ' + inv.total + ' ≥ ' + inv.threshold + ' → E+' + inv.delta;
+    else resultText = '失败 ' + diceTxt + '，合计 ' + inv.total + ' < ' + inv.threshold + ' → 只留下 ' + inv.delta + ' 点印象底分';
+    return {
+      dice: inv.dice, total: inv.total, threshold: inv.threshold, tier: inv.tier,
+      delta: inv.delta, newE: newE, newR: ch.阶段值,
+      source: quota._初见.来源, char: charName, resultText: resultText
+    };
   }
 
   function getLatestAiMessage() {
@@ -1461,8 +1522,15 @@ async function _collectAllWorldbooks(includeDisabled) {
         const levelTag = eventType === '日常' ? 'L' : (eventType === '关键' ? 'M' : 'H');
         const _q = ch._quota || {};
         if (ch.在场 === true && _q._firstMeetDone !== true) {
-          lines.push('【' + name + '】首次登场！请通读角色卡，判断玩家设定触发了哪些喜好/厌恶。');
-          lines.push('  在正文末尾额外输出 `[初见|优势+X|劣势-Y]`（优势取值 0/+3/+6/+9，劣势取值 0/-3/-6）。');
+          lines.push('【' + name + '】首次登场！');
+          if (firstMeetMode() === 'dice') {
+            lines.push('  初见骰由脚本直接掷出，你不需要输出任何初见标签，也不要自己写好感数字。');
+          } else {
+            lines.push('  请通读角色卡，判断玩家设定触发了哪些喜好/厌恶。');
+            lines.push('  在正文末尾额外输出 `[初见|优势+X|劣势-Y]`（优势取值 0/+3/+6/+9，劣势取值 0/-3/-6）。');
+            lines.push('  → 这只是「档位」，最终数值由脚本掷 1d20 结算，你不需要也不许写结果数字。');
+            lines.push('  → 本轮忘了写也没关系：脚本会按无加成直接掷，不会再等下一轮。');
+          }
         }
         const importance = String(ch.重要度 || '主要').trim();
         if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在她身上，内心戏与情感拉扯要写足。');
@@ -2048,6 +2116,14 @@ async function _collectAllWorldbooks(includeDisabled) {
       const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : stableFeatureHash(String(currentTime));
       const parsedTags = extractAllSylveinaTags(latestAiText);
       const primaryTarget = pickPrimaryTarget(chars, activeCharNames);
+      /* 一个 [初见|…] 标签只能被消费一次。
+         本轮如果有刚建档、还没吃过初见骰的人，就先把标签留给他们中的一个；
+         老存档里 _firstMeetDone=false 的角色不许截胡，否则新人只能吃兜底档位。 */
+      const firstMeetPending = activeCharNames.filter(function(n) {
+        const c = chars[n];
+        return c && c._quota && c._quota._初见待结算 === true && c._quota._firstMeetDone !== true;
+      });
+      const firstMeetTagOwner = firstMeetPending.length ? firstMeetPending[0] : null;
 
       let wbEntries = [];
       try { wbEntries = await getAllWorldbookEntries(); } catch (e) {}
@@ -2060,7 +2136,17 @@ async function _collectAllWorldbooks(includeDisabled) {
         const oldRBeforeTurn = Number(ch.阶段值) || 0;
 
         try {
-          const fmResult = await processFirstMeetForChar(name, ch, mode);
+          /* 初见投资：建档时会当场掷一次并清掉「待结算」标记。
+             这里兜的是另一种情况——建档当时写入失败、或者角色那时还没到场，
+             标记还挂着；只要这一轮文本点到了名字，就地补掷，不再无限期等 AI 标签。
+             老存档没有这个标记，仍然只认 AI 写的 [初见|…]，不会被二次收费。 */
+          const fmPending = ch._quota._初见待结算 === true;
+          const fmResult = await processFirstMeetForChar(name, ch, mode, fmPending ? {
+            allowScriptRoll: true,
+            force: true,
+            noTag: firstMeetPending.length > 0 && name !== firstMeetTagOwner,
+            source: latestAiText.indexOf(name) >= 0 ? '入场补掷（点名）' : '入场补掷（在场）'
+          } : { noTag: firstMeetPending.length > 0 });
           if (fmResult) gateLogs.push({ type: 'event_update', char: name, event: { type: 'first_meet', result: fmResult } });
         } catch (e) {}
         try {
@@ -14925,6 +15011,9 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话就建 0 值档案；之后每一轮有新角色出场也会自动补录' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
+      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎲 初见投资</div><div class="mp-toggle-desc">' + (firstMeetMode() === 'dice' ? '只掷骰：开局第一印象全看 1d20，AI 写什么档位都不采信' : '骰子 + 人设档位：AI 只评优势/劣势，数值由脚本掷（推荐）') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底') + '</div></div>' +
+      '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
       renderCoreRulePickerHtml() + '</div>' +
@@ -15137,6 +15226,13 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
       refreshPanel();
     });
     panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
+    panel.querySelector('#moon-phase-firstmeet').addEventListener('click', function() {
+      const s2 = getSettings();
+      s2.firstMeetMode = (s2.firstMeetMode === 'dice') ? 'hybrid' : 'dice';
+      saveSettings(s2);
+      toast(s2.firstMeetMode === 'dice' ? '初见投资：只掷骰，AI 不再给档位' : '初见投资：AI 评档位，脚本掷数值', 'info');
+      refreshPanel();
+    });
     (function() {
       const coreBtns = panel.querySelectorAll('[data-core-rule]');
       for (let i = 0; i < coreBtns.length; i++) {
@@ -15201,6 +15297,22 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     info('特殊标签：Sylveina');
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
     info('自动建档：' + (getSettings().autoBootstrap === false ? 'OFF（要手动点开局适配）' : 'ON（对面首条回复后自动立档）'));
+    /* 初见投资留痕：谁结算过、骰点多少、档位从哪来、给了几分。
+       玩家反馈「建档后从零开始加」时，看这一行就能判断是没掷、还是掷了但没过。 */
+    try {
+      const _d = readMvuLatest();
+      const _chars = (_d && _d.stat_data && _d.stat_data.角色) || {};
+      const _names = Object.keys(_chars).filter(function(k) { return k !== '示例角色' && k !== 'You' && k !== '你'; });
+      const _done = []; const _pending = [];
+      _names.forEach(function(n) {
+        const q = (_chars[n] && _chars[n]._quota) || {};
+        if (q._初见) _done.push(n + ' 1d20=' + q._初见.骰 + ' → E' + (q._初见.投入 >= 0 ? '+' : '') + q._初见.投入 + '（' + q._初见.档 + '·' + q._初见.来源 + '）');
+        else if (q._firstMeetDone !== true) _pending.push(n);
+      });
+      info('初见投资：' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI档位') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底'));
+      if (_done.length) info('　已结算：' + _done.join('；'));
+      if (_pending.length) info('　待结算：' + _pending.join('、') + '（下一轮入场时掷）');
+    } catch (e) {}
     info('演绎规则：' + getCoreRuleHint());
     info('词条释义：' + getGlossaryHint());
     const pacingName = { Adi: 'Adagio · 柔板', And: 'Andante · 行板', All: 'Allegro · 快板' }[getEventPacing()] || getEventPacing();
@@ -15587,13 +15699,22 @@ const stateKey = getChatStateKey();
       const ch = chars[n];
       const imp = String(ch.重要度 || '主要');
       const present = ch.在场 !== false;
+      /* 初见投资的可见状态：掷过就写骰点和投入；没掷过就明确写着「待结算」，
+         免得玩家又以为是「脚本没生效」。自己往变量里加的人也能在这里补一次。 */
+      const fm = ch._quota && ch._quota._初见;
+      const fmDone = !!fm || (ch._quota && ch._quota._firstMeetDone === true);
+      const fmTxt = fm
+        ? ('初见 1d20=' + fm.骰 + (fm.档 ? '（' + fm.档 + '）' : '') + ' → E' + (fm.投入 >= 0 ? '+' : '') + fm.投入 + '　' + String(fm.来源 || ''))
+        : (fmDone ? '初见已结算（旧存档，无骰点记录）' : '初见未结算 · 下一轮入场自动掷');
       return '<div class="moon-roster-row" data-name="' + escapeFeatureHtml(n) + '" data-idx="' + i + '" style="padding:10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:8px;">' +
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
         '<b style="font-size:12px;color:#f8fafc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeFeatureHtml(n) + '</b>' +
         '<span style="font-size:10px;color:#94a3b8;white-space:nowrap;">E' + (Number(ch.好感度) || 0) + ' P' + (Number(ch.肉体值) || 0) + ' R' + (Number(ch.阶段值) || 0) + ' I' + (Number(ch.嫉妒值) || 0) + '</span></div>' +
+        '<div style="font-size:10px;line-height:1.5;margin-bottom:6px;color:' + (fmDone ? '#94a3b8' : '#fbbf24') + ';">' + escapeFeatureHtml(fmTxt) + '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
         '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#22262f;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
-        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button></div>' +
+        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button>' +
+        '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 补掷</button></div>' +
         '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="她心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
         '</div>';
     }).join('');
@@ -15618,6 +15739,7 @@ const stateKey = getChatStateKey();
         if (parsed) stat.世界.时间 = formatGameTime(parsed);
       }
       if (placeInput) stat.世界.地点 = String(placeInput.value || '').trim().slice(0, 60);
+      const fmPending = [];
       mask.querySelectorAll('.moon-roster-row').forEach(function(row) {
         const name = row.getAttribute('data-name');
         const ch = stat.角色[name]; if (!ch) return;
@@ -15627,13 +15749,31 @@ const stateKey = getChatStateKey();
         if (pBtn) ch.在场 = pBtn.getAttribute('data-on') === '1';
         const vInput = row.querySelector('.moon-roster-voice');
         if (vInput) { const v = String(vInput.value || '').trim(); if (v) ch.心声 = v.slice(0, 300); }
+        /* 点了「🎲 补掷」：清掉旧的初见结论，重新走一次结算。
+           自己往变量里加的人、或者旧存档里从没掷过的角色，都靠这个补上开局投资。 */
+        const fBtn = row.querySelector('.moon-roster-firstmeet');
+        if (fBtn && fBtn.getAttribute('data-on') === '1') {
+          if (!ch._quota) ch._quota = {};
+          ch._quota._firstMeetDone = false;
+          ch._quota._初见待结算 = true;
+          try { delete ch._quota._初见; } catch (e) { ch._quota._初见 = null; }
+          fmPending.push(name);
+        }
       });
-      writeMvuLatest(stat).then(function(ok) {
-        if (ok) {
-          toast('改好了，下一轮就生效', 'success');
-          try { injectEventPrompt(); } catch (e) {}
-          try { refreshPanel(); } catch (e) {}
-        } else toast('写入失败', 'warning');
+      writeMvuLatest(stat).then(async function(ok) {
+        if (!ok) { toast('写入失败', 'warning'); return; }
+        let fmNote = '';
+        for (let i = 0; i < fmPending.length; i++) {
+          const n = fmPending[i];
+          try {
+            const inv = await processFirstMeetForChar(n, stat.角色[n], getCurrentMode(), { allowScriptRoll: true, force: true, source: '面板补掷' });
+            if (inv) fmNote += (fmNote ? '、' : '') + n + ' E' + (inv.delta >= 0 ? '+' : '') + inv.delta + '（' + inv.tier + '）';
+          } catch (e) {}
+        }
+        if (fmNote) { await writeMvuLatest(stat); toast('初见已掷：' + fmNote, 'success'); }
+        else toast('改好了，下一轮就生效', 'success');
+        try { injectEventPrompt(); } catch (e) {}
+        try { refreshPanel(); } catch (e) {}
       });
     }, { confirmText: '保存', onOpen: function(mask) {
       mask.querySelectorAll('.moon-roster-presence').forEach(function(btn) {
@@ -15645,6 +15785,15 @@ const stateKey = getChatStateKey();
           btn.style.borderColor = next ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)';
           btn.style.background = next ? '#052e20' : '#111827';
           btn.style.color = next ? '#6ee7b7' : '#94a3b8';
+        });
+      });
+      mask.querySelectorAll('.moon-roster-firstmeet').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const next = btn.getAttribute('data-on') !== '1';
+          btn.setAttribute('data-on', next ? '1' : '0');
+          btn.style.borderColor = next ? 'rgba(244,114,182,0.8)' : 'rgba(168,85,247,0.45)';
+          btn.style.background = next ? '#4a1030' : '#2a1040';
+          btn.textContent = next ? '🎲 待掷' : '🎲 补掷';
         });
       });
     } });
@@ -17979,6 +18128,9 @@ function openTimelineKeywordDialog(panel, onDone) {
         自适应开局已完成: false,
         _autoBootstrapped: true, _autoBootstrapAt: now,
         _playerConfession: false, _firstMeetDone: false,
+        /* 刚建出来的档还没吃过初见骰。标记挂在这里，建档当场就会结算一次；
+           万一那次写入失败或人还没到场，下一轮点名时还能补上，不会永久错过。 */
+        _初见待结算: true,
         _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
         _timelineCompleted: [],
         _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
@@ -18093,13 +18245,48 @@ function openTimelineKeywordDialog(panel, onDone) {
       if (!made.length) return null;
       statData[MIGRATED_FLAG] = true;
 
+      /* 先落盘，再结算初见。
+         这里的第一个 await 决定了「自动建档」与后面「后台变量摄入」的先后：
+         把结算放在写盘之前，会让出微任务，后台变量的写入先发生、再被这里的
+         旧快照盖掉（心声会丢）。所以维持原来的写入时机，写完再补掷。 */
       const ok = await writeMvuLatest(statData);
       if (!ok) return null;
-      try { console.log('[月相] 自动建档：' + made.join('、')); } catch (e) {}
+
+      /* ── 初见投资：建档那一刻就掷，不等下一轮 AI 的标签 ──────────────
+         以前建档只写一份 0 值骨架，把初见完全押给「下一轮 AI 会不会写
+         [初见|…]」；模型忘了写、或者写了没过阈值，E 就一直停在 0，
+         玩家体感就是「自动建档没启用初见投资、从头开始一点点加」。
+         现在建完档立刻结算：本轮 AI 恰好写了标签就用它的档位，没写就按中性掷，
+         失败也有印象底分——建档完成的那一刻，人物就已经有起点。 */
+      const firstMeetNotes = [];
+      try {
+        const after = readMvuLatest();
+        const sd = after && after.stat_data;
+        if (sd && sd.角色) {
+          for (let i = 0; i < made.length; i++) {
+            const n = made[i];
+            const ch = sd.角色[n];
+            if (!ch || !ch._quota || ch._quota._firstMeetDone === true) continue;
+            try {
+              const inv = await processFirstMeetForChar(n, ch, getCurrentMode(), {
+                allowScriptRoll: true,
+                force: true,
+                worldTime: now,
+                source: tableEmpty ? '自动建档' : '新角色入档'
+              });
+              if (inv) firstMeetNotes.push(n + ' E' + (inv.delta >= 0 ? '+' : '') + inv.delta + '（' + inv.tier + '）');
+            } catch (e) {}
+          }
+          if (firstMeetNotes.length) await writeMvuLatest(sd);
+        }
+      } catch (e) {}
+
+      try { console.log('[月相] 自动建档：' + made.join('、') + (firstMeetNotes.length ? ' / 初见 ' + firstMeetNotes.join('、') : '')); } catch (e) {}
       if (reason !== 'silent') {
+        const fmTxt = firstMeetNotes.length ? ' · 初见 ' + firstMeetNotes.join('、') : '';
         toast(tableEmpty
-          ? '已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准'
-          : '新角色已入档：' + made.join('、'), 'info');
+          ? '已自动建好档案' + fmTxt + ' · 想更贴合开场可点「🚀 开局适配」校准'
+          : '新角色已入档：' + made.join('、') + fmTxt, 'info');
       }
       try { refreshPanel(); } catch (e) {}
       return made;
@@ -18197,6 +18384,15 @@ async function applyAdaptiveOpening(charName, values) {
     ch.心声 = values.voice;
     if (!ch._quota) ch._quota = {};
     ch._quota.自适应开局已完成 = true;
+    /* AI 读完整段聊天后给出的 E，本身就是「初见 + 相处」累计的结果，
+       再让初见骰叠一次就是双算。只有它估出来正好是 0（真的还是陌生人）时，
+       才把这一笔留给下一次掷骰，避免玩家点完适配还是从零爬。 */
+    if ((Number(ch.好感度) || 0) !== 0) {
+      ch._quota._firstMeetDone = true;
+      try { delete ch._quota._初见待结算; } catch (e) { ch._quota._初见待结算 = false; }
+    } else {
+      ch._quota._初见待结算 = true;
+    }
     if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
     if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
     const ok = await writeMvuLatest(data.stat_data);
@@ -18235,7 +18431,8 @@ async function applyAdaptiveOpening(charName, values) {
           表白期已通过: values.表白期已通过 || false, 表白期冷却至: '',
           自适应开局已完成: true,
           _playerConfession: false,
-          _firstMeetDone: false,
+          _firstMeetDone: (Number(values.e) || 0) !== 0,
+          _初见待结算: (Number(values.e) || 0) === 0,
           _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
           _timelineCompleted: values.已触发时间线事件名 || [],
           _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
@@ -18404,7 +18601,8 @@ async function applyAdaptiveOpening(charName, values) {
             好感度周上限已用: 0, 周上限起始: now, R阶段门: false, 下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
             表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '', 表白期已通过: false, 表白期冷却至: '', 自适应开局已完成: true,
             _playerConfession: false,
-            _firstMeetDone: false,
+            _firstMeetDone: (Number(item.好感度) || 0) !== 0,
+            _初见待结算: (Number(item.好感度) || 0) === 0,
             _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
             _timelineCompleted: [],
             _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }

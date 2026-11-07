@@ -139,6 +139,9 @@
         自适应开局已完成: false,
         _autoBootstrapped: true, _autoBootstrapAt: now,
         _playerConfession: false, _firstMeetDone: false,
+        /* 刚建出来的档还没吃过初见骰。标记挂在这里，建档当场就会结算一次；
+           万一那次写入失败或人还没到场，下一轮点名时还能补上，不会永久错过。 */
+        _初见待结算: true,
         _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
         _timelineCompleted: [],
         _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
@@ -253,13 +256,48 @@
       if (!made.length) return null;
       statData[MIGRATED_FLAG] = true;
 
+      /* 先落盘，再结算初见。
+         这里的第一个 await 决定了「自动建档」与后面「后台变量摄入」的先后：
+         把结算放在写盘之前，会让出微任务，后台变量的写入先发生、再被这里的
+         旧快照盖掉（心声会丢）。所以维持原来的写入时机，写完再补掷。 */
       const ok = await writeMvuLatest(statData);
       if (!ok) return null;
-      try { console.log('[月相] 自动建档：' + made.join('、')); } catch (e) {}
+
+      /* ── 初见投资：建档那一刻就掷，不等下一轮 AI 的标签 ──────────────
+         以前建档只写一份 0 值骨架，把初见完全押给「下一轮 AI 会不会写
+         [初见|…]」；模型忘了写、或者写了没过阈值，E 就一直停在 0，
+         玩家体感就是「自动建档没启用初见投资、从头开始一点点加」。
+         现在建完档立刻结算：本轮 AI 恰好写了标签就用它的档位，没写就按中性掷，
+         失败也有印象底分——建档完成的那一刻，人物就已经有起点。 */
+      const firstMeetNotes = [];
+      try {
+        const after = readMvuLatest();
+        const sd = after && after.stat_data;
+        if (sd && sd.角色) {
+          for (let i = 0; i < made.length; i++) {
+            const n = made[i];
+            const ch = sd.角色[n];
+            if (!ch || !ch._quota || ch._quota._firstMeetDone === true) continue;
+            try {
+              const inv = await processFirstMeetForChar(n, ch, getCurrentMode(), {
+                allowScriptRoll: true,
+                force: true,
+                worldTime: now,
+                source: tableEmpty ? '自动建档' : '新角色入档'
+              });
+              if (inv) firstMeetNotes.push(n + ' E' + (inv.delta >= 0 ? '+' : '') + inv.delta + '（' + inv.tier + '）');
+            } catch (e) {}
+          }
+          if (firstMeetNotes.length) await writeMvuLatest(sd);
+        }
+      } catch (e) {}
+
+      try { console.log('[月相] 自动建档：' + made.join('、') + (firstMeetNotes.length ? ' / 初见 ' + firstMeetNotes.join('、') : '')); } catch (e) {}
       if (reason !== 'silent') {
+        const fmTxt = firstMeetNotes.length ? ' · 初见 ' + firstMeetNotes.join('、') : '';
         toast(tableEmpty
-          ? '已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准'
-          : '新角色已入档：' + made.join('、'), 'info');
+          ? '已自动建好档案' + fmTxt + ' · 想更贴合开场可点「🚀 开局适配」校准'
+          : '新角色已入档：' + made.join('、') + fmTxt, 'info');
       }
       try { refreshPanel(); } catch (e) {}
       return made;
@@ -357,6 +395,15 @@ async function applyAdaptiveOpening(charName, values) {
     ch.心声 = values.voice;
     if (!ch._quota) ch._quota = {};
     ch._quota.自适应开局已完成 = true;
+    /* AI 读完整段聊天后给出的 E，本身就是「初见 + 相处」累计的结果，
+       再让初见骰叠一次就是双算。只有它估出来正好是 0（真的还是陌生人）时，
+       才把这一笔留给下一次掷骰，避免玩家点完适配还是从零爬。 */
+    if ((Number(ch.好感度) || 0) !== 0) {
+      ch._quota._firstMeetDone = true;
+      try { delete ch._quota._初见待结算; } catch (e) { ch._quota._初见待结算 = false; }
+    } else {
+      ch._quota._初见待结算 = true;
+    }
     if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
     if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
     const ok = await writeMvuLatest(data.stat_data);
@@ -395,7 +442,8 @@ async function applyAdaptiveOpening(charName, values) {
           表白期已通过: values.表白期已通过 || false, 表白期冷却至: '',
           自适应开局已完成: true,
           _playerConfession: false,
-          _firstMeetDone: false,
+          _firstMeetDone: (Number(values.e) || 0) !== 0,
+          _初见待结算: (Number(values.e) || 0) === 0,
           _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
           _timelineCompleted: values.已触发时间线事件名 || [],
           _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
@@ -564,7 +612,8 @@ async function applyAdaptiveOpening(charName, values) {
             好感度周上限已用: 0, 周上限起始: now, R阶段门: false, 下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
             表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '', 表白期已通过: false, 表白期冷却至: '', 自适应开局已完成: true,
             _playerConfession: false,
-            _firstMeetDone: false,
+            _firstMeetDone: (Number(item.好感度) || 0) !== 0,
+            _初见待结算: (Number(item.好感度) || 0) === 0,
             _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
             _timelineCompleted: [],
             _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }

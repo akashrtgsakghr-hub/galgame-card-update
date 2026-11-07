@@ -134,32 +134,88 @@
   function clampFirstMeetAdv(v) { return nearestFirstMeetTier(v, FIRST_MEET_ADV_TIERS); }
   function clampFirstMeetDis(v) { return nearestFirstMeetTier(v, FIRST_MEET_DIS_TIERS); }
 
-  async function processFirstMeetForChar(charName, ch, mode) {
+  /* 失败时的「印象底分」：至少 1d4。
+     初见不是「要么一见钟情要么当没这个人」，没通过也要留下一点印象，
+     否则建档完 E=0，后面全靠日常 0.5~2 一点点爬，玩家体感就是「根本没投资」。 */
+  const FIRST_MEET_FLOOR_DICE = 4;
+  function firstMeetThreshold(mode) { return mode === 'easy' ? 8 : 13; }
+  function firstMeetCoeff(mode) { return mode === 'easy' ? 1.5 : (mode === 'normal' ? 1.0 : 0.5); }
+  function firstMeetMode() { try { return getSettings().firstMeetMode === 'dice' ? 'dice' : 'hybrid'; } catch (e) { return 'hybrid'; } }
+  function firstMeetFloorOn() { try { return getSettings().firstMeetFloor !== false; } catch (e) { return true; } }
+
+  /* ── 初见投资：全系统唯一的掷骰入口 ──────────────────────
+     档位（优势/劣势）可以由 AI 给——它读过角色卡，判断「玩家设定踩中了哪些喜好」是它的强项；
+     但最终数值一定在这里掷出来，AI 写的任何「好感度=XX」都不进这条链路。
+     这样既有人设依据，又保留运气，还能被自检复现（骰点、档位、阈值全留痕）。
+     以前只有「AI 必须写标签」一条路：模型忘了写、或写了没过阈值，E 就停在 0，
+     于是出现了「自动建档之后初见投资等于没生效、从零开始加」的问题。 */
+  function rollFirstMeetInvestment(mode, advIn, disIn, opts) {
+    opts = opts || {};
+    const adv = clampFirstMeetAdv(advIn);
+    const dis = clampFirstMeetDis(disIn);
+    const dice = Math.floor(Math.random() * 20) + 1;
+    const threshold = firstMeetThreshold(mode);
+    const total = dice + adv + dis;
+    let tier = '失败'; let delta = 0; let floor = 0;
+    if (dice === 20) { tier = '大成功'; delta = 30; }
+    else if (dice === 1) { tier = '大失败'; delta = -10; }
+    else if (total >= threshold) { tier = '成功'; delta = roundHalf((total / 2) * firstMeetCoeff(mode)); }
+    else if (opts.floor !== false) { floor = Math.floor(Math.random() * FIRST_MEET_FLOOR_DICE) + 1; delta = floor; }
+    return { dice: dice, adv: adv, dis: dis, total: total, threshold: threshold, tier: tier, delta: delta, floor: floor };
+  }
+
+  /* 初见结算。opts：
+       allowScriptRoll —— 没有 AI 标签也照掷（建档、补录新角色时用）
+       adv / dis       —— 没有标签时的档位来源（角色卡推断 / 开局适配）
+       source          —— 写进 _初见.来源，自检能回溯这笔分是谁给的
+       force           —— 忽略「不在场」限制（刚建档还没轮到场次判定时）
+       floor           —— 是否给失败保底，默认跟设置走
+       noTag           —— 本轮不许碰 [初见|…]：一个标签只能被一个人消费，
+                          同一轮里有刚建档的新人时，先紧着他们，别让老角色截胡 */
+  async function processFirstMeetForChar(charName, ch, mode, opts) {
+    opts = opts || {};
     const quota = ch._quota || (ch._quota = {});
     if (quota._firstMeetDone === true) return null;
-    if (ch.在场 !== true) return null;
+    if (ch.在场 !== true && opts.force !== true) return null;
     const found = getLatestAiMessage();
-    if (!found || !found.msg) return null;
-    const mes = String(found.msg.mes || '');
-    const tag = extractFirstMeetTag(mes);
-    if (!tag) return null;
-    const advValue = clampFirstMeetAdv(tag.优势);
-    const disValue = clampFirstMeetDis(tag.劣势);
-    const dice = Math.floor(Math.random() * 20) + 1;
-    const threshold = (mode === 'easy') ? 8 : 13;
-    const total = dice + advValue + disValue;
-    let newE = Number(ch.好感度) || 0; let newR = Number(ch.阶段值) || 0; let resultText = '';
-    if (dice === 20) { newE = 30; newR = 1; resultText = '大成功 → E=30, R=1'; }
-    else if (dice === 1) { newE = Math.max(-15, -10); newR = 0; resultText = '大失败 → E=-10, R=0'; }
-    else if (total >= threshold) {
-      const coeff = (mode === 'easy') ? 1.5 : (mode === 'normal') ? 1.0 : 0.5;
-      const delta = Math.round((total / 2) * coeff * 2) / 2;
-      newE = roundHalf(newE + delta); newR = 1;
-      resultText = '成功 ' + total + '≥' + threshold + ' → E+=' + delta + ', R=1';
-    } else { resultText = '失败 ' + total + '<' + threshold + ' → E不变, R=0'; }
-    ch.好感度 = newE; ch.阶段值 = newR; quota._firstMeetDone = true;
-    try { found.msg.mes = String(found.msg.mes).replace(tag.fullMatch, '').trim(); } catch (e) {}
-    return { dice: dice, total: total, threshold: threshold, newE: newE, newR: newR, resultText: resultText };
+    if ((!found || !found.msg) && !opts.allowScriptRoll) return null;
+    const mes = String((found && found.msg && found.msg.mes) || '');
+    const tag = (firstMeetMode() === 'hybrid' && !opts.noTag) ? extractFirstMeetTag(mes) : null;
+    // 严格模式（dice）：只认脚本掷骰，连 AI 标签的档位都不采信
+    if (!tag && !opts.allowScriptRoll) return null;
+    const adv = tag ? tag.优势 : (opts.adv || 0);
+    const dis = tag ? tag.劣势 : (opts.dis || 0);
+    const useFloor = (opts.floor === undefined ? firstMeetFloorOn() : opts.floor !== false);
+    const inv = rollFirstMeetInvestment(mode, adv, dis, { floor: useFloor });
+    const before = Number(ch.好感度) || 0;
+    const newE = roundHalf(before + inv.delta);
+    ch.好感度 = newE;
+    // R 一律由 E 推导：以前成功分支硬写 R=1，会出现「E=3.5 却写着愿意认识」的自相矛盾
+    ch.阶段值 = getRStageFromE(newE).r;
+    quota._firstMeetDone = true;
+    try { delete quota._初见待结算; } catch (e) { quota._初见待结算 = false; }
+    let worldTime = String(opts.worldTime || '');
+    if (!worldTime) {
+      try { const d = readMvuLatest(); worldTime = String((d && d.stat_data && d.stat_data.世界 && d.stat_data.世界.时间) || ''); } catch (e) {}
+    }
+    quota._初见 = {
+      骰: inv.dice, 优势: inv.adv, 劣势: inv.dis, 合计: inv.total, 阈值: inv.threshold,
+      档: inv.tier, 投入: inv.delta, 底分: inv.floor,
+      来源: tag ? 'AI标签' : (opts.source || '脚本兜底'),
+      之前: before, 时间: worldTime
+    };
+    if (tag) { try { found.msg.mes = String(found.msg.mes).replace(tag.fullMatch, '').trim(); } catch (e) {} }
+    const diceTxt = '1d20=' + inv.dice + (inv.adv || inv.dis ? '（优势 ' + inv.adv + ' / 劣势 ' + inv.dis + '）' : '');
+    let resultText = '';
+    if (inv.tier === '大成功') resultText = '大成功 ' + diceTxt + ' → E+30，关系直接进入愿意认识';
+    else if (inv.tier === '大失败') resultText = '大失败 ' + diceTxt + ' → E-10，第一印象就是负的';
+    else if (inv.tier === '成功') resultText = '成功 ' + diceTxt + '，合计 ' + inv.total + ' ≥ ' + inv.threshold + ' → E+' + inv.delta;
+    else resultText = '失败 ' + diceTxt + '，合计 ' + inv.total + ' < ' + inv.threshold + ' → 只留下 ' + inv.delta + ' 点印象底分';
+    return {
+      dice: inv.dice, total: inv.total, threshold: inv.threshold, tier: inv.tier,
+      delta: inv.delta, newE: newE, newR: ch.阶段值,
+      source: quota._初见.来源, char: charName, resultText: resultText
+    };
   }
 
   function getLatestAiMessage() {

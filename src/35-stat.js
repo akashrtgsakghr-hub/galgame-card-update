@@ -173,8 +173,15 @@
         const levelTag = eventType === '日常' ? 'L' : (eventType === '关键' ? 'M' : 'H');
         const _q = ch._quota || {};
         if (ch.在场 === true && _q._firstMeetDone !== true) {
-          lines.push('【' + name + '】首次登场！请通读角色卡，判断玩家设定触发了哪些喜好/厌恶。');
-          lines.push('  在正文末尾额外输出 `[初见|优势+X|劣势-Y]`（优势取值 0/+3/+6/+9，劣势取值 0/-3/-6）。');
+          lines.push('【' + name + '】首次登场！');
+          if (firstMeetMode() === 'dice') {
+            lines.push('  初见骰由脚本直接掷出，你不需要输出任何初见标签，也不要自己写好感数字。');
+          } else {
+            lines.push('  请通读角色卡，判断玩家设定触发了哪些喜好/厌恶。');
+            lines.push('  在正文末尾额外输出 `[初见|优势+X|劣势-Y]`（优势取值 0/+3/+6/+9，劣势取值 0/-3/-6）。');
+            lines.push('  → 这只是「档位」，最终数值由脚本掷 1d20 结算，你不需要也不许写结果数字。');
+            lines.push('  → 本轮忘了写也没关系：脚本会按无加成直接掷，不会再等下一轮。');
+          }
         }
         const importance = String(ch.重要度 || '主要').trim();
         if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在她身上，内心戏与情感拉扯要写足。');

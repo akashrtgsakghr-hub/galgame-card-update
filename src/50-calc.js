@@ -36,6 +36,14 @@
       const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : stableFeatureHash(String(currentTime));
       const parsedTags = extractAllSylveinaTags(latestAiText);
       const primaryTarget = pickPrimaryTarget(chars, activeCharNames);
+      /* 一个 [初见|…] 标签只能被消费一次。
+         本轮如果有刚建档、还没吃过初见骰的人，就先把标签留给他们中的一个；
+         老存档里 _firstMeetDone=false 的角色不许截胡，否则新人只能吃兜底档位。 */
+      const firstMeetPending = activeCharNames.filter(function(n) {
+        const c = chars[n];
+        return c && c._quota && c._quota._初见待结算 === true && c._quota._firstMeetDone !== true;
+      });
+      const firstMeetTagOwner = firstMeetPending.length ? firstMeetPending[0] : null;
 
       let wbEntries = [];
       try { wbEntries = await getAllWorldbookEntries(); } catch (e) {}
@@ -48,7 +56,17 @@
         const oldRBeforeTurn = Number(ch.阶段值) || 0;
 
         try {
-          const fmResult = await processFirstMeetForChar(name, ch, mode);
+          /* 初见投资：建档时会当场掷一次并清掉「待结算」标记。
+             这里兜的是另一种情况——建档当时写入失败、或者角色那时还没到场，
+             标记还挂着；只要这一轮文本点到了名字，就地补掷，不再无限期等 AI 标签。
+             老存档没有这个标记，仍然只认 AI 写的 [初见|…]，不会被二次收费。 */
+          const fmPending = ch._quota._初见待结算 === true;
+          const fmResult = await processFirstMeetForChar(name, ch, mode, fmPending ? {
+            allowScriptRoll: true,
+            force: true,
+            noTag: firstMeetPending.length > 0 && name !== firstMeetTagOwner,
+            source: latestAiText.indexOf(name) >= 0 ? '入场补掷（点名）' : '入场补掷（在场）'
+          } : { noTag: firstMeetPending.length > 0 });
           if (fmResult) gateLogs.push({ type: 'event_update', char: name, event: { type: 'first_meet', result: fmResult } });
         } catch (e) {}
         try {

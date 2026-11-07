@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.5';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.5 实测问题集中修复】七处报上来的毛病，逐条对账\n1. 🔴 修掉启动自检里的 `_nWarn is not defined`：冲突扫描漏声明计数器，一进游戏就弹「扫描异常」。\n2. 🔄 堵住「酒馆一直自己刷新」：所有刷新改成一次性闸门，标记写不进去（隐私模式／存储满）时宁可不刷，也不反复重载；首次自检同一会话只跑一次。\n3. 🎮 沉浸模式入口不再单独占魔棒菜单，收进系统面板主菜单；开关按页面实际状态判断，不再出现「存档写着开着、点一下被判成关闭」的点了没反应。\n4. 🖼 沉浸层右上角新增「🌕 系统」，玩到一半也能直接调出面板；面板渲染出错不再静默失败，会直接把原因报出来。\n5. 🗂 改「单人卡／多人卡」「安全锁」这些开关后，面板不再把「运行设定」自己收回去：重绘前记住展开状态和滚动位置，重绘后还原。\n6. 📊 当前好感／阶段／肉体／嫉妒正式写进提示词（「当前状态·唯一事实来源」），AI 不会再自己编「好感度24」，并被明确禁止在正文复述数字。\n7. 🙈 新增「隐藏内心草稿」：AI 写在正文后面的 Phase.xxx、<角色名内置cot> 分析段整段收进隐藏块（原文不删），玩家只看到正文和状态卡；沉浸模式读到的正文同样过滤。\n8. 🧾 自动建档改成第一轮就建，不再等 AI 写标签；建档之后每一轮还会把新出场的角色补录进档案，新人先记「次要」，不抢主攻略对象的戏。\n9. 🧪 新增 H 系列 11 条回归用例，全套 16 个套件全部通过。";
+  const MOON_FORMULA_VERSION = '4.7.6';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.6 初见投资真正落地 · 数值方案定型】\n1. 🎲 自动建档当场就掷初见骰：不再等下一轮 AI 会不会写 [初见|…]。建档完成的那一刻，人物就已经有起点，不再是 0 一路干爬。\n2. 💰 初见失败也给 1d4 印象底分：以前失败 E 一分不加、却照样标记「已初见」，等于把开局投资永久作废。面板可关。\n3. 🧭 一个 [初见|…] 标签只给一个人用：同一轮里有刚建档的新人时，标签优先给新人，老存档角色不许截胡，多人卡不再出现「新人只能吃兜底档位」。\n4. 🔁 兜底补掷：建档时写入失败、或人还没到场，标记会留着；之后哪一轮点到他的名字就地补掷，不会永久错过。\n5. 🤝 数值方案定为「AI 评档位 + 脚本掷骰」：AI 只判断玩家设定踩中了哪些喜好（0/+3/+6/+9），最终数字永远由 1d20 掷出。AI 直接给数值会漂移、不可复现，也会把「唯一事实来源」交回模型。面板可在「骰子+AI」与「纯骰子」间切换。\n6. 📐 初见的阶段值改为由好感度推导：以前成功分支硬写 R=1，会出现「E=3 却显示愿意认识」的自相矛盾。\n7. 🗂 角色定位面板逐个显示初见结果（骰点／档位／投入／来源）；自己往变量里加的人可以点「🎲 补掷」手动补一次，不用等下一轮。\n8. 🧾 开局适配给出非 0 好感时直接标记「已结算」，避免 AI 估完再被初见骰二次加成。\n9. 🔍 自检新增「初见投资」一行：谁结算了、骰点多少、档位从哪来、还剩谁待结算。\n10. 🧪 新增 F 系列 16 条回归用例，全套 17 个测试套件全部通过。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,12 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true,
+    /* 初见投资的数值怎么来：
+       hybrid —— 骰子定数值，AI 只给「优势/劣势」档位（读过角色卡，判断人设契合度）
+       dice   —— 全看骰子，AI 写什么档位都不采信
+       firstMeetFloor：没过阈值也给 1d4 印象底分，避免建档完 E=0 一路干爬 */
+    firstMeetMode: 'hybrid', firstMeetFloor: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;

@@ -253,6 +253,9 @@
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话就建 0 值档案；之后每一轮有新角色出场也会自动补录' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
+      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎲 初见投资</div><div class="mp-toggle-desc">' + (firstMeetMode() === 'dice' ? '只掷骰：开局第一印象全看 1d20，AI 写什么档位都不采信' : '骰子 + 人设档位：AI 只评优势/劣势，数值由脚本掷（推荐）') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底') + '</div></div>' +
+      '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
       renderCoreRulePickerHtml() + '</div>' +
@@ -465,6 +468,13 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
       refreshPanel();
     });
     panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
+    panel.querySelector('#moon-phase-firstmeet').addEventListener('click', function() {
+      const s2 = getSettings();
+      s2.firstMeetMode = (s2.firstMeetMode === 'dice') ? 'hybrid' : 'dice';
+      saveSettings(s2);
+      toast(s2.firstMeetMode === 'dice' ? '初见投资：只掷骰，AI 不再给档位' : '初见投资：AI 评档位，脚本掷数值', 'info');
+      refreshPanel();
+    });
     (function() {
       const coreBtns = panel.querySelectorAll('[data-core-rule]');
       for (let i = 0; i < coreBtns.length; i++) {
@@ -529,6 +539,22 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     info('特殊标签：Sylveina');
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
     info('自动建档：' + (getSettings().autoBootstrap === false ? 'OFF（要手动点开局适配）' : 'ON（对面首条回复后自动立档）'));
+    /* 初见投资留痕：谁结算过、骰点多少、档位从哪来、给了几分。
+       玩家反馈「建档后从零开始加」时，看这一行就能判断是没掷、还是掷了但没过。 */
+    try {
+      const _d = readMvuLatest();
+      const _chars = (_d && _d.stat_data && _d.stat_data.角色) || {};
+      const _names = Object.keys(_chars).filter(function(k) { return k !== '示例角色' && k !== 'You' && k !== '你'; });
+      const _done = []; const _pending = [];
+      _names.forEach(function(n) {
+        const q = (_chars[n] && _chars[n]._quota) || {};
+        if (q._初见) _done.push(n + ' 1d20=' + q._初见.骰 + ' → E' + (q._初见.投入 >= 0 ? '+' : '') + q._初见.投入 + '（' + q._初见.档 + '·' + q._初见.来源 + '）');
+        else if (q._firstMeetDone !== true) _pending.push(n);
+      });
+      info('初见投资：' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI档位') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底'));
+      if (_done.length) info('　已结算：' + _done.join('；'));
+      if (_pending.length) info('　待结算：' + _pending.join('、') + '（下一轮入场时掷）');
+    } catch (e) {}
     info('演绎规则：' + getCoreRuleHint());
     info('词条释义：' + getGlossaryHint());
     const pacingName = { Adi: 'Adagio · 柔板', And: 'Andante · 行板', All: 'Allegro · 快板' }[getEventPacing()] || getEventPacing();
@@ -915,13 +941,22 @@ const stateKey = getChatStateKey();
       const ch = chars[n];
       const imp = String(ch.重要度 || '主要');
       const present = ch.在场 !== false;
+      /* 初见投资的可见状态：掷过就写骰点和投入；没掷过就明确写着「待结算」，
+         免得玩家又以为是「脚本没生效」。自己往变量里加的人也能在这里补一次。 */
+      const fm = ch._quota && ch._quota._初见;
+      const fmDone = !!fm || (ch._quota && ch._quota._firstMeetDone === true);
+      const fmTxt = fm
+        ? ('初见 1d20=' + fm.骰 + (fm.档 ? '（' + fm.档 + '）' : '') + ' → E' + (fm.投入 >= 0 ? '+' : '') + fm.投入 + '　' + String(fm.来源 || ''))
+        : (fmDone ? '初见已结算（旧存档，无骰点记录）' : '初见未结算 · 下一轮入场自动掷');
       return '<div class="moon-roster-row" data-name="' + escapeFeatureHtml(n) + '" data-idx="' + i + '" style="padding:10px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;margin-bottom:8px;">' +
         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
         '<b style="font-size:12px;color:#f8fafc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeFeatureHtml(n) + '</b>' +
         '<span style="font-size:10px;color:#94a3b8;white-space:nowrap;">E' + (Number(ch.好感度) || 0) + ' P' + (Number(ch.肉体值) || 0) + ' R' + (Number(ch.阶段值) || 0) + ' I' + (Number(ch.嫉妒值) || 0) + '</span></div>' +
+        '<div style="font-size:10px;line-height:1.5;margin-bottom:6px;color:' + (fmDone ? '#94a3b8' : '#fbbf24') + ';">' + escapeFeatureHtml(fmTxt) + '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
         '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#22262f;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
-        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button></div>' +
+        '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button>' +
+        '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 补掷</button></div>' +
         '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="她心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
         '</div>';
     }).join('');
@@ -946,6 +981,7 @@ const stateKey = getChatStateKey();
         if (parsed) stat.世界.时间 = formatGameTime(parsed);
       }
       if (placeInput) stat.世界.地点 = String(placeInput.value || '').trim().slice(0, 60);
+      const fmPending = [];
       mask.querySelectorAll('.moon-roster-row').forEach(function(row) {
         const name = row.getAttribute('data-name');
         const ch = stat.角色[name]; if (!ch) return;
@@ -955,13 +991,31 @@ const stateKey = getChatStateKey();
         if (pBtn) ch.在场 = pBtn.getAttribute('data-on') === '1';
         const vInput = row.querySelector('.moon-roster-voice');
         if (vInput) { const v = String(vInput.value || '').trim(); if (v) ch.心声 = v.slice(0, 300); }
+        /* 点了「🎲 补掷」：清掉旧的初见结论，重新走一次结算。
+           自己往变量里加的人、或者旧存档里从没掷过的角色，都靠这个补上开局投资。 */
+        const fBtn = row.querySelector('.moon-roster-firstmeet');
+        if (fBtn && fBtn.getAttribute('data-on') === '1') {
+          if (!ch._quota) ch._quota = {};
+          ch._quota._firstMeetDone = false;
+          ch._quota._初见待结算 = true;
+          try { delete ch._quota._初见; } catch (e) { ch._quota._初见 = null; }
+          fmPending.push(name);
+        }
       });
-      writeMvuLatest(stat).then(function(ok) {
-        if (ok) {
-          toast('改好了，下一轮就生效', 'success');
-          try { injectEventPrompt(); } catch (e) {}
-          try { refreshPanel(); } catch (e) {}
-        } else toast('写入失败', 'warning');
+      writeMvuLatest(stat).then(async function(ok) {
+        if (!ok) { toast('写入失败', 'warning'); return; }
+        let fmNote = '';
+        for (let i = 0; i < fmPending.length; i++) {
+          const n = fmPending[i];
+          try {
+            const inv = await processFirstMeetForChar(n, stat.角色[n], getCurrentMode(), { allowScriptRoll: true, force: true, source: '面板补掷' });
+            if (inv) fmNote += (fmNote ? '、' : '') + n + ' E' + (inv.delta >= 0 ? '+' : '') + inv.delta + '（' + inv.tier + '）';
+          } catch (e) {}
+        }
+        if (fmNote) { await writeMvuLatest(stat); toast('初见已掷：' + fmNote, 'success'); }
+        else toast('改好了，下一轮就生效', 'success');
+        try { injectEventPrompt(); } catch (e) {}
+        try { refreshPanel(); } catch (e) {}
       });
     }, { confirmText: '保存', onOpen: function(mask) {
       mask.querySelectorAll('.moon-roster-presence').forEach(function(btn) {
@@ -973,6 +1027,15 @@ const stateKey = getChatStateKey();
           btn.style.borderColor = next ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)';
           btn.style.background = next ? '#052e20' : '#111827';
           btn.style.color = next ? '#6ee7b7' : '#94a3b8';
+        });
+      });
+      mask.querySelectorAll('.moon-roster-firstmeet').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const next = btn.getAttribute('data-on') !== '1';
+          btn.setAttribute('data-on', next ? '1' : '0');
+          btn.style.borderColor = next ? 'rgba(244,114,182,0.8)' : 'rgba(168,85,247,0.45)';
+          btn.style.background = next ? '#4a1030' : '#2a1040';
+          btn.textContent = next ? '🎲 待掷' : '🎲 补掷';
         });
       });
     } });
