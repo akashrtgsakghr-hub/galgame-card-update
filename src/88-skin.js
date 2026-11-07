@@ -14,7 +14,8 @@
     { id: 'ticket', short: '票根', name: '晨昏票根', hint: '可撕副券 · 展开房间与名册' },
     { id: 'book', short: '藏书票', name: '月氏藏书票', hint: '笺纸名札 · 双面翻转' },
     { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' },
-    { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' }
+    { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' },
+    { id: 'calista', short: 'Calista', name: 'Calista 贝壳', hint: '珍珠奶油 · 点开是她的近况，深浅可换' }
   ];
 
   const SKIN_CSS_TICKET = `@import url("https://fontsapi.zeoseven.com/802/main/result.css");
@@ -1927,7 +1928,73 @@
   .mp-skin-prophet .mpp-photo.is-animated { animation: none; }
   .mp-skin-prophet .mpp-body,
   .mp-skin-prophet .mpp-body-clip { transition: none; }
-}`;
+}
+
+/* ── 夜间版：同一张报纸，灯关了 ───────────────────────────────
+   只换纸与墨，版面一根线都不动；半透明高光从「加白」改成「加暖」。
+   注意：这里全部用 [data-theme="night"] 前缀把特异性抬到 (0,2,0)，
+   否则压不过上面那些单类名的 .mpp-* 规则。 */
+.mp-skin-prophet[data-theme="night"] {
+  --mpp-paper: #1A1613;
+  --mpp-paper-2: #221D18;
+  --mpp-ink: #E9E1D3;
+  --mpp-ink-2: #C6BBA8;
+  --mpp-ink-3: #9C9180;
+  --mpp-hair: rgba(233, 225, 211, .20);
+  --mpp-rule: #C3B7A2;
+  --mpp-shadow: rgba(6, 5, 3, .62);
+  --mpp-seal: #D2735C;
+  --mpp-gold: #C9A45E;
+}
+.mp-skin-prophet[data-theme="night"] .mpp-paper {
+  border-color: #3B332B;
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 240, 214, .055), transparent 60%),
+    radial-gradient(90% 110% at 0% 100%, rgba(255, 208, 150, .045), transparent 62%),
+    radial-gradient(90% 110% at 100% 0%, rgba(255, 208, 150, .035), transparent 58%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 214, .06),
+    0 8px 20px -8px var(--mpp-shadow);
+}
+.mp-skin-prophet[data-theme="night"] .mpp-paper::before {
+  opacity: .09;
+  background-image: radial-gradient(circle at center, rgba(255, 236, 205, .4) .5px, transparent .6px);
+  mix-blend-mode: screen;
+}
+.mp-skin-prophet[data-theme="night"] .mpp-fold {
+  box-shadow: inset 0 0 0 3px var(--mpp-paper), inset 0 0 0 4px rgba(255, 240, 214, .16);
+}
+.mp-skin-prophet[data-theme="night"] .mpp-copy { column-rule-color: rgba(233, 225, 211, .16); }
+.mp-skin-prophet[data-theme="night"] .mpp-brief { border-bottom-color: rgba(233, 225, 211, .22); }
+.mp-skin-prophet[data-theme="night"] .mpp-silhouette i {
+  background: radial-gradient(circle at 36% 34%, #F6EFDD, #B9B09A);
+  box-shadow: 0 0 22px 8px rgba(246, 239, 221, .18);
+}
+
+/* 日夜切换：纸角一枚小字，不占版面 */
+.mp-skin-prophet .mpp-topline { padding-right: 46px; }
+.mp-skin-prophet .mpp-theme {
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  z-index: 3;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mpp-ink-3);
+  font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 8.5px;
+  letter-spacing: .14em;
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+.mp-skin-prophet .mpp-theme:hover { color: var(--mpp-ink); background: var(--mpp-paper-2); }
+.mp-skin-prophet .mpp-theme:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--mpp-paper), 0 0 0 3px var(--mpp-seal);
+}
+`;
 
   const SKIN_CSS_DIBAO = `/* 朱丝栏邸报 · 灯下夜读的暗调抄本
    ─────────────────────────────────────────────────────────────
@@ -2451,6 +2518,528 @@
   .mp-skin-dibao.is-open .db-seal { animation: none; }
 }`;
 
+  const SKIN_CSS_CALISTA = `/* ══════════════════════════════════════════════════════════════════
+   Calista · 楼内状态卡（第五套皮肤）
+   一颗会展开的胶囊：收起时像灵动岛，点开落到一张极简卡。
+   ─────────────────────────────────────────────────────────────────
+   铁律执行情况：
+   1. 无纯黑 / 无纯白 / 无黑框：四层背景只差 2% 明度，边界用 8% 发丝线
+   2. 聚焦不描边：所有可点元素用双环阴影（0 0 0 2px + 0 0 0 5px）
+   3. 暗色字重降 40%：--cl-fw 600 → 360
+   4. 心声逐字 blur(6px) 渐显，120ms，字间错开 30ms
+   5. 图标统一下移 .125em 对齐基线
+   6. 数字锁 tabular-nums
+   7. 折叠 Grid 0fr → 1fr
+   8. 正文 text-wrap: pretty
+   9. 弹簧：展开 1200/80 零回弹曲线，落位 380ms 微弹
+  10. 复制对勾 2.5s 自隐（本卡无复制动作，规则预留在 .cl-copied）
+   ══════════════════════════════════════════════════════════════════ */
+
+.mp-skin-calista {
+  /* 浅色四层：奶油纸 → 珍珠白，只差 2% 明度，靠这一点点差别分层。
+     取自 Calista 的贝壳、珍珠与亚麻，不是冷灰。 */
+  --cl-bg-0: #F2EBE1;
+  --cl-bg-1: #F9F4EC;
+  --cl-bg-2: #FFFCF6;
+  --cl-bg-3: #E9DFD1;
+
+  --cl-ink:   #3A2E27;
+  --cl-ink-2: #6E5C51;
+  --cl-ink-3: #9C8A7B;
+
+  --cl-hair:   rgba(58, 46, 39, .09);
+  --cl-hair-2: rgba(58, 46, 39, .17);
+
+  --cl-accent: #C0867F;
+  --cl-accent-soft: rgba(192, 134, 127, .14);
+  /* 贝壳内壁的虹彩，只给卡面加一层极淡的光 */
+  --cl-sheen: linear-gradient(118deg,
+    rgba(255, 246, 236, .85) 0%,
+    rgba(246, 226, 222, .32) 34%,
+    rgba(230, 238, 233, .22) 62%,
+    rgba(255, 250, 240, .55) 100%);
+
+  --cl-fw: 600;
+  --cl-fw-body: 400;
+
+  --cl-serif: "Calista", "Songti SC", "Noto Serif SC", "Source Han Serif SC", Georgia, "Times New Roman", serif;
+  --cl-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+
+  /* 弹簧：1200/80 零回弹；落位带一点微弹 */
+  --cl-spring: cubic-bezier(.2, .9, .12, 1);
+  --cl-pop: cubic-bezier(.34, 1.18, .64, 1);
+  --cl-ease: cubic-bezier(.16, 1, .3, 1);
+
+  container-type: inline-size;
+  margin: 10px 0 2px;
+  color: var(--cl-ink);
+  font-family: var(--cl-sans);
+  font-size: 12.5px;
+  font-weight: var(--cl-fw-body);
+  line-height: 1.6;
+  text-wrap: pretty;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 深色四层：比浅色再压 2% 一档，文字降到 360 字重 */
+.mp-skin-calista[data-theme="night"] {
+  --cl-bg-0: #17120F;
+  --cl-bg-1: #1E1815;
+  --cl-bg-2: #251E19;
+  --cl-bg-3: #100C0A;
+
+  --cl-ink:   #F3E9DC;
+  --cl-ink-2: #C4B2A2;
+  --cl-ink-3: #8C7C6E;
+
+  --cl-hair:   rgba(243, 233, 220, .10);
+  --cl-hair-2: rgba(243, 233, 220, .19);
+
+  --cl-accent: #DFA79E;
+  --cl-accent-soft: rgba(223, 167, 158, .18);
+  --cl-sheen: linear-gradient(118deg,
+    rgba(255, 236, 220, .07) 0%,
+    rgba(223, 167, 158, .06) 40%,
+    rgba(180, 200, 195, .04) 68%,
+    rgba(255, 240, 226, .05) 100%);
+
+  --cl-fw: 360;
+  --cl-fw-body: 300;
+}
+
+/* ── 收起态：一枚胶囊 ───────────────────────────────────────────── */
+.mp-skin-calista .cl-fold {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 7px 12px 7px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-bg-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* 不描边：一圈发丝线 + 两层极淡投影 */
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair),
+    0 1px 2px rgba(31, 28, 24, .05),
+    0 10px 26px -20px rgba(31, 28, 24, .55);
+  transition:
+    background-color 260ms var(--cl-ease),
+    box-shadow 260ms var(--cl-ease),
+    padding 320ms var(--cl-spring);
+  -webkit-tap-highlight-color: transparent;
+}
+.mp-skin-calista[data-theme="night"] .cl-fold {
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair),
+    0 1px 2px rgba(6, 5, 4, .5),
+    0 12px 30px -20px rgba(6, 5, 4, .8);
+}
+.mp-skin-calista .cl-fold:hover { background: var(--cl-bg-2); }
+.mp-skin-calista .cl-fold:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair-2),
+    0 0 0 2px var(--cl-bg-1),
+    0 0 0 4px var(--cl-accent-soft),
+    0 10px 26px -20px rgba(31, 28, 24, .55);
+}
+
+/* 圆章：Calista 的两个基本元素——圆 + 一段线 */
+.mp-skin-calista .cl-orb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(120% 120% at 30% 18%, rgba(255, 255, 255, .55), transparent 58%),
+    var(--cl-bg-2);
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair-2),
+    inset 0 -2px 5px rgba(192, 134, 127, .18);
+  font-family: var(--cl-serif);
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: .01em;
+}
+.mp-skin-calista .cl-orb::after {
+  content: "";
+  position: absolute;
+  inset: -3.5px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-top-color: var(--cl-accent);
+  border-right-color: var(--cl-accent);
+  opacity: .5;
+  transform: rotate(-42deg);
+  transition: transform 620ms var(--cl-spring), opacity 300ms var(--cl-ease);
+}
+.mp-skin-calista.is-open .cl-orb::after {
+  transform: rotate(226deg);
+  opacity: .78;
+}
+
+.mp-skin-calista .cl-id {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.mp-skin-calista .cl-name {
+  font-family: var(--cl-serif);
+  font-size: 14px;
+  font-weight: var(--cl-fw);
+  line-height: 1.25;
+  letter-spacing: .05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-skin-calista .cl-sub {
+  font-size: 9px;
+  line-height: 1.4;
+  letter-spacing: .16em;
+  color: var(--cl-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mp-skin-calista .cl-val {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.mp-skin-calista .cl-val b {
+  font-family: var(--cl-serif);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+.mp-skin-calista .cl-val span {
+  font-size: 8.5px;
+  letter-spacing: .12em;
+  color: var(--cl-ink-3);
+}
+
+/* 箭头：和其它图标一样下移 .125em 贴基线 */
+.mp-skin-calista .cl-chev {
+  flex: 0 0 auto;
+  position: relative;
+  top: .125em;
+  width: 13px;
+  height: 13px;
+  color: var(--cl-ink-3);
+  transition: transform 340ms var(--cl-spring), color 200ms;
+}
+.mp-skin-calista .cl-fold:hover .cl-chev { color: var(--cl-ink-2); }
+.mp-skin-calista.is-open .cl-chev { transform: rotate(180deg); }
+
+/* ── 折叠：Grid 0fr → 1fr ─────────────────────────────────────── */
+.mp-skin-calista .cl-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 380ms var(--cl-pop),
+    opacity 220ms var(--cl-ease);
+}
+.mp-skin-calista .cl-body:not([hidden]) {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.mp-skin-calista .cl-body-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.mp-skin-calista .cl-body:not([hidden]) .cl-body-clip {
+  padding-top: 8px;
+}
+
+/* ── 展开后的卡面 ───────────────────────────────────────────────── */
+.mp-skin-calista .cl-sheet {
+  position: relative;
+  overflow: hidden;
+  padding: 13px 13px 12px;
+  background-image: var(--cl-sheen);
+  background-blend-mode: soft-light;
+  border-radius: 20px;
+  background: var(--cl-bg-0);
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair),
+    0 14px 34px -26px rgba(31, 28, 24, .6);
+}
+.mp-skin-calista[data-theme="night"] .cl-sheet {
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair),
+    0 14px 34px -26px rgba(6, 5, 4, .9);
+}
+/* 同心圆：Calista 的线，只做节奏，不抢内容 */
+.mp-skin-calista .cl-sheet::before {
+  content: "";
+  position: absolute;
+  right: -78px;
+  top: -84px;
+  width: 176px;
+  height: 176px;
+  border-radius: 50%;
+  background: repeating-radial-gradient(
+    circle at 50% 50%,
+    transparent 0 16px,
+    var(--cl-hair) 16px 17px
+  );
+  opacity: .42;
+  pointer-events: none;
+}
+.mp-skin-calista .cl-sheet > * { position: relative; }
+
+.mp-skin-calista .cl-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 11px;
+}
+.mp-skin-calista .cl-stagechip {
+  font-size: 9.5px;
+  letter-spacing: .16em;
+  color: var(--cl-ink-2);
+}
+.mp-skin-calista .cl-theme {
+  border: 0;
+  background: transparent;
+  color: var(--cl-ink-3);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: .12em;
+  padding: 6px 8px;
+  margin: -6px -4px -6px 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 180ms var(--cl-ease), background-color 180ms var(--cl-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.mp-skin-calista .cl-theme:hover { color: var(--cl-ink); background: var(--cl-bg-2); }
+.mp-skin-calista .cl-theme:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--cl-bg-0), 0 0 0 4px var(--cl-accent-soft);
+}
+
+.mp-skin-calista .cl-grid { display: grid; gap: 7px; }
+.mp-skin-calista .cl-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px 12px 14px;
+  border-radius: 14px;
+  background: var(--cl-bg-2);
+}
+/* 一圈 2px 的环：Calista 的「圆」就是数值本身 */
+.mp-skin-calista .cl-ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  display: block;
+}
+.mp-skin-calista .cl-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mp-skin-calista .cl-ring .cl-ring-arc {
+  transition: stroke-dashoffset 900ms var(--cl-spring);
+}
+.mp-skin-calista .cl-ring-bead {
+  filter: drop-shadow(0 0 3px rgba(192, 134, 127, .45));
+}
+.mp-skin-calista .cl-hero-main { display: grid; gap: 2px; min-width: 0; }
+.mp-skin-calista .cl-hero .cl-v { font-size: 34px; }
+.mp-skin-calista .cl-k {
+  display: block;
+  font-size: 9px;
+  letter-spacing: .18em;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-v {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--cl-serif);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.05;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+.mp-skin-calista .cl-hero .cl-v {
+  margin-top: 2px;
+  font-size: 34px;
+  letter-spacing: -.01em;
+}
+.mp-skin-calista .cl-v small {
+  font-family: var(--cl-sans);
+  font-size: 9.5px;
+  font-weight: var(--cl-fw-body);
+  letter-spacing: .1em;
+  color: var(--cl-ink-3);
+  margin-left: 4px;
+}
+
+
+.mp-skin-calista .cl-row3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.mp-skin-calista .cl-tile {
+  padding: 9px 10px 10px;
+  border-radius: 14px;
+  background: var(--cl-bg-2);
+}
+.mp-skin-calista .cl-tile .cl-v { font-size: 17px; }
+.mp-skin-calista .cl-tile .cl-v.is-text {
+  font-family: var(--cl-sans);
+  font-size: 12px;
+  font-weight: var(--cl-fw);
+  letter-spacing: .02em;
+  line-height: 1.5;
+  margin-top: 4px;
+  min-height: 1.5em;
+}
+
+/* 心声：逐字 blur 渐显 */
+.mp-skin-calista .cl-voice {
+  margin: 11px 0 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--cl-serif);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--cl-ink-2);
+  text-wrap: pretty;
+}
+.mp-skin-calista .cl-voice-mark {
+  color: var(--cl-accent);
+  opacity: .75;
+  margin-right: 1px;
+}
+.mp-skin-calista .cl-ch {
+  display: inline;
+  opacity: 0;
+  filter: blur(6px);
+  animation: clCharIn 120ms ease forwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+@keyframes clCharIn {
+  to { opacity: 1; filter: blur(0); }
+}
+
+.mp-skin-calista .cl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  margin: 9px 0 0;
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-meta b {
+  font-weight: var(--cl-fw);
+  color: var(--cl-ink-2);
+}
+
+.mp-skin-calista .cl-others {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  box-shadow: inset 0 1px 0 var(--cl-hair);
+}
+.mp-skin-calista .cl-other {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--cl-ink-2);
+}
+.mp-skin-calista .cl-other b {
+  font-weight: var(--cl-fw);
+  color: var(--cl-ink);
+}
+.mp-skin-calista .cl-other i {
+  font-style: normal;
+  font-family: var(--cl-serif);
+  font-size: 12px;
+  color: var(--cl-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-skin-calista .cl-empty {
+  padding: 18px 12px 20px;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.9;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-empty b {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--cl-serif);
+  font-size: 14px;
+  font-weight: var(--cl-fw);
+  color: var(--cl-ink-2);
+}
+
+/* 展开时子块错峰浮起：一次编排，不散着动 */
+.mp-skin-calista.is-open .cl-sheet > * {
+  animation: clRise 380ms var(--cl-ease) both;
+}
+.mp-skin-calista.is-open .cl-sheet > *:nth-child(2) { animation-delay: 40ms; }
+.mp-skin-calista.is-open .cl-sheet > *:nth-child(3) { animation-delay: 80ms; }
+.mp-skin-calista.is-open .cl-sheet > *:nth-child(4) { animation-delay: 120ms; }
+.mp-skin-calista.is-open .cl-sheet > *:nth-child(5) { animation-delay: 160ms; }
+@keyframes clRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 窄屏：数字降一档，三格变两格 */
+@container (max-width: 360px) {
+  .mp-skin-calista .cl-hero .cl-v { font-size: 30px; }
+  .mp-skin-calista .cl-row3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mp-skin-calista .cl-voice { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-skin-calista .cl-body,
+  .mp-skin-calista .cl-fold,
+  .mp-skin-calista .cl-orb::after,
+  .mp-skin-calista .cl-chev,
+  .mp-skin-calista .cl-ring .cl-ring-arc { transition: none; }
+  .mp-skin-calista .cl-ch { animation: none; opacity: 1; filter: none; }
+  .mp-skin-calista.is-open .cl-sheet > * { animation: none; }
+}
+`;
+
   const SKIN_TICKET_TPL = `<div class="tkt-container" data-theme="auto">
   <div class="tkt-board">
     <div class="tkt-notch-top"></div>
@@ -2686,6 +3275,7 @@
     styleEl.textContent = (id === 'ticket') ? SKIN_CSS_TICKET
       : (id === 'book') ? SKIN_CSS_BOOK
       : (id === 'dibao') ? SKIN_CSS_DIBAO
+      : (id === 'calista') ? SKIN_CSS_CALISTA
       : SKIN_CSS_PROPHET;
     (mainDoc.head || mainDoc.documentElement).appendChild(styleEl);
   }
@@ -3373,6 +3963,25 @@ var worldData = (rawVars && rawVars['世界']) || {};
     }
   };
 
+  /* 预言家日报：纸色日夜，跟 Calista 一样存一份偏好 */
+  const PROPHET_THEME_KEY = 'moon_phase_message_skin_prophet_theme_v1';
+
+  function getProphetTheme() {
+    let t = '';
+    try { t = getStorage().getItem(PROPHET_THEME_KEY) || ''; } catch (e) {}
+    if (t === 'day' || t === 'night') return t;
+    try {
+      if (mainWin.matchMedia && mainWin.matchMedia('(prefers-color-scheme: dark)').matches) return 'night';
+    } catch (e) {}
+    return 'day';
+  }
+
+  function setProphetTheme(next) {
+    const t = next === 'night' ? 'night' : 'day';
+    try { getStorage().setItem(PROPHET_THEME_KEY, t); } catch (e) {}
+    return t;
+  }
+
   function prophetStageOf(value) {
     let r = Number(value);
     if (isNaN(r)) r = 0;
@@ -3502,7 +4111,11 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const railL = [longDate || '今日', place].filter(Boolean).join('　').replace(/\s+/g, ' ');
     const railR = [weather ? weather + (temp ? ' ' + temp : '') : (temp || '天象未记'), 'VOL.CXLI'].filter(Boolean).join('　');
 
+    const pTheme = getProphetTheme();
     let html = '<article class="mpp-paper">' +
+      '<button type="button" class="mpp-theme" data-mpp-theme="1" aria-label="切换纸色">' +
+        (pTheme === 'night' ? '白昼' : '夜间') +
+      '</button>' +
       '<div class="mpp-topline">' +
         '<span>VOL. CXLI · No. <em>' + page + '</em></span>' +
         '<span>伦敦 · 对角巷</span>' +
@@ -3596,6 +4209,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
   function renderProphetSkin(scope, statData, msgId, keepOpen) {
     if (!scope) return false;
+
+    scope.setAttribute('data-theme', getProphetTheme());
 
     const src = statData || {};
     const world = (src.世界 && typeof src.世界 === 'object') ? src.世界 : {};
@@ -4018,6 +4633,228 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return true;
   }
 
+  /* ── Calista：灵动岛式胶囊 → 展开极简卡 ─────────────────────── */
+  const CL_THEME_KEY = 'moon_phase_message_skin_calista_theme_v1';
+
+  const CL_STAGES = {
+    '-5': '势不两立', '-4': '不共戴天', '-3': '仇视敌对',
+    '-2': '明确敌意', '-1': '轻微反感', '0': '拒绝认识',
+    '1': '愿意认识', '2': '犹豫观望', '3': '愿意尝试',
+    '4': '认真经营', '5': '渴望永恒'
+  };
+
+  function getClTheme() {
+    let t = '';
+    try { t = getStorage().getItem(CL_THEME_KEY) || ''; } catch (e) {}
+    if (t === 'day' || t === 'night') return t;
+    try {
+      if (mainWin.matchMedia && mainWin.matchMedia('(prefers-color-scheme: dark)').matches) return 'night';
+    } catch (e) {}
+    return 'day';
+  }
+
+  function setClTheme(next) {
+    const t = next === 'night' ? 'night' : 'day';
+    try { getStorage().setItem(CL_THEME_KEY, t); } catch (e) {}
+    return t;
+  }
+
+  /* 阶段值 → 名字；缺项返回空串，让调用方自己决定省不省 */
+  function clStageOf(value) {
+    if (value === undefined || value === null || value === '') return { name: '未录', num: 0, known: false };
+    let n = Number(value);
+    if (!isFinite(n)) return { name: '未录', num: 0, known: false };
+    n = Math.max(-5, Math.min(5, Math.round(n)));
+    return { name: CL_STAGES[String(n)] || '未录', num: n, known: true };
+  }
+
+  /* 数字统一一位小数，tabular-nums 下不会跳 */
+  function clNum(value) {
+    const n = Number(value);
+    if (!isFinite(n)) return '—';
+    return n.toFixed(1);
+  }
+
+  function clPlain(value, fallback) {
+    if (value === undefined || value === null) return fallback;
+    const s = String(value).trim();
+    return s || fallback;
+  }
+
+  /* 心声逐字拆开：每字一个 span，--i 控制 30ms 错峰 */
+  function clTypeChars(text, max) {
+    const s = String(text || '').slice(0, max || 140);
+    let out = '';
+    for (let i = 0; i < s.length; i++) {
+      const ch = s.charAt(i);
+      if (ch === '\n') { out += '<br>'; continue; }
+      out += '<span class="cl-ch" style="--i:' + i + '">' + skinEsc(ch) + '</span>';
+    }
+    return out;
+  }
+
+  function renderCalistaSkin(scope, statData, msgId, keepOpen) {
+    if (!scope) return false;
+
+    const src = statData || {};
+    const world = (src.世界 && typeof src.世界 === 'object') ? src.世界 : {};
+    const chars = (src.角色 && typeof src.角色 === 'object') ? src.角色 : {};
+
+    let names = Object.keys(chars).filter(function(k) {
+      return k && k !== '示例角色' && k !== '{{char}}' && chars[k] && typeof chars[k] === 'object';
+    });
+
+    /* 兼容「只有一个角色、字段直接摊在顶层」的旧存档 */
+    if (!names.length && (src.好感度 !== undefined || src.阶段值 !== undefined || src.肉体值 !== undefined)) {
+      const solo = src.姓名 || src.签名 || src.name || '核心角色';
+      chars[solo] = src;
+      names = [solo];
+    }
+
+    const theme = getClTheme();
+    scope.setAttribute('data-theme', theme);
+    scope.classList.toggle('is-open', !!keepOpen);
+
+    const bodyId = 'mp-cl-body-' + (msgId || 0);
+
+    if (!names.length) {
+      scope.innerHTML =
+        '<div class="cl-wrap">' +
+          '<button type="button" class="cl-fold" aria-expanded="' + (keepOpen ? 'true' : 'false') + '" aria-controls="' + bodyId + '">' +
+            '<span class="cl-orb" aria-hidden="true">C</span>' +
+            '<span class="cl-id"><span class="cl-name">Calista</span><span class="cl-sub">尚未建档</span></span>' +
+            '<span class="cl-val"><b>—</b><span>好感</span></span>' +
+            '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
+              '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '</svg>' +
+          '</button>' +
+          '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
+            '<div class="cl-body-clip"><div class="cl-sheet">' +
+              '<div class="cl-empty"><b>还没有人物档案</b>先点面板里的「一键建档案」<br>建好之后这张卡会自己长出数值</div>' +
+            '</div></div>' +
+          '</div>' +
+        '</div>';
+      return false;
+    }
+
+    /* 主角：在场且好感最高的那个 */
+    let leadName = names[0];
+    let best = -Infinity;
+    names.forEach(function(n) {
+      const c = chars[n] || {};
+      const e = Number(c.好感度);
+      /* 先看档案里标了「主要」的那个，再比在场，最后比好感 */
+      const score = (c.重要度 === '主要' ? 1000 : 0) +
+                    (c.在场 === false ? -10000 : 0) +
+                    (isFinite(e) ? e : 0);
+      if (score > best) { best = score; leadName = n; }
+    });
+
+    const lead = chars[leadName] || {};
+    const stage = clStageOf(lead.阶段值);
+    const affection = clNum(lead.好感度);
+    const affectionPct = Math.max(0, Math.min(100, Number(lead.好感度) || 0));
+
+    const others = names.filter(function(n) {
+      if (n === leadName) return false;
+      const c = chars[n] || {};
+      return c.在场 !== false;
+    }).slice(0, 4).map(function(n) {
+      const c = chars[n] || {};
+      return {
+        name: n,
+        stage: clStageOf(c.阶段值).name,
+        affection: clNum(c.好感度)
+      };
+    });
+
+    const initial = String(clPlain(lead.英文名, '') || leadName).trim().charAt(0).toUpperCase() || 'C';
+    const inScene = lead.在场 === false ? '不在场' : '在场';
+    const subLine = stage.known ? stage.name + ' · ' + inScene : inScene;
+
+    const metaBits = [];
+    if (clPlain(world.时间, '')) metaBits.push('<span>' + skinEsc(clPlain(world.时间, '')) + '</span>');
+    if (clPlain(world.地点, '')) metaBits.push('<span>' + skinEsc(clPlain(world.地点, '')) + '</span>');
+    if (clPlain(world.天气, '')) metaBits.push('<span>' + skinEsc(clPlain(world.天气, '')) + '</span>');
+    if (clPlain(world.温度, '')) metaBits.push('<span>' + skinEsc(clPlain(world.温度, '')) + '</span>');
+
+    const voice = clPlain(lead.心声, '……');
+
+    const othersHtml = others.length
+      ? '<div class="cl-others">' + others.map(function(o) {
+          return '<div class="cl-other"><span><b>' + skinEsc(o.name) + '</b>　' + skinEsc(o.stage) + '</span>' +
+            '<i>' + skinEsc(o.affection) + '</i></div>';
+        }).join('') + '</div>'
+      : '';
+
+    const sheet =
+      '<div class="cl-sheet">' +
+        '<div class="cl-top">' +
+          '<span class="cl-stagechip">' +
+            (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
+          '</span>' +
+          '<button type="button" class="cl-theme" data-cl-theme="1" aria-label="切换深浅">' +
+            (theme === 'night' ? '浅色' : '深色') +
+          '</button>' +
+        '</div>' +
+        '<div class="cl-grid">' +
+          '<div class="cl-hero">' +
+            '<span class="cl-hero-main">' +
+              '<span class="cl-k">好感</span>' +
+              '<span class="cl-v">' + skinEsc(affection) + '<small>/ 100</small></span>' +
+            '</span>' +
+            '<span class="cl-ring" aria-hidden="true">' +
+              '<svg viewBox="0 0 54 54">' +
+                '<circle cx="27" cy="27" r="24" fill="none" stroke="' + 'var(--cl-bg-3)' + '" stroke-width="2"/>' +
+                '<circle class="cl-ring-arc" cx="27" cy="27" r="24" fill="none" stroke="var(--cl-accent)" stroke-width="2" ' +
+                  'stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="' +
+                  (150.8 - 150.8 * Math.max(0, Math.min(100, Number(lead.好感度) || 0)) / 100).toFixed(2) + '" ' +
+                  'transform="rotate(-90 27 27)"/>' +
+                (affectionPct > 0
+                  ? (function() {
+                      const rad = (affectionPct * 3.6 - 90) * Math.PI / 180;
+                      const px = 27 + 24 * Math.cos(rad);
+                      const py = 27 + 24 * Math.sin(rad);
+                      return '<circle class="cl-ring-bead" cx="' + px.toFixed(2) + '" cy="' + py.toFixed(2) +
+                        '" r="2.6" fill="var(--cl-accent)"/>';
+                    })()
+                  : '') +
+              '</svg>' +
+            '</span>' +
+          '</div>' +
+          '<div class="cl-row3">' +
+            '<div class="cl-tile"><span class="cl-k">亲密</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
+            '<div class="cl-tile"><span class="cl-k">关系</span><span class="cl-v">' +
+              (stage.known ? (stage.num > 0 ? '+' + stage.num : String(stage.num)) : '—') + '</span></div>' +
+            '<div class="cl-tile"><span class="cl-k">醋意</span><span class="cl-v">' + skinEsc(clNum(lead.嫉妒值)) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<blockquote class="cl-voice"><span class="cl-voice-mark">“</span>' + clTypeChars(voice) + '</blockquote>' +
+        (metaBits.length ? '<div class="cl-meta">' + metaBits.join('') + '</div>' : '') +
+        othersHtml +
+      '</div>';
+
+    scope.innerHTML =
+      '<div class="cl-wrap">' +
+        '<button type="button" class="cl-fold" aria-expanded="' + (keepOpen ? 'true' : 'false') + '" aria-controls="' + bodyId + '">' +
+          '<span class="cl-orb" aria-hidden="true">' + skinEsc(initial) + '</span>' +
+          '<span class="cl-id">' +
+            '<span class="cl-name">' + skinEsc(leadName) + '</span>' +
+            '<span class="cl-sub">' + skinEsc(subLine) + '</span>' +
+          '</span>' +
+          '<span class="cl-val"><b>' + skinEsc(affection) + '</b><span>好感</span></span>' +
+          '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
+            '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg>' +
+        '</button>' +
+        '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
+          '<div class="cl-body-clip">' + sheet + '</div>' +
+        '</div>' +
+      '</div>';
+
+    return true;
+  }
+
   /* ── 月氏藏书票：移植自原正则（换数据入口 + 主题作用域）── */
   const SKIN_BOOK_STAGES = {
     '-5': '势不两立', '-4': '不共戴天', '-3': '仇视敌对',
@@ -4223,6 +5060,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
       holder.innerHTML = '<div class="mp-skin-prophet"><div class="mpp-wrap"></div></div>';
     } else if (skin === 'dibao') {
       holder.innerHTML = '<div class="mp-skin-dibao"><div class="db-wrap"></div></div>';
+    } else if (skin === 'calista') {
+      holder.innerHTML = '<div class="mp-skin-calista"></div>';
     } else {
       holder.innerHTML = '<div class="mp-skin-book"><div class="namecard-deck"></div></div>';
     }
@@ -4242,6 +5081,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
         renderProphetSkin(holder.querySelector('.mp-skin-prophet'), statData, msgId, !!keepOpen);
       } else if (skin === 'dibao') {
         renderDibaoSkin(holder.querySelector('.mp-skin-dibao'), statData, msgId, !!keepOpen);
+      } else if (skin === 'calista') {
+        renderCalistaSkin(holder.querySelector('.mp-skin-calista'), statData, msgId, !!keepOpen);
       } else {
         renderBookSkin(holder.querySelector('.mp-skin-book'), statData);
       }
@@ -4293,7 +5134,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       if (existing) {
         if (!opts.force && existing.getAttribute('data-mp-sig') === sig) continue;
         /* 数据变了要重画，但玩家已经展开的报纸／邸报不该自己合上 */
-        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"]');
+        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"], .cl-fold[aria-expanded="true"]');
         if (existing.parentNode) existing.parentNode.removeChild(existing);
       }
       mountSkinIntoMessage(mesEl, statData, skin, sig, keepOpen);
@@ -4363,6 +5204,15 @@ var worldData = (rawVars && rawVars['世界']) || {};
         /* 预言家日报：展开 / 收起 */
         const prophetHolder = target.closest('.' + SKIN_HOLDER_CLASS + '-prophet');
         if (prophetHolder) {
+          const pThemeBtn = target.closest('[data-mpp-theme]');
+          if (pThemeBtn) {
+            const pScope = prophetHolder.querySelector('.mp-skin-prophet');
+            const next = setProphetTheme(getProphetTheme() === 'night' ? 'day' : 'night');
+            let pmid = 0;
+            try { pmid = Number((prophetHolder.closest('.mes') || {}).getAttribute('mesid')) || 0; } catch (e3) {}
+            if (pScope) renderProphetSkin(pScope, getSkinStatData(), pmid, true);
+            return;
+          }
           const fold = target.closest('.mpp-fold');
           if (!fold) return;
           const body = prophetHolder.querySelector('.mpp-body');
@@ -4386,6 +5236,30 @@ var worldData = (rawVars && rawVars['世界']) || {};
           body.hidden = !show;
           fold.setAttribute('aria-expanded', String(show));
           const scope = dibaoHolder.querySelector('.mp-skin-dibao');
+          if (scope) scope.classList.toggle('is-open', show);
+          return;
+        }
+
+        /* Calista：展开 / 收起 / 换深浅 */
+        const clHolder = target.closest('.' + SKIN_HOLDER_CLASS + '-calista');
+        if (clHolder) {
+          const scope = clHolder.querySelector('.mp-skin-calista');
+          const themeBtn = target.closest('[data-cl-theme]');
+          if (themeBtn && scope) {
+            const cur = scope.getAttribute('data-theme') === 'night' ? 'night' : 'day';
+            setClTheme(cur === 'night' ? 'day' : 'night');
+            let mid = 0;
+            try { mid = Number((clHolder.closest('.mes') || {}).getAttribute('mesid')) || 0; } catch (e2) {}
+            renderCalistaSkin(scope, getSkinStatData(), mid, true);
+            return;
+          }
+          const fold = target.closest('.cl-fold');
+          if (!fold) return;
+          const body = clHolder.querySelector('.cl-body');
+          if (!body) return;
+          const show = body.hidden;
+          body.hidden = !show;
+          fold.setAttribute('aria-expanded', String(show));
           if (scope) scope.classList.toggle('is-open', show);
           return;
         }

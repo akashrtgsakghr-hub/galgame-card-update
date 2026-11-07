@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.0';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.0 整台掌机重做 · 看得懂才算能用】\n1. 🎨 新增「墨樱」UI 层：四层墨紫黑（5/8/11/14% 明度）+ 单一樱粉强调，粗黑框全换成 1px 发丝线，靠微明度差与 2px 位移硬阴影分层。像素味保留：绿底点阵液晶屏、十字键、A/B 键都在。\n2. 🧭 面板顺序固定成「提示条 → 模式切换 → 液晶屏 → 主菜单 → 按键条 → 设置」，一屏只回答一个问题；设置从十一行平铺收成四组折叠，默认收起。\n3. 🔦 新手引导换成聚光灯六步：只亮一个真实控件，一句话说清它是干什么的，可跳过 / 上一步 / Esc，首次从菜单打开自动开始，看过就记住。\n4. ❓ 自助答疑按「第一次玩 / 数字不对 / 剧情和时间 / 出错了 / 想调设置」分流成 26 条，每条都是「一句人话结论 + 具体点哪里」，可搜可筛。\n5. 🗣 清掉自造术语：开局适配→一键建档案、周目结算→结算这一局、角色定位→查看/修改档案、属性点重掷→重摇这一轮、阶段门→关系、Adagio/Andante/Allegro→慢/中/快。功能一个没少，只是换了说法。\n6. 🎮 沉浸模式并入同一套墨色：顶栏压成单行横向滑动、按钮抬到 42px、去掉蓝灰渐变与纯黑遮罩，正文不再套内嵌灰块。\n7. 👆 触控尺寸统一抬高：开关按钮 40px、引导主动作 42px、关闭键 40px、十字键 72px，手指点得中。\n8. 🧪 新增 ui.test.mjs 16 条回归（引导 / 折叠 / 答疑 / 触控 / 配色令牌 / 自动引导），全套 18 个测试套件、496 条全过。\n9. 🧩 数值、存档格式、标签解析一个字节都没改，旧存档直接能用。";
+  const MOON_FORMULA_VERSION = '4.8.1';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.1 第六套楼内状态卡 · Calista 贝壳】\n1. 🐚 新增第六套皮肤「Calista 贝壳」：收起是一条胶囊（珍珠圆章 + 名字与阶段 + 好感读数 + 折角箭头），点一下原位向下展开成卡片，再点收回；挂载位置、折叠语义、数据来源与另外四套完全一致，重画时保留展开态。\n2. 🎨 配色不用纯白纯黑：奶油纸四层 #F2EBE1 / #F9F4EC / #FFFCF6 / #E9DFD1 只差约 2% 明度，墨色 #3A2E27，唯一强调色是磨砂贝壳粉 #C0867F；卡面压一层 118° 虹彩渐变（soft-light 混合），像贝壳内壁那层光。全卡没有描边框，边界靠发丝线与微明度差。\n3. 🌙 深色是另配的「夜里的海」#17120F / #1E1815 / #251E19 / #100C0A，墨 #F3E9DC、粉 #DFA79E，字重整体降 40（600→360、400→300）。右上角「深色 / 浅色」一键切换，偏好写进本地存储。\n4. 📊 读数全部来自存档：主角按「标了主要 → 在场 → 好感高」三级选取；好感环按 0–100 映射弧长、弧端缀一颗珍珠当指针；三格是亲密 / 关系 / 醋意；另列只列在场角色；心声逐字 blur(6px) 渐显（120ms、字间错开 30ms）。\n5. 🌗 预言家日报补上夜间版：纸 #1A1613、墨 #E9E1D3、印泥 #D2735C，右上角「夜间 / 白昼」切换；与 Calista 的深浅偏好各存各的，互不覆盖。\n6. 🧪 skin.test.mjs 新增 23 条 C 系列用例（胶囊态、主角三级选取、好感环弧度、逐字条数、深浅持久化、CSS 十项铁律逐条核对），全套 18 个套件、519 条全过。数值、存档格式、标签解析一个字节都没改。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
