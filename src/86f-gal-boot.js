@@ -1,47 +1,53 @@
-/* 86f-gal-boot.js —— 沉浸模式启动与菜单入口。
-   只新增入口，不改动原有「🌕 月相系统」面板的任何按钮。 */
+/* 86f-gal-boot.js —— 沉浸模式启动与入口。
+   入口已经收进系统面板主菜单（不再单独占一项魔棒菜单），这里只负责启动与恢复。 */
 
   function galMenuEntryHtml() {
     return '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🎮</span><span>Galgame 沉浸模式</span>';
   }
 
+  /* 保留这个函数只是为了兼容旧调用点；真正的入口在面板里，魔棒菜单不再注入。 */
   function injectGalMenuEntry() {
-    const tryInject = function() {
-      const menu = mainDoc.getElementById('extensionsMenu') ||
-        mainDoc.getElementById('extensions_menu') ||
-        mainDoc.querySelector('.extensionsMenu') ||
-        mainDoc.querySelector('#extension-settings');
-      if (!menu) return false;
-      const old = mainDoc.getElementById('moon-gal-menu-entry');
-      if (old && old.parentNode === menu) return true;
-      if (old) { try { old.remove(); } catch (e) {} }
-      const div = mainDoc.createElement('div');
-      div.id = 'moon-gal-menu-entry';
-      div.className = 'list-group-item flex-container flexGap5 interactable';
-      div.tabIndex = 0;
-      div.innerHTML = galMenuEntryHtml();
-      div.addEventListener('click', function() {
-        try { if (galIsOn()) galClose(); else galOpen(); } catch (e) {}
-      });
-      menu.appendChild(div);
+    const old = mainDoc.getElementById('moon-gal-menu-entry');
+    if (old) { try { old.remove(); } catch (e) {} }
+    return false;
+  }
+
+  /* 沉浸层实际是否开着，以 DOM 为准。
+     只读存档状态会在「上次没退干净」时骗人：状态是 on、DOM 没有（或反之），
+     于是第一下点击判成「关闭」，看起来就是点了没反应。 */
+  function galIsOpenInDom() {
+    const root = galRootEl();
+    return !!(root && root.classList.contains('open'));
+  }
+  function galShow() {
+    try {
+      if (!galIsOpenInDom()) galOpen();
+      else galRender(true);
       return true;
-    };
-    if (!tryInject()) {
-      const interval = setInterval(function() { if (tryInject()) clearInterval(interval); }, 800);
-      setTimeout(function() { clearInterval(interval); }, 90000);
+    } catch (e) {
+      try { console.warn('[月相] 沉浸模式打开失败：', e); } catch (e2) {}
+      try { toast('沉浸模式打不开：' + String(e && e.message || e), 'warning'); } catch (e3) {}
+      return false;
     }
+  }
+  function galHide() {
+    try { galClose(); } catch (e) {}
+  }
+  function galFlip() {
+    if (galIsOpenInDom()) { galHide(); return true; }
+    return galShow();
   }
 
   /* 启动：只做三件事——注入样式、暴露全局入口、恢复"上次开着"的聊天 */
   function galBoot() {
     try { injectGalStyle(); } catch (e) {}
-    try { mainWin.openMoonGalgame = galOpen; window.openMoonGalgame = galOpen; } catch (e) {}
-    try { mainWin.toggleMoonGalgame = galToggle; window.toggleMoonGalgame = galToggle; } catch (e) {}
+    try { mainWin.openMoonGalgame = galShow; window.openMoonGalgame = galShow; } catch (e) {}
+    try { mainWin.toggleMoonGalgame = galFlip; window.toggleMoonGalgame = galFlip; } catch (e) {}
     try { injectGalMenuEntry(); } catch (e) {}
     // 恢复：每个聊天独立记住是否开着，换聊天不会串
     setTimeout(function() {
       try {
-        if (galIsOn() && !galRootEl()) galOpen();
+        if (galIsOn() && !galIsOpenInDom()) galShow();
       } catch (e) {}
     }, 1600);
   }

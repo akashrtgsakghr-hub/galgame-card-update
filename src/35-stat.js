@@ -149,6 +149,22 @@
       if (activeKeys.length === 0) return;
       const multiCard = getCardMode() === 'multi';
       const lines = [];
+      /* ── 当前状态：AI 必须照抄这里的数字，不能自己编 ──────────
+         以前这里只给「本轮事件类型 + 标签格式」，E/P/R/I 一个数字都没给，
+         AI 就会在正文和草稿里瞎写「好感度 20」，和状态卡上的真实值对不上。
+         现在把脚本算完的结果原样报给它，并明确禁止它自己复述数字。 */
+      lines.push('════ 当前状态 · 唯一事实来源（脚本已结算，你无权修改） ════');
+      activeKeys.forEach(function(name) {
+        const ch = chars[name]; if (!ch) return;
+        const E = Number(ch.好感度) || 0; const P = Number(ch.肉体值) || 0;
+        const I = Number(ch.嫉妒值) || 0; const R = Number(ch.阶段值) || 0;
+        const stage = getRStageFromE(E);
+        lines.push('· ' + name + '｜好感 E=' + E + '（关系阶段：' + stage.name + ' / R=' + R + '）｜肉体 P=' + P + '｜嫉妒 I=' + I +
+          '｜情绪 ' + String(ch.情绪 || '😐') + '｜' + (ch.在场 === false ? '不在场' : '在场'));
+      });
+      lines.push('→ 本轮所有心理与行为都要建立在这些数值上：好感低就别写成已经动心，好感高就别再写成陌生人。');
+      lines.push('→ 正文与草稿里都不要写「好感度=XX」「当前关系阶段：XX（好感度XX）」这类数字，也不要输出 Phase.xxx、「关系阶段分析」这类段落；数值由状态卡统一展示，你重复只会和卡片打架。');
+      lines.push('');
       activeKeys.forEach(function(name) {
         const ch = chars[name]; if (!ch) return;
         const q = ch._quota || {}; const es = q._eventState || {};

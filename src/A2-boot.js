@@ -31,8 +31,7 @@
         }
       });
     } catch(e) {}
-    // 🎮 沉浸模式入口：独立一项，不动原来的「🌕 月相系统」
-    try { injectGalMenuEntry(); } catch (e) {}
+    // 🎮 沉浸模式入口已经收进系统面板主菜单，不再往魔棒菜单里多塞一项
   }
 
   
@@ -54,7 +53,16 @@
     }
     let panel = mask.querySelector('#moon-phase-panel');
     if (!panel) { panel = mainDoc.createElement('div'); panel.id = 'moon-phase-panel'; mask.appendChild(panel); }
-    renderPanel(panel);
+    /* 渲染失败也必须把面板打开：以前 renderPanel 抛异常会停在 classList.add 之前，
+       玩家看到的就是「点了月相系统没反应，得刷新一次」。现在出错就把错误摊开讲清楚。 */
+    try {
+      renderPanel(panel);
+    } catch (e) {
+      try { console.warn('[月相] 面板渲染失败：', e); } catch (e2) {}
+      try { toast('面板渲染出错：' + String(e && e.message || e), 'warning'); } catch (e3) {}
+    }
+    // 显式压在 Galgame 沉浸层（2147483000）之上，但低于各种弹窗（2147483650+）
+    try { mask.style.zIndex = '2147483645'; } catch (e) {}
     mask.classList.add('open');
   }
 
@@ -70,6 +78,34 @@
   }
 
   function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+  /* ── 一次性刷新闸门 ────────────────────────────────────────
+     旧逻辑是「写标记 → 刷新」，标记写在 localStorage 里。只要 localStorage 写不进去
+     （隐私模式 / iframe 限制 / 配额满 / 换设备），下一次加载又会重新判断成「需要刷新」，
+     玩家看到的就是酒馆反复自己刷。现在统一走这里：只有 sessionStorage 确认标记真的
+     写成功了才刷新，写不进去就宁可不刷 —— 停在旧页面，比无限刷新好得多。 */
+  let _mpReloading = false;
+  function safeReloadOnce(tag) {
+    if (_mpReloading) return false;
+    const key = 'moon_phase_reload_gate_' + String(tag || 'default');
+    let ss = null;
+    try { ss = mainWin.sessionStorage || sessionStorage; } catch (e) { ss = null; }
+    if (!ss) return false;
+    try {
+      if (ss.getItem(key) === '1') return false;
+      ss.setItem(key, '1');
+      if (ss.getItem(key) !== '1') return false;
+    } catch (e) { return false; }
+    _mpReloading = true;
+    setTimeout(function() {
+      try {
+        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
+        else location.reload();
+      } catch (e) { try { location.reload(); } catch (e2) {} }
+    }, 500);
+    return true;
+  }
+
 
   function showFirstBootDialog() {
     closeFirstBootDialog();
@@ -134,10 +170,22 @@
     if (m) { try { m.remove(); } catch (e) {} }
   }
 
+  let _firstBootRunning = false;
+  const FIRST_BOOT_SESSION_KEY = 'moon_phase_firstboot_session_v1';
   async function runFirstBootSequence() {
+    if (_firstBootRunning) return;
+    _firstBootRunning = true;
     let hasDone = false;
     try { hasDone = (mainWin.localStorage.getItem(FIRST_RUN_KEY) === '1'); } catch(e) {}
-    if (hasDone) return;
+    /* 同一个浏览器会话只跑一次。localStorage 写不进去时靠这个标记兜底，
+       否则每次加载都会重播自检 → 刷新 → 再播，表现就是酒馆一直刷。 */
+    let alreadyRanThisSession = false;
+    try {
+      const ss = mainWin.sessionStorage || sessionStorage;
+      alreadyRanThisSession = ss.getItem(FIRST_BOOT_SESSION_KEY) === '1';
+      if (!alreadyRanThisSession) ss.setItem(FIRST_BOOT_SESSION_KEY, '1');
+    } catch (e) { alreadyRanThisSession = hasDone; }
+    if (hasDone || alreadyRanThisSession) { _firstBootRunning = false; return; }
     try { mainWin.localStorage.setItem(FIRST_RUN_KEY, '1'); } catch(e) {}
 
     showFirstBootDialog();
@@ -177,29 +225,15 @@
     updateFirstBootProgress(4, '✔ 全部检测完成，即将刷新页面...');
     await sleep(1200);
     closeFirstBootDialog();
-
-    setTimeout(function() {
-      try {
-        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
-        else location.reload();
-      } catch (e) { try { location.reload(); } catch (e2) {} }
-    }, 500);
+    _firstBootRunning = false;
+    safeReloadOnce('firstboot');
   }
 
 
 function tryAutoReloadOnce() {
-  try {
-    const ss = mainWin.sessionStorage || sessionStorage;
-    const flag = 'moon_phase_session_reloaded';
-    if (ss.getItem(flag) === '1') return;
-    ss.setItem(flag, '1');
-    setTimeout(function() {
-      try {
-        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
-        else location.reload();
-      } catch (e) { try { location.reload(); } catch (e2) {} }
-    }, 800);
-  } catch (e) {}
+  /* 局部脚本首次挂载 / 局部→全局切换时刷新一次。
+     闸门在 safeReloadOnce 里：标记写不进去就不刷，避免「一直刷酒馆」。 */
+  safeReloadOnce('mount');
 }
 
 /* =========================================================
@@ -228,13 +262,8 @@ try {
 } catch (e) { _isFirstBoot = true; }
 
 if (_needAutoReload) {
-  // 版本更新后延迟刷新
-  setTimeout(function() {
-    try {
-      if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
-      else location.reload();
-    } catch (e) { try { location.reload(); } catch (e2) {} }
-  }, 900);
+  // 版本更新后延迟刷新（同样走一次性闸门，版本号写不进去也不会循环刷）
+  setTimeout(function() { safeReloadOnce('version'); }, 900);
 } else if (_isFirstBoot) {
   // 首次导入检测流程：同样先挂载魔棒菜单，避免初始化中断后按钮彻底丢失
   setTimeout(injectMenuEntry, 300);

@@ -61,6 +61,53 @@
     return String(n).replace(/[。\.]+$/, '').trim();
   }
 
+  /* ── 从一条回复里认人 ─────────────────────────────────────
+     只认「明确点名」的：Sylveina 标签里的角色名、后台变量 `角色.X.` 的 X。
+     这两个来源都是脚本自己要求 AI 输出的，不会误伤正文里的普通名词。 */
+  const BOOTSTRAP_NAME_STOP = ['你', '我', '他', '她', '它', '玩家', '用户', 'User', 'user', '旁白', '众人', '大家', '系统', '未知'];
+
+  function collectNamedCharsFromMessage(text) {
+    const names = [];
+    const push = function(n) {
+      let v = String(n == null ? '' : n).trim();
+      v = v.replace(/^[「『\[【(（<]+/, '').replace(/[」』\]】)）>]+$/, '').trim();
+      if (!v || v.length > 12) return;
+      if (BOOTSTRAP_NAME_STOP.indexOf(v) >= 0) return;
+      if (names.indexOf(v) < 0) names.push(v);
+    };
+    const src = String(text || '');
+    if (!src) return names;
+    try {
+      const tags = extractAllSylveinaTags(src);
+      for (let i = 0; i < tags.length; i++) push(tags[i] && tags[i].charName);
+    } catch (e) {}
+    try {
+      const re = /角色\s*[.．]\s*([^\r\n=＝:：.．]{1,30}?)\s*[.．]/g;
+      let m;
+      while ((m = re.exec(src)) !== null) push(m[1]);
+    } catch (e) {}
+    return names;
+  }
+
+  /* 兜底：从「名字：台词」这种对白格式里猜说话人。
+     只在多人卡、且这一轮既没有标签也没有后台变量时才用，最多取前几个。 */
+  function guessSpeakerNames(text) {
+    const names = [];
+    const src = String(text || '');
+    if (!src) return names;
+    const re = /(?:^|\n)[ \t>*\-•#\d.、]*([^\s：:，。！？；、\r\n]{2,6})[：:]/g;
+    let m; let guard = 0;
+    while ((m = re.exec(src)) !== null && guard++ < 40) {
+      const n = String(m[1] || '').trim();
+      if (!n || names.indexOf(n) >= 0) continue;
+      if (BOOTSTRAP_NAME_STOP.indexOf(n) >= 0) continue;
+      if (/[的了是在说问道着过他她我你]/.test(n)) continue;
+      if (/^(?:时间|地点|地点|选项|选择|备注|状态|好感|阶段|肉体|嫉妒|心声|情绪|当前)$/.test(n)) continue;
+      names.push(n);
+    }
+    return names;
+  }
+
   // 从开场白 / 第一条回复里捞一个世界时间，捞不到就留给后面推进
   function guessOpeningWorldTime(texts) {
     const list = texts || [];
@@ -129,37 +176,37 @@
       const data = readMvuLatest();
       if (!data || !data.stat_data) return null;
       const statData = data.stat_data;
-      // 已经有真档案（哪怕是别的插件建的）就不插手
-      if (!isCharsTableEmpty(statData.角色)) return null;
+      const tableEmpty = isCharsTableEmpty(statData.角色);
 
       const mode = getCardMode();
       const names = [];
       const cardName = getAutoBootstrapCardName();
-      if (mode !== 'multi') {
+      const latestTagMsg = getLatestAiMessage();
+      const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
+      const named = collectNamedCharsFromMessage(latestText);
+      const pushName = function(n) {
+        const v = String(n || '').trim();
+        if (v && names.indexOf(v) < 0) names.push(v);
+      };
+      if (!tableEmpty) {
+        /* 已经有真档案：这一轮只补「新出场的人」。
+           以前这里直接 return，换场景/加了新角色也永远进不了档，
+           玩家看到的就是「只会更新数值，不会更新角色」。 */
+        named.forEach(pushName);
+        if (!names.length) return null;
+      } else if (mode !== 'multi') {
         if (!cardName) return null;
-        names.push(cardName);
+        pushName(cardName);
       } else {
-        // 多人卡不猜名字：只认第一条回复里带名字的标签 / 后台变量
-        const latestTagMsg = getLatestAiMessage();
-        const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
-        const tags = extractAllSylveinaTags(latestText);
-        for (let i = 0; i < tags.length; i++) {
-          const n = String((tags[i] && tags[i].charName) || '').trim();
-          if (n && names.indexOf(n) < 0) names.push(n);
-        }
-        // 没写标签、只写了「角色.X.心声=…」的也算
-        const nameRe = /角色\s*[.．]\s*([^\r\n=＝:：.．]{1,30}?)\s*[.．]/g;
-        let nm;
-        while ((nm = nameRe.exec(latestText)) !== null) {
-          const n = String(nm[1] || '').trim();
-          if (n && names.indexOf(n) < 0) names.push(n);
-        }
+        /* 多人卡：只认标签 / 后台变量里点过名的；这一轮还没写名字时，
+           退一步看对白格式里的说话人。卡名在多人卡上通常是剧本名而不是角色，
+           宁可不建，也不往档案里塞一个假人。 */
+        named.forEach(pushName);
+        if (!names.length) guessSpeakerNames(latestText).slice(0, 3).forEach(pushName);
         if (!names.length) return null;
       }
       if (!names.length) return null;
 
-      const latest = getLatestAiMessage();
-      const latestText = latest ? String(latest.msg.mes || '') : '';
       let cardFirstMes = '';
       try {
         const ctx = getSTCtx();
@@ -193,7 +240,14 @@
         if (!n) continue;
         const exist = statData.角色[n];
         if (exist && !isCharSkeleton(exist)) continue;
-        statData.角色[n] = exist ? fillSkeletonEntry(exist, fresh) : JSON.parse(JSON.stringify(fresh));
+        if (exist) statData.角色[n] = fillSkeletonEntry(exist, fresh);
+        else {
+          const entry = JSON.parse(JSON.stringify(fresh));
+          /* 补录进来的新人先按「次要」算，免得抢了主攻略对象的戏；
+             卡名本人和第一份档案仍然是「主要」。 */
+          if (!tableEmpty && n !== cardName) entry.重要度 = '次要';
+          statData.角色[n] = entry;
+        }
         made.push(n);
       }
       if (!made.length) return null;
@@ -203,7 +257,9 @@
       if (!ok) return null;
       try { console.log('[月相] 自动建档：' + made.join('、')); } catch (e) {}
       if (reason !== 'silent') {
-        toast('已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准', 'info');
+        toast(tableEmpty
+          ? '已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准'
+          : '新角色已入档：' + made.join('、'), 'info');
       }
       try { refreshPanel(); } catch (e) {}
       return made;

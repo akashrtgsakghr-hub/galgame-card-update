@@ -170,6 +170,19 @@
       '<button class="mp-btn mp-btn-highlight" id="moon-quick-start" style="width:100%;margin-top:9px;">🚀 帮我建角色档案（一键直达）</button>' +
       '</div>';
 
+    /* 重绘会重建整棵 DOM，<details> 的展开状态和滚动位置都会丢，
+       玩家看到的就是「改一下单人卡/多人卡，运行设定自己就收起来了」。先快照、后还原。 */
+    const _foldSnap = {};
+    let _scrollSnap = 0;
+    try {
+      panel.querySelectorAll('details').forEach(function(d) {
+        const summaryEl = d.querySelector('summary');
+        const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
+        if (t) _foldSnap[t] = d.open === true;
+      });
+      _scrollSnap = Number(panel.scrollTop) || 0;
+    } catch (e) {}
+
     panel.innerHTML = '' +
       '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
@@ -238,7 +251,7 @@
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '这张卡有好几个能攻略的人' : '这张卡只有一个人') + '</div></div>' +
       '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话后，自动建一份 0 值档案，直接能加减' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话就建 0 值档案；之后每一轮有新角色出场也会自动补录' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
@@ -249,6 +262,9 @@
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🎫 楼内状态卡</div><div class="mp-toggle-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div></div>' +
       renderSkinPickerHtml() + '</div>' +
+      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🙈 隐藏内心草稿</div><div class="mp-toggle-desc">' + (s.hideAiCot !== false ? '开：AI 写的 Phase／分析段只给脚本看，你只看到正文和状态卡' : '关：AI 写出来的全部内容原样显示') + '</div></div>' +
+      '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? 'ON' : 'OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🔒 安全锁</div><div class="mp-toggle-desc">' + (getSafetyLock() ? '开：她最多嘴上凶' : '关：可能真的动手') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF') + '</button></div>' +
@@ -269,6 +285,7 @@
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>这个世界哪天会出事（不点也能玩）</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>卡住了、数不对劲 → 来这体检一次</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>填 AI 钥匙 · 换画风 · 看说明书</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏对话框读剧情 · 点选项推进 · 再点一次回聊天</small></span><i>›</i></button>' +
       '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>💡 不会玩？先点「开始游戏」</span></div></section>' +
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回主菜单</button><div><small>GAME MENU / 掌机功能卡槽</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
@@ -301,6 +318,16 @@
       '<details class="mp-action-fold" open><summary><span>插画与番外</span><small>用哪家出图 · 番外写多长</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>选画图的渠道，定番外的字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>不会用就看这个，一页讲一件事</small></button></div></details>' +
       '<details class="mp-action-fold" open><summary><span>更新与帮助</span><small>拉最新版 · 常见问题</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>连不通会自动换镜像</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>一个问题一句话，先搜这里</small></button></div></details></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
+
+    /* 还原折叠状态：按标题文字匹配，和重绘前那一份对齐 */
+    try {
+      panel.querySelectorAll('details').forEach(function(d) {
+        const summaryEl = d.querySelector('summary');
+        const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
+        if (t && Object.prototype.hasOwnProperty.call(_foldSnap, t)) d.open = _foldSnap[t];
+      });
+      if (_scrollSnap) panel.scrollTop = _scrollSnap;
+    } catch (e) {}
 
     panel._lcdStateTimer = setInterval(function() {
       if (!panel.isConnected) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; return; }
@@ -360,6 +387,14 @@
       panel.dataset.activeMenuKey = '';
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
+    });
+    const galEntryBtn = panel.querySelector('[data-gal-open]');
+    if (galEntryBtn) galEntryBtn.addEventListener('click', function() {
+      /* 先进沉浸层，再收面板：反过来的话面板一收就把点击冒泡链断了。
+         开/关以 DOM 实际状态判断，不看存档里的 on，避免「点了没反应」。 */
+      let ok = false;
+      try { ok = galFlip() !== false; } catch (e) { ok = false; }
+      if (ok !== false) { try { closePanel(); } catch (e) {} }
     });
     if (panel.dataset.menuKeysBound !== '1') {
       panel.dataset.menuKeysBound = '1';
@@ -421,6 +456,14 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
+    const hideCotBtn = panel.querySelector('#moon-phase-hidecot');
+    if (hideCotBtn) hideCotBtn.addEventListener('click', function() {
+      const s2 = getSettings();
+      s2.hideAiCot = !(s2.hideAiCot !== false);
+      saveSettings(s2);
+      try { mpApplyCotFold(); } catch (e) {}
+      refreshPanel();
+    });
     panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
     (function() {
       const coreBtns = panel.querySelectorAll('[data-core-rule]');
@@ -721,6 +764,9 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
 
   async function runConflictScan() {
     const lines = [];
+    /* 这两个计数必须在这里声明：warn() 会自增 _nWarn，漏声明就是 ReferenceError，
+       启动自检会直接崩成「扫描异常：_nWarn is not defined」。 */
+    let _nFail = 0, _nWarn = 0;
     const ok = function(s) { lines.push('<span style="color:#6ee7b7">✔</span> ' + s); };
     const warn = function(s) { _nWarn++; lines.push('<span style="color:#fbbf24">⚠</span> ' + s); };
     const info = function(s) { lines.push('<span style="color:#93c5fd">ℹ</span> ' + s); };

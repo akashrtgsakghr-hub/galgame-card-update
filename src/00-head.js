@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.4';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.4 朱丝栏邸报 · 护眼最高法则优先】新增第四套楼内状态卡\n1. 📜 新增「朱丝栏邸报」：参考清代京报与宋刻本形制，朱丝界行、鱼尾版心、书耳、天头地脚、宫门钞／上谕／奏折三段、朱文印章。\n2. 🛡 法则优先于还原度：不做白纸黑字，改「灯下夜读的暗调抄本」；四层背景直接引用全局 9/11/13/15% 微明度，相邻差 2%，不另起一套配色。\n3. 🚫 全版无纯黑纯白、无黑框，边界只用发丝线；字重只到 600；朱砂提到暖橙才有 5.60:1 对比，原来的深朱在暗底只有 2.41:1。\n4. 📖 点题签「展阅」展开、再点「收卷」收起：Grid 0fr→1fr + 1200/80 零回弹弹簧；朱印落章用 380/18 微弹。\n5. 🔍 聚焦禁描边改三环阴影，图标下移 0.125em，数字等宽，正文 pretty 换行，「减少动态效果」下动画全关。\n6. 🀄 标题竖排、正文横排；窄屏自动退化成横排标题与两格档案，横向不溢出。\n7. 🗂 数据全部读真实存档：时辰由世界时间推算，头条按十一档阶段值生成（非随机），书耳吃时辰／地点／天气／气温，奏折四格吃好感／体气／等第／暗涌，引文取心声，另讯只列在场角色。\n8. 🔒 数据刷新保留展开态，已展卷的邸报不会自己合上；样式只注入一次，切换皮肤清干净旧节点。\n9. 🎛 面板「楼内状态卡」四选一改五选一（不显示／票根／藏书票／日报／邸报），老三套外观一个字节未动。\n10. 🧪 新增 19 条 D 系列用例（含四层明度、无纯黑白、Grid 折叠、弹簧 token、时辰边界），全套 15 个测试套件共 451 条全部通过。";
+  const MOON_FORMULA_VERSION = '4.7.5';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.5 实测问题集中修复】七处报上来的毛病，逐条对账\n1. 🔴 修掉启动自检里的 `_nWarn is not defined`：冲突扫描漏声明计数器，一进游戏就弹「扫描异常」。\n2. 🔄 堵住「酒馆一直自己刷新」：所有刷新改成一次性闸门，标记写不进去（隐私模式／存储满）时宁可不刷，也不反复重载；首次自检同一会话只跑一次。\n3. 🎮 沉浸模式入口不再单独占魔棒菜单，收进系统面板主菜单；开关按页面实际状态判断，不再出现「存档写着开着、点一下被判成关闭」的点了没反应。\n4. 🖼 沉浸层右上角新增「🌕 系统」，玩到一半也能直接调出面板；面板渲染出错不再静默失败，会直接把原因报出来。\n5. 🗂 改「单人卡／多人卡」「安全锁」这些开关后，面板不再把「运行设定」自己收回去：重绘前记住展开状态和滚动位置，重绘后还原。\n6. 📊 当前好感／阶段／肉体／嫉妒正式写进提示词（「当前状态·唯一事实来源」），AI 不会再自己编「好感度24」，并被明确禁止在正文复述数字。\n7. 🙈 新增「隐藏内心草稿」：AI 写在正文后面的 Phase.xxx、<角色名内置cot> 分析段整段收进隐藏块（原文不删），玩家只看到正文和状态卡；沉浸模式读到的正文同样过滤。\n8. 🧾 自动建档改成第一轮就建，不再等 AI 写标签；建档之后每一轮还会把新出场的角色补录进档案，新人先记「次要」，不抢主攻略对象的戏。\n9. 🧪 新增 H 系列 11 条回归用例，全套 16 个套件全部通过。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto'
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;

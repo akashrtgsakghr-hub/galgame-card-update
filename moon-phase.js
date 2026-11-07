@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.4';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.4 朱丝栏邸报 · 护眼最高法则优先】新增第四套楼内状态卡\n1. 📜 新增「朱丝栏邸报」：参考清代京报与宋刻本形制，朱丝界行、鱼尾版心、书耳、天头地脚、宫门钞／上谕／奏折三段、朱文印章。\n2. 🛡 法则优先于还原度：不做白纸黑字，改「灯下夜读的暗调抄本」；四层背景直接引用全局 9/11/13/15% 微明度，相邻差 2%，不另起一套配色。\n3. 🚫 全版无纯黑纯白、无黑框，边界只用发丝线；字重只到 600；朱砂提到暖橙才有 5.60:1 对比，原来的深朱在暗底只有 2.41:1。\n4. 📖 点题签「展阅」展开、再点「收卷」收起：Grid 0fr→1fr + 1200/80 零回弹弹簧；朱印落章用 380/18 微弹。\n5. 🔍 聚焦禁描边改三环阴影，图标下移 0.125em，数字等宽，正文 pretty 换行，「减少动态效果」下动画全关。\n6. 🀄 标题竖排、正文横排；窄屏自动退化成横排标题与两格档案，横向不溢出。\n7. 🗂 数据全部读真实存档：时辰由世界时间推算，头条按十一档阶段值生成（非随机），书耳吃时辰／地点／天气／气温，奏折四格吃好感／体气／等第／暗涌，引文取心声，另讯只列在场角色。\n8. 🔒 数据刷新保留展开态，已展卷的邸报不会自己合上；样式只注入一次，切换皮肤清干净旧节点。\n9. 🎛 面板「楼内状态卡」四选一改五选一（不显示／票根／藏书票／日报／邸报），老三套外观一个字节未动。\n10. 🧪 新增 19 条 D 系列用例（含四层明度、无纯黑白、Grid 折叠、弹簧 token、时辰边界），全套 15 个测试套件共 451 条全部通过。";
+  const MOON_FORMULA_VERSION = '4.7.5';
+  const MOON_FORMULA_CHANGELOG = "【v4.7.5 实测问题集中修复】七处报上来的毛病，逐条对账\n1. 🔴 修掉启动自检里的 `_nWarn is not defined`：冲突扫描漏声明计数器，一进游戏就弹「扫描异常」。\n2. 🔄 堵住「酒馆一直自己刷新」：所有刷新改成一次性闸门，标记写不进去（隐私模式／存储满）时宁可不刷，也不反复重载；首次自检同一会话只跑一次。\n3. 🎮 沉浸模式入口不再单独占魔棒菜单，收进系统面板主菜单；开关按页面实际状态判断，不再出现「存档写着开着、点一下被判成关闭」的点了没反应。\n4. 🖼 沉浸层右上角新增「🌕 系统」，玩到一半也能直接调出面板；面板渲染出错不再静默失败，会直接把原因报出来。\n5. 🗂 改「单人卡／多人卡」「安全锁」这些开关后，面板不再把「运行设定」自己收回去：重绘前记住展开状态和滚动位置，重绘后还原。\n6. 📊 当前好感／阶段／肉体／嫉妒正式写进提示词（「当前状态·唯一事实来源」），AI 不会再自己编「好感度24」，并被明确禁止在正文复述数字。\n7. 🙈 新增「隐藏内心草稿」：AI 写在正文后面的 Phase.xxx、<角色名内置cot> 分析段整段收进隐藏块（原文不删），玩家只看到正文和状态卡；沉浸模式读到的正文同样过滤。\n8. 🧾 自动建档改成第一轮就建，不再等 AI 写标签；建档之后每一轮还会把新出场的角色补录进档案，新人先记「次要」，不抢主攻略对象的戏。\n9. 🧪 新增 H 系列 11 条回归用例，全套 16 个套件全部通过。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -75,7 +75,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto'
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;
@@ -1437,6 +1437,22 @@ async function _collectAllWorldbooks(includeDisabled) {
       if (activeKeys.length === 0) return;
       const multiCard = getCardMode() === 'multi';
       const lines = [];
+      /* ── 当前状态：AI 必须照抄这里的数字，不能自己编 ──────────
+         以前这里只给「本轮事件类型 + 标签格式」，E/P/R/I 一个数字都没给，
+         AI 就会在正文和草稿里瞎写「好感度 20」，和状态卡上的真实值对不上。
+         现在把脚本算完的结果原样报给它，并明确禁止它自己复述数字。 */
+      lines.push('════ 当前状态 · 唯一事实来源（脚本已结算，你无权修改） ════');
+      activeKeys.forEach(function(name) {
+        const ch = chars[name]; if (!ch) return;
+        const E = Number(ch.好感度) || 0; const P = Number(ch.肉体值) || 0;
+        const I = Number(ch.嫉妒值) || 0; const R = Number(ch.阶段值) || 0;
+        const stage = getRStageFromE(E);
+        lines.push('· ' + name + '｜好感 E=' + E + '（关系阶段：' + stage.name + ' / R=' + R + '）｜肉体 P=' + P + '｜嫉妒 I=' + I +
+          '｜情绪 ' + String(ch.情绪 || '😐') + '｜' + (ch.在场 === false ? '不在场' : '在场'));
+      });
+      lines.push('→ 本轮所有心理与行为都要建立在这些数值上：好感低就别写成已经动心，好感高就别再写成陌生人。');
+      lines.push('→ 正文与草稿里都不要写「好感度=XX」「当前关系阶段：XX（好感度XX）」这类数字，也不要输出 Phase.xxx、「关系阶段分析」这类段落；数值由状态卡统一展示，你重复只会和卡片打架。');
+      lines.push('');
       activeKeys.forEach(function(name) {
         const ch = chars[name]; if (!ch) return;
         const q = ch._quota || {}; const es = q._eventState || {};
@@ -3044,6 +3060,8 @@ async function _collectAllWorldbooks(includeDisabled) {
       }
     } catch (e) {}
     beautifyGalgameEndingInDom();
+    /* 收尾：把 AI 写给自己的 Phase / cot 草稿段藏起来，玩家只看正文和状态卡 */
+    try { mpApplyCotFold(); } catch (e) {}
     scheduleSkinRefresh({ onlyLast: true });
   }
 
@@ -3095,6 +3113,163 @@ async function _collectAllWorldbooks(includeDisabled) {
     }
   }
   /* ───────────────────────────────────────────────────────── */
+/* 66-cot-hide.js —— 把「只给脚本看的草稿段」从消息里藏掉。
+ *
+ * AI 有时会在正文后面跟一段写给自己的思考，例如：
+ *     Phase. 爱意自然呈现
+ *     当前关系阶段：初识观察期（好感度24）……
+ *     Phase. 文风cot
+ *     <太宰治内置cot> 已严格读取并遵循… </太宰治内置cot>
+ * 这些内容玩家不该看到（数值由脚本独占，它自己复述只会和状态卡打架）。
+ *
+ * 做法：渲染后把从第一个 Phase 小标题（或行首 <…cot> 块）到消息结尾的那一段
+ * 收进一个 hidden 容器。原文一个字都不删 —— 换存档、别的正则、AI 上下文
+ * 还要读它，只是不显示。
+ */
+
+  const MP_COT_HIDDEN_CLASS = 'mp-cot-hidden';
+  const MP_COT_FOLD_ATTR = 'data-mp-cot';
+  // 行首的草稿小标题：Phase.xxx 或 <角色名cot>
+  const MP_COT_HEAD_RE = /(^|\n)[ \t]*(?:Phase[ \t]*[.．:：]|<\/?[A-Za-z0-9_\u4e00-\u9fa5]{1,16}cot>)/;
+  // 小标题之后要能看出「这确实是一段草稿」，否则可能只是正文里提到了 Phase
+  const MP_COT_TAIL_RE = /(?:Phase[ \t]*[.．:：]|<[^<>\n]{1,16}cot>|关系阶段|阶段分析|写作思路|文风|人设|反恋爱脑|潜台词|叙事要求)/;
+
+  function mpCotHideEnabled() { return getSettings().hideAiCot !== false; }
+
+  /* 在纯文本里找草稿段起点；返回 -1 表示这段消息里没有草稿 */
+  function mpFindCotStart(text) {
+    const s = String(text == null ? '' : text);
+    if (s.length < 8) return -1;
+    const m = MP_COT_HEAD_RE.exec(s);
+    if (!m) return -1;
+    const start = m.index + (m[1] ? m[1].length : 0);
+    if (!MP_COT_TAIL_RE.test(s.slice(start))) return -1;
+    return start;
+  }
+
+  /* 把 <br> / </p> 也当成换行，得到与 textContent 同序的纯文本（标签本身不占字符） */
+  function mpElementPlainText(el) {
+    if (!el) return '';
+    const html = String(el.innerHTML || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(?:p|div|li)>/gi, '\n')
+      .replace(/<[^>]*>/g, '');
+    return html.replace(/&nbsp;/gi, ' ').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&amp;/gi, '&');
+  }
+
+  /* 纯文本偏移 → DOM 位置（文本节点按文档顺序累加，<br> 记一个换行） */
+  function mpPointFromOffset(root, offset) {
+    let acc = 0;
+    let hit = null;
+    const walk = function(node) {
+      if (hit || !node) return;
+      const kids = node.childNodes || [];
+      for (let i = 0; i < kids.length; i++) {
+        if (hit) return;
+        const kid = kids[i];
+        if (kid.nodeType === 3) {
+          const len = kid.nodeValue ? kid.nodeValue.length : 0;
+          if (offset <= acc + len) { hit = { node: kid, offset: Math.max(0, offset - acc) }; return; }
+          acc += len;
+        } else if (kid.nodeType === 1) {
+          if (kid.tagName === 'BR') {
+            if (offset <= acc) { hit = { node: kid.parentNode, offset: mpIndexOfNode(kid) }; return; }
+            acc += 1;
+          } else {
+            walk(kid);
+          }
+        }
+      }
+    };
+    walk(root);
+    return hit;
+  }
+  function mpIndexOfNode(node) {
+    try {
+      const parent = node.parentNode;
+      for (let i = 0; i < parent.childNodes.length; i++) if (parent.childNodes[i] === node) return i;
+    } catch (e) {}
+    return 0;
+  }
+
+  function mpHideOneCotBlock(el) {
+    try {
+      if (!el || el.getAttribute(MP_COT_FOLD_ATTR) === '1') return false;
+      const plain = mpElementPlainText(el);
+      const start = mpFindCotStart(plain);
+      if (start < 0) return false;
+      const point = mpPointFromOffset(el, start);
+      if (!point) return false;
+      let range = null;
+      try {
+        range = mainDoc.createRange();
+        range.setStart(point.node, point.offset);
+        range.setEnd(el, el.childNodes.length);
+      } catch (e) { return false; }
+      const frag = range.extractContents();
+      if (!frag || (!frag.textContent && !frag.childNodes.length)) return false;
+      const box = mainDoc.createElement('span');
+      box.className = MP_COT_HIDDEN_CLASS;
+      box.setAttribute('hidden', 'hidden');
+      box.setAttribute('aria-hidden', 'true');
+      box.style.display = 'none';
+      box.appendChild(frag);
+      el.appendChild(box);
+      el.setAttribute(MP_COT_FOLD_ATTR, '1');
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function mpShowOneCotBlock(el) {
+    try {
+      const box = el && el.querySelector ? el.querySelector('.' + MP_COT_HIDDEN_CLASS) : null;
+      if (!box || !box.parentNode) return false;
+      const parent = box.parentNode;
+      while (box.firstChild) parent.insertBefore(box.firstChild, box);
+      parent.removeChild(box);
+      el.removeAttribute(MP_COT_FOLD_ATTR);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* 最近 N 条消息里执行；返回实际藏了几条 */
+  function mpHideCotBlocksInDom(limit) {
+    let n = 0;
+    try {
+      if (!mpCotHideEnabled()) return 0;
+      const nodes = mainDoc.querySelectorAll('.mes .mes_text');
+      const max = Number(limit) || 12;
+      for (let i = Math.max(0, nodes.length - max); i < nodes.length; i++) {
+        if (mpHideOneCotBlock(nodes[i])) n++;
+      }
+    } catch (e) {}
+    return n;
+  }
+
+  /* 关掉开关时把已经藏起来的内容原样放回去 */
+  function mpShowCotBlocksInDom() {
+    let n = 0;
+    try {
+      const nodes = mainDoc.querySelectorAll('.mes .mes_text[' + MP_COT_FOLD_ATTR + '="1"]');
+      for (let i = 0; i < nodes.length; i++) { if (mpShowOneCotBlock(nodes[i])) n++; }
+    } catch (e) {}
+    return n;
+  }
+
+  function mpApplyCotFold() {
+    if (mpCotHideEnabled()) mpHideCotBlocksInDom();
+    else mpShowCotBlocksInDom();
+  }
+
+  /* 纯文本版：沉浸模式不走 DOM，直接从字符串尾巴上把草稿段切掉 */
+  function mpTrimCotText(text) {
+    const s = String(text == null ? '' : text);
+    if (!mpCotHideEnabled()) return s;
+    const start = mpFindCotStart(s);
+    if (start < 0) return s;
+    return s.slice(0, start).replace(/[ \t]+$/, '');
+  }
   function captureLatestContent() {
     try {
       const ctx = getSTCtx();
@@ -6148,6 +6323,8 @@ function openUpdateConfigDialog(panel) {
     // 图片标签单独由图片适配层处理，这里先摘掉避免重复显示
     text = text.replace(/<img\b[^>]*>/gi, '');
     text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+    // 只给脚本看的草稿段（Phase.xxx / <角色名内置cot>）整段摘掉
+    text = mpTrimCotText(text);
     text = text.replace(/\n{3,}/g, '\n\n');
     return text.trim();
   }
@@ -7526,6 +7703,7 @@ function openUpdateConfigDialog(panel) {
           '<span class="mp-gal-title">Galgame Mode</span>' +
         '</div>' +
         '<div class="mp-gal-top-right">' +
+          '<button type="button" data-gal-act="moon">🌕 系统</button>' +
           '<button type="button" data-gal-act="cg">🖼 CG</button>' +
           '<button type="button" data-gal-act="input">⌨ 输入</button>' +
           '<button type="button" data-gal-act="history">📜 历史</button>' +
@@ -7614,6 +7792,7 @@ function openUpdateConfigDialog(panel) {
 
   function galHandleAction(act, btn) {
     if (act === 'exit') galClose();
+    else if (act === 'moon') { try { openPanel(); } catch (e) {} }
     else if (act === 'next') galNextPage();
     else if (act === 'prev') galPrevPage();
     else if (act === 'auto') galToggleAutoPlay();
@@ -7632,7 +7811,7 @@ function openUpdateConfigDialog(panel) {
   /* ── 打开 / 关闭 ───────────────────────────────────────── */
   function galOpen() {
     const root = galEnsureRoot();
-    galApplyCssVars(root);
+    try { galApplyCssVars(root); } catch (e) {}
     root.classList.add('open');
     galPatchState({ on: true });
     GAL_RUNTIME.reviewMode = false;
@@ -7641,8 +7820,20 @@ function openUpdateConfigDialog(panel) {
     const st = galGetState();
     GAL_RUNTIME.floor = Number(st.floor) >= 0 ? Number(st.floor) : -1;
     GAL_RUNTIME.page = Number(st.page) || 0;
-    galRender(true);
-    galMemoryWarnIfBroken();
+    /* 渲染失败也要把「已经打开」这件事做实，并把原因写在空状态里，
+       否则玩家看到的就是「点了一下，什么都没发生」。 */
+    try {
+      galRender(true);
+    } catch (e) {
+      try { console.warn('[月相] 沉浸模式渲染失败：', e); } catch (e2) {}
+      const empty = root.querySelector('#mp-gal-empty');
+      if (empty) {
+        empty.style.display = 'flex';
+        empty.innerHTML = '这一段剧情没渲染出来：' + galEscape(e && e.message || e) +
+          '<br><span style="font-size:11px;color:#7d8ca3;">可以先点左上角「← 返回聊天」，或刷新一次再试</span>';
+      }
+    }
+    try { galMemoryWarnIfBroken(); } catch (e) {}
     return root;
   }
 
@@ -8611,50 +8802,56 @@ function openUpdateConfigDialog(panel) {
       });
     });
   }
-/* 86f-gal-boot.js —— 沉浸模式启动与菜单入口。
-   只新增入口，不改动原有「🌕 月相系统」面板的任何按钮。 */
+/* 86f-gal-boot.js —— 沉浸模式启动与入口。
+   入口已经收进系统面板主菜单（不再单独占一项魔棒菜单），这里只负责启动与恢复。 */
 
   function galMenuEntryHtml() {
     return '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🎮</span><span>Galgame 沉浸模式</span>';
   }
 
+  /* 保留这个函数只是为了兼容旧调用点；真正的入口在面板里，魔棒菜单不再注入。 */
   function injectGalMenuEntry() {
-    const tryInject = function() {
-      const menu = mainDoc.getElementById('extensionsMenu') ||
-        mainDoc.getElementById('extensions_menu') ||
-        mainDoc.querySelector('.extensionsMenu') ||
-        mainDoc.querySelector('#extension-settings');
-      if (!menu) return false;
-      const old = mainDoc.getElementById('moon-gal-menu-entry');
-      if (old && old.parentNode === menu) return true;
-      if (old) { try { old.remove(); } catch (e) {} }
-      const div = mainDoc.createElement('div');
-      div.id = 'moon-gal-menu-entry';
-      div.className = 'list-group-item flex-container flexGap5 interactable';
-      div.tabIndex = 0;
-      div.innerHTML = galMenuEntryHtml();
-      div.addEventListener('click', function() {
-        try { if (galIsOn()) galClose(); else galOpen(); } catch (e) {}
-      });
-      menu.appendChild(div);
+    const old = mainDoc.getElementById('moon-gal-menu-entry');
+    if (old) { try { old.remove(); } catch (e) {} }
+    return false;
+  }
+
+  /* 沉浸层实际是否开着，以 DOM 为准。
+     只读存档状态会在「上次没退干净」时骗人：状态是 on、DOM 没有（或反之），
+     于是第一下点击判成「关闭」，看起来就是点了没反应。 */
+  function galIsOpenInDom() {
+    const root = galRootEl();
+    return !!(root && root.classList.contains('open'));
+  }
+  function galShow() {
+    try {
+      if (!galIsOpenInDom()) galOpen();
+      else galRender(true);
       return true;
-    };
-    if (!tryInject()) {
-      const interval = setInterval(function() { if (tryInject()) clearInterval(interval); }, 800);
-      setTimeout(function() { clearInterval(interval); }, 90000);
+    } catch (e) {
+      try { console.warn('[月相] 沉浸模式打开失败：', e); } catch (e2) {}
+      try { toast('沉浸模式打不开：' + String(e && e.message || e), 'warning'); } catch (e3) {}
+      return false;
     }
+  }
+  function galHide() {
+    try { galClose(); } catch (e) {}
+  }
+  function galFlip() {
+    if (galIsOpenInDom()) { galHide(); return true; }
+    return galShow();
   }
 
   /* 启动：只做三件事——注入样式、暴露全局入口、恢复"上次开着"的聊天 */
   function galBoot() {
     try { injectGalStyle(); } catch (e) {}
-    try { mainWin.openMoonGalgame = galOpen; window.openMoonGalgame = galOpen; } catch (e) {}
-    try { mainWin.toggleMoonGalgame = galToggle; window.toggleMoonGalgame = galToggle; } catch (e) {}
+    try { mainWin.openMoonGalgame = galShow; window.openMoonGalgame = galShow; } catch (e) {}
+    try { mainWin.toggleMoonGalgame = galFlip; window.toggleMoonGalgame = galFlip; } catch (e) {}
     try { injectGalMenuEntry(); } catch (e) {}
     // 恢复：每个聊天独立记住是否开着，换聊天不会串
     setTimeout(function() {
       try {
-        if (galIsOn() && !galRootEl()) galOpen();
+        if (galIsOn() && !galIsOpenInDom()) galShow();
       } catch (e) {}
     }, 1600);
   }
@@ -14645,6 +14842,19 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<button class="mp-btn mp-btn-highlight" id="moon-quick-start" style="width:100%;margin-top:9px;">🚀 帮我建角色档案（一键直达）</button>' +
       '</div>';
 
+    /* 重绘会重建整棵 DOM，<details> 的展开状态和滚动位置都会丢，
+       玩家看到的就是「改一下单人卡/多人卡，运行设定自己就收起来了」。先快照、后还原。 */
+    const _foldSnap = {};
+    let _scrollSnap = 0;
+    try {
+      panel.querySelectorAll('details').forEach(function(d) {
+        const summaryEl = d.querySelector('summary');
+        const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
+        if (t) _foldSnap[t] = d.open === true;
+      });
+      _scrollSnap = Number(panel.scrollTop) || 0;
+    } catch (e) {}
+
     panel.innerHTML = '' +
       '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
@@ -14713,7 +14923,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '这张卡有好几个能攻略的人' : '这张卡只有一个人') + '</div></div>' +
       '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话后，自动建一份 0 值档案，直接能加减' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话就建 0 值档案；之后每一轮有新角色出场也会自动补录' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
@@ -14724,6 +14934,9 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🎫 楼内状态卡</div><div class="mp-toggle-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div></div>' +
       renderSkinPickerHtml() + '</div>' +
+      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
+      '<div class="mp-toggle-info"><div class="mp-toggle-title">🙈 隐藏内心草稿</div><div class="mp-toggle-desc">' + (s.hideAiCot !== false ? '开：AI 写的 Phase／分析段只给脚本看，你只看到正文和状态卡' : '关：AI 写出来的全部内容原样显示') + '</div></div>' +
+      '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? 'ON' : 'OFF') + '</button></div>' +
       '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
       '<div class="mp-toggle-info"><div class="mp-toggle-title">🔒 安全锁</div><div class="mp-toggle-desc">' + (getSafetyLock() ? '开：她最多嘴上凶' : '关：可能真的动手') + '</div></div>' +
       '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF') + '</button></div>' +
@@ -14744,6 +14957,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>这个世界哪天会出事（不点也能玩）</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>卡住了、数不对劲 → 来这体检一次</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>填 AI 钥匙 · 换画风 · 看说明书</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏对话框读剧情 · 点选项推进 · 再点一次回聊天</small></span><i>›</i></button>' +
       '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>💡 不会玩？先点「开始游戏」</span></div></section>' +
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回主菜单</button><div><small>GAME MENU / 掌机功能卡槽</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
@@ -14776,6 +14990,16 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<details class="mp-action-fold" open><summary><span>插画与番外</span><small>用哪家出图 · 番外写多长</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>选画图的渠道，定番外的字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>不会用就看这个，一页讲一件事</small></button></div></details>' +
       '<details class="mp-action-fold" open><summary><span>更新与帮助</span><small>拉最新版 · 常见问题</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>连不通会自动换镜像</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>一个问题一句话，先搜这里</small></button></div></details></div></section>' +
       '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
+
+    /* 还原折叠状态：按标题文字匹配，和重绘前那一份对齐 */
+    try {
+      panel.querySelectorAll('details').forEach(function(d) {
+        const summaryEl = d.querySelector('summary');
+        const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
+        if (t && Object.prototype.hasOwnProperty.call(_foldSnap, t)) d.open = _foldSnap[t];
+      });
+      if (_scrollSnap) panel.scrollTop = _scrollSnap;
+    } catch (e) {}
 
     panel._lcdStateTimer = setInterval(function() {
       if (!panel.isConnected) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; return; }
@@ -14835,6 +15059,14 @@ var worldData = (rawVars && rawVars['世界']) || {};
       panel.dataset.activeMenuKey = '';
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
+    });
+    const galEntryBtn = panel.querySelector('[data-gal-open]');
+    if (galEntryBtn) galEntryBtn.addEventListener('click', function() {
+      /* 先进沉浸层，再收面板：反过来的话面板一收就把点击冒泡链断了。
+         开/关以 DOM 实际状态判断，不看存档里的 on，避免「点了没反应」。 */
+      let ok = false;
+      try { ok = galFlip() !== false; } catch (e) { ok = false; }
+      if (ok !== false) { try { closePanel(); } catch (e) {} }
     });
     if (panel.dataset.menuKeysBound !== '1') {
       panel.dataset.menuKeysBound = '1';
@@ -14896,6 +15128,14 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
+    const hideCotBtn = panel.querySelector('#moon-phase-hidecot');
+    if (hideCotBtn) hideCotBtn.addEventListener('click', function() {
+      const s2 = getSettings();
+      s2.hideAiCot = !(s2.hideAiCot !== false);
+      saveSettings(s2);
+      try { mpApplyCotFold(); } catch (e) {}
+      refreshPanel();
+    });
     panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
     (function() {
       const coreBtns = panel.querySelectorAll('[data-core-rule]');
@@ -15196,6 +15436,9 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
 
   async function runConflictScan() {
     const lines = [];
+    /* 这两个计数必须在这里声明：warn() 会自增 _nWarn，漏声明就是 ReferenceError，
+       启动自检会直接崩成「扫描异常：_nWarn is not defined」。 */
+    let _nFail = 0, _nWarn = 0;
     const ok = function(s) { lines.push('<span style="color:#6ee7b7">✔</span> ' + s); };
     const warn = function(s) { _nWarn++; lines.push('<span style="color:#fbbf24">⚠</span> ' + s); };
     const info = function(s) { lines.push('<span style="color:#93c5fd">ℹ</span> ' + s); };
@@ -17658,6 +17901,53 @@ function openTimelineKeywordDialog(panel, onDone) {
     return String(n).replace(/[。\.]+$/, '').trim();
   }
 
+  /* ── 从一条回复里认人 ─────────────────────────────────────
+     只认「明确点名」的：Sylveina 标签里的角色名、后台变量 `角色.X.` 的 X。
+     这两个来源都是脚本自己要求 AI 输出的，不会误伤正文里的普通名词。 */
+  const BOOTSTRAP_NAME_STOP = ['你', '我', '他', '她', '它', '玩家', '用户', 'User', 'user', '旁白', '众人', '大家', '系统', '未知'];
+
+  function collectNamedCharsFromMessage(text) {
+    const names = [];
+    const push = function(n) {
+      let v = String(n == null ? '' : n).trim();
+      v = v.replace(/^[「『\[【(（<]+/, '').replace(/[」』\]】)）>]+$/, '').trim();
+      if (!v || v.length > 12) return;
+      if (BOOTSTRAP_NAME_STOP.indexOf(v) >= 0) return;
+      if (names.indexOf(v) < 0) names.push(v);
+    };
+    const src = String(text || '');
+    if (!src) return names;
+    try {
+      const tags = extractAllSylveinaTags(src);
+      for (let i = 0; i < tags.length; i++) push(tags[i] && tags[i].charName);
+    } catch (e) {}
+    try {
+      const re = /角色\s*[.．]\s*([^\r\n=＝:：.．]{1,30}?)\s*[.．]/g;
+      let m;
+      while ((m = re.exec(src)) !== null) push(m[1]);
+    } catch (e) {}
+    return names;
+  }
+
+  /* 兜底：从「名字：台词」这种对白格式里猜说话人。
+     只在多人卡、且这一轮既没有标签也没有后台变量时才用，最多取前几个。 */
+  function guessSpeakerNames(text) {
+    const names = [];
+    const src = String(text || '');
+    if (!src) return names;
+    const re = /(?:^|\n)[ \t>*\-•#\d.、]*([^\s：:，。！？；、\r\n]{2,6})[：:]/g;
+    let m; let guard = 0;
+    while ((m = re.exec(src)) !== null && guard++ < 40) {
+      const n = String(m[1] || '').trim();
+      if (!n || names.indexOf(n) >= 0) continue;
+      if (BOOTSTRAP_NAME_STOP.indexOf(n) >= 0) continue;
+      if (/[的了是在说问道着过他她我你]/.test(n)) continue;
+      if (/^(?:时间|地点|地点|选项|选择|备注|状态|好感|阶段|肉体|嫉妒|心声|情绪|当前)$/.test(n)) continue;
+      names.push(n);
+    }
+    return names;
+  }
+
   // 从开场白 / 第一条回复里捞一个世界时间，捞不到就留给后面推进
   function guessOpeningWorldTime(texts) {
     const list = texts || [];
@@ -17726,37 +18016,37 @@ function openTimelineKeywordDialog(panel, onDone) {
       const data = readMvuLatest();
       if (!data || !data.stat_data) return null;
       const statData = data.stat_data;
-      // 已经有真档案（哪怕是别的插件建的）就不插手
-      if (!isCharsTableEmpty(statData.角色)) return null;
+      const tableEmpty = isCharsTableEmpty(statData.角色);
 
       const mode = getCardMode();
       const names = [];
       const cardName = getAutoBootstrapCardName();
-      if (mode !== 'multi') {
+      const latestTagMsg = getLatestAiMessage();
+      const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
+      const named = collectNamedCharsFromMessage(latestText);
+      const pushName = function(n) {
+        const v = String(n || '').trim();
+        if (v && names.indexOf(v) < 0) names.push(v);
+      };
+      if (!tableEmpty) {
+        /* 已经有真档案：这一轮只补「新出场的人」。
+           以前这里直接 return，换场景/加了新角色也永远进不了档，
+           玩家看到的就是「只会更新数值，不会更新角色」。 */
+        named.forEach(pushName);
+        if (!names.length) return null;
+      } else if (mode !== 'multi') {
         if (!cardName) return null;
-        names.push(cardName);
+        pushName(cardName);
       } else {
-        // 多人卡不猜名字：只认第一条回复里带名字的标签 / 后台变量
-        const latestTagMsg = getLatestAiMessage();
-        const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
-        const tags = extractAllSylveinaTags(latestText);
-        for (let i = 0; i < tags.length; i++) {
-          const n = String((tags[i] && tags[i].charName) || '').trim();
-          if (n && names.indexOf(n) < 0) names.push(n);
-        }
-        // 没写标签、只写了「角色.X.心声=…」的也算
-        const nameRe = /角色\s*[.．]\s*([^\r\n=＝:：.．]{1,30}?)\s*[.．]/g;
-        let nm;
-        while ((nm = nameRe.exec(latestText)) !== null) {
-          const n = String(nm[1] || '').trim();
-          if (n && names.indexOf(n) < 0) names.push(n);
-        }
+        /* 多人卡：只认标签 / 后台变量里点过名的；这一轮还没写名字时，
+           退一步看对白格式里的说话人。卡名在多人卡上通常是剧本名而不是角色，
+           宁可不建，也不往档案里塞一个假人。 */
+        named.forEach(pushName);
+        if (!names.length) guessSpeakerNames(latestText).slice(0, 3).forEach(pushName);
         if (!names.length) return null;
       }
       if (!names.length) return null;
 
-      const latest = getLatestAiMessage();
-      const latestText = latest ? String(latest.msg.mes || '') : '';
       let cardFirstMes = '';
       try {
         const ctx = getSTCtx();
@@ -17790,7 +18080,14 @@ function openTimelineKeywordDialog(panel, onDone) {
         if (!n) continue;
         const exist = statData.角色[n];
         if (exist && !isCharSkeleton(exist)) continue;
-        statData.角色[n] = exist ? fillSkeletonEntry(exist, fresh) : JSON.parse(JSON.stringify(fresh));
+        if (exist) statData.角色[n] = fillSkeletonEntry(exist, fresh);
+        else {
+          const entry = JSON.parse(JSON.stringify(fresh));
+          /* 补录进来的新人先按「次要」算，免得抢了主攻略对象的戏；
+             卡名本人和第一份档案仍然是「主要」。 */
+          if (!tableEmpty && n !== cardName) entry.重要度 = '次要';
+          statData.角色[n] = entry;
+        }
         made.push(n);
       }
       if (!made.length) return null;
@@ -17800,7 +18097,9 @@ function openTimelineKeywordDialog(panel, onDone) {
       if (!ok) return null;
       try { console.log('[月相] 自动建档：' + made.join('、')); } catch (e) {}
       if (reason !== 'silent') {
-        toast('已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准', 'info');
+        toast(tableEmpty
+          ? '已自动建好档案（0 起）· 想更贴合开场可点「🚀 开局适配」校准'
+          : '新角色已入档：' + made.join('、'), 'info');
       }
       try { refreshPanel(); } catch (e) {}
       return made;
@@ -18527,8 +18826,7 @@ async function applyAdaptiveOpening(charName, values) {
         }
       });
     } catch(e) {}
-    // 🎮 沉浸模式入口：独立一项，不动原来的「🌕 月相系统」
-    try { injectGalMenuEntry(); } catch (e) {}
+    // 🎮 沉浸模式入口已经收进系统面板主菜单，不再往魔棒菜单里多塞一项
   }
 
   
@@ -18550,7 +18848,16 @@ async function applyAdaptiveOpening(charName, values) {
     }
     let panel = mask.querySelector('#moon-phase-panel');
     if (!panel) { panel = mainDoc.createElement('div'); panel.id = 'moon-phase-panel'; mask.appendChild(panel); }
-    renderPanel(panel);
+    /* 渲染失败也必须把面板打开：以前 renderPanel 抛异常会停在 classList.add 之前，
+       玩家看到的就是「点了月相系统没反应，得刷新一次」。现在出错就把错误摊开讲清楚。 */
+    try {
+      renderPanel(panel);
+    } catch (e) {
+      try { console.warn('[月相] 面板渲染失败：', e); } catch (e2) {}
+      try { toast('面板渲染出错：' + String(e && e.message || e), 'warning'); } catch (e3) {}
+    }
+    // 显式压在 Galgame 沉浸层（2147483000）之上，但低于各种弹窗（2147483650+）
+    try { mask.style.zIndex = '2147483645'; } catch (e) {}
     mask.classList.add('open');
   }
 
@@ -18566,6 +18873,34 @@ async function applyAdaptiveOpening(charName, values) {
   }
 
   function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+  /* ── 一次性刷新闸门 ────────────────────────────────────────
+     旧逻辑是「写标记 → 刷新」，标记写在 localStorage 里。只要 localStorage 写不进去
+     （隐私模式 / iframe 限制 / 配额满 / 换设备），下一次加载又会重新判断成「需要刷新」，
+     玩家看到的就是酒馆反复自己刷。现在统一走这里：只有 sessionStorage 确认标记真的
+     写成功了才刷新，写不进去就宁可不刷 —— 停在旧页面，比无限刷新好得多。 */
+  let _mpReloading = false;
+  function safeReloadOnce(tag) {
+    if (_mpReloading) return false;
+    const key = 'moon_phase_reload_gate_' + String(tag || 'default');
+    let ss = null;
+    try { ss = mainWin.sessionStorage || sessionStorage; } catch (e) { ss = null; }
+    if (!ss) return false;
+    try {
+      if (ss.getItem(key) === '1') return false;
+      ss.setItem(key, '1');
+      if (ss.getItem(key) !== '1') return false;
+    } catch (e) { return false; }
+    _mpReloading = true;
+    setTimeout(function() {
+      try {
+        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
+        else location.reload();
+      } catch (e) { try { location.reload(); } catch (e2) {} }
+    }, 500);
+    return true;
+  }
+
 
   function showFirstBootDialog() {
     closeFirstBootDialog();
@@ -18630,10 +18965,22 @@ async function applyAdaptiveOpening(charName, values) {
     if (m) { try { m.remove(); } catch (e) {} }
   }
 
+  let _firstBootRunning = false;
+  const FIRST_BOOT_SESSION_KEY = 'moon_phase_firstboot_session_v1';
   async function runFirstBootSequence() {
+    if (_firstBootRunning) return;
+    _firstBootRunning = true;
     let hasDone = false;
     try { hasDone = (mainWin.localStorage.getItem(FIRST_RUN_KEY) === '1'); } catch(e) {}
-    if (hasDone) return;
+    /* 同一个浏览器会话只跑一次。localStorage 写不进去时靠这个标记兜底，
+       否则每次加载都会重播自检 → 刷新 → 再播，表现就是酒馆一直刷。 */
+    let alreadyRanThisSession = false;
+    try {
+      const ss = mainWin.sessionStorage || sessionStorage;
+      alreadyRanThisSession = ss.getItem(FIRST_BOOT_SESSION_KEY) === '1';
+      if (!alreadyRanThisSession) ss.setItem(FIRST_BOOT_SESSION_KEY, '1');
+    } catch (e) { alreadyRanThisSession = hasDone; }
+    if (hasDone || alreadyRanThisSession) { _firstBootRunning = false; return; }
     try { mainWin.localStorage.setItem(FIRST_RUN_KEY, '1'); } catch(e) {}
 
     showFirstBootDialog();
@@ -18673,29 +19020,15 @@ async function applyAdaptiveOpening(charName, values) {
     updateFirstBootProgress(4, '✔ 全部检测完成，即将刷新页面...');
     await sleep(1200);
     closeFirstBootDialog();
-
-    setTimeout(function() {
-      try {
-        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
-        else location.reload();
-      } catch (e) { try { location.reload(); } catch (e2) {} }
-    }, 500);
+    _firstBootRunning = false;
+    safeReloadOnce('firstboot');
   }
 
 
 function tryAutoReloadOnce() {
-  try {
-    const ss = mainWin.sessionStorage || sessionStorage;
-    const flag = 'moon_phase_session_reloaded';
-    if (ss.getItem(flag) === '1') return;
-    ss.setItem(flag, '1');
-    setTimeout(function() {
-      try {
-        if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
-        else location.reload();
-      } catch (e) { try { location.reload(); } catch (e2) {} }
-    }, 800);
-  } catch (e) {}
+  /* 局部脚本首次挂载 / 局部→全局切换时刷新一次。
+     闸门在 safeReloadOnce 里：标记写不进去就不刷，避免「一直刷酒馆」。 */
+  safeReloadOnce('mount');
 }
 
 /* =========================================================
@@ -18724,13 +19057,8 @@ try {
 } catch (e) { _isFirstBoot = true; }
 
 if (_needAutoReload) {
-  // 版本更新后延迟刷新
-  setTimeout(function() {
-    try {
-      if (mainWin && mainWin.location && typeof mainWin.location.reload === 'function') mainWin.location.reload();
-      else location.reload();
-    } catch (e) { try { location.reload(); } catch (e2) {} }
-  }, 900);
+  // 版本更新后延迟刷新（同样走一次性闸门，版本号写不进去也不会循环刷）
+  setTimeout(function() { safeReloadOnce('version'); }, 900);
 } else if (_isFirstBoot) {
   // 首次导入检测流程：同样先挂载魔棒菜单，避免初始化中断后按钮彻底丢失
   setTimeout(injectMenuEntry, 300);

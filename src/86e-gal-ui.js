@@ -129,6 +129,7 @@
           '<span class="mp-gal-title">Galgame Mode</span>' +
         '</div>' +
         '<div class="mp-gal-top-right">' +
+          '<button type="button" data-gal-act="moon">🌕 系统</button>' +
           '<button type="button" data-gal-act="cg">🖼 CG</button>' +
           '<button type="button" data-gal-act="input">⌨ 输入</button>' +
           '<button type="button" data-gal-act="history">📜 历史</button>' +
@@ -217,6 +218,7 @@
 
   function galHandleAction(act, btn) {
     if (act === 'exit') galClose();
+    else if (act === 'moon') { try { openPanel(); } catch (e) {} }
     else if (act === 'next') galNextPage();
     else if (act === 'prev') galPrevPage();
     else if (act === 'auto') galToggleAutoPlay();
@@ -235,7 +237,7 @@
   /* ── 打开 / 关闭 ───────────────────────────────────────── */
   function galOpen() {
     const root = galEnsureRoot();
-    galApplyCssVars(root);
+    try { galApplyCssVars(root); } catch (e) {}
     root.classList.add('open');
     galPatchState({ on: true });
     GAL_RUNTIME.reviewMode = false;
@@ -244,8 +246,20 @@
     const st = galGetState();
     GAL_RUNTIME.floor = Number(st.floor) >= 0 ? Number(st.floor) : -1;
     GAL_RUNTIME.page = Number(st.page) || 0;
-    galRender(true);
-    galMemoryWarnIfBroken();
+    /* 渲染失败也要把「已经打开」这件事做实，并把原因写在空状态里，
+       否则玩家看到的就是「点了一下，什么都没发生」。 */
+    try {
+      galRender(true);
+    } catch (e) {
+      try { console.warn('[月相] 沉浸模式渲染失败：', e); } catch (e2) {}
+      const empty = root.querySelector('#mp-gal-empty');
+      if (empty) {
+        empty.style.display = 'flex';
+        empty.innerHTML = '这一段剧情没渲染出来：' + galEscape(e && e.message || e) +
+          '<br><span style="font-size:11px;color:#7d8ca3;">可以先点左上角「← 返回聊天」，或刷新一次再试</span>';
+      }
+    }
+    try { galMemoryWarnIfBroken(); } catch (e) {}
     return root;
   }
 

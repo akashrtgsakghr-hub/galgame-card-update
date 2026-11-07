@@ -19,6 +19,8 @@
     // 图片标签单独由图片适配层处理，这里先摘掉避免重复显示
     text = text.replace(/<img\b[^>]*>/gi, '');
     text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+    // 只给脚本看的草稿段（Phase.xxx / <角色名内置cot>）整段摘掉
+    text = mpTrimCotText(text);
     text = text.replace(/\n{3,}/g, '\n\n');
     return text.trim();
   }
