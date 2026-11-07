@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.3';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.3 灰粉贝扣 · 书封式卡面】\n1. 🎀 配色换成灰粉与暖白：浅色四层 #E9E0E1 / #F1E8E8 / #F8F1EF / #DCD1D2，墨 #3E3237，强调换成干燥玫瑰 #BB8D93；深色是同一色相压暗，不再用黄棕。最亮仍停在 95%，夜里不刺眼。\n2. ⚪ 头像框改成衣服扣子那种平圆片：去掉外面那圈旋转弧，也去掉球面渐变、点状高光、底部反光与立体阴影；现在是平底 + 斜向珠光 + 粉/香槟/青虹彩，只留一圈均匀发丝线，首字母平放在上面。\n3. 📖 展开卡加了书封头：灰粉色块 + 衬线斜体大标题 + 扇贝线描水印 + 底缘珍珠点花边，下面接一条暖白 Prologue. 横条；对应你给的那套 iOS 阅读 App 参考，只把绿换成灰粉。\n4. 🔍 小红书原帖「Calista审美：来自希腊的珍珠微光」的配图是蕾丝、银镜、母贝碟、珍珠链与樱粉扇贝，色板据此定。\n5. 🧪 新增五条回归（扁平贝扣 / 无外圈 / 书封头 / 灰粉色板），18 套件 527 条全过；截图逐像素最亮 (248,241,239)，无白色像素。\n6. 🧩 只动皮肤外观，数值、存档格式、标签解析一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.4';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.4 贝母是真的 · 装饰不再手画】\n1. ⚪ 头像框不再拿 CSS 渐变仿珍珠。底纹换成小红书 Calista 原帖那片鲍鱼贝内壁的实拍，裁出不规则虹彩层纹、压掉白点、往灰粉香槟调，浅深各一张内联。真贝母的纹路是不规则的薄膜干涉，规整渐变仿不出来。\n2. 🎀 书封头的扇贝线描与底缘珍珠点阵全删，换成原帖那枚樱粉扇贝的实拍，按扇形轮廓裁切、边缘羽化，只当淡水印。卡里再没有我自己画的线条装饰。\n3. 🌙 深色是同一批素材压暗后的版本，不是另配色；最亮仍停在 95% 暖白，成图逐像素最亮 (248,241,239)，无白色像素。\n4. 🧪 新增四条回归：手绘线描清零、四张内联图两两不同、贝扣无自绘渐变、底色兜底仍在。18 套件 530 条全过。\n5. 🧩 只动皮肤外观，数值、存档格式、标签解析一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';

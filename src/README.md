@@ -48,7 +48,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `80-bio-queue.js` | 331 | 批量建档队列（静默生成，逐个填入） |
 | `85-style.js` | 859 | 面板与 LCD 的历史 CSS；末尾先注入护眼基础层，最后调用 UI v2 样式层 |
 | `85b-ui.js` | 993 | **UI v2「墨樱」最终权威样式层**：墨紫黑四层 + 樱粉单强调、发丝线替粗框、折叠 / 弹窗 / 引导 / 答疑 / 掌机按键全部重写；导出 `pocketFold` / `pocketRow` / `bindPocketFolds` 三个构造器 |
-| `88-skin.js` | 5394 | 楼内状态卡：晨昏票根 / 月氏藏书票 / 预言家日报 / 朱丝栏邸报 / Calista 五套外观（日报与 Calista 各有深浅两版）、数据适配、挂载与刷新。**Calista 是手写段，不经过 `gen-skin.mjs`**；全文件禁止出现 `#fff` / `rgba(255,255,255`，`skin.test.mjs` 会查 |
+| `88-skin.js` | 5370 | 楼内状态卡：晨昏票根 / 月氏藏书票 / 预言家日报 / 朱丝栏邸报 / Calista 五套外观（日报与 Calista 各有深浅两版）、数据适配、挂载与刷新。**Calista 是手写段，不经过 `gen-skin.mjs`**；贝扣纹理与扇贝水印是内联实拍素材（4 个 data URI），不是 CSS 画的；全文件禁止出现纯白，`skin.test.mjs` 会查 |
 | `90-panel.js` | 1389 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
 | `95-selfcheck.js` | 1276 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、分类答疑、引导条与主菜单、折叠态保持 |
 | `95c-tour.js` | 194 | 聚光灯式新手引导：六步、只高亮真实存在的控件、可跳过 / 上一步 / Esc，看完写 `introSeen` |

@@ -2555,14 +2555,11 @@
   --cl-accent: #BB8D93;
   --cl-accent-soft: rgba(187, 141, 147, .16);
 
-  /* 扁平母贝扣（衣服扣子那种平圆片）：**不做球面**。
-     一层平底 + 一道很宽的斜向珠光 + 粉/香槟/青三色缓慢过渡的虹彩。
-     没有聚光点、没有边缘转暗、没有底部反光，全片都是平的。 */
+  /* 贝扣与扇贝都取自小红书 Calista 原帖实拍，裁切压白后内联；
+     不再用 CSS 线性渐变去仿——真贝母的层纹是不规则的，渐变仿不出来。 */
+  --cl-nacre: url("data:image/webp;base64,UklGRroEAABXRUJQVlA4IK4EAACwHQCdASpgAGAAPm0skUYkIqGhMBVbGIANiWUnAb4AbMQaW4MFPOliO+mc70J/ucS4kVUGrpjqENGwxQnAOSR8jROsXmYSrc7XfmxezXUwdmH/M4klVl3Jv+qhSRIyrYs9hU3odvIhUDLqS5IIEcBcUXZ+oOM5c6W5y1VTxOKWVdkAcjzmIuu5ihf8RtZjjMmNZ5d2lT2MIFwVYGHud6UMBYLX4y+dIDZSxqpd/tZNMrlFTn9jsCymuDwlB9+vmshgPVy0jmD4W66Vmu5GN5KO0djOksTyNyRmuptengZyXrZkAHS9kBWFIEs6Yz/nTjt374pQ4wAAhzfqBi/EyDm7HYiv/TRKR+vu+rTtS7pB9WsCHuFlGW2F5Ch8x7YpFJEFKH1f2pjnK69PqW04yUdhgN3EYQg10XUSo1rGmPeBjBcD8fKYo1AKu9yihh5JgxGMSTdJ2vGkkj9EqLq7AWi1S9/+fNgoTaOLzcf6JMBPDwbQcCyeASpDZ9NNqn3p3PnLLu1T/m0FGVHc33vIUQ7p91vZMMj+mTcsuPH7dwmxAWb6sFi+Vvn5Ee58xvTEsvAHl2K2uhHUsYIzzuaKltzVP8WDbWLIbPT8IIl+kbeBYfKlg/Otn7KPvRrBo513QD7GSsxAkKlXXFWGbptm+EVYni+uayzdynJEOcCRaCWrsp2kX4KcMQqumDAVOo6Iwi3r5sMUcGPjGZFmVWUe3FclsW/KhvgO6h58aMvV0g2YQlBkR8Eh5Yofb24BeDrcFCidrSyPE2fMnj60PFBdU7+VWVkVZITIvlIkHtnbGcGJIHw3gYLQsQtbdR8jjKB8AkGtLIb/9qMupB4bxqRNrwYcaahhW3w6/7eLtKnPs8k0hcdoyvcvMOqdpQ+C0bNOQ6qPz+O1tjWS1A6uLtgF3brVzcGb1XTp0BMjPbl5P4E01NxGaRwUOIhRS57mJ2zdcyEpjDlu1vI2JV9sHiBfkqbllLvymkOS1UYX8va07zs5BKp6104wfEzDZ/hEtGryyFtZoSqi/RX1Uyx/swQ33Xl9wGiqGboruSu4b3iZHTo3+HyE4q5If0CZy5o2JwfCgtg3lbilI2VPr8JfLK8vAMPF9G1xiS4IHZwAICrRvjB6wIGtCk4+T3gPnJwCoRISwv3nJRKguy2H+/ACQeMmzYvMUfT4K49tqSIuxkFK94C0bW39pXNEH0GNx3KyCqD78H+lJ0QYHTaoNPD+MyDkfM8XYla4DuGDYv1PZYPSNcMjofIvSML2hu32B+oZotg0zYLPihFW2AgHJhWlJYOOFK8JKAmoOiA8XHYk7injGX1okp99UOWmDKocNeqZ9UoOqDldmXFTViPHhX9gH0R1HP5QWa1iJPiMeH8jqdM7mDaPIMelX3g5bj/y40NBJGjg4VBDEl2wVigO3AJkrqTlegPBgDOdqmRGo8uQraJg1Ueawm7iDcDEInnYwCCiQiSgUY3pR0GCJg03W4e8+YKjwwQ3Fu59ap4r7qB5yTMh0h/68EJRD9Lq4wTLHPjM8PsfQEvGHlPZGscnNLQFOm2OaA0exA/+iiaX2DrRilHBU/VVIWt2zPm3XJAi8epX4AAA");
+  --cl-cover-art: url("data:image/webp;base64,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");
   --cl-pearl-0: #EADCDD;
-  --cl-pearl-hi: rgba(253, 246, 244, .60);
-  --cl-pearl-i1: rgba(238, 202, 204, .62);
-  --cl-pearl-i2: rgba(206, 222, 220, .55);
-  --cl-pearl-i3: rgba(246, 230, 212, .58);
   /* 书封头那块色：比卡面深一档的灰粉，参考图里的绿色封面换成灰粉 */
   --cl-cover-bg: #E4D7D9;
   /* 贝壳内壁的虹彩，只给卡面加一层极淡的光 */
@@ -2612,12 +2609,10 @@
 
   --cl-accent: #DFA9AE;
   --cl-accent-soft: rgba(223, 169, 174, .18);
-  /* 夜里同一枚贝扣压暗：珠光只剩 10%，虹彩也收淡，依旧是平的 */
+  /* 夜里换成同一批实拍素材压暗后的版本，结构完全不动 */
+  --cl-nacre: url("data:image/webp;base64,UklGRtwCAABXRUJQVlA4INACAADQEwCdASpgAGAAPm0ykkckIyGhKBqriIANiWdkrb6JVrdu2gLzjuygW2O3/TlmbE3SROAjwJnNMfTQSb6W25/CD+82fqZPoQ6wqLIDh4YIv2Pp7pJe+54u1SsqaV8HKIyVyZihvCKNtkMN3KiXBHomevTjyK7cjdLoZsVT9EBG5HpbNUafriD1O75tv8UBTdv4/XZjOsoQ5hcjwdMhy7WOVKVmfQFosAD+8La1yOMOh4V65P0rA3RbscRKlUrZIPURkj4J4ZOXYU0OYMMG4e89Ez3LS68U9doDG1U5QTuP37cPRDTjzFKqf2qdSJF3rDlch0qxQpqQFzJ4HjrBwgvMO/E+7ducH1TU5s2h+G/CFEl5BpwUzpGt5VaytgTMSSWfnyEiTyhIJGC/ps+tYsunPxRkXFifZCVfyxlUVTO1/eXDZr4TPNvoYl64sw9KUMtnSnekOGIjm1KaGHdugcEm1iVsQ38F7oZ9KCkqi4I1T7jDP6onJZNzgLzEJRtpLKKjkCRywbQdrMhCjmFWST2dcKLntY9/LDsfPxRXUnCNkuPgJjvGtu4R6MmJI+ngaZPQfsjXiTJUdY9HTi79e3PSFr+ZBrzTrjvPA/Fq+3s+X+M46P/kjNf7VHxPQha8H4UIxmiYQZahpBqGBST/0Y7eRfqBPM1af7MbMsUrBlqkwDnvJpv+Lxg3/Q+wxtyNeyLn+oZ2gl4lVN+WyDJfLzfM5v3wHZhw9UZKDWsa3Tf8eRQI4/XdombMz2ku2oZorYqLYx9Ax3ep7PpRNMav507JkDpNO8ODWM+BQwXg1zaS2jIv88ll/SgO6xHKxYsvzXFZ6LFY//T37Ai0yu/CyoYcTxZa0ngl3iZVAztA0PGDRYhMc4Tb8fc34MJSOLGDRoz9kolWGncMBS+NaxRbW3csJohGfJJT/Ot0IG6HR47vEorYDKMssRSPykwHurbIvAA=");
+  --cl-cover-art: url("data:image/webp;base64,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");
   --cl-pearl-0: #2E2428;
-  --cl-pearl-hi: rgba(246, 232, 232, .10);
-  --cl-pearl-i1: rgba(223, 169, 174, .16);
-  --cl-pearl-i2: rgba(150, 180, 176, .12);
-  --cl-pearl-i3: rgba(230, 210, 190, .08);
   --cl-cover-bg: #1B1519;
   --cl-sheen: linear-gradient(118deg,
     rgba(250, 236, 236, .06) 0%,
@@ -2683,12 +2678,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background:
-    /* 一道很宽的斜向珠光，是「平铺的光」不是「聚起来的高光」 */
-    linear-gradient(128deg, var(--cl-pearl-hi) 0%, rgba(253, 246, 244, 0) 42%),
-    /* 母贝虹彩：粉 → 香槟 → 海水青，缓慢过渡，低饱和 */
-    linear-gradient(115deg, var(--cl-pearl-i1) 0%, var(--cl-pearl-i3) 40%, var(--cl-pearl-i2) 100%),
-    var(--cl-pearl-0);
+  /* 真实鲍鱼贝内壁的粉/青层纹，平铺在圆片上；底色只作安全兜底 */
+  background: var(--cl-nacre) center / cover no-repeat, var(--cl-pearl-0);
   /* 只留一圈均匀发丝线界定圆片轮廓，不做任何方向性的立体阴影 */
   box-shadow: inset 0 0 0 1px var(--cl-hair);
   font-family: var(--cl-serif);
@@ -2697,6 +2688,8 @@
   line-height: 1;
   letter-spacing: .01em;
   color: var(--cl-ink);
+  /* 一圈柔光只为可读性，不描边、不做浮雕 */
+  text-shadow: 0 0 3px var(--cl-bg-2), 0 0 2px var(--cl-bg-2);
 }
 
 .mp-skin-calista .cl-id {
@@ -2857,29 +2850,20 @@
   color: var(--cl-ink-2);
   opacity: .85;
 }
-/* 扇贝线描只是水印，压在色块里，不做主角 */
-.mp-skin-calista .cl-cover-shell {
-  position: absolute;
-  right: 8px;
-  bottom: -8px;
-  width: 116px;
-  height: 116px;
-  color: var(--cl-ink-2);
-  opacity: .22;
-  pointer-events: none;
-}
-.mp-skin-calista[data-theme="night"] .cl-cover-shell { opacity: .14; }
-.mp-skin-calista[data-theme="night"] .cl-cover::after { opacity: .28; }
-/* 底缘一串珍珠点，代替参考图里的蕾丝花边 */
-.mp-skin-calista .cl-cover::after {
+/* 右侧装饰是小红书原帖那枚樱粉扇贝的实拍（处理后内联），不是手绘线描；
+   径向淡出压在色块里，只当水印，不做主角。底缘的点阵花边一并删掉。 */
+.mp-skin-calista .cl-cover::before {
   content: "";
   position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 6px;
-  background: radial-gradient(circle at 3px 3px, var(--cl-pearl-hi) 1.3px, transparent 1.7px) 0 0 / 7px 6px repeat-x;
-  opacity: .6;
+  right: -10px;
+  bottom: -18px;
+  width: 142px;
+  height: 142px;
+  background: var(--cl-cover-art) center / contain no-repeat;
+  opacity: .42;
   pointer-events: none;
 }
+.mp-skin-calista[data-theme="night"] .cl-cover::before { opacity: .24; }
 
 .mp-skin-calista .cl-top {
   display: flex;
@@ -4884,14 +4868,6 @@ var worldData = (rawVars && rawVars['世界']) || {};
           '<span class="cl-cover-kicker">CALISTA　·　人物近况</span>' +
           '<span class="cl-cover-title' + coverCjk + '">' + skinEsc(coverTitle) + '</span>' +
           '<span class="cl-cover-note">Softly, like a shell.</span>' +
-          '<svg class="cl-cover-shell" viewBox="0 0 140 140" fill="none" aria-hidden="true">' +
-            '<path d="M70 126C30 108 10 72 14 34Q42 50 70 32Q98 50 126 34C130 72 110 108 70 126Z" ' +
-              'stroke="currentColor" stroke-width="1.1"/>' +
-            '<path d="M70 126V32M70 126 42 42M70 126 98 42M70 126C56 96 40 72 24 46' +
-              'M70 126C84 96 100 72 116 46" stroke="currentColor" stroke-width=".8"/>' +
-            '<circle cx="34" cy="112" r="1.8" fill="currentColor"/>' +
-            '<circle cx="106" cy="112" r="1.8" fill="currentColor"/>' +
-          '</svg>' +
         '</div>' +
         '<div class="cl-top">' +
           '<span class="cl-top-left">' +
