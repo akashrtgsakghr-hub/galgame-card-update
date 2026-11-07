@@ -1105,9 +1105,9 @@
   --ink-secondary: #8c8f96; --ink-poem-origin: #dfc8a7;
   --ink-poem-trans: #ab9b86; --ink-seal-bg: rgba(184,51,42,0.2);
   --ink-seal-border: #b8332a; --ink-seal-text: #e06a61;
-  --divider: rgba(255,255,255,0.1); --shadow-color: rgba(18, 20, 26, 0.45);
+  --divider: rgba(237,232,223,0.10); --shadow-color: rgba(18, 20, 26, 0.45);
 }.mp-skin-book[data-theme="day"]{
-  --paper-bg: #f5f0e6; --paper-inner-bg: #f9f6ef;
+  --paper-bg: #F1EADB; --paper-inner-bg: #F7F1E3;
   --frame-border: rgba(90,70,50,0.15); --ink-primary: #1f1b18;
   --ink-secondary: #7a7267; --ink-poem-origin: #422f1d;
   --ink-poem-trans: #735d4b; --ink-seal-bg: #ab3b30;
@@ -1335,13 +1335,13 @@
   padding: clamp(9px, 1.5cqw, 14px) clamp(10px, 1.8cqw, 16px) 7px;
   background-color: var(--mpp-paper);
   background-image:
-    /* 四角压暗，模拟纸张边缘的旧色 */
-    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .5), transparent 60%),
+    /* 四角压暗，模拟纸张边缘的旧色；顶部高光是暖白，不用 255 的白 */
+    radial-gradient(120% 90% at 50% 0%, rgba(252, 246, 232, .45), transparent 60%),
     radial-gradient(90% 110% at 0% 100%, rgba(120, 100, 66, .13), transparent 62%),
     radial-gradient(90% 110% at 100% 0%, rgba(120, 100, 66, .1), transparent 58%);
   border: 1px solid #b3a486;
   box-shadow:
-    0 1px 0 rgba(255, 252, 244, .45) inset,
+    0 1px 0 rgba(250, 244, 230, .38) inset,
     0 6px 16px -6px var(--mpp-shadow);
   animation: mpp-unfold var(--mp-dur-drag, 300ms) var(--mp-ease-drag, cubic-bezier(.16, 1, .3, 1)) both;
 }
@@ -1967,8 +1967,8 @@
 .mp-skin-prophet[data-theme="night"] .mpp-copy { column-rule-color: rgba(233, 225, 211, .16); }
 .mp-skin-prophet[data-theme="night"] .mpp-brief { border-bottom-color: rgba(233, 225, 211, .22); }
 .mp-skin-prophet[data-theme="night"] .mpp-silhouette i {
-  background: radial-gradient(circle at 36% 34%, #F6EFDD, #B9B09A);
-  box-shadow: 0 0 22px 8px rgba(246, 239, 221, .18);
+  background: radial-gradient(circle at 36% 34%, #DCD2BB, #9E9682);
+  box-shadow: 0 0 18px 5px rgba(220, 210, 187, .10);
 }
 
 /* 日夜切换：纸角一枚小字，不占版面 */
@@ -2536,12 +2536,14 @@
    ══════════════════════════════════════════════════════════════════ */
 
 .mp-skin-calista {
-  /* 浅色四层：奶油纸 → 珍珠白，只差 2% 明度，靠这一点点差别分层。
-     取自 Calista 的贝壳、珍珠与亚麻，不是冷灰。 */
-  --cl-bg-0: #F2EBE1;
-  --cl-bg-1: #F9F4EC;
-  --cl-bg-2: #FFFCF6;
-  --cl-bg-3: #E9DFD1;
+  /* 浅色四层：亚麻纸 → 奶油纸，每层差 3% 明度，靠这一点点差别分层。
+     取自 Calista 的贝壳、珍珠与亚麻，不是冷灰。
+     最亮一层停在 #FAF2E3（明度 95%），**不到纯白**——晚上把屏幕调暗时，
+     一块 255 的白会先亮出来，其余层次全被它吃掉。 */
+  --cl-bg-0: #EEE4D4;
+  --cl-bg-1: #F5EDDE;
+  --cl-bg-2: #FAF2E3;
+  --cl-bg-3: #E2D6C3;
 
   --cl-ink:   #3A2E27;
   --cl-ink-2: #6E5C51;
@@ -2552,12 +2554,14 @@
 
   --cl-accent: #C0867F;
   --cl-accent-soft: rgba(192, 134, 127, .14);
+  /* 珍珠高光：暖白而不是纯白，也不靠 55% 的浓度去「点亮」 */
+  --cl-orb-hi: rgba(252, 243, 230, .34);
   /* 贝壳内壁的虹彩，只给卡面加一层极淡的光 */
   --cl-sheen: linear-gradient(118deg,
-    rgba(255, 246, 236, .85) 0%,
-    rgba(246, 226, 222, .32) 34%,
-    rgba(230, 238, 233, .22) 62%,
-    rgba(255, 250, 240, .55) 100%);
+    rgba(252, 243, 231, .82) 0%,
+    rgba(246, 226, 222, .30) 34%,
+    rgba(230, 238, 233, .20) 62%,
+    rgba(250, 241, 226, .48) 100%);
 
   --cl-fw: 600;
   --cl-fw-body: 400;
@@ -2599,11 +2603,13 @@
 
   --cl-accent: #DFA79E;
   --cl-accent-soft: rgba(223, 167, 158, .18);
+  /* 夜里珍珠只留一层微光，不做白点 */
+  --cl-orb-hi: rgba(240, 226, 208, .07);
   --cl-sheen: linear-gradient(118deg,
-    rgba(255, 236, 220, .07) 0%,
-    rgba(223, 167, 158, .06) 40%,
-    rgba(180, 200, 195, .04) 68%,
-    rgba(255, 240, 226, .05) 100%);
+    rgba(250, 236, 220, .06) 0%,
+    rgba(223, 167, 158, .055) 40%,
+    rgba(180, 200, 195, .035) 68%,
+    rgba(250, 240, 226, .045) 100%);
 
   --cl-fw: 360;
   --cl-fw-body: 300;
@@ -2663,7 +2669,7 @@
   place-items: center;
   border-radius: 50%;
   background:
-    radial-gradient(120% 120% at 30% 18%, rgba(255, 255, 255, .55), transparent 58%),
+    radial-gradient(120% 120% at 30% 18%, var(--cl-orb-hi), transparent 58%),
     var(--cl-bg-2);
   box-shadow:
     inset 0 0 0 1px var(--cl-hair-2),

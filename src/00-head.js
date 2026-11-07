@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.1';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.1 第六套楼内状态卡 · Calista 贝壳】\n1. 🐚 新增第六套皮肤「Calista 贝壳」：收起是一条胶囊（珍珠圆章 + 名字与阶段 + 好感读数 + 折角箭头），点一下原位向下展开成卡片，再点收回；挂载位置、折叠语义、数据来源与另外四套完全一致，重画时保留展开态。\n2. 🎨 配色不用纯白纯黑：奶油纸四层 #F2EBE1 / #F9F4EC / #FFFCF6 / #E9DFD1 只差约 2% 明度，墨色 #3A2E27，唯一强调色是磨砂贝壳粉 #C0867F；卡面压一层 118° 虹彩渐变（soft-light 混合），像贝壳内壁那层光。全卡没有描边框，边界靠发丝线与微明度差。\n3. 🌙 深色是另配的「夜里的海」#17120F / #1E1815 / #251E19 / #100C0A，墨 #F3E9DC、粉 #DFA79E，字重整体降 40（600→360、400→300）。右上角「深色 / 浅色」一键切换，偏好写进本地存储。\n4. 📊 读数全部来自存档：主角按「标了主要 → 在场 → 好感高」三级选取；好感环按 0–100 映射弧长、弧端缀一颗珍珠当指针；三格是亲密 / 关系 / 醋意；另列只列在场角色；心声逐字 blur(6px) 渐显（120ms、字间错开 30ms）。\n5. 🌗 预言家日报补上夜间版：纸 #1A1613、墨 #E9E1D3、印泥 #D2735C，右上角「夜间 / 白昼」切换；与 Calista 的深浅偏好各存各的，互不覆盖。\n6. 🧪 skin.test.mjs 新增 23 条 C 系列用例（胶囊态、主角三级选取、好感环弧度、逐字条数、深浅持久化、CSS 十项铁律逐条核对），全套 18 个套件、519 条全过。数值、存档格式、标签解析一个字节都没改。";
+  const MOON_FORMULA_VERSION = '4.8.2';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.2 清掉纯白 · 夜里不刺眼】\n1. 🕯 Calista 浅色最亮一层原本是 #FFFCF6，夜里把屏幕调暗时它先亮成一片。现在四层压成 3% 一档：#EEE4D4 / #F5EDDE / #FAF2E3 / #E2D6C3，最亮停在明度 95% 的亚麻纸，整体更像纸，不像白板。\n2. ⚪ 珍珠圆章里那层 rgba(255,255,255,.55) 是真的纯白，浅色下就是一颗白点。已换成主题变量 --cl-orb-hi：浅色暖白 34%，夜间只剩 7%，深色下不再亮出一块。\n3. 📰 预言家日报纸顶的高光原本是 50% 纯白，换成暖白 rgba(252,246,232,.45)；夜间那轮月亮从 #F6EFDD 降到 #DCD2BB，晕影从 18% 减到 10%。\n4. 📖 藏书票昼间纸面 #f5f0e6 / #f9f6ef 压到 #F1EADB / #F7F1E3，分割线从纯白 10% 改成暖白 10%。票根与邸报本来就是暗调，未动。\n5. 🧪 新增三条专门查纯白的回归：Calista 与日报的 CSS 里只要出现纯白的十六进制写法（三连 f）或 rgba 全 255 直接判失败；珍珠高光必须是暖白 token；浅色最亮层不得高于 #FAF2E3。全套 18 套件 522 条全过。\n6. 🧩 只动了颜色，版式、数值、存档格式一个字节都没改。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';

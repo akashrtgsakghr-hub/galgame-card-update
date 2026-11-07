@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.1';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.1 第六套楼内状态卡 · Calista 贝壳】\n1. 🐚 新增第六套皮肤「Calista 贝壳」：收起是一条胶囊（珍珠圆章 + 名字与阶段 + 好感读数 + 折角箭头），点一下原位向下展开成卡片，再点收回；挂载位置、折叠语义、数据来源与另外四套完全一致，重画时保留展开态。\n2. 🎨 配色不用纯白纯黑：奶油纸四层 #F2EBE1 / #F9F4EC / #FFFCF6 / #E9DFD1 只差约 2% 明度，墨色 #3A2E27，唯一强调色是磨砂贝壳粉 #C0867F；卡面压一层 118° 虹彩渐变（soft-light 混合），像贝壳内壁那层光。全卡没有描边框，边界靠发丝线与微明度差。\n3. 🌙 深色是另配的「夜里的海」#17120F / #1E1815 / #251E19 / #100C0A，墨 #F3E9DC、粉 #DFA79E，字重整体降 40（600→360、400→300）。右上角「深色 / 浅色」一键切换，偏好写进本地存储。\n4. 📊 读数全部来自存档：主角按「标了主要 → 在场 → 好感高」三级选取；好感环按 0–100 映射弧长、弧端缀一颗珍珠当指针；三格是亲密 / 关系 / 醋意；另列只列在场角色；心声逐字 blur(6px) 渐显（120ms、字间错开 30ms）。\n5. 🌗 预言家日报补上夜间版：纸 #1A1613、墨 #E9E1D3、印泥 #D2735C，右上角「夜间 / 白昼」切换；与 Calista 的深浅偏好各存各的，互不覆盖。\n6. 🧪 skin.test.mjs 新增 23 条 C 系列用例（胶囊态、主角三级选取、好感环弧度、逐字条数、深浅持久化、CSS 十项铁律逐条核对），全套 18 个套件、519 条全过。数值、存档格式、标签解析一个字节都没改。";
+  const MOON_FORMULA_VERSION = '4.8.2';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.2 清掉纯白 · 夜里不刺眼】\n1. 🕯 Calista 浅色最亮一层原本是 #FFFCF6，夜里把屏幕调暗时它先亮成一片。现在四层压成 3% 一档：#EEE4D4 / #F5EDDE / #FAF2E3 / #E2D6C3，最亮停在明度 95% 的亚麻纸，整体更像纸，不像白板。\n2. ⚪ 珍珠圆章里那层 rgba(255,255,255,.55) 是真的纯白，浅色下就是一颗白点。已换成主题变量 --cl-orb-hi：浅色暖白 34%，夜间只剩 7%，深色下不再亮出一块。\n3. 📰 预言家日报纸顶的高光原本是 50% 纯白，换成暖白 rgba(252,246,232,.45)；夜间那轮月亮从 #F6EFDD 降到 #DCD2BB，晕影从 18% 减到 10%。\n4. 📖 藏书票昼间纸面 #f5f0e6 / #f9f6ef 压到 #F1EADB / #F7F1E3，分割线从纯白 10% 改成暖白 10%。票根与邸报本来就是暗调，未动。\n5. 🧪 新增三条专门查纯白的回归：Calista 与日报的 CSS 里只要出现纯白的十六进制写法（三连 f）或 rgba 全 255 直接判失败；珍珠高光必须是暖白 token；浅色最亮层不得高于 #FAF2E3。全套 18 套件 522 条全过。\n6. 🧩 只动了颜色，版式、数值、存档格式一个字节都没改。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -11116,9 +11116,9 @@ function openUpdateConfigDialog(panel) {
   --ink-secondary: #8c8f96; --ink-poem-origin: #dfc8a7;
   --ink-poem-trans: #ab9b86; --ink-seal-bg: rgba(184,51,42,0.2);
   --ink-seal-border: #b8332a; --ink-seal-text: #e06a61;
-  --divider: rgba(255,255,255,0.1); --shadow-color: rgba(18, 20, 26, 0.45);
+  --divider: rgba(237,232,223,0.10); --shadow-color: rgba(18, 20, 26, 0.45);
 }.mp-skin-book[data-theme="day"]{
-  --paper-bg: #f5f0e6; --paper-inner-bg: #f9f6ef;
+  --paper-bg: #F1EADB; --paper-inner-bg: #F7F1E3;
   --frame-border: rgba(90,70,50,0.15); --ink-primary: #1f1b18;
   --ink-secondary: #7a7267; --ink-poem-origin: #422f1d;
   --ink-poem-trans: #735d4b; --ink-seal-bg: #ab3b30;
@@ -11346,13 +11346,13 @@ function openUpdateConfigDialog(panel) {
   padding: clamp(9px, 1.5cqw, 14px) clamp(10px, 1.8cqw, 16px) 7px;
   background-color: var(--mpp-paper);
   background-image:
-    /* 四角压暗，模拟纸张边缘的旧色 */
-    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, .5), transparent 60%),
+    /* 四角压暗，模拟纸张边缘的旧色；顶部高光是暖白，不用 255 的白 */
+    radial-gradient(120% 90% at 50% 0%, rgba(252, 246, 232, .45), transparent 60%),
     radial-gradient(90% 110% at 0% 100%, rgba(120, 100, 66, .13), transparent 62%),
     radial-gradient(90% 110% at 100% 0%, rgba(120, 100, 66, .1), transparent 58%);
   border: 1px solid #b3a486;
   box-shadow:
-    0 1px 0 rgba(255, 252, 244, .45) inset,
+    0 1px 0 rgba(250, 244, 230, .38) inset,
     0 6px 16px -6px var(--mpp-shadow);
   animation: mpp-unfold var(--mp-dur-drag, 300ms) var(--mp-ease-drag, cubic-bezier(.16, 1, .3, 1)) both;
 }
@@ -11978,8 +11978,8 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-prophet[data-theme="night"] .mpp-copy { column-rule-color: rgba(233, 225, 211, .16); }
 .mp-skin-prophet[data-theme="night"] .mpp-brief { border-bottom-color: rgba(233, 225, 211, .22); }
 .mp-skin-prophet[data-theme="night"] .mpp-silhouette i {
-  background: radial-gradient(circle at 36% 34%, #F6EFDD, #B9B09A);
-  box-shadow: 0 0 22px 8px rgba(246, 239, 221, .18);
+  background: radial-gradient(circle at 36% 34%, #DCD2BB, #9E9682);
+  box-shadow: 0 0 18px 5px rgba(220, 210, 187, .10);
 }
 
 /* 日夜切换：纸角一枚小字，不占版面 */
@@ -12547,12 +12547,14 @@ function openUpdateConfigDialog(panel) {
    ══════════════════════════════════════════════════════════════════ */
 
 .mp-skin-calista {
-  /* 浅色四层：奶油纸 → 珍珠白，只差 2% 明度，靠这一点点差别分层。
-     取自 Calista 的贝壳、珍珠与亚麻，不是冷灰。 */
-  --cl-bg-0: #F2EBE1;
-  --cl-bg-1: #F9F4EC;
-  --cl-bg-2: #FFFCF6;
-  --cl-bg-3: #E9DFD1;
+  /* 浅色四层：亚麻纸 → 奶油纸，每层差 3% 明度，靠这一点点差别分层。
+     取自 Calista 的贝壳、珍珠与亚麻，不是冷灰。
+     最亮一层停在 #FAF2E3（明度 95%），**不到纯白**——晚上把屏幕调暗时，
+     一块 255 的白会先亮出来，其余层次全被它吃掉。 */
+  --cl-bg-0: #EEE4D4;
+  --cl-bg-1: #F5EDDE;
+  --cl-bg-2: #FAF2E3;
+  --cl-bg-3: #E2D6C3;
 
   --cl-ink:   #3A2E27;
   --cl-ink-2: #6E5C51;
@@ -12563,12 +12565,14 @@ function openUpdateConfigDialog(panel) {
 
   --cl-accent: #C0867F;
   --cl-accent-soft: rgba(192, 134, 127, .14);
+  /* 珍珠高光：暖白而不是纯白，也不靠 55% 的浓度去「点亮」 */
+  --cl-orb-hi: rgba(252, 243, 230, .34);
   /* 贝壳内壁的虹彩，只给卡面加一层极淡的光 */
   --cl-sheen: linear-gradient(118deg,
-    rgba(255, 246, 236, .85) 0%,
-    rgba(246, 226, 222, .32) 34%,
-    rgba(230, 238, 233, .22) 62%,
-    rgba(255, 250, 240, .55) 100%);
+    rgba(252, 243, 231, .82) 0%,
+    rgba(246, 226, 222, .30) 34%,
+    rgba(230, 238, 233, .20) 62%,
+    rgba(250, 241, 226, .48) 100%);
 
   --cl-fw: 600;
   --cl-fw-body: 400;
@@ -12610,11 +12614,13 @@ function openUpdateConfigDialog(panel) {
 
   --cl-accent: #DFA79E;
   --cl-accent-soft: rgba(223, 167, 158, .18);
+  /* 夜里珍珠只留一层微光，不做白点 */
+  --cl-orb-hi: rgba(240, 226, 208, .07);
   --cl-sheen: linear-gradient(118deg,
-    rgba(255, 236, 220, .07) 0%,
-    rgba(223, 167, 158, .06) 40%,
-    rgba(180, 200, 195, .04) 68%,
-    rgba(255, 240, 226, .05) 100%);
+    rgba(250, 236, 220, .06) 0%,
+    rgba(223, 167, 158, .055) 40%,
+    rgba(180, 200, 195, .035) 68%,
+    rgba(250, 240, 226, .045) 100%);
 
   --cl-fw: 360;
   --cl-fw-body: 300;
@@ -12674,7 +12680,7 @@ function openUpdateConfigDialog(panel) {
   place-items: center;
   border-radius: 50%;
   background:
-    radial-gradient(120% 120% at 30% 18%, rgba(255, 255, 255, .55), transparent 58%),
+    radial-gradient(120% 120% at 30% 18%, var(--cl-orb-hi), transparent 58%),
     var(--cl-bg-2);
   box-shadow:
     inset 0 0 0 1px var(--cl-hair-2),
