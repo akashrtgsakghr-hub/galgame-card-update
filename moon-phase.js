@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.7.6';
-  const MOON_FORMULA_CHANGELOG = "【v4.7.6 初见投资真正落地 · 数值方案定型】\n1. 🎲 自动建档当场就掷初见骰：不再等下一轮 AI 会不会写 [初见|…]。建档完成的那一刻，人物就已经有起点，不再是 0 一路干爬。\n2. 💰 初见失败也给 1d4 印象底分：以前失败 E 一分不加、却照样标记「已初见」，等于把开局投资永久作废。面板可关。\n3. 🧭 一个 [初见|…] 标签只给一个人用：同一轮里有刚建档的新人时，标签优先给新人，老存档角色不许截胡，多人卡不再出现「新人只能吃兜底档位」。\n4. 🔁 兜底补掷：建档时写入失败、或人还没到场，标记会留着；之后哪一轮点到他的名字就地补掷，不会永久错过。\n5. 🤝 数值方案定为「AI 评档位 + 脚本掷骰」：AI 只判断玩家设定踩中了哪些喜好（0/+3/+6/+9），最终数字永远由 1d20 掷出。AI 直接给数值会漂移、不可复现，也会把「唯一事实来源」交回模型。面板可在「骰子+AI」与「纯骰子」间切换。\n6. 📐 初见的阶段值改为由好感度推导：以前成功分支硬写 R=1，会出现「E=3 却显示愿意认识」的自相矛盾。\n7. 🗂 角色定位面板逐个显示初见结果（骰点／档位／投入／来源）；自己往变量里加的人可以点「🎲 补掷」手动补一次，不用等下一轮。\n8. 🧾 开局适配给出非 0 好感时直接标记「已结算」，避免 AI 估完再被初见骰二次加成。\n9. 🔍 自检新增「初见投资」一行：谁结算了、骰点多少、档位从哪来、还剩谁待结算。\n10. 🧪 新增 F 系列 16 条回归用例，全套 17 个测试套件全部通过。";
+  const MOON_FORMULA_VERSION = '4.8.0';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.0 整台掌机重做 · 看得懂才算能用】\n1. 🎨 新增「墨樱」UI 层：四层墨紫黑（5/8/11/14% 明度）+ 单一樱粉强调，粗黑框全换成 1px 发丝线，靠微明度差与 2px 位移硬阴影分层。像素味保留：绿底点阵液晶屏、十字键、A/B 键都在。\n2. 🧭 面板顺序固定成「提示条 → 模式切换 → 液晶屏 → 主菜单 → 按键条 → 设置」，一屏只回答一个问题；设置从十一行平铺收成四组折叠，默认收起。\n3. 🔦 新手引导换成聚光灯六步：只亮一个真实控件，一句话说清它是干什么的，可跳过 / 上一步 / Esc，首次从菜单打开自动开始，看过就记住。\n4. ❓ 自助答疑按「第一次玩 / 数字不对 / 剧情和时间 / 出错了 / 想调设置」分流成 26 条，每条都是「一句人话结论 + 具体点哪里」，可搜可筛。\n5. 🗣 清掉自造术语：开局适配→一键建档案、周目结算→结算这一局、角色定位→查看/修改档案、属性点重掷→重摇这一轮、阶段门→关系、Adagio/Andante/Allegro→慢/中/快。功能一个没少，只是换了说法。\n6. 🎮 沉浸模式并入同一套墨色：顶栏压成单行横向滑动、按钮抬到 42px、去掉蓝灰渐变与纯黑遮罩，正文不再套内嵌灰块。\n7. 👆 触控尺寸统一抬高：开关按钮 40px、引导主动作 42px、关闭键 40px、十字键 72px，手指点得中。\n8. 🧪 新增 ui.test.mjs 16 条回归（引导 / 折叠 / 答疑 / 触控 / 配色令牌 / 自动引导），全套 18 个测试套件、496 条全过。\n9. 🧩 数值、存档格式、标签解析一个字节都没改，旧存档直接能用。";
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
@@ -6007,7 +6007,1004 @@ function openUpdateConfigDialog(panel) {
   .mp-ico-tick { animation: none; opacity: 1; }
 }
 `;
+
+  /* 最后一层：掌机 UI v2（墨樱）。放在所有历史样式之后，作为最终权威覆盖，
+     避免再去三层历史写法里逐条改 !important。实现在 85b-ui.js。 */
+  try { injectPocketUI(); } catch (e) { try { console.warn('[月相] UI 样式注入失败：', e); } catch (e2) {} }
   /* ───────────────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════════════════
+   * 85b-ui.js —— 掌机 UI v2「墨樱 Ink Sakura」
+   *
+   * 为什么单独一层：85-style.js 里叠了三套历史样式（深蓝原版 → 黑粉像素 →
+   * 补丁式 !important），改一处要翻三处。这一层是最终权威层，只做「覆盖」，
+   * 不删除老规则，避免拆坏别处还在用的类名。
+   *
+   * 设计定调（写死在这里，后续改动请先读这段）：
+   *   · 风格：像素掌上游戏机 OS。点阵字只用于标题/数字/标签，正文用系统中文字体，
+   *     保证 10~12px 仍然读得清 —— 点阵中文在手机上小于 12px 会糊。
+   *   · 配色：墨紫黑四层（明度 5/8/11/14%，相邻差 3%）+ 单一强调色樱粉。
+   *     不用纯黑、不用纯白、不用黑色描边。
+   *   · 层级：靠 1px 发丝线 + 微明度差，不靠粗边框；实体感靠 2px 位移硬阴影。
+   *   · 字重：暗底一律 600 封顶（静态字体没有 660 档，写 660 会被舍回 700）。
+   *   · 折叠：Grid 0fr → 1fr，不跳变；尊重 prefers-reduced-motion。
+   *   · 点击目标：主要操作 ≥ 44px，次要 ≥ 36px 且带足够内边距。
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  /* 折叠块：全站统一用它。老代码里的 <details> 保留兼容，新结构不再新增。 */
+  function pocketFold(key, title, desc, body, open) {
+    return '<section class="mp-fold" data-fold="' + key + '" data-open="' + (open ? '1' : '0') + '">' +
+      '<button type="button" class="mp-fold-head" aria-expanded="' + (open ? 'true' : 'false') + '">' +
+        '<span class="mp-fold-info"><span class="mp-fold-title">' + title + '</span>' +
+        '<span class="mp-fold-desc">' + desc + '</span></span>' +
+        '<span class="mp-fold-chev" aria-hidden="true">▾</span>' +
+      '</button>' +
+      '<div class="mp-fold-body"><div class="mp-fold-clip"><div class="mp-fold-inner">' + body + '</div></div></div>' +
+    '</section>';
+  }
+
+  function bindPocketFolds(panel) {
+    panel.querySelectorAll('.mp-fold-head').forEach(function(head) {
+      head.addEventListener('click', function() {
+        const fold = head.parentElement;
+        if (!fold) return;
+        const next = fold.getAttribute('data-open') !== '1';
+        fold.setAttribute('data-open', next ? '1' : '0');
+        head.setAttribute('aria-expanded', next ? 'true' : 'false');
+      });
+    });
+  }
+
+  /* 一行设置项：左边说明，右边控件。控件由调用方传 HTML，方便复用老按钮 id。 */
+  function pocketRow(title, desc, control) {
+    return '<div class="mp-set-row"><div class="mp-set-info">' +
+      '<div class="mp-set-title">' + title + '</div>' +
+      '<div class="mp-set-desc">' + desc + '</div></div>' +
+      '<div class="mp-set-ctl">' + control + '</div></div>';
+  }
+
+  function injectPocketUI() {
+    let el = mainDoc.getElementById('moon-pocket-ui');
+    if (!el) {
+      el = mainDoc.createElement('style');
+      el.id = 'moon-pocket-ui';
+      mainDoc.head.appendChild(el);
+    }
+    if (el.getAttribute('data-ready') === '1') return;
+    el.setAttribute('data-ready', '1');
+    el.textContent = `
+#moon-phase-panel, #moon-modal-mask, .mp-tour-layer {
+  --k-ink-0: #0a0509;
+  --k-ink-1: #110a15;
+  --k-ink-2: #171021;
+  --k-ink-3: #1f182a;
+  --k-line: rgba(244, 114, 208, .15);
+  --k-line-2: rgba(244, 114, 208, .34);
+  --k-fg: #f2e7ef;
+  --k-fg-2: #c6adc0;
+  --k-fg-3: #9c8698;
+  --k-accent: #f472d0;
+  --k-accent-2: #ffb3e8;
+  --k-shadow: rgba(6, 3, 7, .70);
+  --k-lcd: #7f8b72;
+  --k-lcd-ink: #1c251d;
+  --k-lcd-line: rgba(28, 37, 29, .38);
+  --k-font-pixel: "MP Fusion Pixel", "Zpix", "Fusion Pixel 10px Monospaced SC", "Courier New", monospace;
+  --k-font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, sans-serif;
+  --k-ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* ── 机身 ─────────────────────────────────────────────────────────────── */
+#moon-phase-panel {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .014) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 70% at 50% -12%, rgba(244, 114, 208, .10), transparent 62%),
+    linear-gradient(180deg, var(--k-ink-2) 0%, var(--k-ink-0) 100%) !important;
+  border: 1px solid rgba(244, 114, 208, .28) !important;
+  border-radius: 16px 16px 30px 16px !important;
+  padding: 14px !important;
+  max-width: 478px !important;
+  color: var(--k-fg) !important;
+  font-family: var(--k-font-body) !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 190, 235, .10),
+    inset 0 -2px 0 rgba(6, 3, 7, .72),
+    0 16px 40px var(--k-shadow),
+    0 0 0 1px rgba(244, 114, 208, .10) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 114, 208, .28) transparent;
+}
+#moon-phase-panel::-webkit-scrollbar { width: 6px; }
+#moon-phase-panel::-webkit-scrollbar-thumb { background: rgba(244, 114, 208, .26); border-radius: 3px; }
+#moon-phase-panel :is(button, input, select, textarea) { font-family: inherit; }
+#moon-phase-panel :is(button, .mp-menu-card, .mp-fold-head, .mp-lcd-quick-tab):focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 1px var(--k-accent), 0 0 0 4px rgba(244, 114, 208, .18) !important;
+}
+
+/* ── 头部：品牌两行，长标题收成一行，不再把标题挤成三行 ────────────────── */
+#moon-phase-panel .mp-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 0 10px !important;
+  padding: 0 0 9px !important;
+  border-bottom: 1px solid var(--k-line) !important;
+}
+#moon-phase-panel .mp-update-hitbox {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 9px !important;
+  min-height: 40px;
+  flex: 1 1 auto !important;
+  max-width: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+#moon-phase-panel .mp-head .mp-title-orb {
+  flex: 0 0 auto !important;
+  font-size: 19px !important;
+  line-height: 1.1 !important;
+  filter: drop-shadow(0 0 6px rgba(244, 114, 208, .55)) !important;
+}
+#moon-phase-panel .mp-brand { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+#moon-phase-panel .mp-head .mp-title {
+  display: block !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  font: 600 13px/1.25 var(--k-font-pixel) !important;
+  letter-spacing: .6px !important;
+  color: var(--k-accent-2) !important;
+  text-shadow: none !important;
+  text-transform: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100%;
+}
+#moon-phase-panel .mp-head .mp-brand-sub {
+  flex: 0 0 auto !important;
+  font: 9.5px/1.4 var(--k-font-body);
+  color: var(--k-fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+#moon-phase-panel .mp-head .mp-badge {
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 1px 6px !important;
+  border-radius: 2px !important;
+  border: 1px solid var(--k-line-2) !important;
+  background: rgba(244, 114, 208, .10) !important;
+  color: var(--k-accent-2) !important;
+  font: 600 9px/1.5 var(--k-font-pixel) !important;
+  box-shadow: none !important;
+}
+#moon-phase-panel .mp-head .mp-close {
+  width: 40px !important;
+  height: 40px !important;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  padding: 0 !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  box-shadow: 2px 2px 0 var(--k-shadow) !important;
+}
+#moon-phase-panel .mp-head .mp-close:hover { background: #3a1230 !important; color: var(--k-accent-2) !important; border-color: var(--k-line-2) !important; }
+
+/* ── 引导条：每次打开只说一件「现在该做什么」 ──────────────────────────── */
+#moon-phase-panel .mp-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 10px 11px;
+  border: 1px solid var(--k-line-2);
+  border-left: 3px solid var(--k-accent);
+  border-radius: 3px;
+  background: linear-gradient(100deg, rgba(244, 114, 208, .13), rgba(244, 114, 208, .02));
+}
+#moon-phase-panel .mp-guide.is-ok { border-left-color: #7fd8a8; border-color: rgba(127, 216, 168, .28); background: linear-gradient(100deg, rgba(127, 216, 168, .10), rgba(127, 216, 168, .02)); }
+#moon-phase-panel .mp-guide-main { min-width: 0; }
+#moon-phase-panel .mp-guide-eyebrow {
+  font: 600 9px/1 var(--k-font-pixel);
+  letter-spacing: 1.3px;
+  color: var(--k-accent-2);
+  display: block;
+  margin-bottom: 4px;
+}
+#moon-phase-panel .mp-guide.is-ok .mp-guide-eyebrow { color: #9de8bd; }
+#moon-phase-panel .mp-guide-title { font: 600 12px/1.45 var(--k-font-body); color: var(--k-fg); }
+#moon-phase-panel .mp-guide-desc { font: 10.5px/1.6 var(--k-font-body); color: var(--k-fg-2); margin-top: 2px; }
+#moon-phase-panel .mp-guide-link { white-space: normal; text-align: left; min-height: 30px; padding: 7px 0 2px; }
+#moon-phase-panel .mp-guide-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+#moon-phase-panel .mp-guide-cta {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--k-accent) !important;
+  border-radius: 3px;
+  background: rgba(244, 114, 208, .16);
+  color: var(--k-accent-2);
+  font: 400 11px/1.25 var(--k-font-pixel);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--k-shadow);
+}
+#moon-phase-panel .mp-guide-cta:hover { background: rgba(244, 114, 208, .26); }
+#moon-phase-panel .mp-guide-link {
+  border: 0;
+  background: transparent;
+  color: var(--k-fg-3);
+  font: 10px/1.4 var(--k-font-body);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 2px;
+  text-align: center;
+}
+#moon-phase-panel .mp-guide-link:hover { color: var(--k-accent-2); }
+
+/* ── 模式切换：从两个巨型 tab 收成一条细开关，别抢内容的位置 ───────────── */
+#moon-phase-panel .mp-display-mode-switch {
+  display: flex !important;
+  gap: 4px !important;
+  margin: 0 0 10px !important;
+  padding: 3px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px;
+  background: var(--k-ink-0) !important;
+  box-shadow: none !important;
+}
+#moon-phase-panel .mp-display-mode-switch button {
+  flex: 1;
+  min-height: 40px !important;
+  padding: 8px 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: 2px;
+  background: transparent !important;
+  color: var(--k-fg-3) !important;
+  font: 600 10.5px/1.2 var(--k-font-pixel) !important;
+  letter-spacing: .4px;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+#moon-phase-panel .mp-display-mode-switch button.active {
+  border-color: var(--k-line-2) !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-accent-2) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 190, 235, .07) !important;
+}
+
+/* ── 卡片 ─────────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-card {
+  background: var(--k-ink-1) !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px !important;
+  padding: 11px 12px !important;
+  margin-bottom: 9px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 190, 235, .04) !important;
+}
+#moon-phase-panel .mp-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 11px/1.4 var(--k-font-body);
+  color: var(--k-fg);
+  margin-bottom: 7px;
+}
+#moon-phase-panel .mp-card-title small { font: 9px/1 var(--k-font-pixel); color: var(--k-fg-3); letter-spacing: .8px; margin-left: auto; }
+
+/* ── 液晶屏：外框不再是黑边，屏内线全部换成低对比墨绿发丝线 ─────────────── */
+#moon-phase-panel .mp-lcd-card {
+  background: linear-gradient(180deg, var(--k-ink-3) 0%, var(--k-ink-1) 100%) !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 6px !important;
+  padding: 8px !important;
+  margin-bottom: 10px !important;
+  box-shadow: inset 0 0 0 1px rgba(6, 3, 7, .45), 2px 2px 0 var(--k-shadow) !important;
+}
+#moon-phase-panel .mp-console-bezel {
+  padding: 1px 4px 7px !important;
+  margin-bottom: 7px !important;
+  border-bottom: 1px solid var(--k-line) !important;
+  color: var(--k-fg-3) !important;
+  font: 600 8.5px/1.3 var(--k-font-pixel) !important;
+  letter-spacing: .7px;
+}
+#moon-phase-panel .mp-power-led { color: var(--k-accent-2) !important; font-size: 8px !important; }
+#moon-phase-panel .mp-power-led i { width: 6px !important; height: 6px !important; background: var(--k-accent) !important; box-shadow: 0 0 6px rgba(244, 114, 208, .8) !important; }
+#moon-phase-panel .mp-lcd-screen {
+  padding: 11px !important;
+  background: var(--k-lcd) !important;
+  border: 1px solid var(--k-lcd-line) !important;
+  border-radius: 3px !important;
+  color: var(--k-lcd-ink) !important;
+  font: 13px/1.6 var(--k-font-pixel) !important;
+  box-shadow: inset 0 0 0 2px rgba(28, 37, 29, .08), inset 0 8px 18px rgba(28, 37, 29, .13) !important;
+  background-image: radial-gradient(rgba(28, 37, 29, .05) 1px, transparent 1px) !important;
+  background-size: 3px 3px !important;
+}
+#moon-phase-panel .mp-lcd-screen :is(div, span, b, nav, section, header, small, strong) { border-color: var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-screen :is(button, select) {
+  border: 1px solid var(--k-lcd-line) !important;
+  background: #75816a !important;
+  color: var(--k-lcd-ink) !important;
+  border-radius: 0;
+  font-family: var(--k-font-pixel) !important;
+  box-shadow: none !important;
+}
+#moon-phase-panel .mp-lcd-screen :is(button, select):active { transform: translate(1px, 1px); }
+#moon-phase-panel .mp-lcd-screen-head { padding-bottom: 6px !important; font-size: 11.5px !important; letter-spacing: .4px; }
+#moon-phase-panel .mp-lcd-screen-head b { padding: 1px 5px !important; font-size: 9px !important; border: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-quick-tabs { gap: 3px !important; margin: 6px 0 8px !important; padding-bottom: 7px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-quick-tab {
+  min-height: 34px;
+  padding: 4px 2px !important;
+  border: 1px solid var(--k-lcd-line) !important;
+  background: rgba(28, 37, 29, .07) !important;
+  color: var(--k-lcd-ink) !important;
+  font: 600 10.5px/1.2 var(--k-font-pixel) !important;
+  letter-spacing: .2px;
+  box-shadow: none !important;
+}
+#moon-phase-panel .mp-lcd-quick-tab.active { background: var(--k-lcd-ink) !important; color: #a8b89a !important; }
+#moon-phase-panel .mp-lcd-world-time { padding: 8px 0 7px !important; font-size: 12.5px !important; font-weight: 600 !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-screen-foot { font-size: 9.5px !important; padding-top: 6px !important; border-top: 1px solid var(--k-lcd-line) !important; color: rgba(28, 37, 29, .72) !important; }
+#moon-phase-panel .mp-lcd-page-nav { gap: 6px !important; margin-top: 5px !important; padding-top: 6px !important; border-top: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-pages, #moon-phase-panel .mp-lcd-page { min-height: 132px !important; }
+#moon-phase-panel .mp-lcd-selection { min-height: 0 !important; }
+#moon-phase-panel .mp-lcd-page-nav button { min-height: 38px !important; min-width: 44px !important; }
+#moon-phase-panel .mp-lcd-difficulty { gap: 7px !important; padding: 8px 0 7px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-empty { padding: 14px 6px !important; font-size: 12.5px !important; line-height: 1.65 !important; }
+
+/* 屏内「一句话状态」：替代原来那串「锚定:开 AI:主模 卡组:单人…」的缩写墙 */
+#moon-phase-panel .mp-lcd-plain {
+  padding: 7px 0 3px;
+  border-bottom: 1px solid var(--k-lcd-line);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+#moon-phase-panel .mp-lcd-plain b { font-weight: 600; }
+#moon-phase-panel .mp-lcd-tip { padding: 7px 0 0; font-size: 11px; line-height: 1.6; color: rgba(28, 37, 29, .74); }
+
+/* ── 主菜单 ───────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-menu-label,
+#moon-phase-panel .mp-sub-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px !important;
+  font: 600 9px/1.2 var(--k-font-pixel) !important;
+  letter-spacing: 1.4px !important;
+  color: var(--k-fg-3) !important;
+  text-shadow: none !important;
+}
+#moon-phase-panel .mp-menu-label::after,
+#moon-phase-panel .mp-sub-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--k-line), transparent);
+}
+#moon-phase-panel .mp-menu-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 7px !important; }
+#moon-phase-panel .mp-menu-card {
+  min-height: 58px !important;
+  gap: 10px !important;
+  padding: 9px 10px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px !important;
+  background: linear-gradient(180deg, var(--k-ink-3) 0%, var(--k-ink-1) 100%) !important;
+  color: var(--k-fg) !important;
+  box-shadow: 2px 2px 0 var(--k-shadow) !important;
+  transition: transform 120ms var(--k-ease), border-color 120ms linear, background 120ms linear;
+}
+#moon-phase-panel .mp-menu-card:hover,
+#moon-phase-panel .mp-menu-card:focus-visible {
+  border-color: var(--k-line-2) !important;
+  background: linear-gradient(180deg, #2a2033 0%, #171021 100%) !important;
+  transform: translate(-1px, -1px);
+}
+#moon-phase-panel .mp-menu-card[data-primary="1"] {
+  border-color: var(--k-line-2) !important;
+  background: linear-gradient(180deg, #2c1327 0%, #150d1b 100%) !important;
+}
+#moon-phase-panel .mp-menu-icon {
+  width: 32px !important;
+  height: 32px !important;
+  flex: 0 0 32px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px;
+  background: rgba(244, 114, 208, .09) !important;
+  color: var(--k-accent-2) !important;
+  font-size: 15px !important;
+  text-shadow: none !important;
+}
+#moon-phase-panel .mp-menu-card b {
+  font: 600 12px/1.4 var(--k-font-body) !important;
+  color: var(--k-fg) !important;
+  letter-spacing: 0;
+}
+#moon-phase-panel .mp-menu-card small {
+  font: 10px/1.45 var(--k-font-body) !important;
+  color: var(--k-fg-3) !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+#moon-phase-panel .mp-menu-card i { font: 15px/1 var(--k-font-pixel) !important; color: var(--k-fg-3) !important; }
+#moon-phase-panel .mp-menu-card:hover i { color: var(--k-accent) !important; }
+
+/* 主菜单底部提示：改成一句人话，不再堆 kbd 键帽 */
+#moon-phase-panel .mp-menu-controls {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px 12px !important;
+  margin-top: 11px !important;
+  padding-top: 9px !important;
+  border-top: 1px solid var(--k-line) !important;
+  color: var(--k-fg-3) !important;
+  font: 9.5px/1.5 var(--k-font-body) !important;
+  letter-spacing: 0 !important;
+}
+#moon-phase-panel .mp-menu-controls kbd {
+  padding: 1px 4px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font: 600 8.5px/1.4 var(--k-font-pixel) !important;
+  box-shadow: none !important;
+}
+
+/* ── 折叠块 ───────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-fold {
+  border: 1px solid var(--k-line);
+  border-radius: 3px;
+  background: var(--k-ink-1);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+#moon-phase-panel .mp-fold[data-open="1"] { border-color: var(--k-line-2); }
+#moon-phase-panel .mp-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 9px 11px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#moon-phase-panel .mp-fold[data-open="1"] .mp-fold-head { border-bottom-color: var(--k-line); background: rgba(244, 114, 208, .04); }
+#moon-phase-panel .mp-fold-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+#moon-phase-panel .mp-fold-title { font: 600 11.5px/1.4 var(--k-font-body); color: var(--k-fg); }
+#moon-phase-panel .mp-fold-desc { font: 10px/1.5 var(--k-font-body); color: var(--k-fg-3); }
+#moon-phase-panel .mp-fold-chev { color: var(--k-accent); font-size: 10px; transition: transform 220ms var(--k-ease); }
+#moon-phase-panel .mp-fold[data-open="1"] .mp-fold-chev { transform: rotate(180deg); }
+#moon-phase-panel .mp-fold-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms var(--k-ease);
+}
+#moon-phase-panel .mp-fold[data-open="1"] .mp-fold-body { grid-template-rows: 1fr; }
+#moon-phase-panel .mp-fold-clip { min-height: 0; overflow: hidden; }
+#moon-phase-panel .mp-fold-inner { padding: 9px 11px 11px; }
+
+/* ── 设置行 ───────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-set-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  padding: 9px 0 !important;
+  margin: 0 !important;
+  border-top: 1px dashed var(--k-line) !important;
+}
+#moon-phase-panel .mp-set-row:first-child { border-top: 0 !important; padding-top: 2px !important; }
+#moon-phase-panel .mp-set-info { flex: 1 1 auto; min-width: 0; }
+#moon-phase-panel .mp-set-title { font: 600 11.5px/1.4 var(--k-font-body); color: var(--k-fg); display: flex; align-items: center; gap: 5px; }
+#moon-phase-panel .mp-set-desc { font: 10px/1.55 var(--k-font-body); color: var(--k-fg-3); margin-top: 2px; }
+#moon-phase-panel .mp-set-ctl { flex: 0 0 auto; }
+/* 设置区里成排的小按钮（换肤、剧本模式、天数…）统一抬到可点高度 */
+#moon-phase-panel .mp-set-ctl button,
+#moon-phase-panel .mp-set-block button {
+  min-height: 40px !important;
+  min-width: 44px;
+  padding: 7px 11px !important;
+}
+
+/* 开关按钮统一：高度够手指点（≥40px），开启态只用一根粉线 + 粉字，不铺大红大绿 */
+#moon-phase-panel :is(.mp-antisl, .mp-extra-btn, .mp-cardmode-btn, .mp-fanfic-btn, .mp-safelock-btn, .mp-pacing-btn) {
+  min-height: 40px;
+  min-width: 46px;
+  padding: 7px 12px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font: 600 10.5px/1.2 var(--k-font-pixel) !important;
+  letter-spacing: .3px;
+  box-shadow: 1px 1px 0 var(--k-shadow) !important;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#moon-phase-panel :is(.mp-antisl, .mp-extra-btn, .mp-cardmode-btn, .mp-fanfic-btn, .mp-safelock-btn, .mp-pacing-btn):hover {
+  border-color: var(--k-line-2) !important;
+  color: var(--k-accent-2) !important;
+}
+#moon-phase-panel :is(.mp-antisl.on, .mp-extra-btn.on, .mp-cardmode-btn.on, .mp-fanfic-btn.on, .mp-pacing-btn.Adi, .mp-pacing-btn.And, .mp-pacing-btn.All) {
+  border-color: var(--k-line-2) !important;
+  background: rgba(244, 114, 208, .14) !important;
+  color: var(--k-accent-2) !important;
+}
+#moon-phase-panel .mp-safelock-btn.on { border-color: rgba(127, 216, 168, .42) !important; background: rgba(127, 216, 168, .10) !important; color: #a8ebc4 !important; }
+#moon-phase-panel .mp-safelock-btn.off { border-color: var(--k-line) !important; background: var(--k-ink-3) !important; color: var(--k-fg-3) !important; }
+#moon-phase-panel .mp-antisl.on { border-color: rgba(255, 138, 178, .42) !important; background: rgba(255, 138, 178, .10) !important; color: #ffb0c8 !important; }
+
+/* ── 按钮网格 ─────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 7px !important; margin: 0 !important; }
+#moon-phase-panel .mp-btn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  min-height: 56px !important;
+  padding: 9px 10px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px !important;
+  background: linear-gradient(180deg, var(--k-ink-3), var(--k-ink-1)) !important;
+  color: var(--k-fg) !important;
+  font: 600 11.5px/1.4 var(--k-font-body) !important;
+  text-align: left !important;
+  box-shadow: 2px 2px 0 var(--k-shadow) !important;
+  cursor: pointer;
+  transition: transform 110ms var(--k-ease), border-color 110ms linear;
+}
+#moon-phase-panel .mp-btn:hover { border-color: var(--k-line-2) !important; transform: translate(-1px, -1px); }
+#moon-phase-panel .mp-btn:active { transform: translate(1px, 1px); box-shadow: none !important; }
+#moon-phase-panel .mp-btn span { display: block; width: 100%; }
+#moon-phase-panel .mp-btn small {
+  display: block !important;
+  font: 9.5px/1.45 var(--k-font-body) !important;
+  color: var(--k-fg-3) !important;
+  font-weight: 400 !important;
+  white-space: normal;
+}
+#moon-phase-panel .mp-btn-highlight { border-color: var(--k-line-2) !important; background: linear-gradient(180deg, #2b1226, #160d1a) !important; color: var(--k-accent-2) !important; }
+#moon-phase-panel .mp-btn-highlight small { color: #d7a8c8 !important; }
+#moon-phase-panel .mp-btn-user { border-color: rgba(127, 216, 200, .3) !important; background: linear-gradient(180deg, #0f2421, #0c1517) !important; color: #9fe3d5 !important; }
+#moon-phase-panel .mp-btn-user small { color: #86b9ae !important; }
+
+/* 子页切换条 */
+#moon-phase-panel .mp-subpage-switch { gap: 4px !important; margin-bottom: 9px !important; }
+#moon-phase-panel .mp-subpage-tab {
+  min-height: 40px;
+  padding: 6px 2px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px;
+  background: var(--k-ink-1) !important;
+  color: var(--k-fg-3) !important;
+  font: 600 9.5px/1.2 var(--k-font-pixel) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+#moon-phase-panel .mp-subpage-tab.active { border-color: var(--k-line-2) !important; background: rgba(244, 114, 208, .12) !important; color: var(--k-accent-2) !important; }
+#moon-phase-panel .mp-menu-page-head {
+  gap: 9px !important;
+  padding: 7px 8px !important;
+  margin-bottom: 9px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px;
+  background: var(--k-ink-1) !important;
+  box-shadow: none !important;
+}
+#moon-phase-panel .mp-menu-back {
+  min-height: 36px;
+  padding: 6px 9px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font: 600 10px/1.2 var(--k-font-pixel) !important;
+  box-shadow: 1px 1px 0 var(--k-shadow) !important;
+  cursor: pointer;
+}
+#moon-phase-panel .mp-menu-page-head small { font: 8.5px/1.3 var(--k-font-pixel) !important; color: var(--k-fg-3) !important; letter-spacing: .8px !important; }
+#moon-phase-panel .mp-menu-page-head b { font: 600 12px/1.3 var(--k-font-body) !important; color: var(--k-fg) !important; }
+#moon-phase-panel .mp-page-led { width: 6px; height: 6px; background: var(--k-accent); box-shadow: 0 0 6px rgba(244, 114, 208, .7); }
+
+/* ── 难度四档 ─────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-mode-select-card { padding: 10px 11px !important; }
+#moon-phase-panel .mp-mode-btn { display: block; width: 100%; cursor: pointer; }
+#moon-phase-panel .mp-mode-btn {
+  min-height: 56px !important;
+  padding: 7px 2px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font-family: var(--k-font-body) !important;
+  box-shadow: none !important;
+  white-space: normal !important;
+  cursor: pointer;
+}
+#moon-phase-panel .mp-mode-btn.active {
+  border-color: var(--k-line-2) !important;
+  background: rgba(244, 114, 208, .12) !important;
+  color: var(--k-accent-2) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 190, 235, .08) !important;
+}
+#moon-phase-panel .mp-mode-btn div:first-child { font-size: 17px !important; }
+#moon-phase-panel .mp-mode-btn div:last-child { font-size: 9.5px !important; opacity: .8; line-height: 1.3; }
+#moon-phase-panel .mp-mode-description { font-size: 10.5px !important; line-height: 1.6 !important; color: var(--k-fg-3) !important; }
+#moon-phase-panel .mp-mode-description b { color: var(--k-fg) !important; font-size: 11px !important; }
+
+/* ── 掌机按键条：保留实体感，压到一行，放在内容之后 ──────────────────── */
+#moon-phase-panel .mp-console-cluster {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 10px 0 4px !important;
+  padding: 9px 11px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px;
+  background: var(--k-ink-1) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 190, 235, .03) !important;
+}
+#moon-phase-panel .mp-dpad { position: relative !important; width: 72px !important; height: 72px !important; flex: 0 0 72px; }
+#moon-phase-panel .mp-dpad-btn { background: var(--k-ink-3) !important; border: 1px solid var(--k-line) !important; color: var(--k-fg-2) !important; font-size: 8px !important; box-shadow: none !important; }
+#moon-phase-panel .mp-dpad-btn:hover { background: #2c2036 !important; color: var(--k-accent-2) !important; }
+#moon-phase-panel .mp-dpad-center { top: 26px; left: 26px; width: 20px; height: 20px; border-radius: 2px; background: var(--k-ink-2) !important; }
+#moon-phase-panel .mp-dpad-center::after { top: 6px; left: 6px; width: 7px; height: 7px; background: #3a2c46; }
+#moon-phase-panel .mp-dpad-up { top: 0; left: 26px; width: 20px; height: 26px; }
+#moon-phase-panel .mp-dpad-down { bottom: 0; left: 26px; width: 20px; height: 26px; }
+#moon-phase-panel .mp-dpad-left { left: 0; top: 26px; width: 26px; height: 20px; }
+#moon-phase-panel .mp-dpad-right { right: 0; top: 26px; width: 26px; height: 20px; }
+#moon-phase-panel .mp-pill-keys { display: flex !important; flex-direction: column; align-items: center; gap: 4px; }
+#moon-phase-panel .mp-pill-row { display: flex; gap: 14px; }
+#moon-phase-panel .mp-select-key,
+#moon-phase-panel .mp-start-key {
+  min-width: 58px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 999px;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font: 600 9px/1.2 var(--k-font-pixel) !important;
+  letter-spacing: .5px;
+  white-space: nowrap;
+  transform: rotate(-7deg) !important;
+  box-shadow: 1px 1px 0 var(--k-shadow) !important;
+  cursor: pointer;
+}
+#moon-phase-panel .mp-select-key:hover,
+#moon-phase-panel .mp-start-key:hover { border-color: var(--k-line-2) !important; color: var(--k-accent-2) !important; }
+/* 没填钥匙不是错误，只是「没设」：用虚线和低对比表示，不用黄色警报 */
+#moon-phase-panel .mp-start-key.unconfigured { border-style: dashed !important; border-color: rgba(244, 114, 208, .30) !important; color: var(--k-fg-3) !important; }
+#moon-phase-panel .mp-pill-labels { display: flex; gap: 8px; color: var(--k-fg-3); font: 8.5px/1.3 var(--k-font-body); }
+#moon-phase-panel .mp-pill-labels { gap: 12px !important; }
+#moon-phase-panel .mp-pill-labels span { min-width: 58px; text-align: center; }
+#moon-phase-panel .mp-action-block { display: flex; align-items: center; gap: 9px; }
+#moon-phase-panel .mp-action-cluster { display: flex; gap: 7px; }
+#moon-phase-panel .mp-round-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  border-radius: 50% !important;
+  border: 1px solid var(--k-line) !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg-2) !important;
+  font: 600 11px/1 var(--k-font-pixel) !important;
+  box-shadow: 2px 2px 0 var(--k-shadow) !important;
+  cursor: pointer;
+}
+#moon-phase-panel .mp-btn-a { border-color: var(--k-line-2) !important; color: var(--k-accent-2) !important; }
+#moon-phase-panel .mp-round-btn:hover { background: #2c2036 !important; }
+#moon-phase-panel .mp-speaker-grill { display: flex; flex-direction: column; gap: 2px; opacity: .4; }
+#moon-phase-panel .mp-speaker-grill i { display: block; width: 12px; height: 2px; background: var(--k-fg-3); }
+
+/* ── 状态栏 ───────────────────────────────────────────────────────────── */
+#moon-phase-panel .mp-status {
+  margin-top: 9px !important;
+  padding: 9px 11px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 3px !important;
+  background: var(--k-ink-0) !important;
+  color: var(--k-fg-2) !important;
+  font: 10px/1.65 var(--k-font-pixel) !important;
+  max-height: 200px;
+}
+#moon-phase-panel .mp-status :is(b, strong) { color: var(--k-fg) !important; font-weight: 600 !important; }
+#moon-phase-panel .mp-log-subhead { color: var(--k-accent-2) !important; font: 600 10px/1.4 var(--k-font-pixel) !important; margin: 9px 0 4px !important; }
+
+/* ── 输入域：三层底 + 发丝线；聚焦禁描边，改双环 ──────────────────────── */
+#moon-phase-panel :is(input, textarea, select),
+#moon-modal-mask :is(input, textarea, select) {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg) !important;
+  font: 11.5px/1.5 var(--k-font-body) !important;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+#moon-phase-panel :is(input, textarea, select):focus,
+#moon-modal-mask :is(input, textarea, select):focus {
+  outline: none !important;
+  border-color: rgba(244, 114, 208, .5) !important;
+  box-shadow:
+    0 0 0 1px rgba(244, 114, 208, .42),
+    0 0 0 5px rgba(6, 3, 7, .62),
+    inset 0 2px 6px rgba(6, 3, 7, .5) !important;
+}
+
+/* ── 弹窗：与面板同一套皮，去掉蓝灰渐变和黄色标题 ────────────────────── */
+#moon-modal-mask.mp-pixel-modal {
+  background: radial-gradient(circle at 50% 30%, rgba(30, 14, 28, .88) 0%, rgba(8, 4, 10, .94) 100%) !important;
+}
+#moon-modal-mask.mp-pixel-modal > div {
+  position: relative;
+  padding: 16px !important;
+  border: 1px solid rgba(244, 114, 208, .22) !important;
+  border-radius: 4px !important;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .012) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, var(--k-ink-3), var(--k-ink-0)) !important;
+  color: var(--k-fg) !important;
+  font-family: var(--k-font-body) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 190, 235, .10), 0 22px 56px rgba(6, 3, 7, .82) !important;
+  max-width: 470px !important;
+}
+#moon-modal-mask.mp-pixel-modal > div > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px !important;
+  padding: 0 0 10px !important;
+  border-bottom: 1px solid var(--k-line) !important;
+  color: var(--k-accent-2) !important;
+  font: 600 12.5px/1.4 var(--k-font-pixel) !important;
+  letter-spacing: .5px !important;
+  text-align: left !important;
+  text-shadow: none !important;
+}
+#moon-modal-mask.mp-pixel-modal > div > div:nth-child(2) {
+  color: var(--k-fg-2) !important;
+  font: 11.5px/1.7 var(--k-font-body) !important;
+  margin-bottom: 12px !important;
+}
+#moon-modal-mask.mp-pixel-modal button {
+  min-height: 40px;
+  padding: 8px 12px !important;
+  border: 1px solid var(--k-line) !important;
+  border-radius: 2px !important;
+  background: var(--k-ink-3) !important;
+  color: var(--k-fg) !important;
+  font: 600 11px/1.3 var(--k-font-body) !important;
+  box-shadow: 2px 2px 0 var(--k-shadow) !important;
+  cursor: pointer;
+}
+#moon-modal-mask.mp-pixel-modal button:hover { border-color: var(--k-line-2) !important; color: var(--k-accent-2) !important; }
+#moon-modal-mask.mp-pixel-modal #moon-modal-confirm,
+#moon-modal-mask.mp-pixel-modal #moon-step-next {
+  border-color: var(--k-accent) !important;
+  background: rgba(244, 114, 208, .16) !important;
+  color: var(--k-accent-2) !important;
+}
+
+/* ── 引导条/说明书里的小按钮 ──────────────────────────────────────────── */
+#moon-phase-panel .mp-link-btn {
+  min-height: 30px;
+  padding: 3px 8px;
+  border: 1px solid var(--k-line);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--k-fg-2);
+  font: 10px/1.4 var(--k-font-body);
+  cursor: pointer;
+}
+#moon-phase-panel .mp-link-btn:hover { border-color: var(--k-line-2); color: var(--k-accent-2); }
+
+/* ── 聚光灯新手引导 ───────────────────────────────────────────────────── */
+.mp-tour-layer {
+  position: fixed;
+  inset: 0;
+  /* 面板遮罩是 2147483650，引导必须压在它上面 */
+  z-index: 2147483655;
+  pointer-events: none;
+}
+.mp-tour-spot {
+  position: fixed;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 2px var(--k-accent),
+    0 0 0 9999px rgba(6, 3, 7, .78);
+  transition: all 220ms var(--k-ease);
+  pointer-events: none;
+}
+.mp-tour-card {
+  position: fixed;
+  left: 12px;
+  top: auto;
+  bottom: 12px;
+  width: min(340px, calc(100vw - 24px));
+  box-sizing: border-box;
+  max-height: 58vh;
+  overflow: auto;
+  padding: 13px 13px 12px;
+  font-family: var(--k-font-body);
+  border: 1px solid var(--k-line-2);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #221328, #120b17);
+  box-shadow: 0 14px 34px rgba(6, 3, 7, .8), inset 0 1px 0 rgba(255, 190, 235, .10);
+  pointer-events: auto;
+}
+.mp-tour-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 8.5px/1 var(--k-font-pixel);
+  letter-spacing: 1.2px;
+  color: var(--k-accent-2);
+  margin-bottom: 6px;
+}
+.mp-tour-dots { display: flex; gap: 3px; margin-left: auto; }
+.mp-tour-dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(244, 114, 208, .22); }
+.mp-tour-dots i.on { background: var(--k-accent); }
+.mp-tour-title { font: 600 13px/1.4 var(--k-font-body); color: var(--k-fg); margin-bottom: 5px; }
+.mp-tour-text { font: 11px/1.7 var(--k-font-body); color: var(--k-fg-2); }
+.mp-tour-text b { color: var(--k-accent-2); font-weight: 600; }
+.mp-tour-foot { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.mp-tour-skip {
+  border: 0; background: transparent; color: var(--k-fg-3);
+  font: 10px/1.4 var(--k-font-body); text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer; padding: 4px 2px;
+}
+.mp-tour-nav {
+  min-height: 36px; padding: 6px 12px;
+  border: 1px solid var(--k-line); border-radius: 2px;
+  background: var(--k-ink-3); color: var(--k-fg-2);
+  font: 600 10.5px/1.2 var(--k-font-pixel);
+  box-shadow: 1px 1px 0 var(--k-shadow); cursor: pointer;
+}
+.mp-tour-nav.primary { border-color: var(--k-accent); background: rgba(244, 114, 208, .16); color: var(--k-accent-2); }
+.mp-tour-nav[disabled] { opacity: .4; cursor: default; }
+
+/* ── 答疑 ─────────────────────────────────────────────────────────────── */
+#moon-faq-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#moon-modal-mask .mp-faq-tip {
+  padding: 8px 10px; margin-bottom: 10px;
+  border-left: 2px solid var(--k-accent);
+  background: rgba(244, 114, 208, .07);
+  color: var(--k-fg-2); font: 10.5px/1.6 var(--k-font-body);
+}
+#moon-modal-mask .mp-faq-search {
+  width: 100%; box-sizing: border-box; margin-bottom: 10px;
+  min-height: 40px; padding: 8px 11px;
+  border: 1px solid var(--k-line); border-radius: 2px;
+  background: var(--k-ink-0); color: var(--k-fg);
+  font: 11.5px/1.4 var(--k-font-body);
+  outline: none;
+}
+#moon-modal-mask .mp-faq-search::placeholder { color: var(--k-fg-3); }
+#moon-modal-mask .mp-faq-search:focus {
+  border-color: rgba(244, 114, 208, .55) !important;
+  box-shadow: 0 0 0 1px rgba(244, 114, 208, .22), 0 0 0 4px rgba(244, 114, 208, .07);
+}
+#moon-modal-mask .mp-faq-item[data-open="1"] { border-color: rgba(244, 114, 208, .34); }
+#moon-modal-mask .mp-faq-foot {
+  margin-top: 10px; padding-top: 9px;
+  border-top: 1px dashed var(--k-line);
+  color: var(--k-fg-3); font: 10px/1.6 var(--k-font-body);
+}
+#moon-modal-mask .mp-faq-foot b { color: var(--k-fg-2); font-weight: 600; }
+#moon-modal-mask .mp-faq-chip {
+  min-height: 38px; padding: 7px 12px;
+  border: 1px solid var(--k-line); border-radius: 999px;
+  background: var(--k-ink-3); color: var(--k-fg-2);
+  font: 10.5px/1.3 var(--k-font-body); cursor: pointer;
+}
+#moon-modal-mask .mp-faq-chip.active { border-color: var(--k-accent); background: rgba(244, 114, 208, .14); color: var(--k-accent-2); }
+#moon-modal-mask .mp-faq-item { border: 1px solid var(--k-line); border-radius: 3px; margin-bottom: 6px; overflow: hidden; background: var(--k-ink-1); }
+#moon-modal-mask .mp-faq-q {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px;
+  padding: 9px 10px; border: 0; background: transparent;
+  color: var(--k-fg); font: 600 11.5px/1.45 var(--k-font-body) !important; text-align: left;
+  cursor: pointer; box-shadow: none !important;
+}
+#moon-modal-mask .mp-faq-q i { margin-left: auto; color: var(--k-accent); font-style: normal; font-size: 10px; transition: transform 200ms var(--k-ease); }
+#moon-modal-mask .mp-faq-item[data-open="1"] .mp-faq-q i { transform: rotate(180deg); }
+#moon-modal-mask .mp-faq-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms var(--k-ease); }
+#moon-modal-mask .mp-faq-item[data-open="1"] .mp-faq-body { grid-template-rows: 1fr; }
+#moon-modal-mask .mp-faq-clip { min-height: 0; overflow: hidden; }
+#moon-modal-mask .mp-faq-a {
+  padding: 2px 11px 11px; color: var(--k-fg-2);
+  font: 11px/1.75 var(--k-font-body);
+  border-top: 1px dashed var(--k-line);
+  margin: 0 0 0; padding-top: 8px;
+}
+#moon-modal-mask .mp-faq-a b { color: var(--k-accent-2); font-weight: 600; }
+#moon-modal-mask .mp-faq-empty { padding: 18px 0; text-align: center; color: var(--k-fg-3); font-size: 11px; }
+
+/* ── 设置组里的整块区域（难度、选择器） ────────────────────────────────── */
+#moon-phase-panel .mp-set-block { padding: 9px 0; border-top: 1px dashed var(--k-line); }
+#moon-phase-panel .mp-set-block:first-child { border-top: 0; padding-top: 2px; }
+#moon-phase-panel .mp-set-block .mp-set-title { margin-bottom: 3px; }
+#moon-phase-panel .mp-mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 8px 0 7px; }
+#moon-phase-panel .mp-set-block > div[style*="display:flex"] { justify-content: flex-start !important; }
+#moon-phase-panel .mp-set-block button[data-skin-pick],
+#moon-phase-panel .mp-set-block button[data-core-rule],
+#moon-phase-panel .mp-set-block button[data-glossary] {
+  min-height: 32px;
+  padding: 5px 9px !important;
+  border-radius: 2px !important;
+  font-family: var(--k-font-body) !important;
+  box-shadow: 1px 1px 0 var(--k-shadow) !important;
+}
+
+/* 命运状态条 */
+#moon-phase-panel .mp-fate {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 7px 10px;
+  border: 1px solid var(--k-line);
+  border-radius: 3px;
+  background: var(--k-ink-0);
+  color: var(--k-fg-3);
+  font: 10px/1.5 var(--k-font-body);
+}
+#moon-phase-panel .mp-fate.active { border-color: rgba(255, 138, 178, .34); color: #ffb0c8; background: rgba(255, 138, 178, .08); }
+#moon-phase-panel .mp-fate-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 6px; }
+
+/* 屏内属性行：标签只要放得下「好感」两个字，别占 110px */
+#moon-phase-panel .mp-rpg-stat-label { flex: 0 0 46px !important; font-weight: 600 !important; }
+#moon-phase-panel .mp-rpg-stat-row { margin: 3px 0 !important; font-size: 11.5px !important; }
+#moon-phase-panel .mp-rpg-stat-bar { height: 6px !important; border: 1px solid rgba(28, 37, 29, .42) !important; background: rgba(28, 37, 29, .10) !important; margin: 0 7px !important; }
+#moon-phase-panel .mp-rpg-stat-fill { background: rgba(28, 37, 29, .68) !important; }
+#moon-phase-panel .mp-rpg-stat-val { font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+
+@media (max-width: 520px) {
+  /* 手机上两列会把说明压成三行还被截断，一列读起来才顺 */
+  #moon-phase-panel .mp-grid { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 400px) {
+  #moon-phase-panel .mp-guide { grid-template-columns: 1fr; }
+  #moon-phase-panel .mp-guide-actions { flex-direction: row; }
+  #moon-phase-panel .mp-guide-cta { flex: 1; }
+  #moon-phase-panel .mp-grid { grid-template-columns: 1fr; }
+  #moon-phase-panel .mp-mode-btn { min-height: 58px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #moon-phase-panel .mp-fold-body,
+  #moon-modal-mask .mp-faq-body,
+  .mp-tour-spot,
+  #moon-phase-panel .mp-menu-card,
+  #moon-phase-panel .mp-btn { transition: none !important; }
+}
+`;
+  }
 /* 86-gal-core.js —— Galgame 沉浸模式：核心配置、聊天隔离状态、标签注册表与映射校验。
    设计原则：
    1. 不改酒馆聊天记录，所有状态只存在本模块自己的 chatMetadata 键里；
@@ -7672,100 +8669,162 @@ function openUpdateConfigDialog(panel) {
     let el = mainDoc.getElementById(GAL_STYLE_ID);
     if (!el) { el = mainDoc.createElement('style'); el.id = GAL_STYLE_ID; mainDoc.head.appendChild(el); }
     el.textContent = `
-.mp-gal-root{position:fixed;inset:0;z-index:2147483000;display:none;overflow:hidden;background:#171a22;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",sans-serif;
-  color:var(--gal-color,#f8fafc);-webkit-tap-highlight-color:transparent;}
+.mp-gal-root{position:fixed;inset:0;z-index:2147483000;display:none;overflow:hidden;
+  --k-ink-0:#0a0509;--k-ink-1:#110a15;--k-ink-2:#171021;--k-ink-3:#1f182a;
+  --k-line:rgba(244,114,208,.15);--k-line-2:rgba(244,114,208,.34);
+  --k-fg:#f2e7ef;--k-fg-2:#c6adc0;--k-fg-3:#9c8698;
+  --k-accent:#f472d0;--k-accent-2:#ffb3e8;--k-shadow:rgba(6,3,7,.70);
+  --k-font-pixel:"MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","Courier New",monospace;
+  --k-font-body:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,sans-serif;
+  --k-ease:cubic-bezier(.16,1,.3,1);
+  background:
+    radial-gradient(120% 60% at 50% 0%,rgba(244,114,208,.07),transparent 60%),
+    var(--k-ink-0) !important;
+  font-family:var(--k-font-body);
+  color:var(--gal-color,var(--k-fg));-webkit-tap-highlight-color:transparent;}
 .mp-gal-root.open{display:block;animation:mpGalFade .22s ease;}
 @keyframes mpGalFade{from{opacity:0}to{opacity:1}}
-.mp-gal-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-color:#171a22;
-  filter:saturate(0.95);transition:background-image .45s ease;z-index:0;}
-.mp-gal-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,6,12,.35) 0%,rgba(3,6,12,0) 28%,rgba(3,6,12,.10) 60%,rgba(3,6,12,.62) 100%);}
+.mp-gal-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-color:var(--k-ink-0);
+  filter:saturate(.95);transition:background-image .45s ease;z-index:0;}
+.mp-gal-bg::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(90% 52% at 50% 10%,rgba(244,114,208,.10),transparent 62%),
+    radial-gradient(60% 40% at 50% 100%,rgba(244,114,208,.05),transparent 70%),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.016) 0 1px,transparent 1px 3px);}
+.mp-gal-bg::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(10,5,9,.42) 0%,rgba(10,5,9,.02) 26%,rgba(10,5,9,.12) 58%,rgba(10,5,9,.68) 100%);}
 .mp-gal-sprite-layer{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;z-index:1;pointer-events:none;}
-.mp-gal-sprite{max-height:82%;max-width:46%;object-fit:contain;filter:drop-shadow(0 12px 30px rgba(18, 20, 26, .55));
+.mp-gal-sprite{max-height:82%;max-width:46%;object-fit:contain;filter:drop-shadow(0 12px 30px rgba(6,3,7,.55));
   transition:opacity .3s ease, transform .3s ease;}
 .mp-gal-sprite.side-left{margin-right:auto;margin-left:4%;}
 .mp-gal-sprite.side-right{margin-left:auto;margin-right:4%;}
-.mp-gal-cg{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;background:rgba(3,6,12,.92);
+.mp-gal-cg{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;background:rgba(10,5,9,.94);
   cursor:pointer;}
 .mp-gal-cg.show{display:flex;}
-.mp-gal-cg img{max-width:96%;max-height:92%;object-fit:contain;box-shadow:0 18px 60px rgba(18, 20, 26, .7);border-radius:6px;}
-.mp-gal-top{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;justify-content:space-between;align-items:center;
-  padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;gap:8px;
-  background:linear-gradient(180deg,rgba(3,6,12,.55),rgba(3,6,12,0));transition:opacity .22s ease,transform .22s ease;}
-.mp-gal-top button,.mp-gal-toolbar button,.mp-gal-sheet button{font-family:inherit;cursor:pointer;border-radius:10px;
-  border:1px solid rgba(148,163,184,.28);background:rgba(15,23,42,.55);color:#e2e8f0;font-size:12px;padding:6px 10px;
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:background .15s ease,border-color .15s ease;}
-.mp-gal-top button:hover,.mp-gal-toolbar button:hover,.mp-gal-sheet button:hover{background:rgba(56,89,148,.55);border-color:rgba(148,197,255,.5);}
-.mp-gal-top .mp-gal-title{font-size:11px;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase;}
-.mp-gal-top-right{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
-.mp-gal-dialog{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);transform:translateX(-50%);
-  width:min(920px,calc(100% - 24px));z-index:5;box-sizing:border-box;
-  background:rgba(8,12,22,var(--gal-op,.72));border:1px solid rgba(180,205,255,.18);border-radius:16px;
-  box-shadow:0 20px 60px rgba(18, 20, 26, .55),inset 0 1px 0 rgba(255,255,255,.08);
-  backdrop-filter:blur(18px) saturate(1.25);-webkit-backdrop-filter:blur(18px) saturate(1.25);
-  padding:14px 18px 16px;min-height:96px;transition:opacity .2s ease,transform .2s ease;}
-.mp-gal-name{font-size:13px;font-weight:600;letter-spacing:.04em;color:#ffd7f2;
-  margin-bottom:6px;display:flex;align-items:center;gap:8px;min-height:18px;}
-.mp-gal-name::before{content:"";width:3px;height:14px;border-radius:2px;background:linear-gradient(180deg,#f472d0,#7dd3fc);}
-.mp-gal-text{font-size:var(--gal-fs,17px);line-height:var(--gal-lh,1.75);color:var(--gal-color,#f8fafc);
-  white-space:pre-wrap;word-break:break-word;max-height:30vh;overflow:hidden;}
-.mp-gal-text .gal-narr{color:#c7d2fe;font-style:italic;}
-.mp-gal-text .gal-thought{color:#a5f3fc;opacity:.92;}
-.mp-gal-text .gal-body{color:var(--gal-color,#f8fafc);}
-.mp-gal-next{position:absolute;right:16px;bottom:8px;font-size:12px;color:#9fb6d8;animation:mpGalBlink 1.15s infinite;}
+.mp-gal-cg img{max-width:96%;max-height:92%;object-fit:contain;box-shadow:0 18px 60px rgba(6,3,7,.7);border-radius:6px;}
+
+/* ── 顶栏：只占一行。返回固定在左，工具按钮横向滑动，不换行、不挤压 ───── */
+.mp-gal-top{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:8px;
+  padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 18px;
+  background:linear-gradient(180deg,rgba(10,5,9,.72) 0%,rgba(10,5,9,.42) 55%,rgba(10,5,9,0) 100%);
+  transition:opacity .22s ease,transform .22s ease;}
+.mp-gal-title{display:none;}
+.mp-gal-back{flex:0 0 auto;white-space:nowrap;}
+.mp-gal-top-right{flex:1 1 auto;min-width:0;display:flex;flex-wrap:nowrap;gap:6px;justify-content:flex-start;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;
+  padding:2px 2px 2px 0;}
+.mp-gal-top-right::-webkit-scrollbar{display:none;}
+.mp-gal-top button,.mp-gal-toolbar button,.mp-gal-sheet button{font-family:inherit;cursor:pointer;
+  min-height:42px;padding:8px 12px;box-sizing:border-box;
+  border:1px solid var(--k-line);border-radius:3px;
+  background:rgba(23,16,33,.74);color:var(--k-fg-2);
+  font:600 11px/1.25 var(--k-font-body);white-space:nowrap;
+  box-shadow:1px 1px 0 rgba(6,3,7,.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:background .15s ease,border-color .15s ease,color .15s ease;}
+.mp-gal-top button:hover,.mp-gal-toolbar button:hover,.mp-gal-sheet button:hover{
+  background:rgba(244,114,208,.12);border-color:var(--k-line-2);color:var(--k-accent-2);}
+.mp-gal-top .mp-gal-back{border-color:var(--k-line-2);color:var(--k-fg);}
+.mp-gal-top button:active,.mp-gal-toolbar button:active{transform:translateY(1px);}
+
+/* ── 对话框：和面板同一套墨层，不靠粗黑框 ───────────────────────────── */
+/* 护眼层用 .mp-gal-dialog{background:var(--mp-l2)!important} 覆盖过一遍；
+   这里用 .mp-gal-root 前缀把特异性抬到 (0,2,0)，保证墨樱这一套始终生效。 */
+.mp-gal-root .mp-gal-dialog{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);transform:translateX(-50%);
+  width:min(920px,calc(100% - 20px));z-index:5;box-sizing:border-box;
+  background:linear-gradient(180deg,rgba(31,24,42,var(--gal-op,.86)),rgba(17,10,21,calc(var(--gal-op,.86) + .06))) !important;
+  border:1px solid var(--k-line-2) !important;border-radius:4px !important;
+  box-shadow:0 18px 44px rgba(6,3,7,.62),inset 0 1px 0 rgba(255,190,235,.10) !important;
+  backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
+  padding:13px 16px 18px;min-height:96px;transition:opacity .2s ease,transform .2s ease;}
+.mp-gal-name{font:600 11px/1.3 var(--k-font-pixel);letter-spacing:.5px;color:var(--k-accent-2);
+  margin-bottom:7px;display:flex;align-items:center;gap:7px;min-height:16px;}
+.mp-gal-name:empty{display:none;}
+.mp-gal-name::before{content:"";width:2px;height:12px;border-radius:1px;background:var(--k-accent);}
+.mp-gal-text{font-size:var(--gal-fs,17px);line-height:var(--gal-lh,1.75);color:var(--gal-color,var(--k-fg));
+  white-space:pre-wrap;word-break:break-word;max-height:30vh;overflow:hidden;
+  background:transparent !important;padding:0 !important;border:0 !important;}
+.mp-gal-text .gal-narr{color:#cdb9c8;font-style:italic;}
+.mp-gal-text .gal-thought{color:#9fd8e0;opacity:.92;}
+.mp-gal-text .gal-body{color:var(--gal-color,var(--k-fg));}
+.mp-gal-next{position:absolute;right:14px;bottom:6px;font-size:10px;color:var(--k-accent);
+  animation:mpGalBlink 1.15s infinite;}
 @keyframes mpGalBlink{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(3px)}}
-.mp-gal-meta{position:absolute;left:18px;bottom:8px;font-size:10.5px;color:#7b8ea8;letter-spacing:.05em;}
+.mp-gal-meta{position:absolute;left:16px;bottom:6px;font:9.5px/1.4 var(--k-font-pixel);color:var(--k-fg-3);letter-spacing:.4px;}
+
+/* ── 选项：整块可点，不做描边嵌套 ─────────────────────────────────── */
 .mp-gal-choices{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(720px,calc(100% - 28px));max-height:62vh;overflow-y:auto;z-index:7;display:none;flex-direction:column;gap:10px;}
+  width:min(720px,calc(100% - 22px));max-height:62vh;overflow-y:auto;z-index:7;display:none;flex-direction:column;gap:8px;}
 .mp-gal-choices.show{display:flex;}
-.mp-gal-choice{width:100%;text-align:left;padding:13px 16px;border-radius:12px;cursor:pointer;font-family:inherit;
-  font-size:14.5px;line-height:1.5;color:#eef4ff;border:1px solid rgba(160,190,255,.30);
-  background:rgba(10,16,30,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  transition:transform .12s ease,background .15s ease,border-color .15s ease;position:relative;}
-.mp-gal-choice:hover{background:rgba(38,60,110,.85);border-color:rgba(190,215,255,.6);transform:translateY(-1px);}
+.mp-gal-choice{width:100%;text-align:left;padding:13px 15px;border-radius:3px;cursor:pointer;font-family:inherit;
+  font-size:14.5px;line-height:1.5;color:var(--k-fg);border:1px solid var(--k-line-2);
+  background:linear-gradient(180deg,rgba(31,24,42,.9),rgba(17,10,21,.92));
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:2px 2px 0 rgba(6,3,7,.5);
+  transition:transform .12s ease,background .15s ease,border-color .15s ease;}
+.mp-gal-choice:hover{background:rgba(244,114,208,.12);border-color:var(--k-accent);transform:translateY(-1px);}
 .mp-gal-choice .gal-choice-idx{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;
-  border-radius:50%;background:rgba(244,114,208,.25);color:#ffd7f2;font-size:11px;margin-right:8px;font-weight:600;}
+  border-radius:2px;background:rgba(244,114,208,.22);color:var(--k-accent-2);font:600 10px/20px var(--k-font-pixel);
+  margin-right:8px;}
+
+/* ── 底部工具栏 ───────────────────────────────────────────────────── */
 .mp-gal-toolbar{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateX(-50%) translateY(140%);
-  z-index:8;display:flex;gap:8px;padding:8px 10px;border-radius:14px;background:rgba(8,12,22,.82);
-  border:1px solid rgba(148,163,184,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  transition:transform .25s cubic-bezier(.2,.9,.3,1),opacity .2s ease;opacity:0;max-width:calc(100% - 20px);flex-wrap:wrap;justify-content:center;}
+  z-index:8;display:flex;gap:6px;padding:7px 8px;border-radius:4px;
+  background:rgba(17,10,21,.9);border:1px solid var(--k-line);
+  box-shadow:0 12px 30px rgba(6,3,7,.6);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  transition:transform .25s var(--k-ease),opacity .2s ease;opacity:0;
+  max-width:calc(100% - 18px);flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none;}
+.mp-gal-toolbar::-webkit-scrollbar{display:none;}
 .mp-gal-toolbar.show{transform:translateX(-50%) translateY(0);opacity:1;}
 .mp-gal-edge{position:absolute;left:0;right:0;bottom:0;height:34px;z-index:4;}
-.mp-gal-root.hide-ui .mp-gal-top,.mp-gal-root.hide-ui .mp-gal-dialog{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(12px);}
-.mp-gal-root.hide-ui .mp-gal-dialog{transform:translateX(-50%) translateY(30px);}
+.mp-gal-root.hide-ui .mp-gal-top{opacity:0;pointer-events:none;transform:translateY(-12px);}
+.mp-gal-root.hide-ui .mp-gal-dialog{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(30px);}
 .mp-gal-root.hide-ui .mp-gal-edge{height:70px;}
-.mp-gal-sheet-mask{position:absolute;inset:0;z-index:20;background:rgba(3,6,12,.78);display:flex;align-items:center;
+
+/* ── 抽屉（历史 / 存档 / 设置 / 标签） ─────────────────────────────── */
+.mp-gal-sheet-mask{position:absolute;inset:0;z-index:20;background:rgba(10,5,9,.8) !important;display:flex;align-items:center;
   justify-content:center;padding:16px;box-sizing:border-box;}
-.mp-gal-sheet{width:min(560px,100%);max-height:86dvh;overflow-y:auto;background:linear-gradient(170deg,rgba(20,25,40,.98),rgba(8,11,20,.99));
-  border:1px solid rgba(148,163,184,.22);border-radius:18px;padding:18px;box-sizing:border-box;
-  box-shadow:0 26px 70px rgba(18, 20, 26, .7);}
-.mp-gal-sheet h3{margin:0 0 14px;font-size:14px;color:#f1f5f9;display:flex;justify-content:space-between;align-items:center;}
-.mp-gal-sheet .gal-sec{border-top:1px solid rgba(148,163,184,.14);padding-top:12px;margin-top:12px;}
+.mp-gal-root .mp-gal-sheet{width:min(560px,100%);max-height:86dvh;overflow-y:auto;
+  background:linear-gradient(180deg,var(--k-ink-3),var(--k-ink-1)) !important;
+  border:1px solid var(--k-line-2) !important;border-radius:4px !important;padding:16px;box-sizing:border-box;
+  box-shadow:0 26px 70px rgba(6,3,7,.72),inset 0 1px 0 rgba(255,190,235,.10) !important;}
+.mp-gal-sheet h3{margin:0 0 12px;font:600 12px/1.4 var(--k-font-pixel);letter-spacing:.6px;color:var(--k-accent-2);
+  display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.mp-gal-sheet .gal-sec{border-top:1px solid var(--k-line);padding-top:12px;margin-top:12px;}
 .mp-gal-sheet .gal-sec:first-of-type{border-top:none;padding-top:0;margin-top:0;}
-.mp-gal-sheet .gal-label{font-size:11px;font-weight:600;color:#93a4bd;letter-spacing:.06em;margin-bottom:7px;text-transform:uppercase;}
-.mp-gal-sheet .gal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:12.5px;color:#dbe4f2;}
-.mp-gal-sheet input[type=range]{width:150px;accent-color:#f472d0;}
+.mp-gal-sheet .gal-label{font-size:11px;font-weight:600;color:var(--k-fg-2);letter-spacing:.06em;margin-bottom:7px;}
+.mp-gal-sheet .gal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--k-fg-2);}
+.mp-gal-sheet input[type=range]{width:150px;accent-color:var(--k-accent);}
 .mp-gal-sheet input[type=text],.mp-gal-sheet textarea,.mp-gal-sheet select{width:100%;box-sizing:border-box;
-  background:#0b1120;border:1px solid rgba(148,163,184,.25);border-radius:9px;color:#e2e8f0;font-size:12.5px;
-  padding:8px 10px;font-family:inherit;}
+  background:var(--k-ink-0);border:1px solid var(--k-line);border-radius:3px;color:var(--k-fg);font-size:12.5px;
+  padding:9px 10px;font-family:inherit;outline:none;}
+.mp-gal-sheet input[type=text]:focus,.mp-gal-sheet textarea:focus,.mp-gal-sheet select:focus{
+  border-color:rgba(244,114,208,.55);box-shadow:0 0 0 1px rgba(244,114,208,.22),0 0 0 4px rgba(244,114,208,.07);}
 .mp-gal-sheet .gal-seg{display:flex;flex-wrap:wrap;gap:6px;}
-.mp-gal-sheet .gal-seg button{flex:1 1 auto;min-width:78px;font-size:11.5px;padding:7px 8px;}
-.mp-gal-sheet .gal-seg button.on{background:rgba(244,114,208,.28);border-color:rgba(244,114,208,.7);color:#ffe4f7;font-weight:600;}
-.mp-gal-sheet .gal-hint{font-size:10.5px;color:#7d8ca3;line-height:1.6;margin-top:6px;}
-.mp-gal-sheet .gal-warn{font-size:11px;color:#fbbf24;line-height:1.6;margin-top:6px;background:rgba(251,191,36,.08);
-  border:1px solid rgba(251,191,36,.28);border-radius:9px;padding:8px 10px;}
+.mp-gal-sheet .gal-seg button{flex:1 1 auto;min-width:78px;font-size:11px;}
+.mp-gal-sheet .gal-seg button.on{background:rgba(244,114,208,.18);border-color:var(--k-accent);color:var(--k-accent-2);font-weight:600;}
+.mp-gal-sheet .gal-hint{font-size:10.5px;color:var(--k-fg-3);line-height:1.6;margin-top:6px;}
+.mp-gal-sheet .gal-warn{font-size:11px;color:#ffcf8b;line-height:1.6;margin-top:6px;background:rgba(255,207,139,.07);
+  border-left:2px solid rgba(255,207,139,.55);border-radius:2px;padding:8px 10px;}
 .mp-gal-sheet .gal-list{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;}
-.mp-gal-sheet .gal-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;
-  border-radius:9px;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.14);font-size:12px;}
+.mp-gal-sheet .gal-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;
+  border-radius:3px;background:var(--k-ink-2);border:1px solid var(--k-line);font-size:12px;color:var(--k-fg);}
 .mp-gal-sheet .gal-item .gal-item-main{flex:1;min-width:0;}
-.mp-gal-sheet .gal-item .gal-item-sub{font-size:10.5px;color:#7d8ca3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-gal-sheet .gal-item .gal-item-sub{font-size:10.5px;color:var(--k-fg-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ── 空状态 ───────────────────────────────────────────────────────── */
 .mp-gal-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;
-  color:#94a3b8;font-size:13px;z-index:3;}
-.mp-gal-root.is-phone .mp-gal-dialog{padding:12px 14px 20px;border-radius:14px;}
+  color:var(--k-fg-2);font-size:12.5px;z-index:3;padding:24px;text-align:center;line-height:1.7;}
+.mp-gal-empty .mp-gal-empty-title{font:600 12px/1.4 var(--k-font-pixel);letter-spacing:.5px;color:var(--k-accent-2);}
+.mp-gal-empty .mp-gal-empty-sub{font-size:11px;color:var(--k-fg-3);}
+
+.mp-gal-root.is-phone .mp-gal-dialog{padding:11px 13px 18px;border-radius:3px;}
 .mp-gal-root.is-phone .mp-gal-text{font-size:calc(var(--gal-fs,17px) - 1px);max-height:34vh;}
 @media (max-width:640px){
   .mp-gal-sprite{max-height:72%;max-width:70%;}
-  .mp-gal-top .mp-gal-title{display:none;}
+  .mp-gal-top{padding-bottom:14px;}
+  .mp-gal-top button{padding:7px 10px;font-size:10.5px;}
 }
 `;
   }
@@ -7784,10 +8843,8 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-gal-cg"><img alt="event cg"></div>' +
       '<div class="mp-gal-empty" id="mp-gal-empty" style="display:none"></div>' +
       '<div class="mp-gal-top">' +
-        '<div style="display:flex;align-items:center;gap:8px;">' +
-          '<button type="button" data-gal-act="exit">← 返回聊天</button>' +
-          '<span class="mp-gal-title">Galgame Mode</span>' +
-        '</div>' +
+        '<button type="button" class="mp-gal-back" data-gal-act="exit">← 返回</button>' +
+        '<span class="mp-gal-title">Galgame Mode</span>' +
         '<div class="mp-gal-top-right">' +
           '<button type="button" data-gal-act="moon">🌕 系统</button>' +
           '<button type="button" data-gal-act="cg">🖼 CG</button>' +
@@ -7915,8 +8972,9 @@ function openUpdateConfigDialog(panel) {
       const empty = root.querySelector('#mp-gal-empty');
       if (empty) {
         empty.style.display = 'flex';
-        empty.innerHTML = '这一段剧情没渲染出来：' + galEscape(e && e.message || e) +
-          '<br><span style="font-size:11px;color:#7d8ca3;">可以先点左上角「← 返回聊天」，或刷新一次再试</span>';
+        empty.innerHTML = '<div class="mp-gal-empty-title">这一段没渲染出来</div>' +
+          '<div>' + galEscape(e && e.message || e) + '</div>' +
+          '<div class="mp-gal-empty-sub">可以先点左上角「← 返回」，或刷新一次再试。</div>';
       }
     }
     try { galMemoryWarnIfBroken(); } catch (e) {}
@@ -7999,7 +9057,7 @@ function openUpdateConfigDialog(panel) {
     const choicesEl = root.querySelector('#mp-gal-choices');
 
     if (!prep) {
-      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.innerHTML = '<div style="font-size:26px">🌙</div><div>当前聊天还没有 AI 回复</div><div style="font-size:11px;color:#64748b">先在酒馆里正常聊一句，再回到这里</div>'; }
+      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.innerHTML = '<div class="mp-gal-empty-title">这段聊天还没有 AI 回复</div><div>先在酒馆里正常聊一句，再回到这里。</div><div class="mp-gal-empty-sub">这里只是换了个方式看剧情，不会替你发消息。</div>'; }
       if (dialog) dialog.style.display = 'none';
       if (choicesEl) choicesEl.classList.remove('show');
       return;
@@ -14644,15 +15702,10 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const modeMeta = LUNAR_META[mode] || LUNAR_META.hell;
     const hasApi = hasValidCustomAIConfig();
     const apiModel = hasApi ? getCustomAIConfig().model : '未设';
-    const selections = [
-      '锚定:' + (antisl ? '开' : '关'), 'AI:' + (hasApi ? '外接' : '主模'),
-      '卡组:' + (cardMode === 'multi' ? '多人' : '单人'), '安全锁:' + (getSafetyLock() ? '开' : '关'),
-      '节奏:' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中'), '同人:' + (fanficOn ? '开' : '关')
-    ];
     const options = names.map(function(name) { return '<option value="' + lcdEscape(name) + '"' + (name === selected ? ' selected' : '') + '>' + lcdEscape(name) + '</option>'; }).join('');
     const activePage = Math.max(0, Math.min(3, parseInt(panel.dataset.lcdPage || '0', 10) || 0));
-    const pageNames = ['总览', '角色', '事件', '占用'];
-    const shortLabels = ['01 总览', '02 角色', '03 事件', '04 占用'];
+    const pageNames = ['她的状态', '其他角色', '接下来', '这个聊天的字数'];
+    const shortLabels = ['状态', '角色', '事件', '字数'];
     function calcBar(val, maxVal) {
       const pct = Math.max(0, Math.min(100, Math.round(((Number(val) || 0) / (maxVal || 100)) * 100)));
       return '<div class="mp-rpg-stat-bar"><div class="mp-rpg-stat-fill" style="width:' + pct + '%;"></div></div>';
@@ -14666,17 +15719,17 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const quickCharSummary = ch
       ? '<div style="padding:6px 8px;margin-top:6px;border:1px solid #151d14;font-size:11.5px;line-height:1.4;background:rgba(21,29,20,0.06);">' +
           '<div style="font-weight:bold;margin-bottom:4px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(21,29,20,0.4);padding-bottom:3px;">' +
-            '<span>♥ 目标：' + lcdEscape(selected) + '</span>' +
+            '<span>♥ ' + lcdEscape(selected) + '</span>' +
             '<span>' + lcdEscape(stageInfo.name) + '</span>' +
           '</div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[E] 好感度</span>' + calcBar(eVal + 100, 200) + '<span class="mp-rpg-stat-val">' + eVal.toFixed(1) + '</span></div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[P] 肉体值</span>' + calcBar(pVal, 100) + '<span class="mp-rpg-stat-val">' + pVal.toFixed(0) + '</span></div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[R] 阶段门</span>' + calcBar(rVal, 5) + '<span class="mp-rpg-stat-val">Lv.' + rVal + '</span></div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[I] 嫉妒值</span>' + calcBar(iVal, 100) + '<span class="mp-rpg-stat-val">' + iVal.toFixed(0) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">好感</span>' + calcBar(eVal + 100, 200) + '<span class="mp-rpg-stat-val">' + eVal.toFixed(1) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">亲密</span>' + calcBar(pVal, 100) + '<span class="mp-rpg-stat-val">' + pVal.toFixed(0) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">关系</span>' + calcBar(rVal, 5) + '<span class="mp-rpg-stat-val">' + rVal + ' 级</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">醋意</span>' + calcBar(iVal, 100) + '<span class="mp-rpg-stat-val">' + iVal.toFixed(0) + '</span></div>' +
         '</div>'
-      : '<div class="mp-lcd-empty" style="padding:12px 6px;">还没有角色档案<br>点下面「▶ 开始游戏」→「🚀 开局适配」就能建</div>';
+      : '';
 
-    return '<div class="mp-console-bezel"><span class="mp-power-led"><i></i>POWER</span><span>DOT MATRIX · MOON POCKET</span><span>API:' + lcdEscape(String(apiModel).slice(0, 12)) + '</span></div>' +
+    return '<div class="mp-console-bezel"><span class="mp-power-led"><i></i>ON</span><span>MOON POCKET · 液晶屏</span><span>AI 钥匙 · ' + (hasApi ? '已填' : '没填') + '</span></div>' +
       '<div class="mp-lcd-screen"><div class="mp-lcd-screen-head"><span>MOON POCKET · STATUS</span><b>MONO LCD</b></div>' +
       '<div class="mp-lcd-quick-tabs" role="tablist" aria-label="液晶屏直达页签">' +
       shortLabels.map(function(lb, idx) {
@@ -14684,25 +15737,27 @@ var worldData = (rawVars && rawVars['世界']) || {};
       }).join('') +
       '</div>' +
       '<div class="mp-lcd-pages" data-lcd-pages>' +
-      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="总览">' +
-      '<div class="mp-lcd-world-time">WORLD TIME　' + lcdEscape(world.时间 || '还没开始') + '</div>' +
-      '<div class="mp-lcd-difficulty"><b>游戏难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
-      '<div class="mp-lcd-selection" style="min-height:auto;"><b>当前设定</b><span>' + selections.map(lcdEscape).join('　') + '</span></div>' +
+      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="她的状态">' +
+      '<div class="mp-lcd-world-time">现在是　' + lcdEscape(world.时间 || '还没开始') + '</div>' +
+      '<div class="mp-lcd-difficulty"><b>难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
+      '<div class="mp-lcd-plain">' + (ch
+        ? '她现在是<b>' + lcdEscape(stageInfo.name) + '</b>，好感 <b>' + eVal.toFixed(1) + '</b>。你在酒馆里正常聊，数字会自己涨。'
+        : '还没有人物档案。先建档案，之后正常聊天就行。') + '</div>' +
       quickCharSummary + '</section>' +
-      '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="角色">' +
+      '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="其他角色">' +
       '<div class="mp-lcd-character-head"><span>角色档案 / CHARACTER FILE</span>' +
       (names.length ? '<select class="mp-lcd-character-select" aria-label="选择角色档案">' + options + '</select>' : '') + '</div>' +
       '<div class="mp-lcd-character-view">' + renderLcdCharacterDetails(ch) + '</div></section>' +
-      '<section class="mp-lcd-page' + (activePage === 2 ? ' active' : '') + '" data-lcd-page="2" data-page-label="事件">' +
-      '<div class="mp-lcd-page-title">EVENT DIRECTOR · 事件进度</div><div id="moon-event-status" class="mp-lcd-event-list">' + renderEventStatusCard() + '</div></section>' +
-      '<section class="mp-lcd-page' + (activePage === 3 ? ' active' : '') + '" data-lcd-page="3" data-page-label="占用">' +
-      '<div class="mp-lcd-token-head"><span>MEMORY · 字数占用</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
-      '<div id="moon-token-box">点右上「↻ 刷新」开始算</div></section></div>' +
+      '<section class="mp-lcd-page' + (activePage === 2 ? ' active' : '') + '" data-lcd-page="2" data-page-label="接下来">' +
+      '<div class="mp-lcd-page-title">接下来会发生什么</div><div id="moon-event-status" class="mp-lcd-event-list">' + renderEventStatusCard() + '</div></section>' +
+      '<section class="mp-lcd-page' + (activePage === 3 ? ' active' : '') + '" data-lcd-page="3" data-page-label="字数">' +
+      '<div class="mp-lcd-token-head"><span>这个聊天占多少字</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
+      '<div id="moon-token-box">点右边「刷新」开始算</div></section></div>' +
       '<nav class="mp-lcd-page-nav" aria-label="显示屏翻页">' +
       '<button type="button" data-lcd-page-step="-1" aria-label="上一页">◀</button>' +
       '<div class="mp-lcd-page-indicator"><b data-lcd-page-label>' + pageNames[activePage] + '</b><span data-lcd-page-count>' + String(activePage + 1).padStart(2, '0') + ' / 04</span></div>' +
       '<button type="button" data-lcd-page-step="1" aria-label="下一页">▶</button></nav>' +
-      '<div class="mp-lcd-screen-foot">点上方 [01~04] 或 ◀ ▶ 翻页</div></div>';
+      '<div class="mp-lcd-screen-foot">点上面四个页签，或用 ◀ ▶ 翻页</div></div>';
   }
 
   function setLcdPage(panel, page) {
@@ -14760,136 +15815,22 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
   }
 
-  function openTutorialDialog(panel) {
-    const steps = [
-      {
-        title: 'PAGE 01 · 这台掌机是干什么的',
-        badge: 'MOON POCKET MANUAL',
-        body: '<div style="line-height:1.85;font-size:11.5px;color:#ffe1f5;">' +
-          '<div style="padding:8px 10px;background:#100a13;border:1px solid #f472d0;margin-bottom:8px;">' +
-            '<b style="color:#ff8cdb;">★ 一句话：你不用做任何事，正常聊天就好。</b><br>' +
-            '她对你动了多少心、走近到哪一步、现在什么关系、有多吃醋 —— 这四件事掌机都会自己记下来。' +
-          '</div>' +
-          '<div style="margin-bottom:8px;"><b>它怎么知道？靠一个「暗号」</b><br>' +
-            'AI 每轮说完话，末尾会偷偷打一个暗号，长这样：<code>[Sylveina|M|+|3.5]</code>。<br>' +
-            '掌机看见暗号，就摇一次骰子，把这一轮的变化算好记上。暗号玩家看不到，也不会打断剧情。' +
-          '</div>' +
-          '<div><b>屏幕上那四个字母是什么</b><br>' +
-            '· <b style="color:#ffb8eb;">好感 (E)</b>：她有多喜欢你。涨到一定数会触发「关系升级判定」。<br>' +
-            '· <b style="color:#ffb8eb;">亲密 (P)</b>：身体上走到哪一步了。<br>' +
-            '· <b style="color:#ffb8eb;">关系 (R)</b>：从 -5 到 5，负数越冷、正数越亲。<br>' +
-            '· <b style="color:#ffb8eb;">醋意 (I)</b>：她有多吃醋。' +
-          '</div>' +
-        '</div>'
-      },
-      {
-        title: 'PAGE 02 · 液晶屏上四个画面',
-        badge: 'MONO LCD DISPLAY',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<p style="margin:0 0 6px;">点屏幕上方的 <b>[01 总览] ~ [04 占用]</b> 直接跳，也可以点底部 <b>◀ / ▶</b> 翻页：</p>' +
-          '<div style="display:flex;flex-direction:column;gap:5px;">' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[01 总览]</b>：现在几点、什么难度、开关是开还是关、她现在的数值。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[02 角色]</b>：换人看 —— 四项数值、表情、她心里在想什么（内心话）。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[03 事件]</b>：过了几天、第几回合、下一件大事还有多久、眼前这个小事件还剩几回合。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[04 占用]</b>：这段对话占了多少字。数字太大手机会变卡。</div>' +
-          '</div>' +
-        '</div>'
-      },
-      {
-        title: 'PAGE 03 · 你只需要记住这两个按钮',
-        badge: 'GAME MENU GUIDE 1',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<div style="padding:7px 9px;background:#100a13;border:1px solid #f472d0;margin-bottom:6px;">' +
-            '<b style="color:#ff8cdb;">① 第一次玩：▶ 开始游戏 → 🚀 开局适配</b><br>' +
-            '点它，AI 会把聊天记录读一遍，自动帮你建好角色档案。<b>老存档（已经聊了几十楼）也能用。</b><br>' +
-            '<span style="color:#fde047;">建好之后就不用再点它了。</span>' +
-          '</div>' +
-          '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;margin-bottom:6px;">' +
-            '<b style="color:#ffb8eb;">② 觉得不对：♥ 角色与存档 → 👥 角色定位</b><br>' +
-            'AI 把别人当成主角了？在这里改成「主要」。<br>' +
-            '名字不对、时间卡住、内心话不更新 —— 同一页都能手改，改完点保存立刻生效。' +
-          '</div>' +
-          '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;">' +
-            '<b style="color:#ffb8eb;">加分不满意：🎲 属性点重掷</b><br>' +
-            '这一轮算少了？点它重摇，可以一直摇到满意，再点「确认覆盖」。' +
-          '</div>' +
-        '</div>'
-      },
-      {
-        title: 'PAGE 04 · 剩下三个菜单（都可以不点）',
-        badge: 'GAME MENU GUIDE 2',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<div style="display:flex;flex-direction:column;gap:6px;">' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▤ 冒险日志</b>：这个世界未来会发生什么。<b>不设置也能正常玩</b>，想让 AI 有主线目标才需要。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">⚙ 系统检修</b>：觉得卡了、数字乱跳才点。先点 <b>🔭 系统自检</b>，它会告诉你是哪里坏了。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▧ 系统选项</b>：填 AI 钥匙、换画风、看说明书。</div>' +
-            '<div style="padding:7px 9px;background:#241025;border:1px solid #f472d0;"><b style="color:#ff8cdb;">🔑 AI 钥匙（API）填不填？</b><br>' +
-              '不填也能玩，用的是你酒馆里那个 AI。<br>只有想让插件单独用一个 AI（比如更便宜的模型），才需要填。<br>' +
-              '<b>忘了提前填也没关系：用到时会自动弹窗让你填，填完继续，不用重来。</b>' +
-            '</div>' +
-          '</div>' +
-        '</div>'
-      }
-    ];
-
-    let curStep = 0;
-    try {
-      const s = getSettings();
-      if (!s.introSeen) { s.introSeen = true; saveSettings(s); }
-    } catch (e) {}
-
-    const html = '<div id="moon-tut-pills" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;"></div>' +
-      '<div id="moon-tut-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:5px;border-bottom:1px dashed #74355f;"></div>' +
-      '<div id="moon-tut-body" style="min-height:220px;"></div>' +
-      '<div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px dashed #74355f;">' +
-        '<button type="button" id="moon-tut-prev" style="padding:8px 10px;font-size:11px;cursor:pointer;">◀ PREV</button>' +
-        '<button type="button" id="moon-tut-api" style="padding:8px 10px;font-size:11px;cursor:pointer;">🔑 配置API</button>' +
-        '<button type="button" id="moon-tut-next" style="flex:1;padding:8px 10px;font-size:11px;font-weight:600;cursor:pointer;">NEXT ▶</button>' +
+  /* 难度四档。四处都会用到（面板、街机、设置组），所以抽成一个函数，
+     文案统一成「名字 · 状态 + 每周最多加多少」，不再混用「满月/新月」这种只有老玩家懂的叫法。 */
+  function renderDifficultyPicker(selectedLevel, isArcadeMode) {
+    return '<div class="mp-mode-grid" role="group" aria-label="' + (isArcadeMode ? '街机难度' : '游戏难度') + '">' +
+      ['easy', 'normal', 'hard', 'hell'].map(function(m) {
+        const item = LUNAR_META[m];
+        const isAct = m === selectedLevel;
+        return '<button type="button" class="mp-mode-btn' + (isAct ? ' active' : '') + '" data-mode="' + m + '" aria-pressed="' + isAct + '">' +
+          '<div class="mp-mode-moon">' + item.glyph + '</div>' +
+          '<div>' + item.name + '</div>' +
+          '<div>' + (isArcadeMode ? '难度 ' + item.name : '每周最多 +' + String(Math.round(item.quota * 10) / 10)) + '</div></button>';
+      }).join('') + '</div>' +
+      '<div class="mp-mode-description">' + (isArcadeMode
+        ? '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + '</b>　' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。只影响小游戏，不改剧情难度。'
+        : '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '</b>　' + LUNAR_META[selectedLevel].detail) +
       '</div>';
-
-    showModalDialog('📖 MOON POCKET · 掌机说明书（新手引导）', html, null, {
-      confirmText: '合上说明书',
-      onOpen: function(mask) {
-        const pillsEl = mask.querySelector('#moon-tut-pills');
-        const headEl = mask.querySelector('#moon-tut-head');
-        const bodyEl = mask.querySelector('#moon-tut-body');
-        const prevBtn = mask.querySelector('#moon-tut-prev');
-        const nextBtn = mask.querySelector('#moon-tut-next');
-        const apiBtn = mask.querySelector('#moon-tut-api');
-
-        function renderStep(idx) {
-          curStep = Math.max(0, Math.min(steps.length - 1, idx));
-          const st = steps[curStep];
-          pillsEl.innerHTML = steps.map(function(item, i) {
-            const on = i === curStep;
-            return '<button type="button" class="moon-tut-step-btn" data-idx="' + i + '" style="padding:5px 2px;border:1px solid ' + (on ? '#f472d0' : '#643052') + ';background:' + (on ? '#37102f' : '#140b16') + ';color:' + (on ? '#ffe1f5' : '#bc8eaf') + ';font:600 10px monospace;cursor:pointer;">P0' + (i + 1) + '</button>';
-          }).join('');
-          pillsEl.querySelectorAll('.moon-tut-step-btn').forEach(function(b) {
-            b.addEventListener('click', function() { renderStep(Number(b.getAttribute('data-idx')) || 0); });
-          });
-          headEl.innerHTML = '<b style="font-size:12px;color:#ffb8eb;">' + st.title + '</b><span style="font-size:9px;padding:1px 6px;border:1px solid #87416e;background:#2a1126;color:#ffc4e9;">' + st.badge + '</span>';
-          bodyEl.innerHTML = st.body;
-          prevBtn.disabled = curStep === 0;
-          prevBtn.style.opacity = curStep === 0 ? '0.45' : '1';
-          nextBtn.textContent = curStep === steps.length - 1 ? '🚀 立即开局适配' : 'NEXT (' + (curStep + 1) + '/' + steps.length + ') ▶';
-        }
-
-        prevBtn.addEventListener('click', function() { if (curStep > 0) renderStep(curStep - 1); });
-        nextBtn.addEventListener('click', function() {
-          if (curStep < steps.length - 1) {
-            renderStep(curStep + 1);
-          } else {
-            try { mask.remove(); } catch (e) {}
-            setTimeout(function() { openUnifiedAdaptDialog(panel); }, 180);
-          }
-        });
-        apiBtn.addEventListener('click', function() {
-          try { mask.remove(); } catch (e) {}
-          setTimeout(function() { openCustomAIConfigDialog(panel); }, 180);
-        });
-        renderStep(0);
-      }
-    });
   }
 
   function renderPanel(panel) {
@@ -14919,17 +15860,44 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const _panelStat = (readMvuLatest() || {}).stat_data || {};
     const _panelChars = _panelStat.角色 || {};
     const hasRoster = Object.keys(_panelChars).some(function(n) { return !isCharSkeleton(_panelChars[n]); });
-    const firstRunTip = hasRoster ? '' :
-      '<div class="mp-card" style="border-color:rgba(244,114,208,0.45);background:rgba(244,114,208,0.07);">' +
-      '<div style="font-size:12px;font-weight:600;color:#ff8cdb;margin-bottom:6px;">🎮 第一次玩？照着做两步就好</div>' +
-      '<div style="font-size:11px;color:#e2e8f0;line-height:1.85;">' +
-      '<b>第 1 步</b>　点下面的按钮 → AI 把聊天记录读一遍，自动建好角色档案。<br>' +
-      '<b>第 2 步</b>　建好就关掉面板，正常聊天。她会自己涨好感。</div>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-quick-start" style="width:100%;margin-top:9px;">🚀 帮我建角色档案（一键直达）</button>' +
-      '</div>';
+    /* 引导条：每次打开面板只说一件「现在该做什么」。
+       以前这里是一张「第一次玩？照着做两步」的卡 + 上面六张菜单卡 + 一块 LCD，
+       信息全在，但没人告诉新手从哪下手；现在按存档状态算一句话。 */
+    const rosterNames = Object.keys(_panelChars).filter(function(n) { return !isCharSkeleton(_panelChars[n]); });
+    const guide = !hasRoster
+      ? {
+          ok: false,
+          eyebrow: '下一步 · 只做这一件事',
+          title: '先建一份人物档案',
+          desc: '点右边的按钮，AI 会把聊天记录读一遍，把人物和现在的数值填好。建完就不用再点它了。',
+          cta: '帮我建档案',
+          act: 'adapt',
+          link: '先看 30 秒怎么玩'
+        }
+      : {
+          ok: true,
+          eyebrow: '已经可以玩了',
+          title: '回到酒馆正常聊天就行',
+          desc: '她涨多少由这台小机器算，AI 看不到数字，也不会自己编。想全屏看剧情就点右边。',
+          cta: '全屏看剧情',
+          act: 'gal',
+          link: '看 30 秒怎么玩'
+        };
+    const guideHtml = '<div class="mp-guide' + (guide.ok ? ' is-ok' : '') + '" id="moon-guide">' +
+      '<div class="mp-guide-main">' +
+        '<span class="mp-guide-eyebrow">' + guide.eyebrow + '</span>' +
+        '<div class="mp-guide-title">' + guide.title + '</div>' +
+        '<div class="mp-guide-desc">' + guide.desc + '</div>' +
+        '<button type="button" class="mp-guide-link" data-guide-act="tour">' + guide.link + '</button>' +
+      '</div>' +
+      '<div class="mp-guide-actions">' +
+        '<button type="button" class="mp-guide-cta" data-guide-act="' + guide.act + '">' + guide.cta + '</button>' +
+      '</div>' +
+    '</div>';
 
-    /* 重绘会重建整棵 DOM，<details> 的展开状态和滚动位置都会丢，
-       玩家看到的就是「改一下单人卡/多人卡，运行设定自己就收起来了」。先快照、后还原。 */
+    /* 重绘会重建整棵 DOM，折叠块的展开状态和滚动位置都会丢，
+       玩家看到的就是「改一下单人卡/多人卡，运行设定自己就收起来了」。先快照、后还原。
+       两套折叠都要记：老的 <details>（兼容）和新的 .mp-fold。 */
     const _foldSnap = {};
     let _scrollSnap = 0;
     try {
@@ -14938,154 +15906,186 @@ var worldData = (rawVars && rawVars['世界']) || {};
         const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
         if (t) _foldSnap[t] = d.open === true;
       });
+      panel.querySelectorAll('.mp-fold[data-fold]').forEach(function(d) {
+        _foldSnap['fold:' + d.getAttribute('data-fold')] = d.getAttribute('data-open') === '1';
+      });
       _scrollSnap = Number(panel.scrollTop) || 0;
     } catch (e) {}
 
+    /* 设置卡放到主菜单之后：先给「现在做什么」，再给「怎么调」 */
+    const settingsCardHtml = '<div class="mp-card">' +
+      pocketFold('play', '⚙ 玩法与手感', '难度、卡组、建档、骰子、事件节奏',
+        '<div class="mp-set-block"><div class="mp-set-title">🎮 游戏难度</div>' +
+        '<div class="mp-set-desc">' + currentMeta.detail + '</div>' +
+        renderDifficultyPicker(selectedLevel, false) + '</div>' +
+        pocketRow('🃏 这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在她头上',
+          '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
+        pocketRow('🧾 自动建档', autoBoot ? '她第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
+          '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
+        pocketRow('🎲 初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断她吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+          '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
+        pocketRow('🎬 小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
+          '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
+        pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里她说过的话，更像本人' : '只按角色卡演，不引用原作',
+          '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
+        false) +
+      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、AI 的草稿要不要藏起来',
+        '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
+        '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
+        renderSkinPickerHtml() + '</div>' +
+        pocketRow('🙈 藏起 AI 的草稿', s.hideAiCot !== false ? 'AI 写给自己的分析段不显示，你只看正文和状态卡' : 'AI 写出来的全部原样显示',
+          '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? '开' : '关') + '</button>'),
+        false) +
+      pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得她说话不像，才需要动',
+        pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
+          '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? '已配置' : '去配置') + '</button>') +
+        '<div class="mp-set-block"><div class="mp-set-title">📜 演绎规则</div>' +
+        '<div class="mp-set-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div>' +
+        renderCoreRulePickerHtml() + '</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">🏷 词条释义</div>' +
+        '<div class="mp-set-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div>' +
+        renderGlossaryPickerHtml() + '</div>',
+        false) +
+      pocketFold('risk', '🌑 开了就回不了头', '这两个开关会影响整局，看清楚再用',
+        pocketRow('🔒 安全锁', getSafetyLock() ? '开：她最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
+          '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '开' : '关') + '</button>') +
+        pocketRow('🌑 锁死这段剧情', (antisl || anchorLocked) ? '已经开了：她一旦心凉就锁死，只能开新对话重来' : '关着。打开后她心凉就回不了头，删楼重摇都没用',
+          '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '已锁死' : (antisl ? '开' : '关')) + '</button>'),
+        false) +
+      '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
+      '<span class="mp-fate-dot" style="background:' + (fateActive ? '#ff8ab2' : '#7fd8a8') + ';"></span>' +
+      '<span>' + (fateActive ? '🌑 已经锁死了，只能开新对话' : '🌓 还没锁，随时能反悔') + '</span></div></div>';
+
     panel.innerHTML = '' +
-      '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
+      /* 头部：品牌名固定一行（长卡名收成副标题），版本号独立成块，不再把标题挤成三行 */
+      '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击这里检查更新">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
-      '<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
-      '<span class="mp-badge" style="cursor:pointer;' +
-        (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
-        '">v' + MOON_FORMULA_VERSION +
-        (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
-      '</span>' +
-      '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
-      '<div class="mp-display-mode-switch" role="tablist" aria-label="选择显示模式">' +
+      '<span class="mp-brand"><span class="mp-title">月相系统</span>' +
+      '<span class="mp-brand-sub">' + SYSTEM_UI_NAME + '</span></span></button>' +
+      '<span class="mp-badge" style="cursor:pointer;' + (_cachedUpdateInfo ? 'border-color:rgba(244,114,208,.6);color:#ffb3e8;' : '') + '">v' + MOON_FORMULA_VERSION + (_cachedUpdateInfo ? ' · 有新版' : '') + '</span>' +
+      '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
+      guideHtml +
+      '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
       '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机模式</button></div>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机小游戏</button></div>' +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
-      '<div class="mp-console-cluster" role="region" aria-label="掌机实体按键群">' +
-        '<!-- 十字方向键 D-Pad -->' +
-        '<div class="mp-dpad" aria-label="十字方向键">' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-up" aria-label="上" title="向上">▲</button>' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-left" data-lcd-page-step="-1" aria-label="上一页" title="向左 / 切换屏幕上一页">◀</button>' +
+      (isArcadeMode
+        ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
+        : '') +
+      '<div class="mp-system-content">' +
+      (bioStatus.count > 0 ? '<div class="mp-card"><div class="mp-card-title">📖 已有 ' + bioStatus.count + ' 份角色小抄生效<small>BIO</small></div><div class="mp-set-desc">' + bioStatus.charNames.join('、') + '</div></div>' : '') +
+      (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">👤 玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
+      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
+      '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
+      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span>💡 不知道点哪，回最上面看那条粉色提示</span></div>' +
+      '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
+        '<div class="mp-dpad" aria-hidden="true">' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-up" tabindex="-1" aria-label="上">▲</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-left" data-lcd-page-step="-1" aria-label="屏幕上一页">◀</button>' +
           '<div class="mp-dpad-center"></div>' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-right" data-lcd-page-step="1" aria-label="下一页" title="向右 / 切换屏幕下一页">▶</button>' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-down" aria-label="下" title="向下">▼</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-right" data-lcd-page-step="1" aria-label="屏幕下一页">▶</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-down" tabindex="-1" aria-label="下">▼</button>' +
         '</div>' +
-        '<!-- 中间倾斜 SELECT & START 胶键 -->' +
         '<div class="mp-pill-keys">' +
           '<div class="mp-pill-row">' +
-            '<button type="button" class="mp-select-key" id="moon-phase-tutorial" title="打开掌机说明书">SELECT</button>' +
-            '<button type="button" class="mp-start-key' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口 (API)">START</button>' +
+            '<button type="button" class="mp-select-key" id="moon-phase-tutorial" title="打开新手引导">说明书</button>' +
+            '<button type="button" class="mp-start-key' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口">AI 钥匙</button>' +
           '</div>' +
-          '<div class="mp-pill-labels">' +
-            '<span>📖 说明书</span>' +
-            '<span>🔑 ' + (hasApi ? 'API已连' : '配置API') + '</span>' +
-          '</div>' +
+          '<div class="mp-pill-labels"><span>看怎么玩</span><span>' + (hasApi ? '已连' : '没填也能玩') + '</span></div>' +
         '</div>' +
-        '<!-- 右侧倾斜 A/B 按键与扬声器 -->' +
         '<div class="mp-action-block">' +
           '<div class="mp-action-cluster">' +
-            '<button type="button" class="mp-round-btn mp-btn-b" id="moon-btn-b" title="B键 · 返回/关闭菜单">B</button>' +
-            '<button type="button" class="mp-round-btn mp-btn-a" id="moon-btn-a" title="A键 · 确认/快速开始">A</button>' +
+            '<button type="button" class="mp-round-btn mp-btn-b" id="moon-btn-b" title="返回上一步">B</button>' +
+            '<button type="button" class="mp-round-btn mp-btn-a" id="moon-btn-a" title="确认 / 开始">A</button>' +
           '</div>' +
-          '<div class="mp-speaker-grill" aria-label="扬声器孔">' +
-            '<i></i><i></i><i></i><i></i><i></i>' +
-          '</div>' +
+          '<div class="mp-speaker-grill" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>' +
         '</div>' +
       '</div>' +
-      '<div class="mp-card mp-mode-select-card' + (isArcadeMode ? ' is-arcade' : '') + '"><details class="mp-difficulty-fold" open><summary>' + (isArcadeMode ? '街机难度' : '游戏难度') + '<i>▼</i></summary><div class="mp-difficulty-content">' +
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
-      ['easy', 'normal', 'hard', 'hell'].map(function(m) {
-        const item = LUNAR_META[m]; const isAct = (m === selectedLevel);
-        return '<button class="mp-mode-btn ' + (isAct ? 'active' : '') + '" data-mode="' + m + '" style="padding:8px 2px;border-radius:9px;border:1px solid ' + (isAct ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.15)') + ';background:' + (isAct ? '#0c2540' : '#0f172a') + ';color:' + (isAct ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' +
-          '<div class="mp-mode-moon">' + item.glyph + '</div><div>' + item.name + ' · ' + item.title + '</div>' +
-          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? '街机档位' : '每周最多 +' + item.quota) + '</div></button>';
-      }).join('') + '</div>' +
-      '<div class="mp-mode-description" style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
-      (isArcadeMode
-        ? '<b style="color:#e2e8f0;">' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '（街机档位）</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。<br>这个只影响街机小游戏，不改剧情难度。点一下立刻重开一局。'
-        : '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail) + '</div></div></details></div>' +
-      firstRunTip + '<div class="mp-system-content">' +
-      '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 运行设定 <span>▼</span></summary><div class="mp-toggle-row">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">她翻脸/心凉就锁剧情，只能开新对话解</div></div>' +
-      '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '🔒 已锁定' : (antisl ? '锚定: ON' : '锚定: OFF')) + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔑 独立 API 接口</div><div class="mp-toggle-desc">' + (hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '没填也能玩，用到时会自动弹窗') + '</div></div>' +
-      '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? 'API: 已配置' : '配置 API') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '这张卡有好几个能攻略的人' : '这张卡只有一个人') + '</div></div>' +
-      '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话就建 0 值档案；之后每一轮有新角色出场也会自动补录' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎲 初见投资</div><div class="mp-toggle-desc">' + (firstMeetMode() === 'dice' ? '只掷骰：开局第一印象全看 1d20，AI 写什么档位都不采信' : '骰子 + 人设档位：AI 只评优势/劣势，数值由脚本掷（推荐）') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
-      renderCoreRulePickerHtml() + '</div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🏷 词条释义</div><div class="mp-toggle-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div></div>' +
-      renderGlossaryPickerHtml() + '</div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎫 楼内状态卡</div><div class="mp-toggle-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div></div>' +
-      renderSkinPickerHtml() + '</div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🙈 隐藏内心草稿</div><div class="mp-toggle-desc">' + (s.hideAiCot !== false ? '开：AI 写的 Phase／分析段只给脚本看，你只看到正文和状态卡' : '关：AI 写出来的全部内容原样显示') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? 'ON' : 'OFF') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔒 安全锁</div><div class="mp-toggle-desc">' + (getSafetyLock() ? '开：她最多嘴上凶' : '关：可能真的动手') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎬 事件推进节奏</div><div class="mp-toggle-desc">' + (pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏') + '</div></div>' +
-      '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? 'Adagio 慢' : pacing === 'All' ? 'Allegro 快' : 'Andante 中') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌐 同人台词补强</div><div class="mp-toggle-desc">' + (fanficOn ? '借原作台词，说得更像本人' : '不借原作台词') + '</div></div>' +
-      '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '🌐 ON' : 'OFF') + '</button></div>' +
-      '</details><div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
-      '<span style="width:7px;height:7px;border-radius:50%;background:' + (fateActive ? '#f43f5e' : '#34d399') + ';"></span>' +
-      '<span>' + (fateActive ? '🌑 锚定生效中' : '🌓 月相流转中 · 命运未定') + '</span></div></div>' +
-      (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:600;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
-      (enabledUserBio ? '<div class="mp-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.06);"><div style="font-size:11px;color:#f9a8d4;font-weight:600;">👤 已启用玩家小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">玩家：' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + ' · 覆盖 Persona 面板</div></div>' : '') +
-      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '"><div class="mp-menu-label">MOON POCKET · 主菜单（点哪进哪）</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩点这里：建角色档案 · 重摇骰子 · 搬存档</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>认错主角就在这改 · 让 AI 演得像本人 · 结局相册</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>这个世界哪天会出事（不点也能玩）</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>卡住了、数不对劲 → 来这体检一次</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>填 AI 钥匙 · 换画风 · 看说明书</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏对话框读剧情 · 点选项推进 · 再点一次回聊天</small></span><i>›</i></button>' +
-      '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>💡 不会玩？先点「开始游戏」</span></div></section>' +
+      '</section>' +
+      /* 掌机按键条：保留实体手感，但压成一行、放到内容之后 —— 它本来就是装饰性的，
+         以前挡在菜单前面，手机上要先滑过半屏才看到能点的东西。 */
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
-      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回主菜单</button><div><small>GAME MENU / 掌机功能卡槽</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
-      '<div class="mp-subpage-switch" role="tablist" aria-label="快捷切换掌机菜单">' +
+      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">♥ 角色</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">▤ 日志</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">⚙ 检修</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">▧ 选项</button>' +
       '</div>' +
-      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险准备 / ADVENTURE SETUP</div>' +
-      '<details class="mp-action-fold" open><summary><span>建角色与搬存档</span><small>第一次建档 · 换聊天接着玩</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 开局适配</span><small>第一次玩必点：AI 读完聊天记录，自动建好角色档案</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 存档迁移</span><small>换到新聊天还想接着玩：把档案打包带走</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>摇骰与倒计时</span><small>加分不满意就重摇 · 查周上限</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 属性点重掷</span><small>这轮加分不满意？重摇，可以摇到满意为止</small></button><button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 回合计时</span><small>每周好感上限该清零了吗？点一下检查</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色档案 / CHARACTER FILES</div>' +
-      '<details class="mp-action-fold" open><summary><span>角色档案与试戏</span><small>改主角 · 试戏 · 防说话走样</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 角色定位</span><small>AI 认错人？在这里把她改成「主要」</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 角色试镜</span><small>让 AI 先演一段，看像不像本人</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 角色小抄库</span><small>管理所有人设小抄，可改可开关</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>玩家档案</span><small>让 AI 记住「你」是谁</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 玩家档案</span><small>把酒馆里的「你」写成一份小传</small></button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 玩家资料库</span><small>挑一份小传让它生效</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>相册与通关</span><small>看解锁的插画 · 结算这一局</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的成就和插画，可下载保存</small></button><button class="mp-btn" id="moon-phase-ending"><span>🌌 周目结算</span><small>这一局结束：生成结局卡和番外小说</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
-      '<details class="mp-action-fold" open><summary><span>时间线</span><small>大事表就存在脚本里，不用建世界书</small><i>＋</i></summary><div class="mp-grid">' +
-        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 时间线清单</span><small>看看接下来会发生什么，能改能删</small></button>' +
-        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>让 AI 编一份大事表，直接存进来</small></button>' +
-        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书导入</span><small>已经有现成的？搬进来就行</small></button>' +
-      '</div></details>' +
-      '<details class="mp-action-fold" open><summary><span>改日期</span><small>指定读哪一栏 · 自己粘贴</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 时间线标签</span><small>告诉它「日期写在哪一栏」</small></button><button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动补录</span><small>自己贴一段，自动转成标准格式</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修 / SYSTEM SERVICE</div>' +
-      '<details class="mp-action-fold" open><summary><span>体检</span><small>存上了吗 · 有没有缺零件</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>看数据存在哪、有没有缺零件</small></button><button class="mp-btn" id="moon-phase-simtest"><span>🧪 模拟测试</span><small>拿假数据试算一遍，不动你的存档</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>查冲突</span><small>别的插件跟我打架了吗</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书有没有重复、互相打架的条目</small></button><button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 AI 功能检测</span><small>让 AI 帮你查冲突，或推荐一个难度</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项 / OPTIONS</div>' +
-      '<details class="mp-action-fold" open><summary><span>AI 与接口</span><small>可选：让插件用自己的 AI</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ 配置API</span><small>' + (hasApi ? '已设:' + lcdEscape(String(apiCfg.model).slice(0, 10)) : '没填也能玩，用到时会自动弹窗') + '</small></button><button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 提示词设置</span><small>想改 AI 收到的指令，在这里改</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>插画与番外</span><small>用哪家出图 · 番外写多长</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>选画图的渠道，定番外的字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>不会用就看这个，一页讲一件事</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>更新与帮助</span><small>拉最新版 · 常见问题</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>连不通会自动换镜像</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>一个问题一句话，先搜这里</small></button></div></details></div></section>' +
-      '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
+      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
+      pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 一键建档案</span><small>AI 读一遍聊天记录，把人和现在的数值填好</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 搬旧存档</span><small>换到新聊天时，把这里的档案带过去</small></button></div>', true) +
+      pocketFold('adv-roll', '重摇 / 查上限', '觉得这轮加少了，或者想知道上限清没清',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 重摇这一轮</span><small>不满意就重摇，摇到满意再确认，可以一直摇</small></button>' +
+        '<button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 检查每周上限</span><small>算一下这周的加分额度该清零了没</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色与存档</div>' +
+      pocketFold('chr-files', '人物档案', '认错人、说话不像、想手改数值',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 让她试演一段</span><small>先看她说话像不像本人，不像就重写</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
+      pocketFold('chr-you', '关于「你」', '让 AI 记住你是谁、什么脾气',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 写一份我的设定</span><small>把你写清楚，她回话才不会跑偏</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
+      pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ending"><span>🌌 结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志（可选）</div>' +
+      pocketFold('tl-list', '世界大事表', '不写也能正常玩；写了 AI 会有主线目标',
+        '<div class="mp-grid">' +
+        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
+        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
+      '</div>', true) +
+      pocketFold('tl-edit', '自己补 / 改日期', 'AI 写漏了，或者日期读错了',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
+        '<button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修</div>' +
+      pocketFold('sys-check', '先体检', '不知道哪坏了，就点这两个',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>一条条列给你：哪项正常、哪项不正常</small></button>' +
+        '<button class="mp-btn" id="moon-phase-simtest"><span>🧪 拿假数据试算</span><small>不碰你的存档，只验证算法跑不跑得通</small></button></div>', true) +
+      pocketFold('sys-conflict', '查打架', '怀疑和别的插件/世界书撞了',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书里有没有重复、互相打架的条目</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 让 AI 帮我看</span><small>它读完给出结论，也能顺手推荐个难度</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项</div>' +
+      pocketFold('opt-ai', 'AI 与接口', '可选：让插件单独用一个 AI',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ AI 钥匙</span><small>' + (hasApi ? '已填：' + lcdEscape(String(apiCfg.model).slice(0, 12)) : '不用填，不填就用酒馆里那个 AI') + '</small></button>' +
+        '<button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 改提示词</span><small>AI 收到的指令在这里，看得懂再改</small></button></div>', true) +
+      pocketFold('opt-art', '插画与番外', '用哪家画图、番外写多长',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 画图与番外设定</span><small>选画图渠道，定番外字数</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 新手说明书</span><small>一步一步讲，30 秒看完</small></button></div>', true) +
+      pocketFold('opt-update', '更新与帮助', '拉最新版、遇到问题先搜这里',
+        '<div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 有新版本' : '🔄 检查更新') + '</span><small>连不上会自动换线路重试</small></button>' +
+        '<button class="mp-btn" id="moon-phase-faq"><span>❓ 遇到问题</span><small>按情况分好类，一句话一个答案</small></button></div>', true) +
+      '</div></section>' +
+      settingsCardHtml +
+      '<div class="mp-status" id="moon-phase-status">准备好了。要做的事都写在最上面那条提示里。</div></div>';
 
-    /* 还原折叠状态：按标题文字匹配，和重绘前那一份对齐 */
+    /* 还原折叠状态：按标题文字 / data-fold 匹配，和重绘前那一份对齐 */
     try {
       panel.querySelectorAll('details').forEach(function(d) {
         const summaryEl = d.querySelector('summary');
         const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
         if (t && Object.prototype.hasOwnProperty.call(_foldSnap, t)) d.open = _foldSnap[t];
+      });
+      panel.querySelectorAll('.mp-fold[data-fold]').forEach(function(d) {
+        const key = 'fold:' + d.getAttribute('data-fold');
+        if (!Object.prototype.hasOwnProperty.call(_foldSnap, key)) return;
+        const open = _foldSnap[key] === true;
+        d.setAttribute('data-open', open ? '1' : '0');
+        const head = d.querySelector('.mp-fold-head');
+        if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
       });
       if (_scrollSnap) panel.scrollTop = _scrollSnap;
     } catch (e) {}
@@ -15104,6 +16104,21 @@ var worldData = (rawVars && rawVars['世界']) || {};
       if (eventView) eventView.innerHTML = renderEventStatusCard();
     }, 2500);
     bindLcdPageControls(panel);
+    try { bindPocketFolds(panel); } catch (e) {}
+    /* 引导条：按钮动作和它写的那句话必须对得上，所以动作也集中在一处判断 */
+    panel.querySelectorAll('[data-guide-act]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const act = btn.getAttribute('data-guide-act');
+        if (act === 'adapt') { openUnifiedAdaptDialog(panel); return; }
+        if (act === 'gal') {
+          let ok = false;
+          try { ok = galFlip() !== false; } catch (e) { ok = false; }
+          if (ok !== false) { try { closePanel(); } catch (e) {} }
+          return;
+        }
+        if (act === 'tour') { openTutorialDialog(panel); }
+      });
+    });
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
     panel.querySelector('#moon-phase-tutorial').addEventListener('click', function() { openTutorialDialog(panel); });
     const tutBtn2 = panel.querySelector('#moon-phase-tutorial-btn');
@@ -15939,50 +16954,332 @@ const stateKey = getChatStateKey();
     try { const d = readMvuLatest(); const ch = d && d.stat_data && d.stat_data.角色 && d.stat_data.角色[name]; return ch && ch._lastRoll ? ch._lastRoll._turnSig : ''; } catch (e) { return ''; }
   }
 
-  function openFaqDialog() {
-    const FAQ_LIST = [
-      { q: '第一次玩，我该点哪里？', keys: ['第一次', '新手', '开始', '入门'], a: '只做一件事：<b>▶ 开始游戏 → 🚀 开局适配</b>，点一下等它跑完。<br>它会读完聊天记录，自动帮你建好角色档案。<br>建好之后就不用管了，正常聊天，好感会自己涨。' },
-      { q: '我不想装也能玩吗？要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置'], a: '不用装任何别的东西。所有数据都存在这台掌机里，<b>不需要 MVU</b>。' },
-      { q: '导入脚本后没反应 / 找不到入口', keys: ['刷新', '导入', '菜单', '入口'], a: '先确认脚本是「已启用」状态，然后刷新一次酒馆页面。<br>入口在右上角的扩展菜单里，图标是 🌕。' },
-      { q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'], a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天（游戏日 +1）。<br>如果剧情要跳到几小时后或第二天，<b>你得自己说一声</b>（「我们明天见」「睡了」），或者正文写了「次日 / 一周后」。<br>没说就默认只过 10 分钟，不会乱跳。' },
-      { q: '时间 / 内心话不动了怎么办', keys: ['时间', '心声', '内心话', '不推进', '卡住'], a: '多半是这轮 AI 没写时间。<br>想马上修：<b>♥ 角色与存档 → 👥 角色定位</b>，直接手写时间、地点和内心话，保存立刻生效。' },
-      { q: 'AI 把别人当成主角了 / 认成「次要」', keys: ['次要', '重要度', '角色定位', '攻略对象', '认错'], a: '<b>♥ 角色与存档 → 👥 角色定位</b>，把她改成「主要」。<br>改完 AI 下一轮就会围着她写，<b>不用重开档</b>。' },
-      { q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '反悔'], a: '一个「回不了头」的开关。<br>打开后，<b>只要她好感跌破 0，或者跟你冷战</b>，这段剧情就锁死了：<br>删楼、滑动、重摇、把好感刷回来 —— 都解不开。<br><b>唯一的解法是开一个新对话。</b><br>不打开就完全不影响你。' },
-      { q: '加分太少了，能重来吗？', keys: ['重roll', '重投', '重摇', '加分'], a: '可以。<b>▶ 开始游戏 → 🎲 属性点重掷</b>，摇到满意再点「确认覆盖」。<br>它会告诉你这次是按什么算的（AI 判定 / 本楼暗号 / 你手填）。' },
-      { q: '重摇显示「无记录」怎么办？', keys: ['无记录', '重roll', '判断'], a: '意思是这一轮 AI 没给这个角色打暗号。<br>现在会自动退回一步：先试「本楼暗号」，还不行就让你<b>手动选方向、数值</b>，照样能摇。' },
-      { q: '「关系升级判定」（阶段门）是什么？', keys: ['阶段门', '破门', '冻结', '升级'], a: '好感涨到 <b>18 / 38 / 58 / 78 / 98</b> 这五个点时，会停下来做一次「能不能更进一步」的判定。<br>过了就升级，没过就卡在这个阶段，需要更好的时机。' },
-      { q: '事件多久来一次？', keys: ['事件', '节奏', '频率'], a: '大约每 <b>8~12 回合</b>来一个日常小事件，重大事件有几天冷却。<br>嫌多嫌少，去 <b>⚙ 运行设定 → 事件推进节奏</b> 调慢 / 中 / 快。' },
-      { q: '「彩蛋事件」是什么？', keys: ['彩蛋', '大成功'], a: '摇到 20 点才会出现的稀有事件，持续 5 回合，风格一定是轻松搞笑的日常。' },
-      { q: '角色试镜是干什么的？', keys: ['试镜', '小抄', '像不像'], a: '让 AI 先读角色卡，写一份「她该怎么说话」的小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。<br>存下来之后，AI 演她会明显更像本人（不会说出不像她会说的话）。' },
-      { q: '小抄（角色小抄库 / 玩家档案）怎么管？', keys: ['小抄库', '管理', '玩家', 'persona'], a: '一个角色只能启用一份小抄，启用新的会自动关掉旧的。<br>玩家档案也一样，只是它管的是「你」。<br>随时可以在库里改、关、删。' },
-      { q: '自检报告在哪看？', keys: ['自检', '报告', '报错'], a: '<b>⚙ 系统检修 → 🔭 系统自检</b>，跑完会弹窗告诉你哪一项不正常。<br>要发帖求助，先跑自检 + 模拟测试，把结果截图一起发。' },
-      { q: '时间线要不要写？', keys: ['时间线', 'timeline', '主线'], a: '不写也能玩。<br>写了的话，AI 会照着上面的日期安排主线大事，世界更有目标感。<br>写法：一个事件一条，或者一条里用「时间：xxx / 内容：yyy」分段。' },
-      { q: 'AI 回复末尾那个 [Sylveina|...] 是什么？', keys: ['标签', 'sylveina', '暗号'], a: '那是给掌机看的「暗号」，你不用管。<br>AI 只打暗号，具体加多少分由掌机摇骰子算，AI 改不了数。' }
-    ];
+  /* ── 自助答疑 ───────────────────────────────────────────────
+     原则：先让人对上「我遇到的是哪种情况」，再给一句人话答案 +
+     具体点哪里。不写术语，不写「请检查配置」。 */
+  const FAQ_CATS = [
+    { id: 'start', name: '第一次玩' },
+    { id: 'number', name: '数字不对' },
+    { id: 'story', name: '剧情和时间' },
+    { id: 'error', name: '出错了' },
+    { id: 'tune', name: '想调设置' }
+  ];
+  const FAQ_LIST = [
+    /* 第一次玩 */
+    { cat: 'start', q: '第一次玩，第一步点哪里？', keys: ['第一次', '新手', '开始', '入门', '上手'],
+      a: '看最上面那条粉色提示，它会告诉你现在该做什么。<br>还没有人物档案时，点右边的 <b>帮我建档案</b>，等它跑完就行。<br>只建一次，之后正常聊天，数字会自己涨。' },
+    { cat: 'start', q: '建完档案还要做什么？', keys: ['建档', '之后', '接下来', '干嘛'],
+      a: '什么都不用做，回酒馆正常聊天。<br>她加分减分都由这台掌机算，AI 只能打暗号，改不了数。' },
+    { cat: 'start', q: '要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置', '插件'],
+      a: '不用装任何东西，也<b>不需要 MVU</b>。<br>所有数据都存在这台掌机里，跟别的插件不冲突。' },
+    { cat: 'start', q: '找不到入口 / 点了没反应', keys: ['刷新', '导入', '菜单', '入口', '没反应'],
+      a: '先确认脚本是<b>已启用</b>状态，再刷新一次酒馆页面。<br>入口在右上角扩展菜单里，图标是 <b>🌕</b>。' },
+    { cat: 'start', q: '这台掌机上一堆按钮，都是干什么的？', keys: ['看不懂', '说明', '按钮', '说明书', '教程'],
+      a: '点最下面那排的 <b>说明书</b>，它会一步一步指着告诉你哪个是哪个，30 秒看完。<br>看完就关了，不会再打扰你。' },
 
-    const html = '<div style="padding:10px 12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:9px;color:#fca5a5;font-size:11.5px;line-height:1.7;margin-bottom:12px;">' +
-      '<b>🛑 遇到问题先做两步：</b><br>① 先看下面有没有你的问题　② 没有的话点 <b>⚙ 系统检修 → 🔭 系统自检</b>，把结果截图发帖。<br>' +
-      '<span style="color:#fde047;font-weight:600;">💡 不需要装 MVU，所有数据都存在这台掌机里。</span></div>' +
-      '<input id="moon-faq-search" placeholder="打个词搜一搜，比如「时间」「认错」" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:10px;">' +
-      '<div id="moon-faq-list" style="display:flex;flex-direction:column;gap:6px;"></div>';
-    showModalDialog('❓ 常见问题', html, null, {
-      confirmText: '关闭',
+    /* 数字不对 */
+    { cat: 'number', q: '好感不涨 / 加分太少', keys: ['不涨', '加分', '太少', '好感'],
+      a: '先看 <b>开始游戏 → 重摇这一轮</b>。<br>它会告诉你这次是按什么算的：AI 判定、本楼暗号，还是你手填。<br>不涨多半是 AI 这轮没打暗号，退一步手选方向也能摇。' },
+    { cat: 'number', q: '重摇显示「没有记录」', keys: ['无记录', '重roll', '重摇', '判断'],
+      a: '意思是这一轮 AI 没给这个角色打暗号。<br>现在会自动退一步：先试本楼暗号，还不行就让你<b>手动选方向、填数值</b>，照样能摇。' },
+    { cat: 'number', q: '时间和内心话不动了', keys: ['时间', '心声', '内心话', '不推进', '卡住'],
+      a: '多半是这轮 AI 没写时间。<br>想马上修：<b>角色与存档 → 查看 / 修改档案</b>，直接手写时间、地点、内心话，保存立刻生效。' },
+    { cat: 'number', q: 'AI 把别人当主角了', keys: ['次要', '重要度', '角色定位', '攻略对象', '认错'],
+      a: '<b>角色与存档 → 查看 / 修改档案</b>，把她改成<b>主要</b>。<br>改完 AI 下一轮就会围着她写，<b>不用重开档</b>。' },
+    { cat: 'number', q: '好感卡在 18 / 38 / 58 上不去', keys: ['阶段门', '卡住', '升级', '破门', '冻结'],
+      a: '这是「关系升级」的关口，不是坏了。<br>到 <b>18 / 38 / 58 / 78 / 98</b> 这五个点会停下来判一次「能不能更进一步」，过了才升级。<br>没过就等更好的时机，可以继续聊天攒机会。' },
+    { cat: 'number', q: '每周加分有上限吗？', keys: ['上限', '每周', '额度', '清零'],
+      a: '有。<b>开始游戏 → 检查每周上限</b> 能看这周还剩多少，也能手动清零。<br>这是为了防止一直聊同一件事把分刷爆。' },
+    { cat: 'number', q: '事件太久没来了', keys: ['事件', '节奏', '频率', '没有事件'],
+      a: '大约每 <b>8~12 回合</b>来一个日常小事件。<br>嫌慢嫌快：<b>玩法与手感 → 小事件来得多勤</b>，慢 / 中 / 快三档都能调。' },
+    { cat: 'number', q: '开局给的分太高 / 太低', keys: ['初见', '开局', '底分', '保底'],
+      a: '<b>玩法与手感 → 初见投资</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断她吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
+
+    /* 剧情和时间 */
+    { cat: 'story', q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'],
+      a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天。<br>要跳到几小时后或第二天，<b>得你自己说一声</b>（「我们明天见」「睡了」），或者正文里写「次日 / 一周后」。' },
+    { cat: 'story', q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '回不了头'],
+      a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要她好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
+    { cat: 'story', q: 'AI 回复末尾那个 [Sylveina|…] 是什么？', keys: ['标签', 'sylveina', '暗号', '括号'],
+      a: '那是给掌机看的<b>暗号</b>，你不用管。<br>AI 只打暗号，具体加多少由掌机摇骰子算，AI 改不了数。<br>正常情况下它会自动收起来，不会出现在正文里。' },
+    { cat: 'story', q: '沉浸模式怎么用？', keys: ['沉浸', 'gal', '全屏', '退出'],
+      a: '主菜单点 <b>沉浸模式</b>，全屏读剧情，点一下往下走一句，像玩 Galgame。<br>想退出按 <b>Esc</b>，或者点右上角的退出按钮。' },
+    { cat: 'story', q: '世界大事表要不要写？', keys: ['时间线', 'timeline', '主线', '大事表'],
+      a: '不写也能玩。<br>写了的话 AI 会照着上面的日期安排主线大事，世界更有目标感。<br>懒得写就让 AI 编一份：<b>冒险日志 → 让 AI 编一份</b>。' },
+
+    /* 出错了 */
+    { cat: 'error', q: '面板打不开 / 白屏', keys: ['打不开', '白屏', '报错', '崩'],
+      a: '先刷新一次酒馆页面。<br>还不行就走一趟 <b>系统检修 → 系统自检</b>，它一条条列给你哪项不正常。<br>把结果截图发帖，比描述半天管用。' },
+    { cat: 'error', q: '和别的插件打架了？', keys: ['冲突', '打架', '重复', '撞'],
+      a: '<b>系统检修 → 冲突扫描</b>，查世界书里有没有重复或者互相打架的条目。<br>拿不准就点旁边的 <b>让 AI 帮我看</b>，它读完给结论。' },
+    { cat: 'error', q: '更新拉不到新版', keys: ['更新', '新版', '失败', '线路'],
+      a: '<b>系统选项 → 检查更新</b> 会自动换线路重试。<br>全都失败就是网络问题，过一会儿再点，或者手动导入新的 JSON。' },
+    { cat: 'error', q: '换聊天了，档案还在吗？', keys: ['换聊天', '存档', '搬家', '迁移'],
+      a: '档案跟着<b>这条聊天</b>走，所以换新聊天等于从头开始。<br>想接着玩：<b>开始游戏 → 搬旧存档</b>，把原来的档案带过去。' },
+
+    /* 想调设置 */
+    { cat: 'tune', q: '难度选哪个？', keys: ['难度', '地狱', '简单', '选哪个'],
+      a: '<b>玩法与手感 → 游戏难度</b>，四档都写了区别。<br>拿不准就选中间那档，<b>随时能改，不用重开</b>。' },
+    { cat: 'tune', q: '想换状态卡的样子', keys: ['皮肤', '外观', '状态卡', '换样子'],
+      a: '<b>系统选项</b> 里能换状态卡外观，点一下就能预览，不用保存再刷新。' },
+    { cat: 'tune', q: '想让她说话更像本人', keys: ['试镜', '小抄', '像不像', '说话不像'],
+      a: '<b>角色与存档 → 让她试演一段</b>：AI 先读角色卡写一份小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。存下来之后 AI 演她会明显更像。' },
+    { cat: 'tune', q: '想让插件单独用一个 AI', keys: ['api', '模型', '钥匙', '接口'],
+      a: '<b>系统选项 → AI 钥匙</b>。<br>不填也能用，直接用你酒馆里那个 AI。只有想换模型、或嫌它演得不对，才需要填。' }
+  ];
+
+  function openFaqDialog() {
+    const chips = '<div id="moon-faq-chips">' +
+      '<button type="button" class="mp-faq-chip active" data-cat="all">全部</button>' +
+      FAQ_CATS.map(function(c) { return '<button type="button" class="mp-faq-chip" data-cat="' + c.id + '">' + c.name + '</button>'; }).join('') +
+      '</div>';
+    const html = '<div class="mp-faq-tip">先选一个最像你现在的情况；找不到就打个词搜，比如「时间」「认错」。</div>' +
+      chips +
+      '<input id="moon-faq-search" class="mp-faq-search" type="search" placeholder="搜一下，比如：不涨 / 卡住 / 退出" autocomplete="off">' +
+      '<div id="moon-faq-list"></div>' +
+      '<div class="mp-faq-foot">还是没有？走一趟 <b>系统检修 → 系统自检</b>，把结果截图发帖，比描述半天管用。</div>';
+
+    showModalDialog('❓ 遇到问题', html, null, {
+      confirmText: '知道了',
       onOpen: function(mask) {
-        const input = mask.querySelector('#moon-faq-search'); const list = mask.querySelector('#moon-faq-list');
-        function render(kw) {
-          const w = String(kw || '').trim().toLowerCase();
-          const items = FAQ_LIST.filter(function(item) { if (!w) return true; const pool = (item.q + ' ' + item.keys.join(' ') + ' ' + item.a).toLowerCase(); return pool.indexOf(w) >= 0; });
-          if (!items.length) { list.innerHTML = '<div style="color:#f87171;font-size:11px;">没找到，换个词试试。</div>'; return; }
-          list.innerHTML = items.map(function(item, idx) {
-            return '<div style="border:1px solid rgba(148,163,184,0.14);border-radius:9px;overflow:hidden;">' +
-              '<button class="moon-faq-q" data-idx="' + idx + '" style="width:100%;text-align:left;padding:8px 10px;background:#0f172a;color:#e2e8f0;border:none;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;">' + item.q + '</button>' +
-              '<div class="moon-faq-a" data-idx="' + idx + '" style="display:none;padding:8px 10px;background:#171a22;color:#94a3b8;font-size:11px;line-height:1.65;">' + item.a + '</div></div>';
+        const input = mask.querySelector('#moon-faq-search');
+        const list = mask.querySelector('#moon-faq-list');
+        let cat = 'all';
+
+        function render() {
+          const kw = String(input.value || '').trim().toLowerCase();
+          const items = FAQ_LIST.filter(function(item) {
+            if (cat !== 'all' && item.cat !== cat) return false;
+            if (!kw) return true;
+            return (item.q + ' ' + item.keys.join(' ') + ' ' + item.a).toLowerCase().indexOf(kw) >= 0;
+          });
+          if (!items.length) {
+            list.innerHTML = '<div class="mp-faq-empty">没找到。<br>换个词试试，或者点上面的「全部」。</div>';
+            return;
+          }
+          list.innerHTML = items.map(function(item, i) {
+            return '<div class="mp-faq-item" data-cat="' + item.cat + '" data-open="' + (kw && items.length <= 2 ? '1' : '0') + '">' +
+              '<button type="button" class="mp-faq-q"><span>' + item.q + '</span><i>▾</i></button>' +
+              '<div class="mp-faq-body"><div class="mp-faq-clip"><div class="mp-faq-a">' + item.a + '</div></div></div>' +
+              '</div>';
           }).join('');
-          list.querySelectorAll('.moon-faq-q').forEach(function(btn) { btn.addEventListener('click', function() { const idx = btn.getAttribute('data-idx'); const a = list.querySelector('.moon-faq-a[data-idx="' + idx + '"]'); if (a) a.style.display = a.style.display === 'none' ? 'block' : 'none'; }); });
+          list.querySelectorAll('.mp-faq-item').forEach(function(el) {
+            const q = el.querySelector('.mp-faq-q');
+            q.setAttribute('aria-expanded', el.getAttribute('data-open') === '1' ? 'true' : 'false');
+            q.addEventListener('click', function() {
+              const next = el.getAttribute('data-open') !== '1';
+              el.setAttribute('data-open', next ? '1' : '0');
+              q.setAttribute('aria-expanded', next ? 'true' : 'false');
+            });
+          });
         }
-        input.addEventListener('input', function() { render(input.value); }); render('');
+
+        mask.querySelectorAll('.mp-faq-chip').forEach(function(chip) {
+          chip.addEventListener('click', function() {
+            mask.querySelectorAll('.mp-faq-chip').forEach(function(c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            cat = chip.getAttribute('data-cat');
+            render();
+          });
+        });
+        input.addEventListener('input', render);
+        render();
       }
     });
+  }
+  /* ══════════════════════════════════════════════════════════════════════════
+   * 95c-tour.js —— 新手引导（聚光灯式）
+   *
+   * 旧版是四页密密麻麻的说明书：一次讲完所有概念，读完还是不知道该点哪。
+   * 现在改成「一步一步指着讲」：每页只高亮一个真实控件，一句话说清它是干什么的。
+   * 参考的是常见的新手引导做法：聚焦 → 一句话 → 下一步，随时可跳过、可重看。
+   *
+   * 约定：
+   *   · 只高亮面板里真实存在的元素，找不到就跳过该步骤（不硬编坐标）
+   *   · 每一步都能「上一步 / 下一步 / 跳过 / Esc」
+   *   · 看完或跳过都写 introSeen，下次不再自动弹
+   *   · 只由扩展菜单打开时自动触发，测试和其它调用方不受影响
+   * ══════════════════════════════════════════════════════════════════════════ */
+  let _tourState = null;
+  let _tourAutoStarted = false;
+
+  function tourSteps() {
+    return [
+      {
+        sel: '.mp-lcd-card',
+        title: '这台小机器只做一件事',
+        text: '记住她对你<b>动了多少心</b>、走到哪一步。你什么都不用点，回酒馆正常聊天就行。'
+      },
+      {
+        sel: '.mp-lcd-screen',
+        title: '屏幕上是她现在的样子',
+        text: '上面四个页签：<b>状态</b>看总览，<b>角色</b>看每个人，<b>事件</b>看接下来会发生什么，<b>字数</b>看这段聊天有多长。'
+      },
+      {
+        sel: '.mp-guide',
+        title: '不知道点哪，就看这一条',
+        text: '粉色的这条永远只说一件事：<b>现在最该做什么</b>。它让你点哪个按钮，点那个就对了。'
+      },
+      {
+        sel: '[data-menu-open="adventure"]',
+        title: '其余功能都在下面这几个格子里',
+        text: '改数值、换攻略对象，进<b>角色与存档</b>；点不动、数字不对，进<b>系统检修</b>。这些不点也照样能玩。'
+      },
+      {
+        sel: '[data-gal-open]',
+        title: '想全屏看剧情',
+        text: '点<b>沉浸模式</b>，像玩 Galgame 一样点着往下走。右上角随时能回到这个面板。'
+      },
+      {
+        sel: '#moon-phase-tutorial',
+        title: '以后想再看，点这里',
+        text: '随时能把这段引导重看一遍。遇到具体问题，去<b>系统选项 → 遇到问题</b>，那里按情况分好类了。'
+      }
+    ];
+  }
+
+  function closeTour(markSeen) {
+    const st = _tourState;
+    if (!st) return;
+    _tourState = null;
+    try { st.layer.remove(); } catch (e) {}
+    try { mainWin.removeEventListener('resize', st.reposition); } catch (e) {}
+    try { panelOf(st) && panelOf(st).removeEventListener('scroll', st.reposition); } catch (e) {}
+    try { mainDoc.removeEventListener('keydown', st.onKey, true); } catch (e) {}
+    if (markSeen) {
+      try { const s = getSettings(); if (!s.introSeen) { s.introSeen = true; saveSettings(s); } } catch (e) {}
+    }
+  }
+
+  function panelOf(st) { return st && st.panel; }
+
+  function openTutorialDialog(panel) {
+    panel = panel || mainDoc.getElementById('moon-phase-panel');
+    if (!panel) return;
+    closeTour(false);
+
+    const all = tourSteps();
+    const steps = all.filter(function(s) { return !!panel.querySelector(s.sel); });
+    if (!steps.length) return;
+
+    const layer = mainDoc.createElement('div');
+    layer.className = 'mp-tour-layer';
+    layer.setAttribute('role', 'dialog');
+    layer.setAttribute('aria-label', '新手引导');
+    const spot = mainDoc.createElement('div');
+    spot.className = 'mp-tour-spot';
+    const card = mainDoc.createElement('div');
+    card.className = 'mp-tour-card';
+    layer.appendChild(spot);
+    layer.appendChild(card);
+    /* 挂到 body：面板本身是滚动容器，放在里面会被裁掉，
+       某些祖先还有 backdrop-filter，会把 fixed 变成相对它的绝对定位。 */
+    (mainDoc.body || panel).appendChild(layer);
+
+    const st = {
+      panel: panel,
+      layer: layer,
+      spot: spot,
+      card: card,
+      steps: steps,
+      index: 0,
+      reposition: function() { positionTour(st); },
+      onKey: function(e) {
+        if (e.key === 'Escape') { e.preventDefault(); closeTour(true); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); stepTour(st, 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); stepTour(st, -1); }
+      }
+    };
+    _tourState = st;
+
+    try { mainWin.addEventListener('resize', st.reposition); } catch (e) {}
+    try { panel.addEventListener('scroll', st.reposition, { passive: true }); } catch (e) {}
+    try { mainDoc.addEventListener('keydown', st.onKey, true); } catch (e) {}
+
+    renderTourStep(st, 0);
+  }
+
+  function stepTour(st, dir) {
+    const next = st.index + dir;
+    if (next < 0) return;
+    if (next >= st.steps.length) { closeTour(true); return; }
+    renderTourStep(st, next);
+  }
+
+  function renderTourStep(st, idx) {
+    st.index = Math.max(0, Math.min(st.steps.length - 1, idx));
+    const step = st.steps[st.index];
+    const last = st.index === st.steps.length - 1;
+    const dots = st.steps.map(function(_, i) { return '<i class="' + (i === st.index ? 'on' : '') + '"></i>'; }).join('');
+    st.card.innerHTML =
+      '<div class="mp-tour-step">新手引导 · 第 ' + (st.index + 1) + ' / ' + st.steps.length + ' 步' +
+        '<span class="mp-tour-dots" aria-hidden="true">' + dots + '</span></div>' +
+      '<div class="mp-tour-title">' + step.title + '</div>' +
+      '<div class="mp-tour-text">' + step.text + '</div>' +
+      '<div class="mp-tour-foot">' +
+        '<button type="button" class="mp-tour-skip" data-tour="skip">跳过，我知道了</button>' +
+        '<span style="flex:1"></span>' +
+        '<button type="button" class="mp-tour-nav" data-tour="prev"' + (st.index === 0 ? ' disabled' : '') + '>上一步</button>' +
+        '<button type="button" class="mp-tour-nav primary" data-tour="next">' + (last ? '开始用' : '下一步') + '</button>' +
+      '</div>';
+    st.card.querySelector('[data-tour="skip"]').addEventListener('click', function() { closeTour(true); });
+    st.card.querySelector('[data-tour="prev"]').addEventListener('click', function() { stepTour(st, -1); });
+    st.card.querySelector('[data-tour="next"]').addEventListener('click', function() { stepTour(st, 1); });
+
+    /* 把目标滚到面板中间，量完再画框 —— 先量后滚会得到旧坐标 */
+    try {
+      const target = st.panel.querySelector(step.sel);
+      if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', inline: 'nearest' });
+    } catch (e) {}
+    requestAnimationFrame(function() { positionTour(st); });
+    setTimeout(function() { if (_tourState === st) positionTour(st); }, 260);
+  }
+
+  function positionTour(st) {
+    if (!_tourState || _tourState !== st) return;
+    const step = st.steps[st.index];
+    const target = st.panel.querySelector(step.sel);
+    const panelRect = st.panel.getBoundingClientRect();
+    const vw = mainWin.innerWidth || 375;
+    const vh = mainWin.innerHeight || 667;
+
+    /* 卡片宽度先算死：不能让「左 10 右 10」在窄容器里算出负数宽度 */
+    const cardW = Math.max(240, Math.min(340, vw - 24));
+    st.card.style.width = cardW + 'px';
+    st.card.style.right = 'auto';
+
+    if (!target) {
+      st.spot.style.display = 'none';
+      st.card.style.left = Math.round((vw - cardW) / 2) + 'px';
+      st.card.style.top = Math.round(vh * 0.3) + 'px';
+      st.card.style.bottom = 'auto';
+      return;
+    }
+    const r = target.getBoundingClientRect();
+    const pad = 4;
+    const hasBox = r.width > 0 && r.height > 0;
+    st.spot.style.display = hasBox ? 'block' : 'none';
+    if (hasBox) {
+      st.spot.style.left = Math.round(r.left - pad) + 'px';
+      st.spot.style.top = Math.round(r.top - pad) + 'px';
+      st.spot.style.width = Math.round(r.width + pad * 2) + 'px';
+      st.spot.style.height = Math.round(r.height + pad * 2) + 'px';
+    }
+
+    /* 卡片放在目标上方或下方，看哪边空得下；两边都放不下就贴屏幕底部 */
+    const cardH = st.card.offsetHeight || 190;
+    const gap = 12;
+    const safeTop = Math.max(8, panelRect.top + 8);
+    const safeBottom = Math.min(vh - 8, panelRect.bottom - 8);
+    let top = hasBox ? r.bottom + gap : safeTop + 8;
+    if (top + cardH > safeBottom) top = hasBox ? r.top - cardH - gap : safeTop + 8;
+    if (top < safeTop) top = Math.max(8, safeBottom - cardH);
+    st.card.style.top = Math.round(top) + 'px';
+    st.card.style.bottom = 'auto';
+
+    const baseLeft = hasBox ? r.left : panelRect.left + 10;
+    const maxLeft = vw - cardW - 8;
+    st.card.style.left = Math.round(Math.max(8, Math.min(baseLeft, maxLeft))) + 'px';
   }
   /* 96-core.js —— 内置核心规则：把原来世界书里的 7 条 [Mode-Common] 搬进脚本。
      玩家只装脚本就能玩；已经装了旧世界书的会自动让位，不会重复注入。 */
@@ -19006,7 +20303,7 @@ async function applyAdaptiveOpening(charName, values) {
       div.className = 'list-group-item flex-container flexGap5 interactable';
       div.tabIndex = 0;
       div.innerHTML = '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🌕</span><span>' + SYSTEM_MENU_NAME + '</span>';
-      div.addEventListener('click', function() { openPanel(); });
+      div.addEventListener('click', function() { openPanel({ autoTour: true }); });
       menu.appendChild(div);
       return true;
     };
@@ -19036,7 +20333,7 @@ async function applyAdaptiveOpening(charName, values) {
     window.openGalgameConsole = openPanel;
   } catch(e) {}
 
-  function openPanel() {
+  function openPanel(opts) {
     let mask = mainDoc.getElementById('moon-phase-mask');
     if (!mask) {
       mask = mainDoc.createElement('div');
@@ -19057,6 +20354,17 @@ async function applyAdaptiveOpening(charName, values) {
     // 显式压在 Galgame 沉浸层（2147483000）之上，但低于各种弹窗（2147483650+）
     try { mask.style.zIndex = '2147483645'; } catch (e) {}
     mask.classList.add('open');
+    /* 第一次从菜单打开时自动走一遍聚光灯引导；看完 / 跳过都写 introSeen，不再打扰 */
+    if (opts && opts.autoTour) {
+      setTimeout(function() {
+        try {
+          if (_tourAutoStarted) return;
+          if (getSettings().introSeen === true) return;
+          _tourAutoStarted = true;
+          openTutorialDialog(panel);
+        } catch (e) {}
+      }, 420);
+    }
   }
 
   function closePanel() {

@@ -1278,15 +1278,10 @@
     const modeMeta = LUNAR_META[mode] || LUNAR_META.hell;
     const hasApi = hasValidCustomAIConfig();
     const apiModel = hasApi ? getCustomAIConfig().model : '未设';
-    const selections = [
-      '锚定:' + (antisl ? '开' : '关'), 'AI:' + (hasApi ? '外接' : '主模'),
-      '卡组:' + (cardMode === 'multi' ? '多人' : '单人'), '安全锁:' + (getSafetyLock() ? '开' : '关'),
-      '节奏:' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中'), '同人:' + (fanficOn ? '开' : '关')
-    ];
     const options = names.map(function(name) { return '<option value="' + lcdEscape(name) + '"' + (name === selected ? ' selected' : '') + '>' + lcdEscape(name) + '</option>'; }).join('');
     const activePage = Math.max(0, Math.min(3, parseInt(panel.dataset.lcdPage || '0', 10) || 0));
-    const pageNames = ['总览', '角色', '事件', '占用'];
-    const shortLabels = ['01 总览', '02 角色', '03 事件', '04 占用'];
+    const pageNames = ['她的状态', '其他角色', '接下来', '这个聊天的字数'];
+    const shortLabels = ['状态', '角色', '事件', '字数'];
     function calcBar(val, maxVal) {
       const pct = Math.max(0, Math.min(100, Math.round(((Number(val) || 0) / (maxVal || 100)) * 100)));
       return '<div class="mp-rpg-stat-bar"><div class="mp-rpg-stat-fill" style="width:' + pct + '%;"></div></div>';
@@ -1300,17 +1295,17 @@
     const quickCharSummary = ch
       ? '<div style="padding:6px 8px;margin-top:6px;border:1px solid #151d14;font-size:11.5px;line-height:1.4;background:rgba(21,29,20,0.06);">' +
           '<div style="font-weight:bold;margin-bottom:4px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(21,29,20,0.4);padding-bottom:3px;">' +
-            '<span>♥ 目标：' + lcdEscape(selected) + '</span>' +
+            '<span>♥ ' + lcdEscape(selected) + '</span>' +
             '<span>' + lcdEscape(stageInfo.name) + '</span>' +
           '</div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[E] 好感度</span>' + calcBar(eVal + 100, 200) + '<span class="mp-rpg-stat-val">' + eVal.toFixed(1) + '</span></div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[P] 肉体值</span>' + calcBar(pVal, 100) + '<span class="mp-rpg-stat-val">' + pVal.toFixed(0) + '</span></div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[R] 阶段门</span>' + calcBar(rVal, 5) + '<span class="mp-rpg-stat-val">Lv.' + rVal + '</span></div>' +
-          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">[I] 嫉妒值</span>' + calcBar(iVal, 100) + '<span class="mp-rpg-stat-val">' + iVal.toFixed(0) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">好感</span>' + calcBar(eVal + 100, 200) + '<span class="mp-rpg-stat-val">' + eVal.toFixed(1) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">亲密</span>' + calcBar(pVal, 100) + '<span class="mp-rpg-stat-val">' + pVal.toFixed(0) + '</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">关系</span>' + calcBar(rVal, 5) + '<span class="mp-rpg-stat-val">' + rVal + ' 级</span></div>' +
+          '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">醋意</span>' + calcBar(iVal, 100) + '<span class="mp-rpg-stat-val">' + iVal.toFixed(0) + '</span></div>' +
         '</div>'
-      : '<div class="mp-lcd-empty" style="padding:12px 6px;">还没有角色档案<br>点下面「▶ 开始游戏」→「🚀 开局适配」就能建</div>';
+      : '';
 
-    return '<div class="mp-console-bezel"><span class="mp-power-led"><i></i>POWER</span><span>DOT MATRIX · MOON POCKET</span><span>API:' + lcdEscape(String(apiModel).slice(0, 12)) + '</span></div>' +
+    return '<div class="mp-console-bezel"><span class="mp-power-led"><i></i>ON</span><span>MOON POCKET · 液晶屏</span><span>AI 钥匙 · ' + (hasApi ? '已填' : '没填') + '</span></div>' +
       '<div class="mp-lcd-screen"><div class="mp-lcd-screen-head"><span>MOON POCKET · STATUS</span><b>MONO LCD</b></div>' +
       '<div class="mp-lcd-quick-tabs" role="tablist" aria-label="液晶屏直达页签">' +
       shortLabels.map(function(lb, idx) {
@@ -1318,25 +1313,27 @@
       }).join('') +
       '</div>' +
       '<div class="mp-lcd-pages" data-lcd-pages>' +
-      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="总览">' +
-      '<div class="mp-lcd-world-time">WORLD TIME　' + lcdEscape(world.时间 || '还没开始') + '</div>' +
-      '<div class="mp-lcd-difficulty"><b>游戏难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
-      '<div class="mp-lcd-selection" style="min-height:auto;"><b>当前设定</b><span>' + selections.map(lcdEscape).join('　') + '</span></div>' +
+      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="她的状态">' +
+      '<div class="mp-lcd-world-time">现在是　' + lcdEscape(world.时间 || '还没开始') + '</div>' +
+      '<div class="mp-lcd-difficulty"><b>难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
+      '<div class="mp-lcd-plain">' + (ch
+        ? '她现在是<b>' + lcdEscape(stageInfo.name) + '</b>，好感 <b>' + eVal.toFixed(1) + '</b>。你在酒馆里正常聊，数字会自己涨。'
+        : '还没有人物档案。先建档案，之后正常聊天就行。') + '</div>' +
       quickCharSummary + '</section>' +
-      '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="角色">' +
+      '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="其他角色">' +
       '<div class="mp-lcd-character-head"><span>角色档案 / CHARACTER FILE</span>' +
       (names.length ? '<select class="mp-lcd-character-select" aria-label="选择角色档案">' + options + '</select>' : '') + '</div>' +
       '<div class="mp-lcd-character-view">' + renderLcdCharacterDetails(ch) + '</div></section>' +
-      '<section class="mp-lcd-page' + (activePage === 2 ? ' active' : '') + '" data-lcd-page="2" data-page-label="事件">' +
-      '<div class="mp-lcd-page-title">EVENT DIRECTOR · 事件进度</div><div id="moon-event-status" class="mp-lcd-event-list">' + renderEventStatusCard() + '</div></section>' +
-      '<section class="mp-lcd-page' + (activePage === 3 ? ' active' : '') + '" data-lcd-page="3" data-page-label="占用">' +
-      '<div class="mp-lcd-token-head"><span>MEMORY · 字数占用</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
-      '<div id="moon-token-box">点右上「↻ 刷新」开始算</div></section></div>' +
+      '<section class="mp-lcd-page' + (activePage === 2 ? ' active' : '') + '" data-lcd-page="2" data-page-label="接下来">' +
+      '<div class="mp-lcd-page-title">接下来会发生什么</div><div id="moon-event-status" class="mp-lcd-event-list">' + renderEventStatusCard() + '</div></section>' +
+      '<section class="mp-lcd-page' + (activePage === 3 ? ' active' : '') + '" data-lcd-page="3" data-page-label="字数">' +
+      '<div class="mp-lcd-token-head"><span>这个聊天占多少字</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
+      '<div id="moon-token-box">点右边「刷新」开始算</div></section></div>' +
       '<nav class="mp-lcd-page-nav" aria-label="显示屏翻页">' +
       '<button type="button" data-lcd-page-step="-1" aria-label="上一页">◀</button>' +
       '<div class="mp-lcd-page-indicator"><b data-lcd-page-label>' + pageNames[activePage] + '</b><span data-lcd-page-count>' + String(activePage + 1).padStart(2, '0') + ' / 04</span></div>' +
       '<button type="button" data-lcd-page-step="1" aria-label="下一页">▶</button></nav>' +
-      '<div class="mp-lcd-screen-foot">点上方 [01~04] 或 ◀ ▶ 翻页</div></div>';
+      '<div class="mp-lcd-screen-foot">点上面四个页签，或用 ◀ ▶ 翻页</div></div>';
   }
 
   function setLcdPage(panel, page) {

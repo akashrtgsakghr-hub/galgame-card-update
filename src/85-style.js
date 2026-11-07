@@ -852,4 +852,8 @@
   .mp-ico-tick { animation: none; opacity: 1; }
 }
 `;
+
+  /* 最后一层：掌机 UI v2（墨樱）。放在所有历史样式之后，作为最终权威覆盖，
+     避免再去三层历史写法里逐条改 !important。实现在 85b-ui.js。 */
+  try { injectPocketUI(); } catch (e) { try { console.warn('[月相] UI 样式注入失败：', e); } catch (e2) {} }
   /* ───────────────────────────────────────────────────────── */

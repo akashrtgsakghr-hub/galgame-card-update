@@ -13,7 +13,7 @@
       div.className = 'list-group-item flex-container flexGap5 interactable';
       div.tabIndex = 0;
       div.innerHTML = '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🌕</span><span>' + SYSTEM_MENU_NAME + '</span>';
-      div.addEventListener('click', function() { openPanel(); });
+      div.addEventListener('click', function() { openPanel({ autoTour: true }); });
       menu.appendChild(div);
       return true;
     };
@@ -43,7 +43,7 @@
     window.openGalgameConsole = openPanel;
   } catch(e) {}
 
-  function openPanel() {
+  function openPanel(opts) {
     let mask = mainDoc.getElementById('moon-phase-mask');
     if (!mask) {
       mask = mainDoc.createElement('div');
@@ -64,6 +64,17 @@
     // 显式压在 Galgame 沉浸层（2147483000）之上，但低于各种弹窗（2147483650+）
     try { mask.style.zIndex = '2147483645'; } catch (e) {}
     mask.classList.add('open');
+    /* 第一次从菜单打开时自动走一遍聚光灯引导；看完 / 跳过都写 introSeen，不再打扰 */
+    if (opts && opts.autoTour) {
+      setTimeout(function() {
+        try {
+          if (_tourAutoStarted) return;
+          if (getSettings().introSeen === true) return;
+          _tourAutoStarted = true;
+          openTutorialDialog(panel);
+        } catch (e) {}
+      }, 420);
+    }
   }
 
   function closePanel() {

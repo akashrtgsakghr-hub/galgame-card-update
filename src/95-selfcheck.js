@@ -2,136 +2,22 @@
     return '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
   }
 
-  function openTutorialDialog(panel) {
-    const steps = [
-      {
-        title: 'PAGE 01 · 这台掌机是干什么的',
-        badge: 'MOON POCKET MANUAL',
-        body: '<div style="line-height:1.85;font-size:11.5px;color:#ffe1f5;">' +
-          '<div style="padding:8px 10px;background:#100a13;border:1px solid #f472d0;margin-bottom:8px;">' +
-            '<b style="color:#ff8cdb;">★ 一句话：你不用做任何事，正常聊天就好。</b><br>' +
-            '她对你动了多少心、走近到哪一步、现在什么关系、有多吃醋 —— 这四件事掌机都会自己记下来。' +
-          '</div>' +
-          '<div style="margin-bottom:8px;"><b>它怎么知道？靠一个「暗号」</b><br>' +
-            'AI 每轮说完话，末尾会偷偷打一个暗号，长这样：<code>[Sylveina|M|+|3.5]</code>。<br>' +
-            '掌机看见暗号，就摇一次骰子，把这一轮的变化算好记上。暗号玩家看不到，也不会打断剧情。' +
-          '</div>' +
-          '<div><b>屏幕上那四个字母是什么</b><br>' +
-            '· <b style="color:#ffb8eb;">好感 (E)</b>：她有多喜欢你。涨到一定数会触发「关系升级判定」。<br>' +
-            '· <b style="color:#ffb8eb;">亲密 (P)</b>：身体上走到哪一步了。<br>' +
-            '· <b style="color:#ffb8eb;">关系 (R)</b>：从 -5 到 5，负数越冷、正数越亲。<br>' +
-            '· <b style="color:#ffb8eb;">醋意 (I)</b>：她有多吃醋。' +
-          '</div>' +
-        '</div>'
-      },
-      {
-        title: 'PAGE 02 · 液晶屏上四个画面',
-        badge: 'MONO LCD DISPLAY',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<p style="margin:0 0 6px;">点屏幕上方的 <b>[01 总览] ~ [04 占用]</b> 直接跳，也可以点底部 <b>◀ / ▶</b> 翻页：</p>' +
-          '<div style="display:flex;flex-direction:column;gap:5px;">' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[01 总览]</b>：现在几点、什么难度、开关是开还是关、她现在的数值。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[02 角色]</b>：换人看 —— 四项数值、表情、她心里在想什么（内心话）。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[03 事件]</b>：过了几天、第几回合、下一件大事还有多久、眼前这个小事件还剩几回合。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">[04 占用]</b>：这段对话占了多少字。数字太大手机会变卡。</div>' +
-          '</div>' +
-        '</div>'
-      },
-      {
-        title: 'PAGE 03 · 你只需要记住这两个按钮',
-        badge: 'GAME MENU GUIDE 1',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<div style="padding:7px 9px;background:#100a13;border:1px solid #f472d0;margin-bottom:6px;">' +
-            '<b style="color:#ff8cdb;">① 第一次玩：▶ 开始游戏 → 🚀 开局适配</b><br>' +
-            '点它，AI 会把聊天记录读一遍，自动帮你建好角色档案。<b>老存档（已经聊了几十楼）也能用。</b><br>' +
-            '<span style="color:#fde047;">建好之后就不用再点它了。</span>' +
-          '</div>' +
-          '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;margin-bottom:6px;">' +
-            '<b style="color:#ffb8eb;">② 觉得不对：♥ 角色与存档 → 👥 角色定位</b><br>' +
-            'AI 把别人当成主角了？在这里改成「主要」。<br>' +
-            '名字不对、时间卡住、内心话不更新 —— 同一页都能手改，改完点保存立刻生效。' +
-          '</div>' +
-          '<div style="padding:7px 9px;background:#100a13;border:1px solid #74355f;">' +
-            '<b style="color:#ffb8eb;">加分不满意：🎲 属性点重掷</b><br>' +
-            '这一轮算少了？点它重摇，可以一直摇到满意，再点「确认覆盖」。' +
-          '</div>' +
-        '</div>'
-      },
-      {
-        title: 'PAGE 04 · 剩下三个菜单（都可以不点）',
-        badge: 'GAME MENU GUIDE 2',
-        body: '<div style="line-height:1.8;font-size:11.5px;color:#ffe1f5;">' +
-          '<div style="display:flex;flex-direction:column;gap:6px;">' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▤ 冒险日志</b>：这个世界未来会发生什么。<b>不设置也能正常玩</b>，想让 AI 有主线目标才需要。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">⚙ 系统检修</b>：觉得卡了、数字乱跳才点。先点 <b>🔭 系统自检</b>，它会告诉你是哪里坏了。</div>' +
-            '<div style="padding:6px 8px;background:#100a13;border:1px solid #74355f;"><b style="color:#ffb8eb;">▧ 系统选项</b>：填 AI 钥匙、换画风、看说明书。</div>' +
-            '<div style="padding:7px 9px;background:#241025;border:1px solid #f472d0;"><b style="color:#ff8cdb;">🔑 AI 钥匙（API）填不填？</b><br>' +
-              '不填也能玩，用的是你酒馆里那个 AI。<br>只有想让插件单独用一个 AI（比如更便宜的模型），才需要填。<br>' +
-              '<b>忘了提前填也没关系：用到时会自动弹窗让你填，填完继续，不用重来。</b>' +
-            '</div>' +
-          '</div>' +
-        '</div>'
-      }
-    ];
-
-    let curStep = 0;
-    try {
-      const s = getSettings();
-      if (!s.introSeen) { s.introSeen = true; saveSettings(s); }
-    } catch (e) {}
-
-    const html = '<div id="moon-tut-pills" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;"></div>' +
-      '<div id="moon-tut-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:5px;border-bottom:1px dashed #74355f;"></div>' +
-      '<div id="moon-tut-body" style="min-height:220px;"></div>' +
-      '<div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px dashed #74355f;">' +
-        '<button type="button" id="moon-tut-prev" style="padding:8px 10px;font-size:11px;cursor:pointer;">◀ PREV</button>' +
-        '<button type="button" id="moon-tut-api" style="padding:8px 10px;font-size:11px;cursor:pointer;">🔑 配置API</button>' +
-        '<button type="button" id="moon-tut-next" style="flex:1;padding:8px 10px;font-size:11px;font-weight:600;cursor:pointer;">NEXT ▶</button>' +
+  /* 难度四档。四处都会用到（面板、街机、设置组），所以抽成一个函数，
+     文案统一成「名字 · 状态 + 每周最多加多少」，不再混用「满月/新月」这种只有老玩家懂的叫法。 */
+  function renderDifficultyPicker(selectedLevel, isArcadeMode) {
+    return '<div class="mp-mode-grid" role="group" aria-label="' + (isArcadeMode ? '街机难度' : '游戏难度') + '">' +
+      ['easy', 'normal', 'hard', 'hell'].map(function(m) {
+        const item = LUNAR_META[m];
+        const isAct = m === selectedLevel;
+        return '<button type="button" class="mp-mode-btn' + (isAct ? ' active' : '') + '" data-mode="' + m + '" aria-pressed="' + isAct + '">' +
+          '<div class="mp-mode-moon">' + item.glyph + '</div>' +
+          '<div>' + item.name + '</div>' +
+          '<div>' + (isArcadeMode ? '难度 ' + item.name : '每周最多 +' + String(Math.round(item.quota * 10) / 10)) + '</div></button>';
+      }).join('') + '</div>' +
+      '<div class="mp-mode-description">' + (isArcadeMode
+        ? '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + '</b>　' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。只影响小游戏，不改剧情难度。'
+        : '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '</b>　' + LUNAR_META[selectedLevel].detail) +
       '</div>';
-
-    showModalDialog('📖 MOON POCKET · 掌机说明书（新手引导）', html, null, {
-      confirmText: '合上说明书',
-      onOpen: function(mask) {
-        const pillsEl = mask.querySelector('#moon-tut-pills');
-        const headEl = mask.querySelector('#moon-tut-head');
-        const bodyEl = mask.querySelector('#moon-tut-body');
-        const prevBtn = mask.querySelector('#moon-tut-prev');
-        const nextBtn = mask.querySelector('#moon-tut-next');
-        const apiBtn = mask.querySelector('#moon-tut-api');
-
-        function renderStep(idx) {
-          curStep = Math.max(0, Math.min(steps.length - 1, idx));
-          const st = steps[curStep];
-          pillsEl.innerHTML = steps.map(function(item, i) {
-            const on = i === curStep;
-            return '<button type="button" class="moon-tut-step-btn" data-idx="' + i + '" style="padding:5px 2px;border:1px solid ' + (on ? '#f472d0' : '#643052') + ';background:' + (on ? '#37102f' : '#140b16') + ';color:' + (on ? '#ffe1f5' : '#bc8eaf') + ';font:600 10px monospace;cursor:pointer;">P0' + (i + 1) + '</button>';
-          }).join('');
-          pillsEl.querySelectorAll('.moon-tut-step-btn').forEach(function(b) {
-            b.addEventListener('click', function() { renderStep(Number(b.getAttribute('data-idx')) || 0); });
-          });
-          headEl.innerHTML = '<b style="font-size:12px;color:#ffb8eb;">' + st.title + '</b><span style="font-size:9px;padding:1px 6px;border:1px solid #87416e;background:#2a1126;color:#ffc4e9;">' + st.badge + '</span>';
-          bodyEl.innerHTML = st.body;
-          prevBtn.disabled = curStep === 0;
-          prevBtn.style.opacity = curStep === 0 ? '0.45' : '1';
-          nextBtn.textContent = curStep === steps.length - 1 ? '🚀 立即开局适配' : 'NEXT (' + (curStep + 1) + '/' + steps.length + ') ▶';
-        }
-
-        prevBtn.addEventListener('click', function() { if (curStep > 0) renderStep(curStep - 1); });
-        nextBtn.addEventListener('click', function() {
-          if (curStep < steps.length - 1) {
-            renderStep(curStep + 1);
-          } else {
-            try { mask.remove(); } catch (e) {}
-            setTimeout(function() { openUnifiedAdaptDialog(panel); }, 180);
-          }
-        });
-        apiBtn.addEventListener('click', function() {
-          try { mask.remove(); } catch (e) {}
-          setTimeout(function() { openCustomAIConfigDialog(panel); }, 180);
-        });
-        renderStep(0);
-      }
-    });
   }
 
   function renderPanel(panel) {
@@ -161,17 +47,44 @@
     const _panelStat = (readMvuLatest() || {}).stat_data || {};
     const _panelChars = _panelStat.角色 || {};
     const hasRoster = Object.keys(_panelChars).some(function(n) { return !isCharSkeleton(_panelChars[n]); });
-    const firstRunTip = hasRoster ? '' :
-      '<div class="mp-card" style="border-color:rgba(244,114,208,0.45);background:rgba(244,114,208,0.07);">' +
-      '<div style="font-size:12px;font-weight:600;color:#ff8cdb;margin-bottom:6px;">🎮 第一次玩？照着做两步就好</div>' +
-      '<div style="font-size:11px;color:#e2e8f0;line-height:1.85;">' +
-      '<b>第 1 步</b>　点下面的按钮 → AI 把聊天记录读一遍，自动建好角色档案。<br>' +
-      '<b>第 2 步</b>　建好就关掉面板，正常聊天。她会自己涨好感。</div>' +
-      '<button class="mp-btn mp-btn-highlight" id="moon-quick-start" style="width:100%;margin-top:9px;">🚀 帮我建角色档案（一键直达）</button>' +
-      '</div>';
+    /* 引导条：每次打开面板只说一件「现在该做什么」。
+       以前这里是一张「第一次玩？照着做两步」的卡 + 上面六张菜单卡 + 一块 LCD，
+       信息全在，但没人告诉新手从哪下手；现在按存档状态算一句话。 */
+    const rosterNames = Object.keys(_panelChars).filter(function(n) { return !isCharSkeleton(_panelChars[n]); });
+    const guide = !hasRoster
+      ? {
+          ok: false,
+          eyebrow: '下一步 · 只做这一件事',
+          title: '先建一份人物档案',
+          desc: '点右边的按钮，AI 会把聊天记录读一遍，把人物和现在的数值填好。建完就不用再点它了。',
+          cta: '帮我建档案',
+          act: 'adapt',
+          link: '先看 30 秒怎么玩'
+        }
+      : {
+          ok: true,
+          eyebrow: '已经可以玩了',
+          title: '回到酒馆正常聊天就行',
+          desc: '她涨多少由这台小机器算，AI 看不到数字，也不会自己编。想全屏看剧情就点右边。',
+          cta: '全屏看剧情',
+          act: 'gal',
+          link: '看 30 秒怎么玩'
+        };
+    const guideHtml = '<div class="mp-guide' + (guide.ok ? ' is-ok' : '') + '" id="moon-guide">' +
+      '<div class="mp-guide-main">' +
+        '<span class="mp-guide-eyebrow">' + guide.eyebrow + '</span>' +
+        '<div class="mp-guide-title">' + guide.title + '</div>' +
+        '<div class="mp-guide-desc">' + guide.desc + '</div>' +
+        '<button type="button" class="mp-guide-link" data-guide-act="tour">' + guide.link + '</button>' +
+      '</div>' +
+      '<div class="mp-guide-actions">' +
+        '<button type="button" class="mp-guide-cta" data-guide-act="' + guide.act + '">' + guide.cta + '</button>' +
+      '</div>' +
+    '</div>';
 
-    /* 重绘会重建整棵 DOM，<details> 的展开状态和滚动位置都会丢，
-       玩家看到的就是「改一下单人卡/多人卡，运行设定自己就收起来了」。先快照、后还原。 */
+    /* 重绘会重建整棵 DOM，折叠块的展开状态和滚动位置都会丢，
+       玩家看到的就是「改一下单人卡/多人卡，运行设定自己就收起来了」。先快照、后还原。
+       两套折叠都要记：老的 <details>（兼容）和新的 .mp-fold。 */
     const _foldSnap = {};
     let _scrollSnap = 0;
     try {
@@ -180,154 +93,186 @@
         const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
         if (t) _foldSnap[t] = d.open === true;
       });
+      panel.querySelectorAll('.mp-fold[data-fold]').forEach(function(d) {
+        _foldSnap['fold:' + d.getAttribute('data-fold')] = d.getAttribute('data-open') === '1';
+      });
       _scrollSnap = Number(panel.scrollTop) || 0;
     } catch (e) {}
 
+    /* 设置卡放到主菜单之后：先给「现在做什么」，再给「怎么调」 */
+    const settingsCardHtml = '<div class="mp-card">' +
+      pocketFold('play', '⚙ 玩法与手感', '难度、卡组、建档、骰子、事件节奏',
+        '<div class="mp-set-block"><div class="mp-set-title">🎮 游戏难度</div>' +
+        '<div class="mp-set-desc">' + currentMeta.detail + '</div>' +
+        renderDifficultyPicker(selectedLevel, false) + '</div>' +
+        pocketRow('🃏 这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在她头上',
+          '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
+        pocketRow('🧾 自动建档', autoBoot ? '她第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
+          '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
+        pocketRow('🎲 初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断她吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+          '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
+        pocketRow('🎬 小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
+          '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
+        pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里她说过的话，更像本人' : '只按角色卡演，不引用原作',
+          '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
+        false) +
+      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、AI 的草稿要不要藏起来',
+        '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
+        '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
+        renderSkinPickerHtml() + '</div>' +
+        pocketRow('🙈 藏起 AI 的草稿', s.hideAiCot !== false ? 'AI 写给自己的分析段不显示，你只看正文和状态卡' : 'AI 写出来的全部原样显示',
+          '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? '开' : '关') + '</button>'),
+        false) +
+      pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得她说话不像，才需要动',
+        pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
+          '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? '已配置' : '去配置') + '</button>') +
+        '<div class="mp-set-block"><div class="mp-set-title">📜 演绎规则</div>' +
+        '<div class="mp-set-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div>' +
+        renderCoreRulePickerHtml() + '</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">🏷 词条释义</div>' +
+        '<div class="mp-set-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div>' +
+        renderGlossaryPickerHtml() + '</div>',
+        false) +
+      pocketFold('risk', '🌑 开了就回不了头', '这两个开关会影响整局，看清楚再用',
+        pocketRow('🔒 安全锁', getSafetyLock() ? '开：她最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
+          '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '开' : '关') + '</button>') +
+        pocketRow('🌑 锁死这段剧情', (antisl || anchorLocked) ? '已经开了：她一旦心凉就锁死，只能开新对话重来' : '关着。打开后她心凉就回不了头，删楼重摇都没用',
+          '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '已锁死' : (antisl ? '开' : '关')) + '</button>'),
+        false) +
+      '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
+      '<span class="mp-fate-dot" style="background:' + (fateActive ? '#ff8ab2' : '#7fd8a8') + ';"></span>' +
+      '<span>' + (fateActive ? '🌑 已经锁死了，只能开新对话' : '🌓 还没锁，随时能反悔') + '</span></div></div>';
+
     panel.innerHTML = '' +
-      '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击标题区域或版本号检查更新" style="display:flex;align-items:center;gap:8px;">' +
+      /* 头部：品牌名固定一行（长卡名收成副标题），版本号独立成块，不再把标题挤成三行 */
+      '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击这里检查更新">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
-      '<span class="mp-title">' + SYSTEM_UI_NAME + '</span>' +
-      '<span class="mp-badge" style="cursor:pointer;' +
-        (_cachedUpdateInfo ? 'border-color:rgba(253,224,71,0.55);color:#fde047;' : '') +
-        '">v' + MOON_FORMULA_VERSION +
-        (_cachedUpdateInfo ? ' <b style="color:#fde047;margin-left:2px;">NEW · 有更新</b>' : '') +
-      '</span>' +
-      '</button><button class="mp-close" id="moon-phase-close">✕</button></div>' +
-      '<div class="mp-display-mode-switch" role="tablist" aria-label="选择显示模式">' +
+      '<span class="mp-brand"><span class="mp-title">月相系统</span>' +
+      '<span class="mp-brand-sub">' + SYSTEM_UI_NAME + '</span></span></button>' +
+      '<span class="mp-badge" style="cursor:pointer;' + (_cachedUpdateInfo ? 'border-color:rgba(244,114,208,.6);color:#ffb3e8;' : '') + '">v' + MOON_FORMULA_VERSION + (_cachedUpdateInfo ? ' · 有新版' : '') + '</span>' +
+      '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
+      guideHtml +
+      '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
       '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机模式</button></div>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机小游戏</button></div>' +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
-      '<div class="mp-console-cluster" role="region" aria-label="掌机实体按键群">' +
-        '<!-- 十字方向键 D-Pad -->' +
-        '<div class="mp-dpad" aria-label="十字方向键">' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-up" aria-label="上" title="向上">▲</button>' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-left" data-lcd-page-step="-1" aria-label="上一页" title="向左 / 切换屏幕上一页">◀</button>' +
+      (isArcadeMode
+        ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
+        : '') +
+      '<div class="mp-system-content">' +
+      (bioStatus.count > 0 ? '<div class="mp-card"><div class="mp-card-title">📖 已有 ' + bioStatus.count + ' 份角色小抄生效<small>BIO</small></div><div class="mp-set-desc">' + bioStatus.charNames.join('、') + '</div></div>' : '') +
+      (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">👤 玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
+      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
+      '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
+      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span>💡 不知道点哪，回最上面看那条粉色提示</span></div>' +
+      '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
+        '<div class="mp-dpad" aria-hidden="true">' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-up" tabindex="-1" aria-label="上">▲</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-left" data-lcd-page-step="-1" aria-label="屏幕上一页">◀</button>' +
           '<div class="mp-dpad-center"></div>' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-right" data-lcd-page-step="1" aria-label="下一页" title="向右 / 切换屏幕下一页">▶</button>' +
-          '<button type="button" class="mp-dpad-btn mp-dpad-down" aria-label="下" title="向下">▼</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-right" data-lcd-page-step="1" aria-label="屏幕下一页">▶</button>' +
+          '<button type="button" class="mp-dpad-btn mp-dpad-down" tabindex="-1" aria-label="下">▼</button>' +
         '</div>' +
-        '<!-- 中间倾斜 SELECT & START 胶键 -->' +
         '<div class="mp-pill-keys">' +
           '<div class="mp-pill-row">' +
-            '<button type="button" class="mp-select-key" id="moon-phase-tutorial" title="打开掌机说明书">SELECT</button>' +
-            '<button type="button" class="mp-start-key' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口 (API)">START</button>' +
+            '<button type="button" class="mp-select-key" id="moon-phase-tutorial" title="打开新手引导">说明书</button>' +
+            '<button type="button" class="mp-start-key' + (hasApi ? '' : ' unconfigured') + '" id="moon-header-api-btn" title="配置独立 AI 接口">AI 钥匙</button>' +
           '</div>' +
-          '<div class="mp-pill-labels">' +
-            '<span>📖 说明书</span>' +
-            '<span>🔑 ' + (hasApi ? 'API已连' : '配置API') + '</span>' +
-          '</div>' +
+          '<div class="mp-pill-labels"><span>看怎么玩</span><span>' + (hasApi ? '已连' : '没填也能玩') + '</span></div>' +
         '</div>' +
-        '<!-- 右侧倾斜 A/B 按键与扬声器 -->' +
         '<div class="mp-action-block">' +
           '<div class="mp-action-cluster">' +
-            '<button type="button" class="mp-round-btn mp-btn-b" id="moon-btn-b" title="B键 · 返回/关闭菜单">B</button>' +
-            '<button type="button" class="mp-round-btn mp-btn-a" id="moon-btn-a" title="A键 · 确认/快速开始">A</button>' +
+            '<button type="button" class="mp-round-btn mp-btn-b" id="moon-btn-b" title="返回上一步">B</button>' +
+            '<button type="button" class="mp-round-btn mp-btn-a" id="moon-btn-a" title="确认 / 开始">A</button>' +
           '</div>' +
-          '<div class="mp-speaker-grill" aria-label="扬声器孔">' +
-            '<i></i><i></i><i></i><i></i><i></i>' +
-          '</div>' +
+          '<div class="mp-speaker-grill" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>' +
         '</div>' +
       '</div>' +
-      '<div class="mp-card mp-mode-select-card' + (isArcadeMode ? ' is-arcade' : '') + '"><details class="mp-difficulty-fold" open><summary>' + (isArcadeMode ? '街机难度' : '游戏难度') + '<i>▼</i></summary><div class="mp-difficulty-content">' +
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
-      ['easy', 'normal', 'hard', 'hell'].map(function(m) {
-        const item = LUNAR_META[m]; const isAct = (m === selectedLevel);
-        return '<button class="mp-mode-btn ' + (isAct ? 'active' : '') + '" data-mode="' + m + '" style="padding:8px 2px;border-radius:9px;border:1px solid ' + (isAct ? 'rgba(56,189,248,0.5)' : 'rgba(148,163,184,0.15)') + ';background:' + (isAct ? '#0c2540' : '#0f172a') + ';color:' + (isAct ? '#7dd3fc' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' +
-          '<div class="mp-mode-moon">' + item.glyph + '</div><div>' + item.name + ' · ' + item.title + '</div>' +
-          '<div style="font-size:8px;opacity:0.65;">' + (isArcadeMode ? '街机档位' : '每周最多 +' + item.quota) + '</div></button>';
-      }).join('') + '</div>' +
-      '<div class="mp-mode-description" style="margin-top:8px;font-size:10.5px;color:#94a3b8;line-height:1.55;">' +
-      (isArcadeMode
-        ? '<b style="color:#e2e8f0;">' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '（街机档位）</b><br>' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。<br>这个只影响街机小游戏，不改剧情难度。点一下立刻重开一局。'
-        : '<b style="color:#e2e8f0;">' + currentMeta.glyph + ' ' + currentMeta.name + ' · ' + currentMeta.title + '</b><br>' + currentMeta.detail) + '</div></div></details></div>' +
-      firstRunTip + '<div class="mp-system-content">' +
-      '<div class="mp-card"><details class="mp-settings-fold"><summary>⚙ 运行设定 <span>▼</span></summary><div class="mp-toggle-row">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌑 锚定时间线</div><div class="mp-toggle-desc">她翻脸/心凉就锁剧情，只能开新对话解</div></div>' +
-      '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '🔒 已锁定' : (antisl ? '锚定: ON' : '锚定: OFF')) + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔑 独立 API 接口</div><div class="mp-toggle-desc">' + (hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '没填也能玩，用到时会自动弹窗') + '</div></div>' +
-      '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? 'API: 已配置' : '配置 API') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🃏 卡组模式</div><div class="mp-toggle-desc">' + (cardMode === 'multi' ? '这张卡有好几个能攻略的人' : '这张卡只有一个人') + '</div></div>' +
-      '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🧾 自动建档</div><div class="mp-toggle-desc">' + (autoBoot ? '对面第一次回话就建 0 值档案；之后每一轮有新角色出场也会自动补录' : '关：不点「开局适配」就一直不建档') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? 'ON' : 'OFF') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎲 初见投资</div><div class="mp-toggle-desc">' + (firstMeetMode() === 'dice' ? '只掷骰：开局第一印象全看 1d20，AI 写什么档位都不采信' : '骰子 + 人设档位：AI 只评优势/劣势，数值由脚本掷（推荐）') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">📜 演绎规则</div><div class="mp-toggle-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div></div>' +
-      renderCoreRulePickerHtml() + '</div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🏷 词条释义</div><div class="mp-toggle-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div></div>' +
-      renderGlossaryPickerHtml() + '</div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);flex-wrap:wrap;gap:8px;">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎫 楼内状态卡</div><div class="mp-toggle-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div></div>' +
-      renderSkinPickerHtml() + '</div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🙈 隐藏内心草稿</div><div class="mp-toggle-desc">' + (s.hideAiCot !== false ? '开：AI 写的 Phase／分析段只给脚本看，你只看到正文和状态卡' : '关：AI 写出来的全部内容原样显示') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? 'ON' : 'OFF') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🔒 安全锁</div><div class="mp-toggle-desc">' + (getSafetyLock() ? '开：她最多嘴上凶' : '关：可能真的动手') + '</div></div>' +
-      '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🎬 事件推进节奏</div><div class="mp-toggle-desc">' + (pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏') + '</div></div>' +
-      '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? 'Adagio 慢' : pacing === 'All' ? 'Allegro 快' : 'Andante 中') + '</button></div>' +
-      '<div class="mp-toggle-row" style="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(148,163,184,0.1);">' +
-      '<div class="mp-toggle-info"><div class="mp-toggle-title">🌐 同人台词补强</div><div class="mp-toggle-desc">' + (fanficOn ? '借原作台词，说得更像本人' : '不借原作台词') + '</div></div>' +
-      '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '🌐 ON' : 'OFF') + '</button></div>' +
-      '</details><div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
-      '<span style="width:7px;height:7px;border-radius:50%;background:' + (fateActive ? '#f43f5e' : '#34d399') + ';"></span>' +
-      '<span>' + (fateActive ? '🌑 锚定生效中' : '🌓 月相流转中 · 命运未定') + '</span></div></div>' +
-      (bioStatus.count > 0 ? '<div class="mp-card" style="border-color:rgba(110,231,183,0.3);background:rgba(16,185,129,0.06);"><div style="font-size:11px;color:#6ee7b7;font-weight:600;">📖 已启用 ' + bioStatus.count + ' 份角色小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">覆盖角色：' + bioStatus.charNames.join('、') + '</div></div>' : '') +
-      (enabledUserBio ? '<div class="mp-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.06);"><div style="font-size:11px;color:#f9a8d4;font-weight:600;">👤 已启用玩家小抄</div><div style="font-size:10px;color:#94a3b8;margin-top:3px;">玩家：' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + ' · 覆盖 Persona 面板</div></div>' : '') +
-      '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '"><div class="mp-menu-label">MOON POCKET · 主菜单（点哪进哪）</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩点这里：建角色档案 · 重摇骰子 · 搬存档</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>认错主角就在这改 · 让 AI 演得像本人 · 结局相册</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>这个世界哪天会出事（不点也能玩）</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>卡住了、数不对劲 → 来这体检一次</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>填 AI 钥匙 · 换画风 · 看说明书</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏对话框读剧情 · 点选项推进 · 再点一次回聊天</small></span><i>›</i></button>' +
-      '</div><div class="mp-menu-controls"><span><kbd>SELECT</kbd> 掌机说明书</span><span><kbd>START</kbd> 配置API</span><span>💡 不会玩？先点「开始游戏」</span></div></section>' +
+      '</section>' +
+      /* 掌机按键条：保留实体手感，但压成一行、放到内容之后 —— 它本来就是装饰性的，
+         以前挡在菜单前面，手机上要先滑过半屏才看到能点的东西。 */
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
-      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回主菜单</button><div><small>GAME MENU / 掌机功能卡槽</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
-      '<div class="mp-subpage-switch" role="tablist" aria-label="快捷切换掌机菜单">' +
+      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">♥ 角色</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">▤ 日志</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">⚙ 检修</button>' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">▧ 选项</button>' +
       '</div>' +
-      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险准备 / ADVENTURE SETUP</div>' +
-      '<details class="mp-action-fold" open><summary><span>建角色与搬存档</span><small>第一次建档 · 换聊天接着玩</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 开局适配</span><small>第一次玩必点：AI 读完聊天记录，自动建好角色档案</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 存档迁移</span><small>换到新聊天还想接着玩：把档案打包带走</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>摇骰与倒计时</span><small>加分不满意就重摇 · 查周上限</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 属性点重掷</span><small>这轮加分不满意？重摇，可以摇到满意为止</small></button><button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 回合计时</span><small>每周好感上限该清零了吗？点一下检查</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色档案 / CHARACTER FILES</div>' +
-      '<details class="mp-action-fold" open><summary><span>角色档案与试戏</span><small>改主角 · 试戏 · 防说话走样</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 角色定位</span><small>AI 认错人？在这里把她改成「主要」</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 角色试镜</span><small>让 AI 先演一段，看像不像本人</small></button><button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 角色小抄库</span><small>管理所有人设小抄，可改可开关</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>玩家档案</span><small>让 AI 记住「你」是谁</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 玩家档案</span><small>把酒馆里的「你」写成一份小传</small></button><button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 玩家资料库</span><small>挑一份小传让它生效</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>相册与通关</span><small>看解锁的插画 · 结算这一局</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的成就和插画，可下载保存</small></button><button class="mp-btn" id="moon-phase-ending"><span>🌌 周目结算</span><small>这一局结束：生成结局卡和番外小说</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志 / WORLD LOG</div>' +
-      '<details class="mp-action-fold" open><summary><span>时间线</span><small>大事表就存在脚本里，不用建世界书</small><i>＋</i></summary><div class="mp-grid">' +
-        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 时间线清单</span><small>看看接下来会发生什么，能改能删</small></button>' +
-        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 生成时间线</span><small>让 AI 编一份大事表，直接存进来</small></button>' +
-        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书导入</span><small>已经有现成的？搬进来就行</small></button>' +
-      '</div></details>' +
-      '<details class="mp-action-fold" open><summary><span>改日期</span><small>指定读哪一栏 · 自己粘贴</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 时间线标签</span><small>告诉它「日期写在哪一栏」</small></button><button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动补录</span><small>自己贴一段，自动转成标准格式</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修 / SYSTEM SERVICE</div>' +
-      '<details class="mp-action-fold" open><summary><span>体检</span><small>存上了吗 · 有没有缺零件</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>看数据存在哪、有没有缺零件</small></button><button class="mp-btn" id="moon-phase-simtest"><span>🧪 模拟测试</span><small>拿假数据试算一遍，不动你的存档</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>查冲突</span><small>别的插件跟我打架了吗</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书有没有重复、互相打架的条目</small></button><button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 AI 功能检测</span><small>让 AI 帮你查冲突，或推荐一个难度</small></button></div></details></div>' +
-      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项 / OPTIONS</div>' +
-      '<details class="mp-action-fold" open><summary><span>AI 与接口</span><small>可选：让插件用自己的 AI</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ 配置API</span><small>' + (hasApi ? '已设:' + lcdEscape(String(apiCfg.model).slice(0, 10)) : '没填也能玩，用到时会自动弹窗') + '</small></button><button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 提示词设置</span><small>想改 AI 收到的指令，在这里改</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>插画与番外</span><small>用哪家出图 · 番外写多长</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 回忆与生图设定</span><small>选画图的渠道，定番外的字数</small></button><button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 掌机说明书</span><small>不会用就看这个，一页讲一件事</small></button></div></details>' +
-      '<details class="mp-action-fold" open><summary><span>更新与帮助</span><small>拉最新版 · 常见问题</small><i>＋</i></summary><div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 发现新版本' : '🔄 检查版本更新') + '</span><small>连不通会自动换镜像</small></button><button class="mp-btn" id="moon-phase-faq"><span>❓ 帮助与说明</span><small>一个问题一句话，先搜这里</small></button></div></details></div></section>' +
-      '<div class="mp-status" id="moon-phase-status">' + SYSTEM_UI_NAME + ' 准备就绪。</div></div>';
+      '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
+      pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 一键建档案</span><small>AI 读一遍聊天记录，把人和现在的数值填好</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 搬旧存档</span><small>换到新聊天时，把这里的档案带过去</small></button></div>', true) +
+      pocketFold('adv-roll', '重摇 / 查上限', '觉得这轮加少了，或者想知道上限清没清',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 重摇这一轮</span><small>不满意就重摇，摇到满意再确认，可以一直摇</small></button>' +
+        '<button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 检查每周上限</span><small>算一下这周的加分额度该清零了没</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色与存档</div>' +
+      pocketFold('chr-files', '人物档案', '认错人、说话不像、想手改数值',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 让她试演一段</span><small>先看她说话像不像本人，不像就重写</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
+      pocketFold('chr-you', '关于「你」', '让 AI 记住你是谁、什么脾气',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 写一份我的设定</span><small>把你写清楚，她回话才不会跑偏</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
+      pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ending"><span>🌌 结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志（可选）</div>' +
+      pocketFold('tl-list', '世界大事表', '不写也能正常玩；写了 AI 会有主线目标',
+        '<div class="mp-grid">' +
+        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
+        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
+      '</div>', true) +
+      pocketFold('tl-edit', '自己补 / 改日期', 'AI 写漏了，或者日期读错了',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
+        '<button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修</div>' +
+      pocketFold('sys-check', '先体检', '不知道哪坏了，就点这两个',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>一条条列给你：哪项正常、哪项不正常</small></button>' +
+        '<button class="mp-btn" id="moon-phase-simtest"><span>🧪 拿假数据试算</span><small>不碰你的存档，只验证算法跑不跑得通</small></button></div>', true) +
+      pocketFold('sys-conflict', '查打架', '怀疑和别的插件/世界书撞了',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书里有没有重复、互相打架的条目</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 让 AI 帮我看</span><small>它读完给出结论，也能顺手推荐个难度</small></button></div>', true) +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项</div>' +
+      pocketFold('opt-ai', 'AI 与接口', '可选：让插件单独用一个 AI',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ AI 钥匙</span><small>' + (hasApi ? '已填：' + lcdEscape(String(apiCfg.model).slice(0, 12)) : '不用填，不填就用酒馆里那个 AI') + '</small></button>' +
+        '<button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 改提示词</span><small>AI 收到的指令在这里，看得懂再改</small></button></div>', true) +
+      pocketFold('opt-art', '插画与番外', '用哪家画图、番外写多长',
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 画图与番外设定</span><small>选画图渠道，定番外字数</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 新手说明书</span><small>一步一步讲，30 秒看完</small></button></div>', true) +
+      pocketFold('opt-update', '更新与帮助', '拉最新版、遇到问题先搜这里',
+        '<div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 有新版本' : '🔄 检查更新') + '</span><small>连不上会自动换线路重试</small></button>' +
+        '<button class="mp-btn" id="moon-phase-faq"><span>❓ 遇到问题</span><small>按情况分好类，一句话一个答案</small></button></div>', true) +
+      '</div></section>' +
+      settingsCardHtml +
+      '<div class="mp-status" id="moon-phase-status">准备好了。要做的事都写在最上面那条提示里。</div></div>';
 
-    /* 还原折叠状态：按标题文字匹配，和重绘前那一份对齐 */
+    /* 还原折叠状态：按标题文字 / data-fold 匹配，和重绘前那一份对齐 */
     try {
       panel.querySelectorAll('details').forEach(function(d) {
         const summaryEl = d.querySelector('summary');
         const t = (summaryEl ? summaryEl.textContent : '').replace(/\s+/g, ' ').trim().slice(0, 24);
         if (t && Object.prototype.hasOwnProperty.call(_foldSnap, t)) d.open = _foldSnap[t];
+      });
+      panel.querySelectorAll('.mp-fold[data-fold]').forEach(function(d) {
+        const key = 'fold:' + d.getAttribute('data-fold');
+        if (!Object.prototype.hasOwnProperty.call(_foldSnap, key)) return;
+        const open = _foldSnap[key] === true;
+        d.setAttribute('data-open', open ? '1' : '0');
+        const head = d.querySelector('.mp-fold-head');
+        if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
       });
       if (_scrollSnap) panel.scrollTop = _scrollSnap;
     } catch (e) {}
@@ -346,6 +291,21 @@
       if (eventView) eventView.innerHTML = renderEventStatusCard();
     }, 2500);
     bindLcdPageControls(panel);
+    try { bindPocketFolds(panel); } catch (e) {}
+    /* 引导条：按钮动作和它写的那句话必须对得上，所以动作也集中在一处判断 */
+    panel.querySelectorAll('[data-guide-act]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const act = btn.getAttribute('data-guide-act');
+        if (act === 'adapt') { openUnifiedAdaptDialog(panel); return; }
+        if (act === 'gal') {
+          let ok = false;
+          try { ok = galFlip() !== false; } catch (e) { ok = false; }
+          if (ok !== false) { try { closePanel(); } catch (e) {} }
+          return;
+        }
+        if (act === 'tour') { openTutorialDialog(panel); }
+      });
+    });
     panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
     panel.querySelector('#moon-phase-tutorial').addEventListener('click', function() { openTutorialDialog(panel); });
     const tutBtn2 = panel.querySelector('#moon-phase-tutorial-btn');
@@ -1181,48 +1141,136 @@ const stateKey = getChatStateKey();
     try { const d = readMvuLatest(); const ch = d && d.stat_data && d.stat_data.角色 && d.stat_data.角色[name]; return ch && ch._lastRoll ? ch._lastRoll._turnSig : ''; } catch (e) { return ''; }
   }
 
-  function openFaqDialog() {
-    const FAQ_LIST = [
-      { q: '第一次玩，我该点哪里？', keys: ['第一次', '新手', '开始', '入门'], a: '只做一件事：<b>▶ 开始游戏 → 🚀 开局适配</b>，点一下等它跑完。<br>它会读完聊天记录，自动帮你建好角色档案。<br>建好之后就不用管了，正常聊天，好感会自己涨。' },
-      { q: '我不想装也能玩吗？要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置'], a: '不用装任何别的东西。所有数据都存在这台掌机里，<b>不需要 MVU</b>。' },
-      { q: '导入脚本后没反应 / 找不到入口', keys: ['刷新', '导入', '菜单', '入口'], a: '先确认脚本是「已启用」状态，然后刷新一次酒馆页面。<br>入口在右上角的扩展菜单里，图标是 🌕。' },
-      { q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'], a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天（游戏日 +1）。<br>如果剧情要跳到几小时后或第二天，<b>你得自己说一声</b>（「我们明天见」「睡了」），或者正文写了「次日 / 一周后」。<br>没说就默认只过 10 分钟，不会乱跳。' },
-      { q: '时间 / 内心话不动了怎么办', keys: ['时间', '心声', '内心话', '不推进', '卡住'], a: '多半是这轮 AI 没写时间。<br>想马上修：<b>♥ 角色与存档 → 👥 角色定位</b>，直接手写时间、地点和内心话，保存立刻生效。' },
-      { q: 'AI 把别人当成主角了 / 认成「次要」', keys: ['次要', '重要度', '角色定位', '攻略对象', '认错'], a: '<b>♥ 角色与存档 → 👥 角色定位</b>，把她改成「主要」。<br>改完 AI 下一轮就会围着她写，<b>不用重开档</b>。' },
-      { q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '反悔'], a: '一个「回不了头」的开关。<br>打开后，<b>只要她好感跌破 0，或者跟你冷战</b>，这段剧情就锁死了：<br>删楼、滑动、重摇、把好感刷回来 —— 都解不开。<br><b>唯一的解法是开一个新对话。</b><br>不打开就完全不影响你。' },
-      { q: '加分太少了，能重来吗？', keys: ['重roll', '重投', '重摇', '加分'], a: '可以。<b>▶ 开始游戏 → 🎲 属性点重掷</b>，摇到满意再点「确认覆盖」。<br>它会告诉你这次是按什么算的（AI 判定 / 本楼暗号 / 你手填）。' },
-      { q: '重摇显示「无记录」怎么办？', keys: ['无记录', '重roll', '判断'], a: '意思是这一轮 AI 没给这个角色打暗号。<br>现在会自动退回一步：先试「本楼暗号」，还不行就让你<b>手动选方向、数值</b>，照样能摇。' },
-      { q: '「关系升级判定」（阶段门）是什么？', keys: ['阶段门', '破门', '冻结', '升级'], a: '好感涨到 <b>18 / 38 / 58 / 78 / 98</b> 这五个点时，会停下来做一次「能不能更进一步」的判定。<br>过了就升级，没过就卡在这个阶段，需要更好的时机。' },
-      { q: '事件多久来一次？', keys: ['事件', '节奏', '频率'], a: '大约每 <b>8~12 回合</b>来一个日常小事件，重大事件有几天冷却。<br>嫌多嫌少，去 <b>⚙ 运行设定 → 事件推进节奏</b> 调慢 / 中 / 快。' },
-      { q: '「彩蛋事件」是什么？', keys: ['彩蛋', '大成功'], a: '摇到 20 点才会出现的稀有事件，持续 5 回合，风格一定是轻松搞笑的日常。' },
-      { q: '角色试镜是干什么的？', keys: ['试镜', '小抄', '像不像'], a: '让 AI 先读角色卡，写一份「她该怎么说话」的小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。<br>存下来之后，AI 演她会明显更像本人（不会说出不像她会说的话）。' },
-      { q: '小抄（角色小抄库 / 玩家档案）怎么管？', keys: ['小抄库', '管理', '玩家', 'persona'], a: '一个角色只能启用一份小抄，启用新的会自动关掉旧的。<br>玩家档案也一样，只是它管的是「你」。<br>随时可以在库里改、关、删。' },
-      { q: '自检报告在哪看？', keys: ['自检', '报告', '报错'], a: '<b>⚙ 系统检修 → 🔭 系统自检</b>，跑完会弹窗告诉你哪一项不正常。<br>要发帖求助，先跑自检 + 模拟测试，把结果截图一起发。' },
-      { q: '时间线要不要写？', keys: ['时间线', 'timeline', '主线'], a: '不写也能玩。<br>写了的话，AI 会照着上面的日期安排主线大事，世界更有目标感。<br>写法：一个事件一条，或者一条里用「时间：xxx / 内容：yyy」分段。' },
-      { q: 'AI 回复末尾那个 [Sylveina|...] 是什么？', keys: ['标签', 'sylveina', '暗号'], a: '那是给掌机看的「暗号」，你不用管。<br>AI 只打暗号，具体加多少分由掌机摇骰子算，AI 改不了数。' }
-    ];
+  /* ── 自助答疑 ───────────────────────────────────────────────
+     原则：先让人对上「我遇到的是哪种情况」，再给一句人话答案 +
+     具体点哪里。不写术语，不写「请检查配置」。 */
+  const FAQ_CATS = [
+    { id: 'start', name: '第一次玩' },
+    { id: 'number', name: '数字不对' },
+    { id: 'story', name: '剧情和时间' },
+    { id: 'error', name: '出错了' },
+    { id: 'tune', name: '想调设置' }
+  ];
+  const FAQ_LIST = [
+    /* 第一次玩 */
+    { cat: 'start', q: '第一次玩，第一步点哪里？', keys: ['第一次', '新手', '开始', '入门', '上手'],
+      a: '看最上面那条粉色提示，它会告诉你现在该做什么。<br>还没有人物档案时，点右边的 <b>帮我建档案</b>，等它跑完就行。<br>只建一次，之后正常聊天，数字会自己涨。' },
+    { cat: 'start', q: '建完档案还要做什么？', keys: ['建档', '之后', '接下来', '干嘛'],
+      a: '什么都不用做，回酒馆正常聊天。<br>她加分减分都由这台掌机算，AI 只能打暗号，改不了数。' },
+    { cat: 'start', q: '要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置', '插件'],
+      a: '不用装任何东西，也<b>不需要 MVU</b>。<br>所有数据都存在这台掌机里，跟别的插件不冲突。' },
+    { cat: 'start', q: '找不到入口 / 点了没反应', keys: ['刷新', '导入', '菜单', '入口', '没反应'],
+      a: '先确认脚本是<b>已启用</b>状态，再刷新一次酒馆页面。<br>入口在右上角扩展菜单里，图标是 <b>🌕</b>。' },
+    { cat: 'start', q: '这台掌机上一堆按钮，都是干什么的？', keys: ['看不懂', '说明', '按钮', '说明书', '教程'],
+      a: '点最下面那排的 <b>说明书</b>，它会一步一步指着告诉你哪个是哪个，30 秒看完。<br>看完就关了，不会再打扰你。' },
 
-    const html = '<div style="padding:10px 12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:9px;color:#fca5a5;font-size:11.5px;line-height:1.7;margin-bottom:12px;">' +
-      '<b>🛑 遇到问题先做两步：</b><br>① 先看下面有没有你的问题　② 没有的话点 <b>⚙ 系统检修 → 🔭 系统自检</b>，把结果截图发帖。<br>' +
-      '<span style="color:#fde047;font-weight:600;">💡 不需要装 MVU，所有数据都存在这台掌机里。</span></div>' +
-      '<input id="moon-faq-search" placeholder="打个词搜一搜，比如「时间」「认错」" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid rgba(148,163,184,0.25);background:#171a22;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:10px;">' +
-      '<div id="moon-faq-list" style="display:flex;flex-direction:column;gap:6px;"></div>';
-    showModalDialog('❓ 常见问题', html, null, {
-      confirmText: '关闭',
+    /* 数字不对 */
+    { cat: 'number', q: '好感不涨 / 加分太少', keys: ['不涨', '加分', '太少', '好感'],
+      a: '先看 <b>开始游戏 → 重摇这一轮</b>。<br>它会告诉你这次是按什么算的：AI 判定、本楼暗号，还是你手填。<br>不涨多半是 AI 这轮没打暗号，退一步手选方向也能摇。' },
+    { cat: 'number', q: '重摇显示「没有记录」', keys: ['无记录', '重roll', '重摇', '判断'],
+      a: '意思是这一轮 AI 没给这个角色打暗号。<br>现在会自动退一步：先试本楼暗号，还不行就让你<b>手动选方向、填数值</b>，照样能摇。' },
+    { cat: 'number', q: '时间和内心话不动了', keys: ['时间', '心声', '内心话', '不推进', '卡住'],
+      a: '多半是这轮 AI 没写时间。<br>想马上修：<b>角色与存档 → 查看 / 修改档案</b>，直接手写时间、地点、内心话，保存立刻生效。' },
+    { cat: 'number', q: 'AI 把别人当主角了', keys: ['次要', '重要度', '角色定位', '攻略对象', '认错'],
+      a: '<b>角色与存档 → 查看 / 修改档案</b>，把她改成<b>主要</b>。<br>改完 AI 下一轮就会围着她写，<b>不用重开档</b>。' },
+    { cat: 'number', q: '好感卡在 18 / 38 / 58 上不去', keys: ['阶段门', '卡住', '升级', '破门', '冻结'],
+      a: '这是「关系升级」的关口，不是坏了。<br>到 <b>18 / 38 / 58 / 78 / 98</b> 这五个点会停下来判一次「能不能更进一步」，过了才升级。<br>没过就等更好的时机，可以继续聊天攒机会。' },
+    { cat: 'number', q: '每周加分有上限吗？', keys: ['上限', '每周', '额度', '清零'],
+      a: '有。<b>开始游戏 → 检查每周上限</b> 能看这周还剩多少，也能手动清零。<br>这是为了防止一直聊同一件事把分刷爆。' },
+    { cat: 'number', q: '事件太久没来了', keys: ['事件', '节奏', '频率', '没有事件'],
+      a: '大约每 <b>8~12 回合</b>来一个日常小事件。<br>嫌慢嫌快：<b>玩法与手感 → 小事件来得多勤</b>，慢 / 中 / 快三档都能调。' },
+    { cat: 'number', q: '开局给的分太高 / 太低', keys: ['初见', '开局', '底分', '保底'],
+      a: '<b>玩法与手感 → 初见投资</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断她吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
+
+    /* 剧情和时间 */
+    { cat: 'story', q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'],
+      a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天。<br>要跳到几小时后或第二天，<b>得你自己说一声</b>（「我们明天见」「睡了」），或者正文里写「次日 / 一周后」。' },
+    { cat: 'story', q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '回不了头'],
+      a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要她好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
+    { cat: 'story', q: 'AI 回复末尾那个 [Sylveina|…] 是什么？', keys: ['标签', 'sylveina', '暗号', '括号'],
+      a: '那是给掌机看的<b>暗号</b>，你不用管。<br>AI 只打暗号，具体加多少由掌机摇骰子算，AI 改不了数。<br>正常情况下它会自动收起来，不会出现在正文里。' },
+    { cat: 'story', q: '沉浸模式怎么用？', keys: ['沉浸', 'gal', '全屏', '退出'],
+      a: '主菜单点 <b>沉浸模式</b>，全屏读剧情，点一下往下走一句，像玩 Galgame。<br>想退出按 <b>Esc</b>，或者点右上角的退出按钮。' },
+    { cat: 'story', q: '世界大事表要不要写？', keys: ['时间线', 'timeline', '主线', '大事表'],
+      a: '不写也能玩。<br>写了的话 AI 会照着上面的日期安排主线大事，世界更有目标感。<br>懒得写就让 AI 编一份：<b>冒险日志 → 让 AI 编一份</b>。' },
+
+    /* 出错了 */
+    { cat: 'error', q: '面板打不开 / 白屏', keys: ['打不开', '白屏', '报错', '崩'],
+      a: '先刷新一次酒馆页面。<br>还不行就走一趟 <b>系统检修 → 系统自检</b>，它一条条列给你哪项不正常。<br>把结果截图发帖，比描述半天管用。' },
+    { cat: 'error', q: '和别的插件打架了？', keys: ['冲突', '打架', '重复', '撞'],
+      a: '<b>系统检修 → 冲突扫描</b>，查世界书里有没有重复或者互相打架的条目。<br>拿不准就点旁边的 <b>让 AI 帮我看</b>，它读完给结论。' },
+    { cat: 'error', q: '更新拉不到新版', keys: ['更新', '新版', '失败', '线路'],
+      a: '<b>系统选项 → 检查更新</b> 会自动换线路重试。<br>全都失败就是网络问题，过一会儿再点，或者手动导入新的 JSON。' },
+    { cat: 'error', q: '换聊天了，档案还在吗？', keys: ['换聊天', '存档', '搬家', '迁移'],
+      a: '档案跟着<b>这条聊天</b>走，所以换新聊天等于从头开始。<br>想接着玩：<b>开始游戏 → 搬旧存档</b>，把原来的档案带过去。' },
+
+    /* 想调设置 */
+    { cat: 'tune', q: '难度选哪个？', keys: ['难度', '地狱', '简单', '选哪个'],
+      a: '<b>玩法与手感 → 游戏难度</b>，四档都写了区别。<br>拿不准就选中间那档，<b>随时能改，不用重开</b>。' },
+    { cat: 'tune', q: '想换状态卡的样子', keys: ['皮肤', '外观', '状态卡', '换样子'],
+      a: '<b>系统选项</b> 里能换状态卡外观，点一下就能预览，不用保存再刷新。' },
+    { cat: 'tune', q: '想让她说话更像本人', keys: ['试镜', '小抄', '像不像', '说话不像'],
+      a: '<b>角色与存档 → 让她试演一段</b>：AI 先读角色卡写一份小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。存下来之后 AI 演她会明显更像。' },
+    { cat: 'tune', q: '想让插件单独用一个 AI', keys: ['api', '模型', '钥匙', '接口'],
+      a: '<b>系统选项 → AI 钥匙</b>。<br>不填也能用，直接用你酒馆里那个 AI。只有想换模型、或嫌它演得不对，才需要填。' }
+  ];
+
+  function openFaqDialog() {
+    const chips = '<div id="moon-faq-chips">' +
+      '<button type="button" class="mp-faq-chip active" data-cat="all">全部</button>' +
+      FAQ_CATS.map(function(c) { return '<button type="button" class="mp-faq-chip" data-cat="' + c.id + '">' + c.name + '</button>'; }).join('') +
+      '</div>';
+    const html = '<div class="mp-faq-tip">先选一个最像你现在的情况；找不到就打个词搜，比如「时间」「认错」。</div>' +
+      chips +
+      '<input id="moon-faq-search" class="mp-faq-search" type="search" placeholder="搜一下，比如：不涨 / 卡住 / 退出" autocomplete="off">' +
+      '<div id="moon-faq-list"></div>' +
+      '<div class="mp-faq-foot">还是没有？走一趟 <b>系统检修 → 系统自检</b>，把结果截图发帖，比描述半天管用。</div>';
+
+    showModalDialog('❓ 遇到问题', html, null, {
+      confirmText: '知道了',
       onOpen: function(mask) {
-        const input = mask.querySelector('#moon-faq-search'); const list = mask.querySelector('#moon-faq-list');
-        function render(kw) {
-          const w = String(kw || '').trim().toLowerCase();
-          const items = FAQ_LIST.filter(function(item) { if (!w) return true; const pool = (item.q + ' ' + item.keys.join(' ') + ' ' + item.a).toLowerCase(); return pool.indexOf(w) >= 0; });
-          if (!items.length) { list.innerHTML = '<div style="color:#f87171;font-size:11px;">没找到，换个词试试。</div>'; return; }
-          list.innerHTML = items.map(function(item, idx) {
-            return '<div style="border:1px solid rgba(148,163,184,0.14);border-radius:9px;overflow:hidden;">' +
-              '<button class="moon-faq-q" data-idx="' + idx + '" style="width:100%;text-align:left;padding:8px 10px;background:#0f172a;color:#e2e8f0;border:none;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;">' + item.q + '</button>' +
-              '<div class="moon-faq-a" data-idx="' + idx + '" style="display:none;padding:8px 10px;background:#171a22;color:#94a3b8;font-size:11px;line-height:1.65;">' + item.a + '</div></div>';
+        const input = mask.querySelector('#moon-faq-search');
+        const list = mask.querySelector('#moon-faq-list');
+        let cat = 'all';
+
+        function render() {
+          const kw = String(input.value || '').trim().toLowerCase();
+          const items = FAQ_LIST.filter(function(item) {
+            if (cat !== 'all' && item.cat !== cat) return false;
+            if (!kw) return true;
+            return (item.q + ' ' + item.keys.join(' ') + ' ' + item.a).toLowerCase().indexOf(kw) >= 0;
+          });
+          if (!items.length) {
+            list.innerHTML = '<div class="mp-faq-empty">没找到。<br>换个词试试，或者点上面的「全部」。</div>';
+            return;
+          }
+          list.innerHTML = items.map(function(item, i) {
+            return '<div class="mp-faq-item" data-cat="' + item.cat + '" data-open="' + (kw && items.length <= 2 ? '1' : '0') + '">' +
+              '<button type="button" class="mp-faq-q"><span>' + item.q + '</span><i>▾</i></button>' +
+              '<div class="mp-faq-body"><div class="mp-faq-clip"><div class="mp-faq-a">' + item.a + '</div></div></div>' +
+              '</div>';
           }).join('');
-          list.querySelectorAll('.moon-faq-q').forEach(function(btn) { btn.addEventListener('click', function() { const idx = btn.getAttribute('data-idx'); const a = list.querySelector('.moon-faq-a[data-idx="' + idx + '"]'); if (a) a.style.display = a.style.display === 'none' ? 'block' : 'none'; }); });
+          list.querySelectorAll('.mp-faq-item').forEach(function(el) {
+            const q = el.querySelector('.mp-faq-q');
+            q.setAttribute('aria-expanded', el.getAttribute('data-open') === '1' ? 'true' : 'false');
+            q.addEventListener('click', function() {
+              const next = el.getAttribute('data-open') !== '1';
+              el.setAttribute('data-open', next ? '1' : '0');
+              q.setAttribute('aria-expanded', next ? 'true' : 'false');
+            });
+          });
         }
-        input.addEventListener('input', function() { render(input.value); }); render('');
+
+        mask.querySelectorAll('.mp-faq-chip').forEach(function(chip) {
+          chip.addEventListener('click', function() {
+            mask.querySelectorAll('.mp-faq-chip').forEach(function(c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            cat = chip.getAttribute('data-cat');
+            render();
+          });
+        });
+        input.addEventListener('input', render);
+        render();
       }
     });
   }
