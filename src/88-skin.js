@@ -2536,32 +2536,41 @@
    ══════════════════════════════════════════════════════════════════ */
 
 .mp-skin-calista {
-  /* 浅色四层：亚麻纸 → 奶油纸，每层差 3% 明度，靠这一点点差别分层。
-     取自 Calista 的贝壳、珍珠与亚麻，不是冷灰。
-     最亮一层停在 #FAF2E3（明度 95%），**不到纯白**——晚上把屏幕调暗时，
+  /* 浅色四层：灰粉 → 暖白，每层差 3% 明度，靠这一点点差别分层。
+     取自蕾丝少女 / 干燥玫瑰 / 贝壳内壁，不是黄调亚麻，也不是冷灰。
+     最亮一层停在 #F8F1EF（明度 95%），**不到纯白**——夜里把屏幕调暗时，
      一块 255 的白会先亮出来，其余层次全被它吃掉。 */
-  --cl-bg-0: #EEE4D4;
-  --cl-bg-1: #F5EDDE;
-  --cl-bg-2: #FAF2E3;
-  --cl-bg-3: #E2D6C3;
+  --cl-bg-0: #E9E0E1;
+  --cl-bg-1: #F1E8E8;
+  --cl-bg-2: #F8F1EF;
+  --cl-bg-3: #DCD1D2;
 
-  --cl-ink:   #3A2E27;
-  --cl-ink-2: #6E5C51;
-  --cl-ink-3: #806B5B;
+  --cl-ink:   #3E3237;
+  --cl-ink-2: #6E595F;
+  --cl-ink-3: #7B6469;
 
-  --cl-hair:   rgba(58, 46, 39, .09);
-  --cl-hair-2: rgba(58, 46, 39, .17);
+  --cl-hair:   rgba(62, 50, 55, .09);
+  --cl-hair-2: rgba(62, 50, 55, .17);
 
-  --cl-accent: #C0867F;
-  --cl-accent-soft: rgba(192, 134, 127, .14);
-  /* 珍珠高光：暖白而不是纯白，也不靠 55% 的浓度去「点亮」 */
-  --cl-orb-hi: rgba(252, 243, 230, .34);
+  --cl-accent: #BB8D93;
+  --cl-accent-soft: rgba(187, 141, 147, .16);
+
+  /* 扁平母贝扣（衣服扣子那种平圆片）：**不做球面**。
+     一层平底 + 一道很宽的斜向珠光 + 粉/香槟/青三色缓慢过渡的虹彩。
+     没有聚光点、没有边缘转暗、没有底部反光，全片都是平的。 */
+  --cl-pearl-0: #EADCDD;
+  --cl-pearl-hi: rgba(253, 246, 244, .60);
+  --cl-pearl-i1: rgba(238, 202, 204, .62);
+  --cl-pearl-i2: rgba(206, 222, 220, .55);
+  --cl-pearl-i3: rgba(246, 230, 212, .58);
+  /* 书封头那块色：比卡面深一档的灰粉，参考图里的绿色封面换成灰粉 */
+  --cl-cover-bg: #E4D7D9;
   /* 贝壳内壁的虹彩，只给卡面加一层极淡的光 */
   --cl-sheen: linear-gradient(118deg,
-    rgba(252, 243, 231, .82) 0%,
-    rgba(246, 226, 222, .30) 34%,
-    rgba(230, 238, 233, .20) 62%,
-    rgba(250, 241, 226, .48) 100%);
+    rgba(248, 241, 238, .82) 0%,
+    rgba(238, 214, 214, .28) 34%,
+    rgba(222, 232, 229, .18) 62%,
+    rgba(246, 234, 232, .46) 100%);
 
   --cl-fw: 600;
   --cl-fw-body: 400;
@@ -2587,29 +2596,34 @@
   text-rendering: optimizeLegibility;
 }
 
-/* 深色四层：比浅色再压 2% 一档，文字降到 360 字重 */
+/* 深色四层：同一套灰粉色相压暗，不是换成另一套颜色；文字降到 360 字重 */
 .mp-skin-calista[data-theme="night"] {
-  --cl-bg-0: #17120F;
-  --cl-bg-1: #1E1815;
-  --cl-bg-2: #251E19;
-  --cl-bg-3: #100C0A;
+  --cl-bg-0: #171316;
+  --cl-bg-1: #1E181C;
+  --cl-bg-2: #251E22;
+  --cl-bg-3: #100C0E;
 
-  --cl-ink:   #F3E9DC;
-  --cl-ink-2: #C4B2A2;
-  --cl-ink-3: #96857A;
+  --cl-ink:   #F3EAEA;
+  --cl-ink-2: #C9B6BA;
+  --cl-ink-3: #9B888C;
 
-  --cl-hair:   rgba(243, 233, 220, .10);
-  --cl-hair-2: rgba(243, 233, 220, .19);
+  --cl-hair:   rgba(243, 234, 234, .10);
+  --cl-hair-2: rgba(243, 234, 234, .19);
 
-  --cl-accent: #DFA79E;
-  --cl-accent-soft: rgba(223, 167, 158, .18);
-  /* 夜里珍珠只留一层微光，不做白点 */
-  --cl-orb-hi: rgba(240, 226, 208, .07);
+  --cl-accent: #DFA9AE;
+  --cl-accent-soft: rgba(223, 169, 174, .18);
+  /* 夜里同一枚贝扣压暗：珠光只剩 10%，虹彩也收淡，依旧是平的 */
+  --cl-pearl-0: #2E2428;
+  --cl-pearl-hi: rgba(246, 232, 232, .10);
+  --cl-pearl-i1: rgba(223, 169, 174, .16);
+  --cl-pearl-i2: rgba(150, 180, 176, .12);
+  --cl-pearl-i3: rgba(230, 210, 190, .08);
+  --cl-cover-bg: #1B1519;
   --cl-sheen: linear-gradient(118deg,
-    rgba(250, 236, 220, .06) 0%,
-    rgba(223, 167, 158, .055) 40%,
+    rgba(250, 236, 236, .06) 0%,
+    rgba(223, 169, 174, .055) 40%,
     rgba(180, 200, 195, .035) 68%,
-    rgba(250, 240, 226, .045) 100%);
+    rgba(250, 240, 236, .045) 100%);
 
   --cl-fw: 360;
   --cl-fw-body: 300;
@@ -2659,7 +2673,8 @@
     0 10px 26px -20px rgba(31, 28, 24, .55);
 }
 
-/* 圆章：Calista 的两个基本元素——圆 + 一段线 */
+/* 圆章：一枚**扁平的母贝扣** + 首字母。**没有外圈**。
+   平底 + 斜向珠光 + 粉/香槟/青虹彩；不画球面、不画高光点、不画立体阴影。 */
 .mp-skin-calista .cl-orb {
   position: relative;
   flex: 0 0 auto;
@@ -2669,31 +2684,19 @@
   place-items: center;
   border-radius: 50%;
   background:
-    radial-gradient(120% 120% at 30% 18%, var(--cl-orb-hi), transparent 58%),
-    var(--cl-bg-2);
-  box-shadow:
-    inset 0 0 0 1px var(--cl-hair-2),
-    inset 0 -2px 5px rgba(192, 134, 127, .18);
+    /* 一道很宽的斜向珠光，是「平铺的光」不是「聚起来的高光」 */
+    linear-gradient(128deg, var(--cl-pearl-hi) 0%, rgba(253, 246, 244, 0) 42%),
+    /* 母贝虹彩：粉 → 香槟 → 海水青，缓慢过渡，低饱和 */
+    linear-gradient(115deg, var(--cl-pearl-i1) 0%, var(--cl-pearl-i3) 40%, var(--cl-pearl-i2) 100%),
+    var(--cl-pearl-0);
+  /* 只留一圈均匀发丝线界定圆片轮廓，不做任何方向性的立体阴影 */
+  box-shadow: inset 0 0 0 1px var(--cl-hair);
   font-family: var(--cl-serif);
   font-size: 15px;
+  font-weight: var(--cl-fw);
   line-height: 1;
   letter-spacing: .01em;
-}
-.mp-skin-calista .cl-orb::after {
-  content: "";
-  position: absolute;
-  inset: -3.5px;
-  border-radius: 50%;
-  border: 1px solid transparent;
-  border-top-color: var(--cl-accent);
-  border-right-color: var(--cl-accent);
-  opacity: .5;
-  transform: rotate(-42deg);
-  transition: transform 620ms var(--cl-spring), opacity 300ms var(--cl-ease);
-}
-.mp-skin-calista.is-open .cl-orb::after {
-  transform: rotate(226deg);
-  opacity: .78;
+  color: var(--cl-ink);
 }
 
 .mp-skin-calista .cl-id {
@@ -2785,7 +2788,7 @@
   background-image: var(--cl-sheen);
   background-blend-mode: soft-light;
   border-radius: 20px;
-  background: var(--cl-bg-0);
+  background-color: var(--cl-bg-0);
   box-shadow:
     inset 0 0 0 1px var(--cl-hair),
     0 14px 34px -26px rgba(31, 28, 24, .6);
@@ -2814,12 +2817,92 @@
 }
 .mp-skin-calista .cl-sheet > * { position: relative; }
 
+/* ── 书封头：把参考图那张「首页」的上半色块搬进状态卡 ───────────
+   大面积低饱和色块 + 衬线斜体大标题 + 水印级线描插画；
+   下面那条暖白横条就是参考图的「Prologue.」带。 */
+.mp-skin-calista .cl-cover {
+  position: relative;
+  margin: -13px -13px 0;
+  padding: 15px 18px 17px;
+  min-height: 92px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  background: var(--cl-cover-bg);
+  border-radius: 20px 20px 0 0;
+}
+.mp-skin-calista .cl-cover-kicker {
+  font-size: 8.5px;
+  letter-spacing: .24em;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-cover-title {
+  font-family: var(--cl-serif);
+  font-style: italic;
+  font-size: 27px;
+  font-weight: var(--cl-fw);
+  line-height: 1.06;
+  letter-spacing: -.01em;
+  color: var(--cl-ink);
+}
+.mp-skin-calista .cl-cover-title.is-cjk { font-style: normal; letter-spacing: .06em; }
+.mp-skin-calista .cl-cover-note {
+  font-family: var(--cl-serif);
+  font-style: italic;
+  font-size: 10.5px;
+  color: var(--cl-ink-2);
+  opacity: .85;
+}
+/* 扇贝线描只是水印，压在色块里，不做主角 */
+.mp-skin-calista .cl-cover-shell {
+  position: absolute;
+  right: 8px;
+  bottom: -8px;
+  width: 116px;
+  height: 116px;
+  color: var(--cl-ink-2);
+  opacity: .22;
+  pointer-events: none;
+}
+.mp-skin-calista[data-theme="night"] .cl-cover-shell { opacity: .14; }
+.mp-skin-calista[data-theme="night"] .cl-cover::after { opacity: .28; }
+/* 底缘一串珍珠点，代替参考图里的蕾丝花边 */
+.mp-skin-calista .cl-cover::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 6px;
+  background: radial-gradient(circle at 3px 3px, var(--cl-pearl-hi) 1.3px, transparent 1.7px) 0 0 / 7px 6px repeat-x;
+  opacity: .6;
+  pointer-events: none;
+}
+
 .mp-skin-calista .cl-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 0 0 11px;
+  margin: 0 -13px 11px;
+  padding: 9px 13px;
+  background: var(--cl-bg-2);
+}
+.mp-skin-calista .cl-top-left {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  min-width: 0;
+}
+.mp-skin-calista .cl-prologue {
+  font-family: var(--cl-serif);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: var(--cl-fw);
+  color: var(--cl-ink);
+  white-space: nowrap;
 }
 .mp-skin-calista .cl-stagechip {
   font-size: 9.5px;
@@ -3038,7 +3121,6 @@
 @media (prefers-reduced-motion: reduce) {
   .mp-skin-calista .cl-body,
   .mp-skin-calista .cl-fold,
-  .mp-skin-calista .cl-orb::after,
   .mp-skin-calista .cl-chev,
   .mp-skin-calista .cl-ring .cl-ring-arc { transition: none; }
   .mp-skin-calista .cl-ch { animation: none; opacity: 1; filter: none; }
@@ -4775,6 +4857,9 @@ var worldData = (rawVars && rawVars['世界']) || {};
     });
 
     const initial = String(clPlain(lead.英文名, '') || leadName).trim().charAt(0).toUpperCase() || 'C';
+    const coverEn = String(clPlain(lead.英文名, '') || '').trim();
+    const coverTitle = coverEn || leadName;
+    const coverCjk = coverEn ? '' : ' is-cjk';
     const inScene = lead.在场 === false ? '不在场' : '在场';
     const subLine = stage.known ? stage.name + ' · ' + inScene : inScene;
 
@@ -4795,9 +4880,25 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
     const sheet =
       '<div class="cl-sheet">' +
+        '<div class="cl-cover">' +
+          '<span class="cl-cover-kicker">CALISTA　·　人物近况</span>' +
+          '<span class="cl-cover-title' + coverCjk + '">' + skinEsc(coverTitle) + '</span>' +
+          '<span class="cl-cover-note">Softly, like a shell.</span>' +
+          '<svg class="cl-cover-shell" viewBox="0 0 140 140" fill="none" aria-hidden="true">' +
+            '<path d="M70 126C30 108 10 72 14 34Q42 50 70 32Q98 50 126 34C130 72 110 108 70 126Z" ' +
+              'stroke="currentColor" stroke-width="1.1"/>' +
+            '<path d="M70 126V32M70 126 42 42M70 126 98 42M70 126C56 96 40 72 24 46' +
+              'M70 126C84 96 100 72 116 46" stroke="currentColor" stroke-width=".8"/>' +
+            '<circle cx="34" cy="112" r="1.8" fill="currentColor"/>' +
+            '<circle cx="106" cy="112" r="1.8" fill="currentColor"/>' +
+          '</svg>' +
+        '</div>' +
         '<div class="cl-top">' +
-          '<span class="cl-stagechip">' +
-            (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
+          '<span class="cl-top-left">' +
+            '<b class="cl-prologue">Prologue.</b>' +
+            '<span class="cl-stagechip">' +
+              (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
+            '</span>' +
           '</span>' +
           '<button type="button" class="cl-theme" data-cl-theme="1" aria-label="切换深浅">' +
             (theme === 'night' ? '浅色' : '深色') +

@@ -24,8 +24,9 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.2';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.2 清掉纯白 · 夜里不刺眼】\n1. 🕯 Calista 浅色最亮一层原本是 #FFFCF6，夜里把屏幕调暗时它先亮成一片。现在四层压成 3% 一档：#EEE4D4 / #F5EDDE / #FAF2E3 / #E2D6C3，最亮停在明度 95% 的亚麻纸，整体更像纸，不像白板。\n2. ⚪ 珍珠圆章里那层 rgba(255,255,255,.55) 是真的纯白，浅色下就是一颗白点。已换成主题变量 --cl-orb-hi：浅色暖白 34%，夜间只剩 7%，深色下不再亮出一块。\n3. 📰 预言家日报纸顶的高光原本是 50% 纯白，换成暖白 rgba(252,246,232,.45)；夜间那轮月亮从 #F6EFDD 降到 #DCD2BB，晕影从 18% 减到 10%。\n4. 📖 藏书票昼间纸面 #f5f0e6 / #f9f6ef 压到 #F1EADB / #F7F1E3，分割线从纯白 10% 改成暖白 10%。票根与邸报本来就是暗调，未动。\n5. 🧪 新增三条专门查纯白的回归：Calista 与日报的 CSS 里只要出现纯白的十六进制写法（三连 f）或 rgba 全 255 直接判失败；珍珠高光必须是暖白 token；浅色最亮层不得高于 #FAF2E3。全套 18 套件 522 条全过。\n6. 🧩 只动了颜色，版式、数值、存档格式一个字节都没改。";
+  const MOON_FORMULA_VERSION = '4.8.3';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.3 灰粉贝扣 · 书封式卡面】\n1. 🎀 配色换成灰粉与暖白：浅色四层 #E9E0E1 / #F1E8E8 / #F8F1EF / #DCD1D2，墨 #3E3237，强调换成干燥玫瑰 #BB8D93；深色是同一色相压暗，不再用黄棕。最亮仍停在 95%，夜里不刺眼。\n2. ⚪ 头像框改成衣服扣子那种平圆片：去掉外面那圈旋转弧，也去掉球面渐变、点状高光、底部反光与立体阴影；现在是平底 + 斜向珠光 + 粉/香槟/青虹彩，只留一圈均匀发丝线，首字母平放在上面。\n3. 📖 展开卡加了书封头：灰粉色块 + 衬线斜体大标题 + 扇贝线描水印 + 底缘珍珠点花边，下面接一条暖白 Prologue. 横条；对应你给的那套 iOS 阅读 App 参考，只把绿换成灰粉。\n4. 🔍 小红书原帖「Calista审美：来自希腊的珍珠微光」的配图是蕾丝、银镜、母贝碟、珍珠链与樱粉扇贝，色板据此定。\n5. 🧪 新增五条回归（扁平贝扣 / 无外圈 / 书封头 / 灰粉色板），18 套件 527 条全过；截图逐像素最亮 (248,241,239)，无白色像素。\n6. 🧩 只动皮肤外观，数值、存档格式、标签解析一个字节没改。";
+
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
