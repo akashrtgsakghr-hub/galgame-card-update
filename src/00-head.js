@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.5';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.5 少女心绪 · 收起是一张书签】\n1. 🎀 这套美化正式改名「少女心绪」。内部编号仍是 calista，旧存档里选过的皮肤不会掉。\n2. 🔖 收起态从胶囊改成书签卡：矩形卡面 + 顶部标题带（一枚真贝母小珠）+ 底部缎带尖，两层同色垫纸做出纸叠厚度，仍是一整块不小于 44px 的可点区域。\n3. ✨ 点一下是四拍小动画：从点击处泛起柔边玫瑰光晕 → 缎带尖收回 → 卡面零回弹翻页并斜扫一道暖白珠光 → 贝扣 380ms 微弹，内容错峰浮起。数据重刷与深浅切换都不会重播。\n4. 🌙 护眼不回退：无纯白、无黑框、无自绘线条，四张实拍素材原样沿用；系统开启减弱动效时全部动效关闭。\n5. 🧪 新增六条回归把改名、书签结构、点击动画与降级钉住；18 套件 536 条全过。\n6. 🧩 只动皮肤外观，数值、判定、存档格式一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.6';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.6 少女心绪 · 整张卡都是贝母做的】\n1. 🌊 按你给的地中海美学参考重新取材：用本机插件连上已登录的小红书账号搜「珍珠母贝 贝母 素材」，从笔记详情页取到四张高清实拍（暖粉珠光 / 细密流纹 / 鲍鱼贝内壁 / 两枚粉白扇贝），糊图先修画质再进卡片。\n2. 📄 容器底图不再用 CSS 渐变：收起书签与展开卡面共用一张压过白的实拍珠光丝纹纸，浅深各一版，质感来自真贝母而不是自绘。\n3. 🐚 贝扣换成鲍鱼贝内壁虹彩，书封水印换成两枚扇贝；六张内联图各深浅一版，仍无纯白、无黑框、无自绘线条。\n4. 🔍 素材链加了用前修复：优先吃 fixNN.webp（AI 修复或本地降噪超分锐化），裁切全按比例，修复后尺寸变了也不会裁错。\n5. 🧪 新增三条回归钉住容器底图与六张实拍；18 套件全绿，逐像素最亮仍是暖白，纯白像素 0。\n6. 🧩 只动皮肤外观，数值、判定、存档格式一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
