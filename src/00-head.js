@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.4';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.4 贝母是真的 · 装饰不再手画】\n1. ⚪ 头像框不再拿 CSS 渐变仿珍珠。底纹换成小红书 Calista 原帖那片鲍鱼贝内壁的实拍，裁出不规则虹彩层纹、压掉白点、往灰粉香槟调，浅深各一张内联。真贝母的纹路是不规则的薄膜干涉，规整渐变仿不出来。\n2. 🎀 书封头的扇贝线描与底缘珍珠点阵全删，换成原帖那枚樱粉扇贝的实拍，按扇形轮廓裁切、边缘羽化，只当淡水印。卡里再没有我自己画的线条装饰。\n3. 🌙 深色是同一批素材压暗后的版本，不是另配色；最亮仍停在 95% 暖白，成图逐像素最亮 (248,241,239)，无白色像素。\n4. 🧪 新增四条回归：手绘线描清零、四张内联图两两不同、贝扣无自绘渐变、底色兜底仍在。18 套件 530 条全过。\n5. 🧩 只动皮肤外观，数值、存档格式、标签解析一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.5';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.5 少女心绪 · 收起是一张书签】\n1. 🎀 这套美化正式改名「少女心绪」。内部编号仍是 calista，旧存档里选过的皮肤不会掉。\n2. 🔖 收起态从胶囊改成书签卡：矩形卡面 + 顶部标题带（一枚真贝母小珠）+ 底部缎带尖，两层同色垫纸做出纸叠厚度，仍是一整块不小于 44px 的可点区域。\n3. ✨ 点一下是四拍小动画：从点击处泛起柔边玫瑰光晕 → 缎带尖收回 → 卡面零回弹翻页并斜扫一道暖白珠光 → 贝扣 380ms 微弹，内容错峰浮起。数据重刷与深浅切换都不会重播。\n4. 🌙 护眼不回退：无纯白、无黑框、无自绘线条，四张实拍素材原样沿用；系统开启减弱动效时全部动效关闭。\n5. 🧪 新增六条回归把改名、书签结构、点击动画与降级钉住；18 套件 536 条全过。\n6. 🧩 只动皮肤外观，数值、判定、存档格式一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';

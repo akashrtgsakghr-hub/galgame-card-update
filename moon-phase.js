@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.4';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.4 贝母是真的 · 装饰不再手画】\n1. ⚪ 头像框不再拿 CSS 渐变仿珍珠。底纹换成小红书 Calista 原帖那片鲍鱼贝内壁的实拍，裁出不规则虹彩层纹、压掉白点、往灰粉香槟调，浅深各一张内联。真贝母的纹路是不规则的薄膜干涉，规整渐变仿不出来。\n2. 🎀 书封头的扇贝线描与底缘珍珠点阵全删，换成原帖那枚樱粉扇贝的实拍，按扇形轮廓裁切、边缘羽化，只当淡水印。卡里再没有我自己画的线条装饰。\n3. 🌙 深色是同一批素材压暗后的版本，不是另配色；最亮仍停在 95% 暖白，成图逐像素最亮 (248,241,239)，无白色像素。\n4. 🧪 新增四条回归：手绘线描清零、四张内联图两两不同、贝扣无自绘渐变、底色兜底仍在。18 套件 530 条全过。\n5. 🧩 只动皮肤外观，数值、存档格式、标签解析一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.5';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.5 少女心绪 · 收起是一张书签】\n1. 🎀 这套美化正式改名「少女心绪」。内部编号仍是 calista，旧存档里选过的皮肤不会掉。\n2. 🔖 收起态从胶囊改成书签卡：矩形卡面 + 顶部标题带（一枚真贝母小珠）+ 底部缎带尖，两层同色垫纸做出纸叠厚度，仍是一整块不小于 44px 的可点区域。\n3. ✨ 点一下是四拍小动画：从点击处泛起柔边玫瑰光晕 → 缎带尖收回 → 卡面零回弹翻页并斜扫一道暖白珠光 → 贝扣 380ms 微弹，内容错峰浮起。数据重刷与深浅切换都不会重播。\n4. 🌙 护眼不回退：无纯白、无黑框、无自绘线条，四张实拍素材原样沿用；系统开启减弱动效时全部动效关闭。\n5. 🧪 新增六条回归把改名、书签结构、点击动画与降级钉住；18 套件 536 条全过。\n6. 🧩 只动皮肤外观，数值、判定、存档格式一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
@@ -10027,7 +10027,8 @@ function openUpdateConfigDialog(panel) {
     { id: 'book', short: '藏书票', name: '月氏藏书票', hint: '笺纸名札 · 双面翻转' },
     { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' },
     { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' },
-    { id: 'calista', short: 'Calista', name: 'Calista 贝壳', hint: '珍珠奶油 · 点开是她的近况，深浅可换' }
+    /* 内部 id 仍是 calista：存档里存的就是它，改名只改玩家看得见的部分 */
+    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '书签式状态卡 · 轻点翻开她的近况，深浅可换' }
   ];
 
   const SKIN_CSS_TICKET = `@import url("https://fontsapi.zeoseven.com/802/main/result.css");
@@ -12531,8 +12532,9 @@ function openUpdateConfigDialog(panel) {
 }`;
 
   const SKIN_CSS_CALISTA = `/* ══════════════════════════════════════════════════════════════════
-   Calista · 楼内状态卡（第五套皮肤）
-   一颗会展开的胶囊：收起时像灵动岛，点开落到一张极简卡。
+   少女心绪 · 楼内状态卡（Calista 美学，第六套皮肤）
+   一张夹在书里的名札：收起是书签卡，轻点从落点泛起珠光，缎带收回、
+   卡面像抽出的一页向前翻开。内部 id 仍为 calista，兼容旧存档偏好。
    ─────────────────────────────────────────────────────────────────
    铁律执行情况：
    1. 无纯黑 / 无纯白 / 无黑框：四层背景只差 2% 明度，边界用 8% 发丝线
@@ -12566,6 +12568,13 @@ function openUpdateConfigDialog(panel) {
 
   --cl-accent: #BB8D93;
   --cl-accent-soft: rgba(187, 141, 147, .16);
+
+  /* 书签卡的两层垫纸与环境阴影：同色系，不用黑框、不用纯黑 */
+  --cl-paper-1: var(--cl-bg-3);
+  --cl-paper-2: var(--cl-bg-0);
+  --cl-ambient: rgba(31, 28, 24, .55);
+  /* 翻开时扫过卡面的一道光：暖白，夜里压到只剩一点 */
+  --cl-sheen-hi: rgba(248, 241, 239, .52);
 
   /* 贝扣与扇贝都取自小红书 Calista 原帖实拍，裁切压白后内联；
      不再用 CSS 线性渐变去仿——真贝母的层纹是不规则的，渐变仿不出来。 */
@@ -12621,6 +12630,8 @@ function openUpdateConfigDialog(panel) {
 
   --cl-accent: #DFA9AE;
   --cl-accent-soft: rgba(223, 169, 174, .18);
+  --cl-ambient: rgba(6, 5, 4, .82);
+  --cl-sheen-hi: rgba(243, 234, 234, .075);
   /* 夜里换成同一批实拍素材压暗后的版本，结构完全不动 */
   --cl-nacre: url("data:image/webp;base64,UklGRtwCAABXRUJQVlA4INACAADQEwCdASpgAGAAPm0ykkckIyGhKBqriIANiWdkrb6JVrdu2gLzjuygW2O3/TlmbE3SROAjwJnNMfTQSb6W25/CD+82fqZPoQ6wqLIDh4YIv2Pp7pJe+54u1SsqaV8HKIyVyZihvCKNtkMN3KiXBHomevTjyK7cjdLoZsVT9EBG5HpbNUafriD1O75tv8UBTdv4/XZjOsoQ5hcjwdMhy7WOVKVmfQFosAD+8La1yOMOh4V65P0rA3RbscRKlUrZIPURkj4J4ZOXYU0OYMMG4e89Ez3LS68U9doDG1U5QTuP37cPRDTjzFKqf2qdSJF3rDlch0qxQpqQFzJ4HjrBwgvMO/E+7ducH1TU5s2h+G/CFEl5BpwUzpGt5VaytgTMSSWfnyEiTyhIJGC/ps+tYsunPxRkXFifZCVfyxlUVTO1/eXDZr4TPNvoYl64sw9KUMtnSnekOGIjm1KaGHdugcEm1iVsQ38F7oZ9KCkqi4I1T7jDP6onJZNzgLzEJRtpLKKjkCRywbQdrMhCjmFWST2dcKLntY9/LDsfPxRXUnCNkuPgJjvGtu4R6MmJI+ngaZPQfsjXiTJUdY9HTi79e3PSFr+ZBrzTrjvPA/Fq+3s+X+M46P/kjNf7VHxPQha8H4UIxmiYQZahpBqGBST/0Y7eRfqBPM1af7MbMsUrBlqkwDnvJpv+Lxg3/Q+wxtyNeyLn+oZ2gl4lVN+WyDJfLzfM5v3wHZhw9UZKDWsa3Tf8eRQI4/XdombMz2ku2oZorYqLYx9Ax3ep7PpRNMav507JkDpNO8ODWM+BQwXg1zaS2jIv88ll/SgO6xHKxYsvzXFZ6LFY//T37Ai0yu/CyoYcTxZa0ngl3iZVAztA0PGDRYhMc4Tb8fc34MJSOLGDRoz9kolWGncMBS+NaxRbW3csJohGfJJT/Ot0IG6HR47vEorYDKMssRSPykwHurbIvAA=");
   --cl-cover-art: url("data:image/webp;base64,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");
@@ -12636,48 +12647,155 @@ function openUpdateConfigDialog(panel) {
   --cl-fw-body: 300;
 }
 
-/* ── 收起态：一枚胶囊 ───────────────────────────────────────────── */
+/* ── 收起态：一张夹在书里的名札（书签卡） ───────────────────────
+   不再是胶囊：矩形卡面 + 顶部标题带 + 底部缎带尖。
+   边界只用发丝线，两层同色垫纸做出纸叠厚度，不用黑框。 */
+.mp-skin-calista .cl-wrap { position: relative; }
+/* 收起时给缎带尖留 10px，展开后由 .is-open 收掉，不顶开卡面 */
+.mp-skin-calista:not(.is-open) .cl-wrap { padding-bottom: 10px; }
+
 .mp-skin-calista .cl-fold {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 9px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 7px 12px 7px 7px;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--cl-bg-1);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  /* 不描边：一圈发丝线 + 两层极淡投影 */
+  /* 不描边：一圈发丝线 + 两层同色垫纸 + 一层环境阴影 */
   box-shadow:
     inset 0 0 0 1px var(--cl-hair),
-    0 1px 2px rgba(31, 28, 24, .05),
-    0 10px 26px -20px rgba(31, 28, 24, .55);
+    0 2px 0 var(--cl-paper-1),
+    0 4px 0 var(--cl-paper-2),
+    0 14px 28px -20px var(--cl-ambient);
   transition:
     background-color 260ms var(--cl-ease),
     box-shadow 260ms var(--cl-ease),
-    padding 320ms var(--cl-spring);
+    transform 180ms var(--cl-ease),
+    border-radius 420ms var(--cl-spring);
   -webkit-tap-highlight-color: transparent;
 }
-.mp-skin-calista[data-theme="night"] .cl-fold {
-  box-shadow:
-    inset 0 0 0 1px var(--cl-hair),
-    0 1px 2px rgba(6, 5, 4, .5),
-    0 12px 30px -20px rgba(6, 5, 4, .8);
+/* 展开后垫纸收掉，标题卡与下面的卡面读成同一张纸 */
+.mp-skin-calista.is-open .cl-fold {
+  --cl-paper-1: transparent;
+  --cl-paper-2: transparent;
+  border-radius: 16px 16px 10px 10px;
 }
 .mp-skin-calista .cl-fold:hover { background: var(--cl-bg-2); }
+.mp-skin-calista .cl-fold:active { transform: scale(.988) translateY(1px); }
 .mp-skin-calista .cl-fold:focus-visible {
   outline: none;
   box-shadow:
     inset 0 0 0 1px var(--cl-hair-2),
     0 0 0 2px var(--cl-bg-1),
     0 0 0 4px var(--cl-accent-soft),
-    0 10px 26px -20px rgba(31, 28, 24, .55);
+    0 14px 28px -20px var(--cl-ambient);
+}
+
+/* 顶部标题带：这套皮的名字写在这里，旁边一枚真贝母小珠 */
+.mp-skin-calista .cl-band {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 7px 13px 6px;
+  border-radius: 16px 16px 0 0;
+  background: var(--cl-bg-2);
+  box-shadow: inset 0 -1px 0 var(--cl-hair);
+}
+.mp-skin-calista .cl-band-bead {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cl-nacre) center / cover no-repeat, var(--cl-pearl-0);
+  box-shadow: inset 0 0 0 1px var(--cl-hair);
+}
+.mp-skin-calista .cl-band-title {
+  font-family: var(--cl-serif);
+  font-size: 10.5px;
+  font-weight: var(--cl-fw);
+  letter-spacing: .18em;
+  color: var(--cl-ink-2);
+  white-space: nowrap;
+}
+.mp-skin-calista .cl-band-note {
+  margin-left: auto;
+  font-size: 8px;
+  letter-spacing: .14em;
+  color: var(--cl-ink-3);
+  white-space: nowrap;
+}
+
+/* 主行：贝扣 / 名字 / 好感 / 箭头，整块 >= 44px 的点击区 */
+.mp-skin-calista .cl-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: 8px 12px 9px 10px;
+}
+
+/* 书签缎带尖：卡底中央垂下一枚小三角，只在收起时露出 */
+.mp-skin-calista .cl-fold::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 28px;
+  height: 10px;
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
+  background: var(--cl-bg-1);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 2px 2px var(--cl-ambient));
+  pointer-events: none;
+  transition: transform 420ms var(--cl-spring), opacity 260ms var(--cl-ease);
+}
+.mp-skin-calista .cl-fold:hover::after { background: var(--cl-bg-2); }
+.mp-skin-calista.is-open .cl-fold::after {
+  transform: translateX(-50%) scaleY(0);
+  opacity: 0;
+}
+
+/* 点击处泛起的一圈珠光：只在真正点过之后播，数据重刷不播 */
+.mp-skin-calista .cl-tap-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mp-skin-calista .cl-tap-ripple {
+  position: absolute;
+  left: var(--cl-tap-x, 50%);
+  top: var(--cl-tap-y, 50%);
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  /* 柔边径向光晕，不是一块硬边色盘：扩散时只留一层玫瑰余晖 */
+  background: radial-gradient(circle, var(--cl-accent) 0%, transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+}
+.mp-skin-calista.is-tapped .cl-tap-ripple {
+  animation: clRipple 560ms var(--cl-ease) both;
+}
+@keyframes clRipple {
+  0%   { opacity: .30; transform: scale(0); }
+  55%  { opacity: .16; }
+  100% { opacity: 0;   transform: scale(20); }
 }
 
 /* 圆章：一枚**扁平的母贝扣** + 首字母。**没有外圈**。
@@ -12685,8 +12803,8 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-calista .cl-orb {
   position: relative;
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -12695,7 +12813,7 @@ function openUpdateConfigDialog(panel) {
   /* 只留一圈均匀发丝线界定圆片轮廓，不做任何方向性的立体阴影 */
   box-shadow: inset 0 0 0 1px var(--cl-hair);
   font-family: var(--cl-serif);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: var(--cl-fw);
   line-height: 1;
   letter-spacing: .01em;
@@ -12789,6 +12907,7 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-calista .cl-sheet {
   position: relative;
   overflow: hidden;
+  transform-origin: 50% 0;
   padding: 13px 13px 12px;
   background-image: var(--cl-sheen);
   background-blend-mode: soft-light;
@@ -12821,6 +12940,17 @@ function openUpdateConfigDialog(panel) {
   pointer-events: none;
 }
 .mp-skin-calista .cl-sheet > * { position: relative; }
+/* 翻开时扫过的一道暖白光：默认停在卡外，只有点击展开才走一遍 */
+.mp-skin-calista .cl-sheet::after {
+  content: "";
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(105deg,
+    transparent 34%, var(--cl-sheen-hi) 50%, transparent 66%);
+  opacity: 0;
+  transform: translateX(-120%);
+  pointer-events: none;
+}
 
 /* ── 书封头：把参考图那张「首页」的上半色块搬进状态卡 ───────────
    大面积低饱和色块 + 衬线斜体大标题 + 水印级线描插画；
@@ -13107,6 +13237,37 @@ function openUpdateConfigDialog(panel) {
   to   { opacity: 1; transform: none; }
 }
 
+/* ── 点击展开那一瞬：一次编排好的四拍 ─────────────────────────────
+   1) 缎带尖收回（上面 .is-open 的 scaleY(0)）；
+   2) 卡面从页脊向前翻开，560ms 零回弹弹簧；
+   3) 一道暖白珠光斜扫过卡面，错开 90ms 起步；
+   4) 贝扣微弹一下（380ms），子块按 40ms 间隔错峰浮起。
+   全部挂在 is-tapped 上：只有真正点过才播；数据重刷会重建整张卡，
+   深浅切换会先摘掉标记，两者都不会把动画再放一遍。 */
+.mp-skin-calista.is-open.is-tapped .cl-sheet {
+  animation: clUnfold 560ms var(--cl-spring) both;
+}
+.mp-skin-calista.is-open.is-tapped .cl-sheet::after {
+  animation: clSheen 900ms var(--cl-ease) 90ms both;
+}
+.mp-skin-calista.is-open.is-tapped .cl-orb {
+  animation: clPearlPop 380ms var(--cl-pop) both;
+}
+@keyframes clUnfold {
+  from { opacity: 0; transform: perspective(900px) rotateX(-8deg) translateY(-12px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes clSheen {
+  0%   { opacity: 0;   transform: translateX(-120%); }
+  18%  { opacity: 1; }
+  100% { opacity: 0;   transform: translateX(120%); }
+}
+@keyframes clPearlPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+
 /* 窄屏：数字降一档，三格变两格 */
 @container (max-width: 360px) {
   .mp-skin-calista .cl-hero .cl-v { font-size: 30px; }
@@ -13117,10 +13278,17 @@ function openUpdateConfigDialog(panel) {
 @media (prefers-reduced-motion: reduce) {
   .mp-skin-calista .cl-body,
   .mp-skin-calista .cl-fold,
+  .mp-skin-calista .cl-fold::after,
   .mp-skin-calista .cl-chev,
   .mp-skin-calista .cl-ring .cl-ring-arc { transition: none; }
   .mp-skin-calista .cl-ch { animation: none; opacity: 1; filter: none; }
-  .mp-skin-calista.is-open .cl-sheet > * { animation: none; }
+  .mp-skin-calista.is-open .cl-sheet > *,
+  .mp-skin-calista.is-open.is-tapped .cl-sheet,
+  .mp-skin-calista.is-open.is-tapped .cl-sheet::after,
+  .mp-skin-calista.is-open.is-tapped .cl-orb,
+  .mp-skin-calista.is-tapped .cl-tap-ripple { animation: none; }
+  .mp-skin-calista .cl-tap-ripple,
+  .mp-skin-calista .cl-sheet::after { opacity: 0; }
 }
 `;
 
@@ -14777,6 +14945,31 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return out;
   }
 
+  /* 收起态统一模板：一张书签卡 = 标题带 + 主行 + 点击涟漪层。
+     有档案与空态两个分支共用，形态完全一致；传入的都是已转义文本。 */
+  function clFoldHtml(o) {
+    return '<button type="button" class="cl-fold" aria-expanded="' + (o.open ? 'true' : 'false') +
+      '" aria-controls="' + o.bodyId + '">' +
+      '<span class="cl-band">' +
+        '<i class="cl-band-bead" aria-hidden="true"></i>' +
+        '<b class="cl-band-title">少女心绪</b>' +
+        '<span class="cl-band-note" aria-hidden="true">MOOD NOTE　·　轻点翻开</span>' +
+      '</span>' +
+      '<span class="cl-main">' +
+        '<span class="cl-orb" aria-hidden="true">' + o.initial + '</span>' +
+        '<span class="cl-id">' +
+          '<span class="cl-name">' + o.name + '</span>' +
+          '<span class="cl-sub">' + o.sub + '</span>' +
+        '</span>' +
+        '<span class="cl-val"><b>' + o.value + '</b><span>好感</span></span>' +
+        '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
+          '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>' +
+      '</span>' +
+      '<span class="cl-tap-layer" aria-hidden="true"><span class="cl-tap-ripple"></span></span>' +
+    '</button>';
+  }
+
   function renderCalistaSkin(scope, statData, msgId, keepOpen) {
     if (!scope) return false;
 
@@ -14804,14 +14997,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     if (!names.length) {
       scope.innerHTML =
         '<div class="cl-wrap">' +
-          '<button type="button" class="cl-fold" aria-expanded="' + (keepOpen ? 'true' : 'false') + '" aria-controls="' + bodyId + '">' +
-            '<span class="cl-orb" aria-hidden="true">C</span>' +
-            '<span class="cl-id"><span class="cl-name">Calista</span><span class="cl-sub">尚未建档</span></span>' +
-            '<span class="cl-val"><b>—</b><span>好感</span></span>' +
-            '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
-              '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
-            '</svg>' +
-          '</button>' +
+          clFoldHtml({ bodyId: bodyId, open: !!keepOpen, initial: '少', name: '少女心绪', sub: '尚未建档', value: '—' }) +
           '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
             '<div class="cl-body-clip"><div class="cl-sheet">' +
               '<div class="cl-empty"><b>还没有人物档案</b>先点面板里的「一键建档案」<br>建好之后这张卡会自己长出数值</div>' +
@@ -14877,7 +15063,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const sheet =
       '<div class="cl-sheet">' +
         '<div class="cl-cover">' +
-          '<span class="cl-cover-kicker">CALISTA　·　人物近况</span>' +
+          '<span class="cl-cover-kicker">少女心绪　·　人物近况</span>' +
           '<span class="cl-cover-title' + coverCjk + '">' + skinEsc(coverTitle) + '</span>' +
           '<span class="cl-cover-note">Softly, like a shell.</span>' +
         '</div>' +
@@ -14931,17 +15117,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
     scope.innerHTML =
       '<div class="cl-wrap">' +
-        '<button type="button" class="cl-fold" aria-expanded="' + (keepOpen ? 'true' : 'false') + '" aria-controls="' + bodyId + '">' +
-          '<span class="cl-orb" aria-hidden="true">' + skinEsc(initial) + '</span>' +
-          '<span class="cl-id">' +
-            '<span class="cl-name">' + skinEsc(leadName) + '</span>' +
-            '<span class="cl-sub">' + skinEsc(subLine) + '</span>' +
-          '</span>' +
-          '<span class="cl-val"><b>' + skinEsc(affection) + '</b><span>好感</span></span>' +
-          '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
-            '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
-          '</svg>' +
-        '</button>' +
+        clFoldHtml({ bodyId: bodyId, open: !!keepOpen, initial: skinEsc(initial), name: skinEsc(leadName), sub: skinEsc(subLine), value: skinEsc(affection) }) +
         '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
           '<div class="cl-body-clip">' + sheet + '</div>' +
         '</div>' +
@@ -15343,6 +15519,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
           if (themeBtn && scope) {
             const cur = scope.getAttribute('data-theme') === 'night' ? 'night' : 'day';
             setClTheme(cur === 'night' ? 'day' : 'night');
+            /* 换深浅只是换纸，不重放「点开」那一套动画 */
+            scope.classList.remove('is-tapped');
             let mid = 0;
             try { mid = Number((clHolder.closest('.mes') || {}).getAttribute('mesid')) || 0; } catch (e2) {}
             renderCalistaSkin(scope, getSkinStatData(), mid, true);
@@ -15353,6 +15531,20 @@ var worldData = (rawVars && rawVars['世界']) || {};
           const body = clHolder.querySelector('.cl-body');
           if (!body) return;
           const show = body.hidden;
+          /* 点哪儿，珠光就从哪儿起：把点击坐标换成卡内坐标；键盘触发时落在中间。
+             先摘掉再强制重排再挂上，同一张卡连点两次也能重播，不靠计时器。 */
+          if (scope) {
+            try {
+              const box = fold.getBoundingClientRect();
+              const px = (e.clientX || (box.left + box.width / 2)) - box.left;
+              const py = (e.clientY || (box.top + box.height / 2)) - box.top;
+              scope.style.setProperty('--cl-tap-x', Math.max(0, Math.min(box.width, px)).toFixed(1) + 'px');
+              scope.style.setProperty('--cl-tap-y', Math.max(0, Math.min(box.height, py)).toFixed(1) + 'px');
+              scope.classList.remove('is-tapped');
+              try { void scope.offsetWidth; } catch (eReflow) {}
+              scope.classList.add('is-tapped');
+            } catch (eTap) {}
+          }
           body.hidden = !show;
           fold.setAttribute('aria-expanded', String(show));
           if (scope) scope.classList.toggle('is-open', show);
