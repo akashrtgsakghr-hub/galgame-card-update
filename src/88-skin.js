@@ -2545,7 +2545,7 @@
 
   --cl-ink:   #3A2E27;
   --cl-ink-2: #6E5C51;
-  --cl-ink-3: #9C8A7B;
+  --cl-ink-3: #806B5B;
 
   --cl-hair:   rgba(58, 46, 39, .09);
   --cl-hair-2: rgba(58, 46, 39, .17);
@@ -2592,7 +2592,7 @@
 
   --cl-ink:   #F3E9DC;
   --cl-ink-2: #C4B2A2;
-  --cl-ink-3: #8C7C6E;
+  --cl-ink-3: #96857A;
 
   --cl-hair:   rgba(243, 233, 220, .10);
   --cl-hair-2: rgba(243, 233, 220, .19);
