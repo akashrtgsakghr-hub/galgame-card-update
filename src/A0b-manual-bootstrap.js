@@ -48,6 +48,7 @@
     const SUM_USER = '输出 JSON（不要别的文字）：\n{\n "时间": "开场白里的当前时间",\n "地点": "开场白里的具体地点",\n "人物": [{"名":"","与对方关系":"","共处时长":"","依恋表现":"","身体边界":""}],\n "关系要点": ["只写事实"]\n}\n—— 原始资料 ——\n【角色卡】\n' + card + '\n【开场白】\n' + opening;
     let summary = '';
     try { const sr = await callOpeningModel('main', SUM_SYS, SUM_USER); summary = (typeof sr === 'string') ? sr : String((sr && (sr.content || sr.text)) || ''); } catch (e) { summary = ''; }
+    try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(summary); } catch (e) {}
     const JUDGE_SYS = '你是关系数值的裁判。先写理由，再给数字。只输出 JSON 数组。';
     const JUDGE_USER = '下面是这段关系的资料摘要：\n' + (summary || '(无摘要)') + '\n\n请为这些角色分别判断「他对玩家」的好感度（0-100）和肉体值（0-100）：' + list + '\n要求：理由必须用到人物设定、时间、地点三者；给到 90 以上必须指出已经发生的具体事件，否则往回调。\n只输出 JSON 数组：[{"名字":"","好感度":0,"肉体值":0,"推断理由":""}]';
     let raw = '';
@@ -67,6 +68,52 @@
   function exposeManualBootstrap() {
     try { if (typeof mainWin !== 'undefined' && mainWin) mainWin.openManualBootstrapDialog = openManualBootstrapDialog; } catch (e) {}
     try { if (typeof window !== 'undefined') window.openManualBootstrapDialog = openManualBootstrapDialog; } catch (e) {}
+  }
+
+
+  /* ── 把「建档摘要」落进世界与事件系统 ──────────────────────────────
+     摘要里的「时间 / 地点 / 关系要点」以前判完数值就丢了。
+     现在：① 时间写进 世界.时间（并标记由正文确定，时钟直接采纳，不再从 2000 年爬）
+           ② 生成一条开局时间线事件（source=bootstrap），进事件导演的时间线
+           ③ 关系要点存到 世界._开局面，后续维护层可读                          */
+  function applyBootstrapSummary(summaryText) {
+    const out = { time: '', place: '', added: 0, ok: false };
+    const s = String(summaryText || '');
+    if (!s) return out;
+    let obj = null;
+    try { obj = JSON.parse(s); } catch (e) {
+      const m = s.match(/\{[\s\S]*\}/);
+      if (m) { try { obj = JSON.parse(m[0]); } catch (e2) { obj = null; } }
+    }
+    if (!obj || typeof obj !== 'object') return out;
+    out.time = String(obj['时间'] || '').trim();
+    out.place = String(obj['地点'] || '').trim();
+    const points = Array.isArray(obj['关系要点']) ? obj['关系要点'].map(String).filter(Boolean) : [];
+    let data = readMvuLatest();
+    let statData = data && data.stat_data ? data.stat_data : null;
+    if (!statData) statData = { 世界: {}, 角色: {} };
+    if (!statData.世界) statData.世界 = {};
+    const world = statData.世界;
+    if (out.time && typeof parseGameTime === 'function' && parseGameTime(out.time)) {
+      world.时间 = out.time;
+      world._时钟已由正文确定 = true;
+      world._上次推进时间 = out.time;
+      if (!world._时间来源) world._时间来源 = 'bootstrap';
+    }
+    if (points.length) world._开局面 = { place: out.place, points: points, at: Date.now() };
+    try { writeMvuLatest(statData); } catch (e) {}
+    if (out.time) {
+      try {
+        out.added = addTimelineEvents([{
+          name: '开局 · ' + (out.place || '开场'),
+          time: out.time,
+          isMajor: false,
+          source: 'bootstrap'
+        }]) || 0;
+      } catch (e) {}
+    }
+    out.ok = true;
+    return out;
   }
 
   function openManualBootstrapDialog(panel) {

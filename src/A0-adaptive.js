@@ -353,6 +353,7 @@
       const sr = await callOpeningModel(provider, SUM_SYS, SUM_USER);
       summaryText = (typeof sr === 'string') ? sr : ((sr && (sr.content || sr.text)) || String(sr || ''));
     } catch (e) { summaryText = ''; }
+      try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(summaryText); } catch (e) {}
     if (summaryText) {
       vars.charDesc = '【摘要·请据此判断关系，不要再问别的】\n' + summaryText;
       vars.charFirstMes = '(见摘要)';
@@ -517,6 +518,7 @@ async function applyAdaptiveOpening(charName, values) {
       const sr = await callOpeningModel(provider, SUM_SYS, SUM_USER);
       const st2 = (typeof sr === 'string') ? sr : ((sr && (sr.content || sr.text)) || String(sr || ''));
       if (st2) { charInfo = '【摘要·请据此判断每个角色的关系，不要再问别的】\n' + st2; charFirstMes = '(见摘要)'; charScenario = ''; }
+      try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(st2); } catch (e) {}
     } catch (e) {}
     showLoadingDialog('正在梳理人物关系中…');
     const sysPrompt = [

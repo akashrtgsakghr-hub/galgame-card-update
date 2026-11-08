@@ -15572,6 +15572,71 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
   try { ensureSkinDelegation(); } catch (e) {}
 
+/* 88b-theme.js —— 视觉统一层（不改任何一套皮肤的结构，只统一材质、字号与数字基线）
+   原型：大正浪漫 × 暗色霓虹 · 印刷品质感
+     ① 系统面板从「Tailwind 蓝灰仪表盘」拉回沉浸层同一族的近黑紫底 + 品红强调
+     ② 标题用像素字、数值用等宽数字（tabular），避免数字跳动
+     ③ 状态栏可读性：字号 10.5→11.5、次要文字对比度抬到可读线以上
+     ④ 楼内状态卡（晨昏票根 / 月氏藏书票 / 预言家日报 / 朱丝栏邸报 / 少女心绪）
+        只做「同类项统一」：数字对齐、小标签提对比、进度条同族渐变
+        它们的排版、配色倾向、图案、纸张质感一律不动 */
+(function () {
+  var STYLE_ID = 'moon-theme-unify';
+
+  var CSS = ''
+  + ':root{'
+  + '  --mp-ink-0:#0a0509; --mp-ink-1:#120a14; --mp-ink-2:#1a1020;'
+  + '  --mp-accent:#f472d0; --mp-accent-2:#ffb3e8;'
+  + '  --mp-fg:#f2e7ef; --mp-fg-2:#c9b0c2; --mp-fg-3:#b9a4b4;'
+  + '  --mp-line:rgba(244,114,208,.18); --mp-line-2:rgba(244,114,208,.34);'
+  + '  --mp-press:inset 0 1px 0 rgba(255,179,232,.10);'
+  + '  --mp-pixel:"MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","Courier New",monospace;'
+  + '}'
+
+  /* ① 面板：底色与强调色归族 */
+  + '#moon-phase-mask{background:radial-gradient(circle at center,rgba(18,10,20,.86) 0%,rgba(6,3,7,.94) 100%)!important;}'
+  + '#moon-phase-panel{background:linear-gradient(170deg,#141021 0%,#0a0509 100%)!important;'
+  + '  border:1px solid var(--mp-line)!important;color:var(--mp-fg)!important;'
+  + '  box-shadow:0 24px 70px rgba(0,0,0,.72),var(--mp-press)!important;}'
+  + '#moon-phase-panel .mp-card{background:linear-gradient(180deg,rgba(244,114,208,.055),rgba(255,255,255,.015))!important;'
+  + '  border:1px solid var(--mp-line)!important;box-shadow:var(--mp-press)!important;}'
+  + '#moon-phase-panel .mp-menu-card{background:rgba(255,255,255,.028)!important;border:1px solid var(--mp-line)!important;'
+  + '  transition:border-color .18s ease,transform .18s ease,background .18s ease!important;}'
+  + '#moon-phase-panel .mp-menu-card:hover{border-color:var(--mp-line-2)!important;transform:translateY(-1px)!important;'
+  + '  background:rgba(244,114,208,.07)!important;}'
+  + '#moon-phase-panel .mp-badge{background:rgba(244,114,208,.10)!important;border-color:rgba(244,114,208,.30)!important;color:var(--mp-accent-2)!important;}'
+
+  /* ② 标题像素字 + 数值等宽 */
+  + '#moon-phase-panel h1,#moon-phase-panel h2,#moon-phase-panel h3,'
+  + '#moon-phase-panel .mp-card-title,#moon-phase-panel .mp-menu-label,#moon-phase-panel .mp-set-title{'
+  + '  font-family:var(--mp-pixel)!important;letter-spacing:.06em!important;color:var(--mp-fg)!important;}'
+
+  /* ③ 面板状态栏：可读性 + 和纸压印边（结构不动） */
+  + '#moon-phase-panel .mp-status{background:rgba(10,5,9,.72)!important;border:1px solid var(--mp-line)!important;'
+  + '  box-shadow:var(--mp-press)!important;font-size:11.5px!important;line-height:1.7!important;color:var(--mp-fg-2)!important;'
+  + '  font-variant-numeric:tabular-nums;}'
+  + '#moon-phase-panel .mp-status :is(b,strong){color:var(--mp-accent-2)!important;}'
+
+  /* ④ 楼内状态卡：只做同类项统一 */
+  + '.mp-gal-root :is(.mpp-stat-num,.metric-number,.cl-v,.tkt-cell-v,.mpp-stat,.metric-tag){'
+  + '  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}'
+  + '.mp-gal-root :is(.tkt-meta-lbl,.cl-k,.gauge-code,.metric-cn){color:rgba(214,194,208,.92);}'
+  + '.mp-gal-root :is(.tkt-gauge-bar,.metric-bar-fill){background:linear-gradient(90deg,var(--mp-accent),var(--mp-accent-2))!important;}';
+
+  function injectMoonTheme() {
+    try {
+      var doc = (typeof mainDoc !== 'undefined' && mainDoc) ? mainDoc : document;
+      var el = doc.getElementById(STYLE_ID);
+      if (!el) { el = doc.createElement('style'); el.id = STYLE_ID; (doc.head || doc.documentElement).appendChild(el); }
+      if (el.textContent !== CSS) el.textContent = CSS;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  try { injectMoonTheme(); } catch (e) {}
+  try { if (typeof mainWin !== 'undefined' && mainWin) mainWin.injectMoonTheme = injectMoonTheme; } catch (e) {}
+  try { window.injectMoonTheme = injectMoonTheme; } catch (e) {}
+})();
   function renderEventStatusCard() {
     const data = readMvuLatest();
     if (!data || !data.stat_data) return '<div class="mp-lcd-empty">（暂无变量数据）</div>';
@@ -20789,6 +20854,7 @@ function openTimelineKeywordDialog(panel, onDone) {
       const sr = await callOpeningModel(provider, SUM_SYS, SUM_USER);
       summaryText = (typeof sr === 'string') ? sr : ((sr && (sr.content || sr.text)) || String(sr || ''));
     } catch (e) { summaryText = ''; }
+      try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(summaryText); } catch (e) {}
     if (summaryText) {
       vars.charDesc = '【摘要·请据此判断关系，不要再问别的】\n' + summaryText;
       vars.charFirstMes = '(见摘要)';
@@ -20953,6 +21019,7 @@ async function applyAdaptiveOpening(charName, values) {
       const sr = await callOpeningModel(provider, SUM_SYS, SUM_USER);
       const st2 = (typeof sr === 'string') ? sr : ((sr && (sr.content || sr.text)) || String(sr || ''));
       if (st2) { charInfo = '【摘要·请据此判断每个角色的关系，不要再问别的】\n' + st2; charFirstMes = '(见摘要)'; charScenario = ''; }
+      try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(st2); } catch (e) {}
     } catch (e) {}
     showLoadingDialog('正在梳理人物关系中…');
     const sysPrompt = [
@@ -21140,6 +21207,7 @@ async function applyAdaptiveOpening(charName, values) {
     const SUM_USER = '输出 JSON（不要别的文字）：\n{\n "时间": "开场白里的当前时间",\n "地点": "开场白里的具体地点",\n "人物": [{"名":"","与对方关系":"","共处时长":"","依恋表现":"","身体边界":""}],\n "关系要点": ["只写事实"]\n}\n—— 原始资料 ——\n【角色卡】\n' + card + '\n【开场白】\n' + opening;
     let summary = '';
     try { const sr = await callOpeningModel('main', SUM_SYS, SUM_USER); summary = (typeof sr === 'string') ? sr : String((sr && (sr.content || sr.text)) || ''); } catch (e) { summary = ''; }
+    try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(summary); } catch (e) {}
     const JUDGE_SYS = '你是关系数值的裁判。先写理由，再给数字。只输出 JSON 数组。';
     const JUDGE_USER = '下面是这段关系的资料摘要：\n' + (summary || '(无摘要)') + '\n\n请为这些角色分别判断「他对玩家」的好感度（0-100）和肉体值（0-100）：' + list + '\n要求：理由必须用到人物设定、时间、地点三者；给到 90 以上必须指出已经发生的具体事件，否则往回调。\n只输出 JSON 数组：[{"名字":"","好感度":0,"肉体值":0,"推断理由":""}]';
     let raw = '';
@@ -21159,6 +21227,52 @@ async function applyAdaptiveOpening(charName, values) {
   function exposeManualBootstrap() {
     try { if (typeof mainWin !== 'undefined' && mainWin) mainWin.openManualBootstrapDialog = openManualBootstrapDialog; } catch (e) {}
     try { if (typeof window !== 'undefined') window.openManualBootstrapDialog = openManualBootstrapDialog; } catch (e) {}
+  }
+
+
+  /* ── 把「建档摘要」落进世界与事件系统 ──────────────────────────────
+     摘要里的「时间 / 地点 / 关系要点」以前判完数值就丢了。
+     现在：① 时间写进 世界.时间（并标记由正文确定，时钟直接采纳，不再从 2000 年爬）
+           ② 生成一条开局时间线事件（source=bootstrap），进事件导演的时间线
+           ③ 关系要点存到 世界._开局面，后续维护层可读                          */
+  function applyBootstrapSummary(summaryText) {
+    const out = { time: '', place: '', added: 0, ok: false };
+    const s = String(summaryText || '');
+    if (!s) return out;
+    let obj = null;
+    try { obj = JSON.parse(s); } catch (e) {
+      const m = s.match(/\{[\s\S]*\}/);
+      if (m) { try { obj = JSON.parse(m[0]); } catch (e2) { obj = null; } }
+    }
+    if (!obj || typeof obj !== 'object') return out;
+    out.time = String(obj['时间'] || '').trim();
+    out.place = String(obj['地点'] || '').trim();
+    const points = Array.isArray(obj['关系要点']) ? obj['关系要点'].map(String).filter(Boolean) : [];
+    let data = readMvuLatest();
+    let statData = data && data.stat_data ? data.stat_data : null;
+    if (!statData) statData = { 世界: {}, 角色: {} };
+    if (!statData.世界) statData.世界 = {};
+    const world = statData.世界;
+    if (out.time && typeof parseGameTime === 'function' && parseGameTime(out.time)) {
+      world.时间 = out.time;
+      world._时钟已由正文确定 = true;
+      world._上次推进时间 = out.time;
+      if (!world._时间来源) world._时间来源 = 'bootstrap';
+    }
+    if (points.length) world._开局面 = { place: out.place, points: points, at: Date.now() };
+    try { writeMvuLatest(statData); } catch (e) {}
+    if (out.time) {
+      try {
+        out.added = addTimelineEvents([{
+          name: '开局 · ' + (out.place || '开场'),
+          time: out.time,
+          isMajor: false,
+          source: 'bootstrap'
+        }]) || 0;
+      } catch (e) {}
+    }
+    out.ok = true;
+    return out;
   }
 
   function openManualBootstrapDialog(panel) {
