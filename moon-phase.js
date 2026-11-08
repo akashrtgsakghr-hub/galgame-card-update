@@ -15621,7 +15621,30 @@ var worldData = (rawVars && rawVars['世界']) || {};
   + '.mp-gal-root :is(.mpp-stat-num,.metric-number,.cl-v,.tkt-cell-v,.mpp-stat,.metric-tag){'
   + '  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}'
   + '.mp-gal-root :is(.tkt-meta-lbl,.cl-k,.gauge-code,.metric-cn){color:rgba(214,194,208,.92);}'
-  + '.mp-gal-root :is(.tkt-gauge-bar,.metric-bar-fill){background:linear-gradient(90deg,var(--mp-accent),var(--mp-accent-2))!important;}';
+  + '.mp-gal-root :is(.tkt-gauge-bar,.metric-bar-fill){background:linear-gradient(90deg,var(--mp-accent),var(--mp-accent-2))!important;}'
+
+  /* ⑤ 版式层：只重排位置与间距，不增删任何一项显示内容 ──
+        五套状态卡的四维行统一成「标签左 / 数值右 / 基线对齐」的阅读节奏；
+        标签给固定列宽并允许省略号，数值右对齐 + 等宽，跨皮肤读起来是同一张表。
+        面板：卡片间距统一、分区标题和折叠头对齐同一基线、内容宽度放宽到 520px。 */
+  + '#moon-phase-panel{max-width:520px!important;}'
+  + '#moon-phase-panel .mp-card{margin-bottom:12px!important;}'
+  + '#moon-phase-panel .mp-card:last-child{margin-bottom:0!important;}'
+  + '#moon-phase-panel :is(.mp-set-title,.mp-fold-title,.mp-menu-label){margin:14px 0 8px!important;}'
+  + '#moon-phase-panel :is(.mp-set-row,.mp-fold-head){align-items:center!important;gap:10px!important;}'
+  + '#moon-phase-panel :is(.mp-set-info,.mp-fold-info){min-width:0!important;}'
+  + '#moon-phase-panel :is(.mp-set-desc,.mp-fold-desc){margin-top:2px!important;line-height:1.6!important;}'
+  + '#moon-phase-panel .mp-status{padding:12px 14px!important;}'
+  + '#moon-phase-panel .mp-status>div,#moon-phase-panel .mp-status>p{margin:0 0 6px!important;}'
+  + '#moon-phase-panel .mp-status>div:last-child,#moon-phase-panel .mp-status>p:last-child{margin-bottom:0!important;}'
+  + '.mp-gal-root :is(.metric-item,.mpp-stat,.tkt-cell,.cl-tile){display:flex!important;align-items:baseline!important;'
+  + '  justify-content:space-between!important;gap:10px!important;min-width:0!important;}'
+  + '.mp-gal-root :is(.metric-tag,.mpp-stat-lbl,.tkt-cell-lbl,.cl-k){flex:0 1 auto!important;min-width:0!important;'
+  + '  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}'
+  + '.mp-gal-root :is(.metric-number,.mpp-stat-num,.tkt-cell-v,.cl-v){flex:0 0 auto!important;text-align:right!important;'
+  + '  font-variant-numeric:tabular-nums!important;letter-spacing:.01em!important;}'
+  + '.mp-gal-root :is(.metric-item,.mpp-stat,.tkt-cell,.cl-tile)+:is(.metric-item,.mpp-stat,.tkt-cell,.cl-tile){'
+  + '  margin-top:6px!important;}';
 
   function injectMoonTheme() {
     try {
