@@ -24,10 +24,13 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.10';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.10 手机上也能查到更新了】\n1. 📱 检查更新不再整包下载：以前每条线路都要把 1.2MB 的脚本整个拉下来，手机弱网下光检查就要等到超时，最后被当成「没有更新」。现在只读文件开头那一段，版本号和更新公告都在那儿；真要升级时才整包下载。\n2. 🧾 「没查到」和「真的是最新」分开说：线路给的是缓存副本时，现在会明说这是缓存（jsDelivr 的 @main 会压 12 小时），并给出「再查一次 / 换源 / 用导入文件重装」三条出路，不再一句「已是最新」把人堵死。\n3. 🔁 jsDelivr 不再被记成「下次优先线路」，也不会被优先尝试——它最容易给旧副本，排在前面只会让下一次检查先撞一次墙。\n4. 🧷 更新地址如果被手动改成写死的标签/提交（@v4.8.9 这种冻结地址），会自动走回默认地址，免得升级完永远停在那一版。\n5. 🧩 只动更新检查的取数与提示，数值、判定、存档格式、皮肤资源一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.11';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.11 默认更新源换成国内反代，不用自己配】\n1. 🔌 默认更新源改成国内的 GitHub 反代（gh-proxy），不挂梯子也能连、缓存只有秒级，推完立刻查得到（实测 93ms 拿到新版本）。原来的「官方直连」还在，只是排到它后面——挂了梯子的机器照样轮到 raw。\n2. 🎯 查版本时带 Range 只取文件开头一段，反代支持就直接回 4–60KB，不再整包 1.2MB；万一哪条线把 Range 当异常请求拦掉，会自动去掉 Range 再试一次，不会白判一条线不通。\n3. 🧷 老配置自动迁移：之前存过 raw 默认地址、jsDelivr 地址或写死标签的，都会自动换成新默认，不用手动改。\n4. 🧩 只动更新线路与取数方式，数值、判定、存档格式、皮肤资源一个字节没改。";
 
-  const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
+  // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
+  // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
+  const DEFAULT_UPDATE_URL = 'https://gh-proxy.com/https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
+  const OLD_DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
@@ -4039,8 +4042,10 @@ function getUpdateConfig() {
       // （@v4.8.9、@2f87934…）。那种地址是冻住的，升级完不会自己往前走，
       // 于是永远停在那一版——这里把它认出来，改回默认地址，让更新重新流动起来。
       const pinnedRef = /^https?:\/\/(?:cdn|fastly)\.jsdelivr\.net\/gh\/akashrtgsakghr-hub\/galgame-card-update@(?!main(?:\/|$))[^\/]+\/moon-phase\.js$/i.test(normalizedSavedUrl);
-      const updateUrl = !savedUrl || normalizedSavedUrl === LEGACY_DEFAULT_UPDATE_URL || pinnedRef
-        ? DEFAULT_UPDATE_URL : savedUrl;
+      // 老默认（官方直连）也一起迁到新默认：默认源换成国内反代以后，
+      // 存过旧默认的人不该被困在一条国内不通的地址上。
+      const oldDefault = normalizedSavedUrl === OLD_DEFAULT_UPDATE_URL || normalizedSavedUrl === LEGACY_DEFAULT_UPDATE_URL;
+      const updateUrl = !savedUrl || oldDefault || pinnedRef ? DEFAULT_UPDATE_URL : savedUrl;
       return {
         url: updateUrl,
         autoCheck: o.autoCheck !== false,
@@ -4085,6 +4090,23 @@ function _parseGithubSource(url) {
   return null;
 }
 
+// 线路的显示名与类型，按地址认——默认更新源本身就是反代，不能再假设「第一项 = 官方直连」
+function updateSourceLabel(url) {
+  const s = String(url || '');
+  if (/^https?:\/\/raw\.githubusercontent\.com\//i.test(s)) return '官方直连';
+  if (/gh-proxy\.com/i.test(s)) return '国内镜像 · gh-proxy';
+  if (/ghproxy\.net/i.test(s)) return '国内镜像 · ghproxy.net';
+  if (/jsdelivr\.net/i.test(s)) return '国内镜像 · jsDelivr';
+  return '更新源';
+}
+
+// 只有「已知的加速镜像」算 mirror；自己填的地址、官方直连都按直连对待（超时更短，也不写进优先线路）
+function updateSourceKind(url) {
+  const s = String(url || '');
+  if (/(?:^|\/\/)(?:gh-proxy\.com|ghproxy\.net|cdn\.jsdelivr\.net|fastly\.jsdelivr\.net)\//i.test(s)) return 'mirror';
+  return 'direct';
+}
+
 // 生成线路表：最近可用线路 → 官方直连 → 国内镜像（同一地址自动去重）
 function buildUpdateSourceChain(primaryUrl, preferUrl) {
   const chain = [];
@@ -4103,15 +4125,18 @@ function buildUpdateSourceChain(primaryUrl, preferUrl) {
   // 「上次可用的线路」如果是 jsDelivr，不再放第一位：
   // 它的 @main 会把上一版压 12 小时，排在最前面时最容易被旧副本骗成「已是最新」。
   if (prefer && prefer !== primary && !/jsdelivr\.net/i.test(prefer)) add(prefer, '上次可用的线路', 'prefer');
-  add(primary, '官方直连', 'direct');
+  // 默认更新源本身就是国内的 GitHub 反代（见 00-head 里的 DEFAULT_UPDATE_URL），
+  // 所以「第一项」不一定是官方直连，标签按地址认，别写死。
+  add(primary, updateSourceLabel(primary), updateSourceKind(primary));
   const gh = _parseGithubSource(primary);
   if (gh) {
     const base = gh.owner + '/' + gh.repo;
     const raw = 'https://raw.githubusercontent.com/' + base + '/' + gh.branch + '/' + gh.path;
-    // 先把反代排在前面：它们缓存很短（跟 GitHub raw 同一档，分钟级），
-    // 推完一两分钟就能拿到新版，不像 jsDelivr 那样压 12 小时。
-    add('https://ghproxy.net/' + raw, '国内镜像 · ghproxy.net', 'mirror');
+    // 反代排前面：缓存只有分钟级，推完一两分钟就能拿到新版，不像 jsDelivr 那样压 12 小时。
     add('https://gh-proxy.com/' + raw, '国内镜像 · gh-proxy', 'mirror');
+    add('https://ghproxy.net/' + raw, '国内镜像 · ghproxy.net', 'mirror');
+    // 官方直连排在反代后面：国内不挂梯子时它基本不通，但挂了梯子它是最快、最可信的一条。
+    add(raw, '官方直连', 'direct');
     // jsDelivr 挪到最后兜底：@main 是可变动地址，边缘缓存 12 小时（s-maxage=43200），
     // 作者刚推完，它往往还在发上一个版本的副本。放在前面会让人永远看到「已是最新」。
     add('https://cdn.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr', 'mirror');
@@ -4152,27 +4177,45 @@ async function readHeadWithLimit(res, limitBytes) {
   return buf;
 }
 
-// 带超时的单线路下载：卡住不动也能在限定时间内放弃，避免永远转圈
-async function fetchTextWithTimeout(url, timeoutMs, note, probeBytes) {
+// 单次请求：带超时，可选「只要开头一段」（Range）
+async function fetchOnceText(url, limit, probeBytes, withRange) {
   const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
-  const limit = Math.max(3000, timeoutMs || UPDATE_DIRECT_TIMEOUT);
   let timer = null;
   if (ctrl) timer = setTimeout(function() { try { ctrl.abort(); } catch (e) {} }, limit);
   try {
-    const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    const init = { cache: 'no-store' };
+    if (ctrl) init.signal = ctrl.signal;
+    // 只取开头时先商量一下 Range：反代支持就直接回一小段（实测 gh-proxy 93ms / 60KB），
+    // 不支持也无所谓，下面读流时照样会在看到版本号的地方停手。
+    if (withRange && probeBytes) init.headers = { Range: 'bytes=0-' + (Math.max(4096, probeBytes) - 1) };
+    const res = await fetch(url, init);
     if (!res) throw new Error('没有收到响应');
     if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 404 ? '（文件不存在或分支名变了）' : ''));
     const text = probeBytes ? await readHeadWithLimit(res, probeBytes) : await res.text();
     if (!text || !String(text).trim()) throw new Error('返回内容为空');
     return String(text);
+  } finally { if (timer) clearTimeout(timer); }
+}
+
+// 带超时的单线路下载：卡住不动也能在限定时间内放弃，避免永远转圈
+async function fetchTextWithTimeout(url, timeoutMs, note, probeBytes) {
+  const limit = Math.max(3000, timeoutMs || UPDATE_DIRECT_TIMEOUT);
+  const looksNetwork = function(e) { return /Failed to fetch|NetworkError|Load failed|network/i.test(String((e && e.message) || e)); };
+  try {
+    return await fetchOnceText(url, limit, probeBytes, true);
   } catch (e) {
+    // 有的浏览器会把带 Range 的请求当非简单请求去预检，预检不过就整个失败；
+    // 这时去掉 Range 再试一次，宁可多下一点，也别把一条本来能用的线路判死。
+    if (probeBytes && looksNetwork(e)) {
+      try { return await fetchOnceText(url, limit, probeBytes, false); } catch (e2) { e = e2; }
+    }
     if (e && (e.name === 'AbortError' || /aborted/i.test(String(e.message || '')))) {
       throw new Error('连接超时（' + Math.round(limit / 1000) + ' 秒无响应' + (note ? '，' + note : '') + '）');
     }
     const msg = String((e && e.message) || e || '未知错误');
-    if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)) throw new Error('网络不通（可能被拦截或 DNS 解析失败）');
+    if (looksNetwork(e)) throw new Error('网络不通（可能被拦截或 DNS 解析失败）');
     throw new Error(msg);
-  } finally { if (timer) clearTimeout(timer); }
+  }
 }
 
 // 按线路表依次尝试；返回 {text,url,label,kind,attempts,switched,stale}，全失败时抛错并带 attempts
@@ -4272,7 +4315,7 @@ async function checkForUpdates(silent) {
         return !fromJsdelivr;
       }
     });
-    if (got.switched && !silent) toast('官方直连不通，已自动改用「' + got.label + '」', 'info');
+    if (got.switched && !silent) toast('默认线路没接通，已自动改用「' + got.label + '」', 'info');
     const text = got.text;
     let remoteVersion = '', remoteInfo = '';
     try {
@@ -4298,7 +4341,7 @@ async function checkForUpdates(silent) {
     }
     const cmp = compareVersions(remoteVersion, MOON_FORMULA_VERSION);
     if (cmp > 0) {
-      _cachedUpdateInfo = { version: remoteVersion, info: remoteInfo, url: cfg.url, resolvedUrl: got.url, sourceLabel: got.label, sourceKind: got.kind };
+      _cachedUpdateInfo = { version: remoteVersion, info: remoteInfo, url: cfg.url, resolvedUrl: got.url, sourceLabel: got.label, sourceKind: got.kind, switched: !!got.switched };
       try { refreshPanel(); } catch (e) {}
       if (!silent) showUpdateAvailableDialog(_cachedUpdateInfo);
       return _cachedUpdateInfo;
@@ -4408,7 +4451,7 @@ function showUpdateAvailableDialog(remote) {
     '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
       '发现新版本：<b style="color:#fde047;">v' + remote.version + '</b><br>' +
       '当前版本：<span style="color:#94a3b8;">v' + MOON_FORMULA_VERSION + '</span>' +
-      (remote.sourceLabel ? '<br><span style="font-size:10.5px;color:#64748b;">线路：' + _updEsc(remote.sourceLabel) + (remote.sourceKind === 'mirror' ? '（直连不通，已自动切换）' : '') + '</span>' : '') +
+      (remote.sourceLabel ? '<br><span style="font-size:10.5px;color:#64748b;">线路：' + _updEsc(remote.sourceLabel) + (remote.switched ? '（默认线路不通，已自动切换）' : '') + '</span>' : '') +
     '</div>' +
     (remote.info
       ? '<div style="padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11px;color:#94a3b8;line-height:1.7;max-height:240px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;">' + String(remote.info).replace(/</g, '&lt;') + '</div>'
@@ -4761,8 +4804,8 @@ function openUpdateConfigDialog(panel) {
   const cfg = getUpdateConfig();
   const html =
     '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">' +
-      '填脚本源码文件的直链（推荐 jsDelivr 加速）。<br>' +
-      '<code style="color:#7dd3fc;font-size:10.5px;">https://cdn.jsdelivr.net/gh/用户名/仓库@main/moon-phase.js</code><br>' +
+      '填脚本源码文件的直链。<b style="color:#cbd5e1;">留空就用内置默认地址</b>（国内反代，不挂梯子也能连、缓存只有秒级），一般不用改。<br>' +
+      '<code style="color:#7dd3fc;font-size:10.5px;">https://gh-proxy.com/https://raw.githubusercontent.com/用户名/仓库/main/moon-phase.js</code><br>' +
       '脚本会从中解析 <code style="color:#7dd3fc;font-size:10.5px;">MOON_FORMULA_VERSION</code> 作为版本号。' +
     '</div>' +
     '<div style="margin-bottom:8px;">' +

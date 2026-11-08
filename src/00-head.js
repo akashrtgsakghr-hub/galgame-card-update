@@ -24,10 +24,13 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.10';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.10 手机上也能查到更新了】\n1. 📱 检查更新不再整包下载：以前每条线路都要把 1.2MB 的脚本整个拉下来，手机弱网下光检查就要等到超时，最后被当成「没有更新」。现在只读文件开头那一段，版本号和更新公告都在那儿；真要升级时才整包下载。\n2. 🧾 「没查到」和「真的是最新」分开说：线路给的是缓存副本时，现在会明说这是缓存（jsDelivr 的 @main 会压 12 小时），并给出「再查一次 / 换源 / 用导入文件重装」三条出路，不再一句「已是最新」把人堵死。\n3. 🔁 jsDelivr 不再被记成「下次优先线路」，也不会被优先尝试——它最容易给旧副本，排在前面只会让下一次检查先撞一次墙。\n4. 🧷 更新地址如果被手动改成写死的标签/提交（@v4.8.9 这种冻结地址），会自动走回默认地址，免得升级完永远停在那一版。\n5. 🧩 只动更新检查的取数与提示，数值、判定、存档格式、皮肤资源一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.11';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.11 默认更新源换成国内反代，不用自己配】\n1. 🔌 默认更新源改成国内的 GitHub 反代（gh-proxy），不挂梯子也能连、缓存只有秒级，推完立刻查得到（实测 93ms 拿到新版本）。原来的「官方直连」还在，只是排到它后面——挂了梯子的机器照样轮到 raw。\n2. 🎯 查版本时带 Range 只取文件开头一段，反代支持就直接回 4–60KB，不再整包 1.2MB；万一哪条线把 Range 当异常请求拦掉，会自动去掉 Range 再试一次，不会白判一条线不通。\n3. 🧷 老配置自动迁移：之前存过 raw 默认地址、jsDelivr 地址或写死标签的，都会自动换成新默认，不用手动改。\n4. 🧩 只动更新线路与取数方式，数值、判定、存档格式、皮肤资源一个字节没改。";
 
-  const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
+  // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
+  // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
+  const DEFAULT_UPDATE_URL = 'https://gh-proxy.com/https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
+  const OLD_DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
