@@ -314,7 +314,7 @@
       return m ? m[1].trim() : '';
     };
     const title = getAttr('title') || getAttr('标题') || '终幕之后 · 角色视角番外';
-    const charName = getAttr('char') || getAttr('角色') || '她';
+    const charName = getAttr('char') || getAttr('角色') || 'Ta';
     const endingTitle = getAttr('ending') || getAttr('结局') || '命定终局';
     const bodyHtml = String(innerHtml || '').trim();
     if (!bodyHtml) return null;
@@ -338,7 +338,7 @@
       }
     });
     const title = map['标题'] || map['title'] || '终幕之后 · 角色视角番外';
-    const charName = map['角色'] || map['char'] || '她';
+    const charName = map['角色'] || map['char'] || 'Ta';
     const endingTitle = map['结局'] || map['ending'] || '命定终局';
     const bodyText = map['正文'] || map['content'] || freeParts.join('\n\n');
     if (!bodyText) return null;

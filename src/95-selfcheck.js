@@ -65,7 +65,7 @@
           ok: true,
           eyebrow: '已经可以玩了',
           title: '回到酒馆正常聊天就行',
-          desc: '她涨多少由这台小机器算，AI 看不到数字，也不会自己编。想全屏看剧情就点右边。',
+          desc: 'Ta涨多少由这台小机器算，AI 看不到数字，也不会自己编。想全屏看剧情就点右边。',
           cta: '全屏看剧情',
           act: 'gal',
           link: '看 30 秒怎么玩'
@@ -105,15 +105,15 @@
         '<div class="mp-set-block"><div class="mp-set-title">🎮 游戏难度</div>' +
         '<div class="mp-set-desc">' + currentMeta.detail + '</div>' +
         renderDifficultyPicker(selectedLevel, false) + '</div>' +
-        pocketRow('🃏 这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在她头上',
+        pocketRow('🃏 这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在Ta头上',
           '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
-        pocketRow('🧾 自动建档', autoBoot ? '她第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
+        pocketRow('🧾 自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
           '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
-        pocketRow('🎲 初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断她吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+        pocketRow('🎲 初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
           '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
         pocketRow('🎬 小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
           '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
-        pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里她说过的话，更像本人' : '只按角色卡演，不引用原作',
+        pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
           '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
         false) +
       pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、AI 的草稿要不要藏起来',
@@ -123,7 +123,7 @@
         pocketRow('🙈 藏起 AI 的草稿', s.hideAiCot !== false ? 'AI 写给自己的分析段不显示，你只看正文和状态卡' : 'AI 写出来的全部原样显示',
           '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? '开' : '关') + '</button>'),
         false) +
-      pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得她说话不像，才需要动',
+      pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
         pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
           '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? '已配置' : '去配置') + '</button>') +
         '<div class="mp-set-block"><div class="mp-set-title">📜 演绎规则</div>' +
@@ -134,9 +134,9 @@
         renderGlossaryPickerHtml() + '</div>',
         false) +
       pocketFold('risk', '🌑 开了就回不了头', '这两个开关会影响整局，看清楚再用',
-        pocketRow('🔒 安全锁', getSafetyLock() ? '开：她最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
+        pocketRow('🔒 安全锁', getSafetyLock() ? '开：Ta最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
           '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '开' : '关') + '</button>') +
-        pocketRow('🌑 锁死这段剧情', (antisl || anchorLocked) ? '已经开了：她一旦心凉就锁死，只能开新对话重来' : '关着。打开后她心凉就回不了头，删楼重摇都没用',
+        pocketRow('🌑 锁死这段剧情', (antisl || anchorLocked) ? '已经开了：Ta一旦心凉就锁死，只能开新对话重来' : '关着。打开后Ta心凉就回不了头，删楼重摇都没用',
           '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '已锁死' : (antisl ? '开' : '关')) + '</button>'),
         false) +
       '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
@@ -217,10 +217,10 @@
       '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色与存档</div>' +
       pocketFold('chr-files', '人物档案', '认错人、说话不像、想手改数值',
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 让她试演一段</span><small>先看她说话像不像本人，不像就重写</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
         '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
       pocketFold('chr-you', '关于「你」', '让 AI 记住你是谁、什么脾气',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 写一份我的设定</span><small>把你写清楚，她回话才不会跑偏</small></button>' +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 写一份我的设定</span><small>把你写清楚，Ta回话才不会跑偏</small></button>' +
         '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
       pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
@@ -709,7 +709,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
         世界: { 时间: '2000年01月01日 · 星期六 · 00:00', 地点: '教室', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' },
         角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '😐', 心声: '……', 在场: true, 重要度: '主要' } }
       };
-      const mockMes = '她笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=😄\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
+      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=😄\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
       const res = ingestBackendVariables(mockMes, mockStat);
       const okTime = String(mockStat.世界.时间).indexOf('01月02日') >= 0;
       const okVoice = String(mockStat.角色['长谷川茗'].心声).indexOf('开心') >= 0;
@@ -737,9 +737,9 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
 
     lines.push('<div class="mp-log-subhead">【测试11】相对时间兜底（次日 / 三天后）</div>');
     try {
-      const d1 = detectRelativeElapsedDays('次日清晨，她推开了门。');
+      const d1 = detectRelativeElapsedDays('次日清晨，Ta推开了门。');
       const d2 = detectRelativeElapsedDays('三天后，演出如期而至。');
-      const d3 = detectRelativeElapsedDays('她轻轻点头，什么也没说。');
+      const d3 = detectRelativeElapsedDays('Ta轻轻点头，什么也没说。');
       if (d1 === 1 && d2 === 3 && d3 === 0) lines.push('✔ 相对时间换算正确（1 / 3 / 0 天）');
       else lines.push('✖ 相对时间换算异常：' + d1 + ' / ' + d2 + ' / ' + d3);
     } catch (e) { lines.push('✖ 相对时间测试异常：' + (e.message || e)); }
@@ -777,7 +777,7 @@ const stateKey = getChatStateKey();
 
     lines.push('<div class="mp-log-subhead">── 标签格式检查 ──</div>');
     info('当前标签格式：' + (getCardMode() === 'multi' ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]'));
-    info('数值全由掌机自己算；AI 只负责报时间和她心里的想法，这些玩家看不到');
+    info('数值全由掌机自己算；AI 只负责报时间和Ta心里的想法，这些玩家看不到');
 
     lines.push('<div class="mp-log-subhead">📋 总结</div>');
     if (fatalCount > 0) bad('发现 ' + fatalCount + ' 项致命冲突');
@@ -856,7 +856,7 @@ const stateKey = getChatStateKey();
       const r = await computeTokenBreakdown();
       const lines = [];
       lines.push('<div style="font-size:10.5px;line-height:1.9;">');
-      if (r.charCard > 0) lines.push('<div style="color:#94a3b8;">她的角色卡' + (r.charCardName ? '（' + String(r.charCardName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#a5f3fc;">' + _fmtK(r.charCard) + '</span></div>');
+      if (r.charCard > 0) lines.push('<div style="color:#94a3b8;">Ta的角色卡' + (r.charCardName ? '（' + String(r.charCardName).replace(/</g,'&lt;') + '）' : '') + ': <span style="color:#a5f3fc;">' + _fmtK(r.charCard) + '</span></div>');
       lines.push('<div style="color:#94a3b8;">掌机自己占的: <span style="color:#6ee7b7;">' + _fmtK(r.sysTotal) + '</span></div>');
       r.sys.forEach(function(item) { lines.push('<div style="color:#64748b;padding-left:12px;">· ' + item.key + ': <span style="color:#94a3b8;">' + _fmtK(item.tokens) + '</span></div>'); });
       lines.push('<div style="color:#94a3b8;">世界设定条目: <span style="color:#c084fc;">' + _fmtK(r.moonEntries) + '</span></div>');
@@ -917,11 +917,11 @@ const stateKey = getChatStateKey();
         '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#22262f;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
         '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button>' +
         '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 补掷</button></div>' +
-        '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="她心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
+        '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="Ta心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
         '</div>';
     }).join('');
     const html = '<div style="padding:9px 11px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.3);border-radius:9px;font-size:10.8px;line-height:1.7;color:#bae6fd;margin-bottom:10px;">' +
-      '<b>「主要」= 你真正想攻略的人</b>（AI 会把感情戏都写给她）<br>「次要」= 会出现、能聊几句的配角　「NPC」= 只露个脸的路人<br>改完点下面的「保存」就生效，<b>不用重开存档</b>。<br>时间卡住、内心话不动，这一页也能顺手改掉。' +
+      '<b>「主要」= 你真正想攻略的人</b>（AI 会把感情戏都写给Ta）<br>「次要」= 会出现、能聊几句的配角　「NPC」= 只露个脸的路人<br>改完点下面的「保存」就生效，<b>不用重开存档</b>。<br>时间卡住、内心话不动，这一页也能顺手改掉。' +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
       '<div style="flex:1.6;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">世界时间</div><input id="moon-roster-world-time" value="' + escapeFeatureHtml(world.时间 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
@@ -1156,7 +1156,7 @@ const stateKey = getChatStateKey();
     { cat: 'start', q: '第一次玩，第一步点哪里？', keys: ['第一次', '新手', '开始', '入门', '上手'],
       a: '看最上面那条粉色提示，它会告诉你现在该做什么。<br>还没有人物档案时，点右边的 <b>帮我建档案</b>，等它跑完就行。<br>只建一次，之后正常聊天，数字会自己涨。' },
     { cat: 'start', q: '建完档案还要做什么？', keys: ['建档', '之后', '接下来', '干嘛'],
-      a: '什么都不用做，回酒馆正常聊天。<br>她加分减分都由这台掌机算，AI 只能打暗号，改不了数。' },
+      a: '什么都不用做，回酒馆正常聊天。<br>Ta加分减分都由这台掌机算，AI 只能打暗号，改不了数。' },
     { cat: 'start', q: '要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置', '插件'],
       a: '不用装任何东西，也<b>不需要 MVU</b>。<br>所有数据都存在这台掌机里，跟别的插件不冲突。' },
     { cat: 'start', q: '找不到入口 / 点了没反应', keys: ['刷新', '导入', '菜单', '入口', '没反应'],
@@ -1172,7 +1172,7 @@ const stateKey = getChatStateKey();
     { cat: 'number', q: '时间和内心话不动了', keys: ['时间', '心声', '内心话', '不推进', '卡住'],
       a: '多半是这轮 AI 没写时间。<br>想马上修：<b>角色与存档 → 查看 / 修改档案</b>，直接手写时间、地点、内心话，保存立刻生效。' },
     { cat: 'number', q: 'AI 把别人当主角了', keys: ['次要', '重要度', '角色定位', '攻略对象', '认错'],
-      a: '<b>角色与存档 → 查看 / 修改档案</b>，把她改成<b>主要</b>。<br>改完 AI 下一轮就会围着她写，<b>不用重开档</b>。' },
+      a: '<b>角色与存档 → 查看 / 修改档案</b>，把Ta改成<b>主要</b>。<br>改完 AI 下一轮就会围着Ta写，<b>不用重开档</b>。' },
     { cat: 'number', q: '好感卡在 18 / 38 / 58 上不去', keys: ['阶段门', '卡住', '升级', '破门', '冻结'],
       a: '这是「关系升级」的关口，不是坏了。<br>到 <b>18 / 38 / 58 / 78 / 98</b> 这五个点会停下来判一次「能不能更进一步」，过了才升级。<br>没过就等更好的时机，可以继续聊天攒机会。' },
     { cat: 'number', q: '每周加分有上限吗？', keys: ['上限', '每周', '额度', '清零'],
@@ -1180,13 +1180,13 @@ const stateKey = getChatStateKey();
     { cat: 'number', q: '事件太久没来了', keys: ['事件', '节奏', '频率', '没有事件'],
       a: '大约每 <b>8~12 回合</b>来一个日常小事件。<br>嫌慢嫌快：<b>玩法与手感 → 小事件来得多勤</b>，慢 / 中 / 快三档都能调。' },
     { cat: 'number', q: '开局给的分太高 / 太低', keys: ['初见', '开局', '底分', '保底'],
-      a: '<b>玩法与手感 → 初见投资</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断她吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
+      a: '<b>玩法与手感 → 初见投资</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断Ta吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
 
     /* 剧情和时间 */
     { cat: 'story', q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'],
       a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天。<br>要跳到几小时后或第二天，<b>得你自己说一声</b>（「我们明天见」「睡了」），或者正文里写「次日 / 一周后」。' },
     { cat: 'story', q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '回不了头'],
-      a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要她好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
+      a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要Ta好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
     { cat: 'story', q: 'AI 回复末尾那个 [Sylveina|…] 是什么？', keys: ['标签', 'sylveina', '暗号', '括号'],
       a: '那是给掌机看的<b>暗号</b>，你不用管。<br>AI 只打暗号，具体加多少由掌机摇骰子算，AI 改不了数。<br>正常情况下它会自动收起来，不会出现在正文里。' },
     { cat: 'story', q: '沉浸模式怎么用？', keys: ['沉浸', 'gal', '全屏', '退出'],
@@ -1209,8 +1209,8 @@ const stateKey = getChatStateKey();
       a: '<b>玩法与手感 → 游戏难度</b>，四档都写了区别。<br>拿不准就选中间那档，<b>随时能改，不用重开</b>。' },
     { cat: 'tune', q: '想换状态卡的样子', keys: ['皮肤', '外观', '状态卡', '换样子'],
       a: '<b>系统选项</b> 里能换状态卡外观，点一下就能预览，不用保存再刷新。' },
-    { cat: 'tune', q: '想让她说话更像本人', keys: ['试镜', '小抄', '像不像', '说话不像'],
-      a: '<b>角色与存档 → 让她试演一段</b>：AI 先读角色卡写一份小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。存下来之后 AI 演她会明显更像。' },
+    { cat: 'tune', q: '想让Ta说话更像本人', keys: ['试镜', '小抄', '像不像', '说话不像'],
+      a: '<b>角色与存档 → 让Ta试演一段</b>：AI 先读角色卡写一份小抄，再演一小段给你看。<br>不像就写意见让它重演，满意了就存下来。存下来之后 AI 演Ta会明显更像。' },
     { cat: 'tune', q: '想让插件单独用一个 AI', keys: ['api', '模型', '钥匙', '接口'],
       a: '<b>系统选项 → AI 钥匙</b>。<br>不填也能用，直接用你酒馆里那个 AI。只有想换模型、或嫌它演得不对，才需要填。' }
   ];

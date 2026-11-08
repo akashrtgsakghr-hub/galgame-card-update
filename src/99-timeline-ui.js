@@ -233,7 +233,7 @@
       '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">时间（例：2024年5月3日 · 星期五 · 19:30）</div>' +
       '<input id="moon-tl-add-time" type="text" value="' + escapeFeatureHtml(nowStr) + '" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
       '<div style="font-size:11px;color:#94a3b8;margin:10px 0 4px;">会发生什么（一句话）</div>' +
-      '<input id="moon-tl-add-name" type="text" placeholder="例：文化祭当天，她鼓起勇气约你" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
+      '<input id="moon-tl-add-name" type="text" placeholder="例：文化祭当天，Ta鼓起勇气约你" style="width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;font-family:inherit;">' +
       '<label style="display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11.5px;color:#cbd5e1;cursor:pointer;">' +
         '<input type="checkbox" id="moon-tl-add-major"> 这是重大事件（不加就是日常）</label>';
     showModalDialogCancelable('➕ 加一条时间线', html,

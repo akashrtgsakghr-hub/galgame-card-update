@@ -184,7 +184,7 @@
           }
         }
         const importance = String(ch.重要度 || '主要').trim();
-        if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在她身上，内心戏与情感拉扯要写足。');
+        if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在Ta身上，内心戏与情感拉扯要写足。');
         else if (importance === '次要') lines.push('  · 角色定位：次要角色 —— 可以互动，但不要抢主线攻略对象的戏份。');
         else lines.push('  · 角色定位：NPC —— 只做功能性出场，不展开情感线。');
         const _es = (ch._quota || {})._eventState || {};
@@ -220,7 +220,7 @@
       lines.push('世界.地点=<本轮结束时的场景地点>');
       lines.push('为本轮有互动的每个角色各输出三行（角色名用档案里的正名）：');
       lines.push('角色.<角色名>.情绪=<单个 emoji>');
-      lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写她此刻没有说出口的真实想法>');
+      lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写Ta此刻没有说出口的真实想法>');
       lines.push('角色.<角色名>.在场=true 或 false');
       lines.push('（当前世界时间：' + (world.时间 || '未记录') + '｜当前地点：' + (world.地点 || '未记录') + '｜游戏日：第 ' + (Number(world._游戏日) || 0) + ' 天。'
         + '节奏规则：同一场景内的对话，每轮只推进 ' + getTurnMinutes() + ' 分钟（最多不超过 ' + (getTurnMinutes() * 2) + ' 分钟），不要自行跳到几小时之后或第二天；'
@@ -284,7 +284,7 @@
     const v = Number(value);
     const type = String(eventType || '日常');
     const range = MOON_FORMULA_PARAMS.eventBaseRange[type] || MOON_FORMULA_PARAMS.eventBaseRange.日常;
-    // 0 是「这一轮没打动她」的合法写法，不要被夹成下界，否则每轮都会被强制加分
+    // 0 是「这一轮没打动Ta」的合法写法，不要被夹成下界，否则每轮都会被强制加分
     if (!isFinite(v) || v === 0) return { value: 0, clamped: false, range: range };
     if (v < range[0]) return { value: range[0], clamped: true, range: range };
     if (v > range[1]) return { value: range[1], clamped: true, range: range };

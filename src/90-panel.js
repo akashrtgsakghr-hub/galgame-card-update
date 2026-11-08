@@ -949,7 +949,7 @@
     const textPool = String(recentText || '') + ' ' + String(ch && ch.心声 || '');
     if (/(你|user|玩家)(已|彻底|已经)?(死了|停止了呼吸|失去心跳|永远闭上|咽下了最后一口气|倒在血泊中|牺牲了|殒命|离世)/i.test(textPool) || /(?:user已死|玩家死亡)/i.test(special)) return { triggered: true, type: 'UserDeathEnd', reason: '玩家在此刻迎来了生命的终点' };
     const escapedName = String(charName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if ((new RegExp('(' + (escapedName || '角色') + '|他|她)(已|彻底|已经)?(死了|停止了呼吸|自尽|牺牲|殒命|断气|永远离开)', 'i').test(textPool)) || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
+    if ((new RegExp('(' + (escapedName || '角色') + '|他|Ta)(已|彻底|已经)?(死了|停止了呼吸|自尽|牺牲|殒命|断气|永远离开)', 'i').test(textPool)) || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
     if (E >= 100 && R >= 5) return { triggered: true, type: 'HE', reason: '情感羁绊达到圆满境界' };
     if (E <= -80 && R <= -4) return { triggered: true, type: 'BE', reason: '关系跌入无法挽回的仇视深渊' };
     if (special.indexOf('囚禁') >= 0 || (I >= 90 && !getSafetyLock())) return { triggered: true, type: 'CageEnd', reason: '关系进入囚禁终局条件' };
@@ -1037,7 +1037,7 @@
   }
 
   function buildChatboxEpiloguePrompt(record) {
-    const charName = (record && record.charName) || '她';
+    const charName = (record && record.charName) || 'Ta';
     const endingTitle = (record && record.title) || (charName + '之篇 · 终末之约');
     const endingType = (record && record.endingType) || 'TE';
     const routeMeta = ENDING_ROUTE_META[endingType] || ENDING_ROUTE_META.TE;
@@ -1049,7 +1049,7 @@
     const directorRule = [
       '【📖 日系 Galgame 终局后日谈番外指令（本回合最高优先级）】',
       '上一回合玩家与角色「' + charName + '」已完成本周目终局结算（结局：《' + endingTitle + '》，路线：' + routeMeta.badge + '）。现在玩家点击了「查看后日谈」，请你立即在当前聊天对话内创作一篇 **5000字～8000字** 的完整结局后番外（After Story）：',
-      '1. **叙事视角（核心要求）**：必须严格以角色「' + charName + '」的视角（第一人称“我”或极度贴合她内心的专属主视角）进行创作，细腻展现她在结局落幕之后的所见、所感、回忆与内心独白。',
+      '1. **叙事视角（核心要求）**：必须严格以角色「' + charName + '」的视角（第一人称“我”或极度贴合Ta内心的专属主视角）进行创作，细腻展现Ta在结局落幕之后的所见、所感、回忆与内心独白。',
       '2. **剧情内容与篇幅（5000～8000字完整番外）**：重点讲述《' + endingTitle + '》结局之后发生的事情——包含「序幕·终局余温」「第一幕·日常与季节流转」「第二幕·旧物与心底回响」「终幕·致未来的誓言/回望」四个自然篇章，细节丰满、情感真挚克制，总篇幅务必达到 **5000字～8000字**，绝不可敷衍缩写。',
       '3. **内置正则美化包裹格式（必须严格遵守）**：请将整篇后日谈番外完整包裹在 `<GalgameEpilogue title="自拟诗意后日谈标题" char="' + charName + '" ending="' + endingTitle + '">...此处写5000到8000字完整后日谈正文（可正常分段与使用小标题）...</GalgameEpilogue>` 标签内输出，以便脚本内置正则引擎将其渲染为日系 Galgame After Story 番外阅读卡。本回合无需输出 `[Sylveina|...]` 算分标签。'
     ].join('\n');
@@ -1280,7 +1280,7 @@
     const apiModel = hasApi ? getCustomAIConfig().model : '未设';
     const options = names.map(function(name) { return '<option value="' + lcdEscape(name) + '"' + (name === selected ? ' selected' : '') + '>' + lcdEscape(name) + '</option>'; }).join('');
     const activePage = Math.max(0, Math.min(3, parseInt(panel.dataset.lcdPage || '0', 10) || 0));
-    const pageNames = ['她的状态', '其他角色', '接下来', '这个聊天的字数'];
+    const pageNames = ['Ta的状态', '其他角色', '接下来', '这个聊天的字数'];
     const shortLabels = ['状态', '角色', '事件', '字数'];
     function calcBar(val, maxVal) {
       const pct = Math.max(0, Math.min(100, Math.round(((Number(val) || 0) / (maxVal || 100)) * 100)));
@@ -1313,11 +1313,11 @@
       }).join('') +
       '</div>' +
       '<div class="mp-lcd-pages" data-lcd-pages>' +
-      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="她的状态">' +
+      '<section class="mp-lcd-page' + (activePage === 0 ? ' active' : '') + '" data-lcd-page="0" data-page-label="Ta的状态">' +
       '<div class="mp-lcd-world-time">现在是　' + lcdEscape(world.时间 || '还没开始') + '</div>' +
       '<div class="mp-lcd-difficulty"><b>难度</b>' + renderPixelMoonIcon(mode) + '<strong>' + lcdEscape(modeMeta.name + ' · ' + modeMeta.title) + '</strong></div>' +
       '<div class="mp-lcd-plain">' + (ch
-        ? '她现在是<b>' + lcdEscape(stageInfo.name) + '</b>，好感 <b>' + eVal.toFixed(1) + '</b>。你在酒馆里正常聊，数字会自己涨。'
+        ? 'Ta现在是<b>' + lcdEscape(stageInfo.name) + '</b>，好感 <b>' + eVal.toFixed(1) + '</b>。你在酒馆里正常聊，数字会自己涨。'
         : '还没有人物档案。先建档案，之后正常聊天就行。') + '</div>' +
       quickCharSummary + '</section>' +
       '<section class="mp-lcd-page' + (activePage === 1 ? ' active' : '') + '" data-lcd-page="1" data-page-label="其他角色">' +

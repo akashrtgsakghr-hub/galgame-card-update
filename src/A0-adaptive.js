@@ -64,7 +64,7 @@
   /* ── 从一条回复里认人 ─────────────────────────────────────
      只认「明确点名」的：Sylveina 标签里的角色名、后台变量 `角色.X.` 的 X。
      这两个来源都是脚本自己要求 AI 输出的，不会误伤正文里的普通名词。 */
-  const BOOTSTRAP_NAME_STOP = ['你', '我', '他', '她', '它', '玩家', '用户', 'User', 'user', '旁白', '众人', '大家', '系统', '未知'];
+  const BOOTSTRAP_NAME_STOP = ['你', '我', '他', 'Ta', '它', '玩家', '用户', 'User', 'user', '旁白', '众人', '大家', '系统', '未知'];
 
   function collectNamedCharsFromMessage(text) {
     const names = [];
@@ -101,7 +101,7 @@
       const n = String(m[1] || '').trim();
       if (!n || names.indexOf(n) >= 0) continue;
       if (BOOTSTRAP_NAME_STOP.indexOf(n) >= 0) continue;
-      if (/[的了是在说问道着过他她我你]/.test(n)) continue;
+      if (/[的了是在说问道着过他Ta我你]/.test(n)) continue;
       if (/^(?:时间|地点|地点|选项|选择|备注|状态|好感|阶段|肉体|嫉妒|心声|情绪|当前)$/.test(n)) continue;
       names.push(n);
     }
