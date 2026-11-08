@@ -77,10 +77,12 @@ function rebuildImportJson(code, info) {
   if (fs.existsSync(OUT_JSON)) {
     base = JSON.parse(fs.readFileSync(OUT_JSON, 'utf8').replace(/^﻿/, ''));
   }
+  const uiNameMatch = String(code).match(/SYSTEM_UI_NAME\s*=\s*'([^']+)'/);
+  const uiName = uiNameMatch ? uiNameMatch[1] : '';
   const out = Object.assign({}, base, {
     type: base.type || 'script',
     enabled: base.enabled !== false,
-    name: base.name || 'Galgame攻略系统',
+    name: uiName || base.name || 'Galgame攻略系统',
     id: base.id || 'e22f244b-70e1-448e-b24e-5a9b36c48484',
     content: code,
     info: info,
