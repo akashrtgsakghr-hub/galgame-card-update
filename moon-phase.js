@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.7';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.7 建档与美化】\n1. 📐 开局建档改两段式：先只梳理人物设定（人物卡+时间线+已知地点），再判关系；不再一口气算数值，压掉「同居三年只给 23」这类偏低估算。\n2. 🖊 新增手动建档：自动扫世界书 / 角色卡 / 聊天里的人名，勾选要建档的角色，可选 AI 判定，也可以自己填好感度与肉体值。\n3. 🃏 多人卡同步两段式：多角色卡先出摘要，再按摘要判每个人。\n4. 🕰 开局时间与地点落地：写进世界.时间，并补一条「开局 · 地点」时间线；周额度改为按剧情天重置，换日才清零。\n5. 🧾 全站称谓统一用 Ta，不再默认女字旁的「她」。\n6. 🎨 统一视觉层与版式层：面板归到大正浪漫×霓虹一族；五套楼内状态卡只统一数字对齐、标签对比度与进度条渐变，不增删任何显示内容。\n7. 🎛 新增自制美化：描述想要的风格，走可单独配置的 API 生成配色与材质，可导出美化文档到外部继续改，再贴回来。";
+  const MOON_FORMULA_VERSION = '4.8.8';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.8 更新检查不再吃到旧缓存】\n1. 🔀 换线顺序改了：官方直连之后先走 ghproxy.net、gh-proxy 这两个反代，jsDelivr 挪到最后兜底。同一时刻实测 ghproxy 返回 4.8.7，而 jsDelivr 的 @main 还停在 4.8.6——它按路径缓存 12 小时，刚推完就在发上一个版本的副本，排在前面会让人永远看到「已是最新」。\n2. 🧹 原来那个 ?mpcb= 时间戳参数对 jsDelivr 无效：查询串不进它的缓存键，带不带参数返回同一个 age、同一个版本。注释已按实测改正，不再让人误以为它管用。\n3. 🔁 还补了一个洞：「上次可用的线路」会被优先重试，如果它正好是 jsDelivr，同样会拿旧副本提前收手。现在只要版本号和当前相同、而这条线是 jsDelivr、后面还有别的线路，就继续往下试；全都不比当前新，才判「已是最新」并提示缓存可能没刷新。\n4. 🧪 用本地脚本核对线路表顺序（jsDelivr 必须排在两个反代之后），并实测四条线路各自返回的版本、带不带缓存参数的实际差别。\n5. 🧩 只改更新检查，数值、判定、存档格式一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
@@ -4085,9 +4085,19 @@ function _parseGithubSource(url) {
 function buildUpdateSourceChain(primaryUrl, preferUrl) {
   const chain = [];
   const seen = {};
+  // 给地址加一次性查询参数。注意它只对「把整条 URL 当缓存键」的反代有效；
+  // jsDelivr 是按路径缓存的，查询串不进键，实测带不带参数返回同一个 age、同一个版本，
+  // 所以它救不了 jsDelivr 的旧副本——真正管用的是下面的换线顺序。
+  const _cb = String(Date.now());
+  function _bust(u) {
+    if (!/^https?:\/\//i.test(u)) return u;
+    if (/[?&]mpcb=/.test(u)) return u;
+    return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'mpcb=' + _cb;
+  }
   function add(url, label, kind) {
-    const u = String(url || '').trim();
-    if (!u || seen[u]) return;
+    const raw = String(url || '').trim();
+    const u = _bust(raw);
+    if (!raw || seen[u]) return;
     seen[u] = 1;
     chain.push({ url: u, label: label, kind: kind });
   }
@@ -4099,10 +4109,14 @@ function buildUpdateSourceChain(primaryUrl, preferUrl) {
   if (gh) {
     const base = gh.owner + '/' + gh.repo;
     const raw = 'https://raw.githubusercontent.com/' + base + '/' + gh.branch + '/' + gh.path;
-    add('https://cdn.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr', 'mirror');
-    add('https://fastly.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr Fastly', 'mirror');
+    // 先把反代排在前面：它们缓存很短（跟 GitHub raw 同一档，分钟级），
+    // 推完一两分钟就能拿到新版，不像 jsDelivr 那样压 12 小时。
     add('https://ghproxy.net/' + raw, '国内镜像 · ghproxy.net', 'mirror');
     add('https://gh-proxy.com/' + raw, '国内镜像 · gh-proxy', 'mirror');
+    // jsDelivr 挪到最后兜底：@main 是可变动地址，边缘缓存 12 小时（s-maxage=43200），
+    // 作者刚推完，它往往还在发上一个版本的副本。放在前面会让人永远看到「已是最新」。
+    add('https://cdn.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr', 'mirror');
+    add('https://fastly.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr Fastly', 'mirror');
   }
   return chain;
 }
@@ -4156,7 +4170,7 @@ async function fetchUpdateSource(opts) {
     try {
       const text = await fetchTextWithTimeout(item.url, timeout, item.kind === 'mirror' ? '' : '直连被墙时属正常现象');
       let fresh = true;
-      if (typeof o.accept === 'function') { try { fresh = o.accept(text) !== false; } catch (e) { fresh = true; } }
+      if (typeof o.accept === 'function') { try { fresh = o.accept(text, item) !== false; } catch (e) { fresh = true; } }
       if (!fresh) {
         attempts.push({ label: item.label, url: item.url, ok: false, stale: true, error: '拿到的是旧缓存，正在找更新的线路' });
         if (!staleResult) staleResult = { text: text, url: item.url, label: item.label, kind: item.kind };
@@ -4203,13 +4217,20 @@ async function checkForUpdates(silent) {
         if (silent || !tried) return;
         updateLoadingDialogText('直连没接通，正在换「' + item.label + '」…');
       },
-      accept: function(text) {
-        // 镜像有缓存：拿到比当前更旧的版本就继续换线，别让玩家以为「已是最新」
+      accept: function(text, item) {
+        // 镜像有缓存：拿到比当前更旧的版本就继续换线，别让玩家以为「已是最新」。
+        // 版本「相同」也不一定可信——jsDelivr 的 @main 会把上一版压 12 小时，
+        // 它返回的「和当前一样」很可能是旧副本，所以只要后面还有别的线路就继续试。
         const t = String(text);
-        const m = t.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
-        if (m) return compareVersions(m[1], MOON_FORMULA_VERSION) >= 0;
-        try { const j = JSON.parse(t); if (j && j.version) return compareVersions(String(j.version), MOON_FORMULA_VERSION) >= 0; } catch (e) {}
-        return true;
+        let m = t.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (!m) {
+          try { const j = JSON.parse(t); if (j && j.version) m = [null, String(j.version)]; } catch (e) {}
+        }
+        if (!m) return true;
+        const cmp = compareVersions(m[1], MOON_FORMULA_VERSION);
+        if (cmp !== 0) return cmp > 0;
+        const fromJsdelivr = item && /jsdelivr\.net/i.test(String(item.url || ''));
+        return !fromJsdelivr;
       }
     });
     if (got.switched && !silent) toast('官方直连不通，已自动改用「' + got.label + '」', 'info');

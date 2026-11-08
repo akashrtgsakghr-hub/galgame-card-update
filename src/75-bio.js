@@ -592,9 +592,19 @@ function _parseGithubSource(url) {
 function buildUpdateSourceChain(primaryUrl, preferUrl) {
   const chain = [];
   const seen = {};
+  // 给地址加一次性查询参数。注意它只对「把整条 URL 当缓存键」的反代有效；
+  // jsDelivr 是按路径缓存的，查询串不进键，实测带不带参数返回同一个 age、同一个版本，
+  // 所以它救不了 jsDelivr 的旧副本——真正管用的是下面的换线顺序。
+  const _cb = String(Date.now());
+  function _bust(u) {
+    if (!/^https?:\/\//i.test(u)) return u;
+    if (/[?&]mpcb=/.test(u)) return u;
+    return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'mpcb=' + _cb;
+  }
   function add(url, label, kind) {
-    const u = String(url || '').trim();
-    if (!u || seen[u]) return;
+    const raw = String(url || '').trim();
+    const u = _bust(raw);
+    if (!raw || seen[u]) return;
     seen[u] = 1;
     chain.push({ url: u, label: label, kind: kind });
   }
@@ -606,10 +616,14 @@ function buildUpdateSourceChain(primaryUrl, preferUrl) {
   if (gh) {
     const base = gh.owner + '/' + gh.repo;
     const raw = 'https://raw.githubusercontent.com/' + base + '/' + gh.branch + '/' + gh.path;
-    add('https://cdn.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr', 'mirror');
-    add('https://fastly.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr Fastly', 'mirror');
+    // 先把反代排在前面：它们缓存很短（跟 GitHub raw 同一档，分钟级），
+    // 推完一两分钟就能拿到新版，不像 jsDelivr 那样压 12 小时。
     add('https://ghproxy.net/' + raw, '国内镜像 · ghproxy.net', 'mirror');
     add('https://gh-proxy.com/' + raw, '国内镜像 · gh-proxy', 'mirror');
+    // jsDelivr 挪到最后兜底：@main 是可变动地址，边缘缓存 12 小时（s-maxage=43200），
+    // 作者刚推完，它往往还在发上一个版本的副本。放在前面会让人永远看到「已是最新」。
+    add('https://cdn.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr', 'mirror');
+    add('https://fastly.jsdelivr.net/gh/' + base + '@' + gh.branch + '/' + gh.path, '国内镜像 · jsDelivr Fastly', 'mirror');
   }
   return chain;
 }
@@ -663,7 +677,7 @@ async function fetchUpdateSource(opts) {
     try {
       const text = await fetchTextWithTimeout(item.url, timeout, item.kind === 'mirror' ? '' : '直连被墙时属正常现象');
       let fresh = true;
-      if (typeof o.accept === 'function') { try { fresh = o.accept(text) !== false; } catch (e) { fresh = true; } }
+      if (typeof o.accept === 'function') { try { fresh = o.accept(text, item) !== false; } catch (e) { fresh = true; } }
       if (!fresh) {
         attempts.push({ label: item.label, url: item.url, ok: false, stale: true, error: '拿到的是旧缓存，正在找更新的线路' });
         if (!staleResult) staleResult = { text: text, url: item.url, label: item.label, kind: item.kind };
@@ -710,13 +724,20 @@ async function checkForUpdates(silent) {
         if (silent || !tried) return;
         updateLoadingDialogText('直连没接通，正在换「' + item.label + '」…');
       },
-      accept: function(text) {
-        // 镜像有缓存：拿到比当前更旧的版本就继续换线，别让玩家以为「已是最新」
+      accept: function(text, item) {
+        // 镜像有缓存：拿到比当前更旧的版本就继续换线，别让玩家以为「已是最新」。
+        // 版本「相同」也不一定可信——jsDelivr 的 @main 会把上一版压 12 小时，
+        // 它返回的「和当前一样」很可能是旧副本，所以只要后面还有别的线路就继续试。
         const t = String(text);
-        const m = t.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
-        if (m) return compareVersions(m[1], MOON_FORMULA_VERSION) >= 0;
-        try { const j = JSON.parse(t); if (j && j.version) return compareVersions(String(j.version), MOON_FORMULA_VERSION) >= 0; } catch (e) {}
-        return true;
+        let m = t.match(/MOON_FORMULA_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (!m) {
+          try { const j = JSON.parse(t); if (j && j.version) m = [null, String(j.version)]; } catch (e) {}
+        }
+        if (!m) return true;
+        const cmp = compareVersions(m[1], MOON_FORMULA_VERSION);
+        if (cmp !== 0) return cmp > 0;
+        const fromJsdelivr = item && /jsdelivr\.net/i.test(String(item.url || ''));
+        return !fromJsdelivr;
       }
     });
     if (got.switched && !silent) toast('官方直连不通，已自动改用「' + got.label + '」', 'info');

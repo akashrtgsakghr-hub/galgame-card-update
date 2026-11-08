@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.7';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.7 建档与美化】\n1. 📐 开局建档改两段式：先只梳理人物设定（人物卡+时间线+已知地点），再判关系；不再一口气算数值，压掉「同居三年只给 23」这类偏低估算。\n2. 🖊 新增手动建档：自动扫世界书 / 角色卡 / 聊天里的人名，勾选要建档的角色，可选 AI 判定，也可以自己填好感度与肉体值。\n3. 🃏 多人卡同步两段式：多角色卡先出摘要，再按摘要判每个人。\n4. 🕰 开局时间与地点落地：写进世界.时间，并补一条「开局 · 地点」时间线；周额度改为按剧情天重置，换日才清零。\n5. 🧾 全站称谓统一用 Ta，不再默认女字旁的「她」。\n6. 🎨 统一视觉层与版式层：面板归到大正浪漫×霓虹一族；五套楼内状态卡只统一数字对齐、标签对比度与进度条渐变，不增删任何显示内容。\n7. 🎛 新增自制美化：描述想要的风格，走可单独配置的 API 生成配色与材质，可导出美化文档到外部继续改，再贴回来。";
+  const MOON_FORMULA_VERSION = '4.8.8';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.8 更新检查不再吃到旧缓存】\n1. 🔀 换线顺序改了：官方直连之后先走 ghproxy.net、gh-proxy 这两个反代，jsDelivr 挪到最后兜底。同一时刻实测 ghproxy 返回 4.8.7，而 jsDelivr 的 @main 还停在 4.8.6——它按路径缓存 12 小时，刚推完就在发上一个版本的副本，排在前面会让人永远看到「已是最新」。\n2. 🧹 原来那个 ?mpcb= 时间戳参数对 jsDelivr 无效：查询串不进它的缓存键，带不带参数返回同一个 age、同一个版本。注释已按实测改正，不再让人误以为它管用。\n3. 🔁 还补了一个洞：「上次可用的线路」会被优先重试，如果它正好是 jsDelivr，同样会拿旧副本提前收手。现在只要版本号和当前相同、而这条线是 jsDelivr、后面还有别的线路，就继续往下试；全都不比当前新，才判「已是最新」并提示缓存可能没刷新。\n4. 🧪 用本地脚本核对线路表顺序（jsDelivr 必须排在两个反代之后），并实测四条线路各自返回的版本、带不带缓存参数的实际差别。\n5. 🧩 只改更新检查，数值、判定、存档格式一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
