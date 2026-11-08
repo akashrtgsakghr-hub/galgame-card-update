@@ -75,7 +75,7 @@ function extractChangelog(code) {
 function rebuildImportJson(code, info) {
   let base = {};
   if (fs.existsSync(OUT_JSON)) {
-    base = JSON.parse(fs.readFileSync(OUT_JSON, 'utf8'));
+    base = JSON.parse(fs.readFileSync(OUT_JSON, 'utf8').replace(/^﻿/, ''));
   }
   const out = Object.assign({}, base, {
     type: base.type || 'script',
@@ -86,7 +86,7 @@ function rebuildImportJson(code, info) {
     info: info,
     button: base.button || { enabled: false, buttons: [] },
     data: base.data || {},
-    export_with: base.export_with || '酒馆助手',
+    export_with: (base.export_with && typeof base.export_with === 'object') ? base.export_with : { data: true, button: true },
   });
   // 统一 LF（与 .gitattributes 一致，避免 Windows/Linux 产物不一致）
   return JSON.stringify(out, null, 2) + '\n';

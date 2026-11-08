@@ -10,5 +10,8 @@
     "buttons": []
   },
   "data": {},
-  "export_with": "酒馆助手"
+  "export_with": {
+    "data": true,
+    "button": true
+  }
 }
