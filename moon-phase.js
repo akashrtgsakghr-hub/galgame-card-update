@@ -21090,6 +21090,142 @@ async function applyAdaptiveOpening(charName, values) {
 
   const PENDING_MIGRATION_KEY = 'moon_phase_pending_migration';
 
+/* A0b-manual-bootstrap.js —— 手动建档：扫世界书/角色卡/聊天里的人 → 勾选 → 让 AI 判或自己填。
+   产物直接复用 applyMultiCardAdaptiveOpening 写入 stat_data，字段格式与自动建档完全一致。 */
+
+  function collectManualBootstrapCandidates() {
+    const out = []; const seen = {};
+    function add(name, source) {
+      name = String(name || '').trim();
+      if (!name || name.length > 24) return;
+      if (seen[name]) { if (seen[name].indexOf(source) < 0) seen[name].push(source); return; }
+      seen[name] = [source];
+      out.push({ name: name, sources: seen[name] });
+    }
+    try {
+      const ctx = getSTCtx();
+      if (ctx) {
+        try { if (typeof ctx.getWorldInfoNames === 'function') { (ctx.getWorldInfoNames() || []).forEach(function (n) { add(n, '世界书'); }); } } catch (e) {}
+        try {
+          const wi = ctx.world_info || ctx.worldInfo;
+          if (wi && wi.entries) Object.keys(wi.entries).forEach(function (k) { const e = wi.entries[k] || {}; add(e.comment || e.key || '', '世界书'); });
+        } catch (e) {}
+        try { if (ctx.characters && ctx.characterId != null) { const ch = ctx.characters[ctx.characterId]; if (ch && ch.name) add(ch.name, '角色卡'); } } catch (e) {}
+        try { (ctx.chat || []).forEach(function (m) { if (m && m.name && !m.is_user) add(m.name, '聊天'); }); } catch (e) {}
+      }
+    } catch (e) {}
+    try {
+      const d = readMvuLatest(); const chs = d && d.stat_data && d.stat_data.角色;
+      if (chs && typeof chs === 'object') Object.keys(chs).forEach(function (n) { if (!isCharSkeleton(chs[n])) add(n, '存档'); });
+    } catch (e) {}
+    return out;
+  }
+
+  function manualStageLabel(e) {
+    const st = getRStageFromE(Number(e) || 0);
+    return st.r + ' · ' + st.name;
+  }
+
+  async function aiJudgeManualSelected(names) {
+    const ctx = getSTCtx() || {};
+    let card = '', opening = '', persona = '';
+    try {
+      const ch = ctx.characters && ctx.characterId != null ? ctx.characters[ctx.characterId] : null;
+      if (ch) card = ['名称：' + (ch.name || ''), '简介：' + String(ch.description || '').slice(0, 1200), '性格：' + String(ch.personality || '').slice(0, 600), '场景：' + String(ch.scenario || '').slice(0, 600)].join('\n');
+      opening = String(ch && ch.first_mes || '').slice(0, 1200);
+      persona = String(ctx.name1 || '');
+    } catch (e) {}
+    const list = names.join('、');
+    const SUM_SYS = '你是剧情资料的整理员。把给你的角色卡、开场白拆成结构化摘要。只做抽取和归纳，不评价、不写数值。';
+    const SUM_USER = '输出 JSON（不要别的文字）：\n{\n "时间": "开场白里的当前时间",\n "地点": "开场白里的具体地点",\n "人物": [{"名":"","与对方关系":"","共处时长":"","依恋表现":"","身体边界":""}],\n "关系要点": ["只写事实"]\n}\n—— 原始资料 ——\n【角色卡】\n' + card + '\n【开场白】\n' + opening;
+    let summary = '';
+    try { const sr = await callOpeningModel('main', SUM_SYS, SUM_USER); summary = (typeof sr === 'string') ? sr : String((sr && (sr.content || sr.text)) || ''); } catch (e) { summary = ''; }
+    const JUDGE_SYS = '你是关系数值的裁判。先写理由，再给数字。只输出 JSON 数组。';
+    const JUDGE_USER = '下面是这段关系的资料摘要：\n' + (summary || '(无摘要)') + '\n\n请为这些角色分别判断「他对玩家」的好感度（0-100）和肉体值（0-100）：' + list + '\n要求：理由必须用到人物设定、时间、地点三者；给到 90 以上必须指出已经发生的具体事件，否则往回调。\n只输出 JSON 数组：[{"名字":"","好感度":0,"肉体值":0,"推断理由":""}]';
+    let raw = '';
+    try { const jr = await callOpeningModel('main', JUDGE_SYS, JUDGE_USER); raw = (typeof jr === 'string') ? jr : String((jr && (jr.content || jr.text)) || ''); } catch (e) { raw = ''; }
+    let arr = null;
+    try { arr = JSON.parse(raw); } catch (e) { const m = raw.match(/\[[\s\S]*\]/); if (m) { try { arr = JSON.parse(m[0]); } catch (e2) { arr = null; } } }
+    const map = {};
+    (Array.isArray(arr) ? arr : []).forEach(function (it) {
+      const nm = String(it && (it.名字 || it.name) || '').trim();
+      if (!nm) return;
+      map[nm] = { E: Math.max(-100, Math.min(100, Math.round(Number(it.好感度) || 0))), B: Math.max(0, Math.min(100, Math.round(Number(it.肉体值) || 0))), why: String(it.推断理由 || '') };
+    });
+    return map;
+  }
+
+  /* 暴露给面板/调试：面板同作用域可直接调，这里再挂一份到全局，方便自检与外部入口 */
+  function exposeManualBootstrap() {
+    try { if (typeof mainWin !== 'undefined' && mainWin) mainWin.openManualBootstrapDialog = openManualBootstrapDialog; } catch (e) {}
+    try { if (typeof window !== 'undefined') window.openManualBootstrapDialog = openManualBootstrapDialog; } catch (e) {}
+  }
+
+  function openManualBootstrapDialog(panel) {
+    const cands = collectManualBootstrapCandidates();
+    const head = '<div style="font-size:11.5px;color:#94a3b8;line-height:1.7;margin-bottom:10px;">勾选要建档的角色，然后选「让 AI 判」或「自己填」。<br>候选来自：世界书条目、当前角色卡、聊天里出现过的人名、已有存档。</div>';
+    let rows = '';
+    if (!cands.length) rows = '<div style="padding:12px;color:#fbbf24;font-size:11.5px;">没扫到任何候选。可以先打开一次角色卡/世界书，或者直接在下框里输入名字。</div>';
+    cands.forEach(function (c, i) {
+      rows += '<div class="moon-mb-row" data-idx="' + i + '" style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.16);">'
+        + '<input type="checkbox" class="moon-mb-check" data-idx="' + i + '" ' + (i === 0 ? 'checked' : '') + ' style="width:15px;height:15px;">'
+        + '<div style="flex:1;min-width:0;"><div style="font-size:12.5px;color:#e2e8f0;">' + c.name + '</div>'
+        + '<div style="font-size:10px;color:#64748b;">来源：' + c.sources.join(' / ') + '</div></div>'
+        + '<select class="moon-mb-mode" data-idx="' + i + '" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;"><option value="ai">让 AI 判</option><option value="manual">自己填</option></select>'
+        + '<input class="moon-mb-e" data-idx="' + i + '" type="number" step="0.5" value="0" placeholder="好感" style="width:56px;padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;">'
+        + '<input class="moon-mb-p" data-idx="' + i + '" type="number" step="0.5" value="0" placeholder="肉体" style="width:56px;padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;">'
+        + '<span class="moon-mb-r" data-idx="' + i + '" style="font-size:10px;color:#94a3b8;min-width:56px;">' + manualStageLabel(0) + '</span>'
+        + '</div>';
+    });
+    const html = head + '<div id="moon-mb-rows" style="max-height:44vh;overflow:auto;border:1px solid rgba(148,163,184,.18);border-radius:9px;">' + rows + '</div>'
+      + '<div style="margin-top:8px;font-size:10px;color:#64748b;">· 未勾选的不写入　· 已存在的角色会被覆盖　· 「让 AI 判」会先梳理一遍人物设定再判</div>';
+    showModalDialogCancelable('🖊 手动建档', html,
+      async function () {
+        const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
+        const picked = [];
+        mask.querySelectorAll('.moon-mb-row').forEach(function (row) {
+          const idx = Number(row.getAttribute('data-idx'));
+          const ck = row.querySelector('.moon-mb-check'); if (!ck || !ck.checked) return;
+          const modeEl = row.querySelector('.moon-mb-mode');
+          picked.push({
+            name: cands[idx] ? cands[idx].name : '',
+            mode: modeEl ? modeEl.value : 'ai',
+            E: Number(row.querySelector('.moon-mb-e').value) || 0,
+            B: Number(row.querySelector('.moon-mb-p').value) || 0
+          });
+        });
+        if (!picked.length) { toast('没勾选任何人', 'info'); return; }
+        try { mask.remove(); } catch (e) {}
+        let aiMap = {};
+        if (picked.some(function (p) { return p.mode === 'ai'; })) {
+          try { showLoadingDialog('正在梳理人物设定…'); aiMap = await aiJudgeManualSelected(picked.filter(function (p) { return p.mode === 'ai'; }).map(function (p) { return p.name; })); } catch (e) { aiMap = {}; }
+          try { closeLoadingDialog(); } catch (e) {}
+        }
+        const list = picked.map(function (p) {
+          const ai = aiMap[p.name];
+          const E = ai ? ai.E : p.E; const B = ai ? ai.B : p.B;
+          const st = getRStageFromE(E);
+          return { 名字: p.name, 重要度: '主要', 好感度: E, 肉体值: B, 阶段值: st.r, 嫉妒值: 0, 情绪: '😐', 心声: ai && ai.why ? ai.why.slice(0, 30) : '……' };
+        });
+        try { await applyMultiCardAdaptiveOpening(list); } catch (e) { toast('写入失败：' + (e && e.message || e), 'warning'); }
+        try { if (panel && typeof refreshPanel === 'function') refreshPanel(); } catch (e) {}
+        toast('手动建档完成：' + list.map(function (x) { return x.名字 + ' ' + x.好感度 + '/' + x.肉体值; }).join('、'), 'success');
+      },
+      function () { toast('已取消', 'info'); },
+      { confirmText: '确认写入', cancelText: '取消',
+        onOpen: function (mask) {
+          mask.querySelectorAll('.moon-mb-e').forEach(function (input) {
+            input.addEventListener('input', function () {
+              const idx = input.getAttribute('data-idx');
+              const rEl = mask.querySelector('.moon-mb-r[data-idx="' + idx + '"]');
+              if (rEl) rEl.textContent = manualStageLabel(input.value);
+            });
+          });
+        }
+      });
+  }
+
+  try { exposeManualBootstrap(); } catch (e) {}
   function checkAndPromptMigrate() { return; }
 
   function startMigrationPack(panel) {
@@ -21437,6 +21573,7 @@ async function applyAdaptiveOpening(charName, values) {
       '<div style="display:flex;flex-direction:column;gap:8px;">' +
       '<button id="moon-adapt-adaptive" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(56,189,248,0.6);background:linear-gradient(135deg,#0c2540,#075985);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🌅 AI 智能建档　👈 点这个就行<div style="font-size:10.5px;font-weight:400;color:#a5f3fc;margin-top:4px;">AI 把聊天记录读一遍，自动建好角色档案。<br>第一次玩、或者老对话第一次装这个插件，都点它。</div></button>' +
       '<button id="moon-adapt-migrate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(251,191,36,0.6);background:linear-gradient(135deg,#2a1a05,#78350f);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🔄 兼容迁移<div style="font-size:10.5px;font-weight:400;color:#fcd34d;margin-top:4px;">只有一种情况用它：你以前装过旧版本，旧数值搬不过来。</div></button>' +
+      '<button id="moon-adapt-manual" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(34,197,94,0.6);background:linear-gradient(135deg,#052e16,#166534);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🖊 手动建档<div style="font-size:10.5px;font-weight:400;color:#bbf7d0;margin-top:4px;">自己挑人：扫世界书/角色卡/聊天里的人名，勾选后让 AI 判或自己填。</div></button>' +
       '<button id="moon-adapt-aimig" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.6);background:linear-gradient(135deg,#2a1040,#4c1d95);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🤖 AI 辅助迁移<div style="font-size:10.5px;font-weight:400;color:#e9d5ff;margin-top:4px;">角色表里堆了很多乱七八糟的条目，让 AI 判断哪个留、哪个删。</div></button>' +
       '<button id="moon-adapt-pack" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(110,231,183,0.6);background:linear-gradient(135deg,#052e20,#064e3b);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">📦 打包迁移到新对话<div style="font-size:10.5px;font-weight:400;color:#6ee7b7;margin-top:4px;">想把档案搬到另一个聊天窗口继续玩，就用它。</div></button>' +
       '</div>';
@@ -21444,6 +21581,7 @@ async function applyAdaptiveOpening(charName, values) {
       confirmText: '关闭',
       onOpen: function(mask) {
         mask.querySelector('#moon-adapt-adaptive').addEventListener('click', function() { try { mask.remove(); } catch (e) {} manualAdaptiveOpening(panel); });
+        mask.querySelector('#moon-adapt-manual').addEventListener('click', function() { try { mask.remove(); } catch (e) {} openManualBootstrapDialog(panel); });
         mask.querySelector('#moon-adapt-migrate').addEventListener('click', function() { try { mask.remove(); } catch (e) {} manualMigrate(panel); });
         mask.querySelector('#moon-adapt-aimig').addEventListener('click', function() { try { mask.remove(); } catch (e) {} openAiMigrateEntryDialog(panel); });
         mask.querySelector('#moon-adapt-pack').addEventListener('click', function() { try { mask.remove(); } catch (e) {} startMigrationPack(panel); });
