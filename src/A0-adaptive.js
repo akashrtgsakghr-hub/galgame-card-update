@@ -342,7 +342,23 @@
     const ctxData = collectOpeningContext(charName);
     const tpl = getPromptTemplates().opening;
     const vars = { playerName: ctxData.playerName, playerPersona: ctxData.playerPersona, charName: ctxData.charName, charDesc: ctxData.charDesc, charPersonality: ctxData.charPersonality, charScenario: ctxData.charScenario, charFirstMes: ctxData.charFirstMes, charCreatorNotes: ctxData.charCreatorNotes, chatHistory: ctxData.hasHistory ? ctxData.chatHistory : '(无对话历史)' };
-    showLoadingDialog(ctxData.hasHistory ? '正在通读对话历史...' : '正在根据开场白推断...');
+    /* ── 两段式：先梳理人物设定，再判关系数值 ────────────────────────
+       以前是一次把角色卡+人设+开场白全塞给模型让它直接给数，它给不出合理量级。
+       现在第一段只做抽取（时间/地点/人物/关系要点），第二段才判数值。 */
+    showLoadingDialog('正在梳理人物设定…');
+    let summaryText = '';
+    try {
+      const SUM_SYS = '你是剧情资料的整理员。把给你的角色卡、用户人设、开场白拆成结构化摘要。只做抽取和归纳，不评价、不写数值、不编造没写的东西。没有的字段留空字符串。';
+      const SUM_USER = '输出 JSON（不要任何别的文字）：\n{\n "时间": "当前剧情时间。用户人设/经历/背景里写了就以它为准；世界书时间线只能补充，不许覆盖",\n "地点": "从开场白里提取的具体地点",\n "人物": [{"名":"","身份":"","与对方关系":"","共处时长":"","依恋表现":"","身体边界":"","表达方式":""}],\n "关系要点": ["三到五条，只写事实"]\n}\n—— 原始资料 ——\n【角色卡】\n' + (ctxData.charDesc || '') + '\n【性格】' + (ctxData.charPersonality || '') + '\n【场景】' + (ctxData.charScenario || '') + '\n【用户人设】\n' + (ctxData.playerPersona || '') + '\n【开场白】\n' + (ctxData.charFirstMes || '');
+      const sr = await callOpeningModel(provider, SUM_SYS, SUM_USER);
+      summaryText = (typeof sr === 'string') ? sr : ((sr && (sr.content || sr.text)) || String(sr || ''));
+    } catch (e) { summaryText = ''; }
+    if (summaryText) {
+      vars.charDesc = '【摘要·请据此判断关系，不要再问别的】\n' + summaryText;
+      vars.charFirstMes = '(见摘要)';
+      vars.charScenario = '';
+    }
+    showLoadingDialog(summaryText ? '正在梳理人物关系中…' : (ctxData.hasHistory ? '正在通读对话历史...' : '正在根据开场白推断...'));
     let reply = '';
     try { reply = await callOpeningModel(provider, renderPromptTemplate(tpl.sys, vars), renderPromptTemplate(tpl.user, vars)); }
     catch (e) { closeLoadingDialog(); toast('调用模型失败：' + (e.message || e), 'warning'); return; }
@@ -493,6 +509,16 @@ async function applyAdaptiveOpening(charName, values) {
       }
     } catch (e) {}
     if (!charInfo) charInfo = '(无法读取角色卡信息)';
+    /* ── 多人卡也走两段式：先梳理人物设定，再用摘要判数值 ───────────── */
+    showLoadingDialog('正在梳理人物设定…');
+    try {
+      const SUM_SYS = '你是剧情资料的整理员。把给你的角色卡、用户人设、开场白（以及对话历史）拆成结构化摘要。只做抽取和归纳，不评价、不写数值、不编造没写的东西。';
+      const SUM_USER = '输出 JSON（不要任何别的文字）：\n{\n "时间": "当前剧情时间。用户人设/历史里写了就以它为准；世界书时间线只能补充",\n "地点": "从开场白或最近对话里提取的具体地点",\n "人物": [{"名":"","身份":"","与对方关系":"","共处时长":"","依恋表现":"","身体边界":"","表达方式":""}],\n "关系要点": ["三到五条，只写事实"]\n}\n—— 原始资料 ——\n' + charInfo + '\n【场景】' + (charScenario || '') + '\n【开场白】' + (charFirstMes || '') + '\n【对话历史】' + (hasHistory ? ctxData.chat : '(无对话历史)');
+      const sr = await callOpeningModel(provider, SUM_SYS, SUM_USER);
+      const st2 = (typeof sr === 'string') ? sr : ((sr && (sr.content || sr.text)) || String(sr || ''));
+      if (st2) { charInfo = '【摘要·请据此判断每个角色的关系，不要再问别的】\n' + st2; charFirstMes = '(见摘要)'; charScenario = ''; }
+    } catch (e) {}
+    showLoadingDialog('正在梳理人物关系中…');
     const sysPrompt = [
       '你是月相多维情感系统的「多人卡批量建档」助手。',
       '【背景】玩家使用多人卡，剧情里会涉及多个角色。你需要通读上下文，识别实际出场并与玩家有互动的角色，为每个角色推断初始四维数值。',
