@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.6';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.6 少女心绪 · 整张卡都是贝母做的】\n1. 🌊 按你给的地中海美学参考重新取材：用本机插件连上已登录的小红书账号搜「珍珠母贝 贝母 素材」，从笔记详情页取到四张高清实拍（暖粉珠光 / 细密流纹 / 鲍鱼贝内壁 / 两枚粉白扇贝），糊图先修画质再进卡片。\n2. 📄 容器底图不再用 CSS 渐变：收起书签与展开卡面共用一张压过白的实拍珠光丝纹纸，浅深各一版，质感来自真贝母而不是自绘。\n3. 🐚 贝扣换成鲍鱼贝内壁虹彩，书封水印换成两枚扇贝；六张内联图各深浅一版，仍无纯白、无黑框、无自绘线条。\n4. 🔍 素材链加了用前修复：优先吃 fixNN.webp（AI 修复或本地降噪超分锐化），裁切全按比例，修复后尺寸变了也不会裁错。\n5. 🧪 新增三条回归钉住容器底图与六张实拍；18 套件全绿，逐像素最亮仍是暖白，纯白像素 0。\n6. 🧩 只动皮肤外观，数值、判定、存档格式一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.7';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.7 建档与美化】\n1. 📐 开局建档改两段式：先只梳理人物设定（人物卡+时间线+已知地点），再判关系；不再一口气算数值，压掉「同居三年只给 23」这类偏低估算。\n2. 🖊 新增手动建档：自动扫世界书 / 角色卡 / 聊天里的人名，勾选要建档的角色，可选 AI 判定，也可以自己填好感度与肉体值。\n3. 🃏 多人卡同步两段式：多角色卡先出摘要，再按摘要判每个人。\n4. 🕰 开局时间与地点落地：写进世界.时间，并补一条「开局 · 地点」时间线；周额度改为按剧情天重置，换日才清零。\n5. 🧾 全站称谓统一用 Ta，不再默认女字旁的「她」。\n6. 🎨 统一视觉层与版式层：面板归到大正浪漫×霓虹一族；五套楼内状态卡只统一数字对齐、标签对比度与进度条渐变，不增删任何显示内容。\n7. 🎛 新增自制美化：描述想要的风格，走可单独配置的 API 生成配色与材质，可导出美化文档到外部继续改，再贴回来。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
