@@ -120,6 +120,9 @@
         '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
         renderSkinPickerHtml() + '</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">🎨 自制美化</div>' +
+        '<div class="mp-set-desc">描述你想要的样子，让模型生成一套配色与材质；也可以导出成文档，在外面做好再把 JSON 贴回来。</div>' +
+        '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>' +
         pocketRow('🙈 藏起 AI 的草稿', s.hideAiCot !== false ? 'AI 写给自己的分析段不显示，你只看正文和状态卡' : 'AI 写出来的全部原样显示',
           '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? '开' : '关') + '</button>'),
         false) +
