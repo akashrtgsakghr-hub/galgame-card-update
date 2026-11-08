@@ -296,13 +296,17 @@ if (_needAutoReload) {
   setTimeout(injectMenuEntry, 8000);
   setTimeout(function() { runAdaptiveOpeningFlow(); }, 5500);
   setTimeout(function() { checkPendingMigration(); }, 6500);
+}
 
-  // 启动 8 秒后静默检查更新
+// 不管走哪条分支，都排一次静默检查更新。
+// 以前只有「常规启动」才查：「首次导入」的人（本地还没写过任何状态）和版本变化后要刷新的
+// 那一轮都拿不到新版本提示，看起来就像「怎么重启都不更新」。
+if (!_needAutoReload) {
   setTimeout(function() {
     try {
       const cfg = getUpdateConfig();
       if (cfg.autoCheck && cfg.url) checkForUpdates(true);
     } catch (e) {}
-  }, 8000);
+  }, 9000);
 }
 })();

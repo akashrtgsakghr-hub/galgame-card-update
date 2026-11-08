@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.8';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.8 更新检查不再吃到旧缓存】\n1. 🔀 换线顺序改了：官方直连之后先走 ghproxy.net、gh-proxy 这两个反代，jsDelivr 挪到最后兜底。同一时刻实测 ghproxy 返回 4.8.7，而 jsDelivr 的 @main 还停在 4.8.6——它按路径缓存 12 小时，刚推完就在发上一个版本的副本，排在前面会让人永远看到「已是最新」。\n2. 🧹 原来那个 ?mpcb= 时间戳参数对 jsDelivr 无效：查询串不进它的缓存键，带不带参数返回同一个 age、同一个版本。注释已按实测改正，不再让人误以为它管用。\n3. 🔁 还补了一个洞：「上次可用的线路」会被优先重试，如果它正好是 jsDelivr，同样会拿旧副本提前收手。现在只要版本号和当前相同、而这条线是 jsDelivr、后面还有别的线路，就继续往下试；全都不比当前新，才判「已是最新」并提示缓存可能没刷新。\n4. 🧪 用本地脚本核对线路表顺序（jsDelivr 必须排在两个反代之后），并实测四条线路各自返回的版本、带不带缓存参数的实际差别。\n5. 🧩 只改更新检查，数值、判定、存档格式一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.9';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.9 首次启动也会查更新】\n1. 🩹 以前只有「常规启动」那条分支会在 8 秒后静默查更新：本地还没写过状态的首次导入，和刚刷新过页面的那一轮，都不会查——新装的人就一直等不到更新提示，看起来像「怎么重启都不更新」。现在三条分支之外统一排一次检查（需要刷新那一轮除外，免得抢在刷新前弹窗）。\n2. 🧹 撤掉了临时加的 ?mpcb= 时间戳参数：它对 jsDelivr 无效（查询串不进缓存键），还会把「第一项必须是官方直连」这类判断搅乱，连带几条回归测试一起红。真正管用的是换线顺序。\n3. 🧪 更新源的可用判定收紧了：以前从某条线路拿到内容、但里面连版本号都读不出来（被拦页、错误页、HTML 提示页）也算通过，链路看着成功、其实什么都拿不到，检查就静默收场。现在这种情况直接换下一条线。\n4. 🧩 只动更新检查的触发时机与判定，数值、判定、存档格式、皮肤资源一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';

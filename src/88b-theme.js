@@ -23,7 +23,7 @@
   + '#moon-phase-mask{background:radial-gradient(circle at center,rgba(18,10,20,.86) 0%,rgba(6,3,7,.94) 100%)!important;}'
   + '#moon-phase-panel{background:linear-gradient(170deg,#141021 0%,#0a0509 100%)!important;'
   + '  border:1px solid var(--mp-line)!important;color:var(--mp-fg)!important;'
-  + '  box-shadow:0 24px 70px rgba(0,0,0,.72),var(--mp-press)!important;}'
+  + '  box-shadow:0 24px 70px rgba(26,22,32,.72),var(--mp-press)!important;}'
   + '#moon-phase-panel .mp-card{background:linear-gradient(180deg,rgba(244,114,208,.055),rgba(255,255,255,.015))!important;'
   + '  border:1px solid var(--mp-line)!important;box-shadow:var(--mp-press)!important;}'
   + '#moon-phase-panel .mp-menu-card{background:rgba(255,255,255,.028)!important;border:1px solid var(--mp-line)!important;'

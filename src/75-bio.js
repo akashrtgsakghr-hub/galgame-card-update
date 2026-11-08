@@ -592,19 +592,12 @@ function _parseGithubSource(url) {
 function buildUpdateSourceChain(primaryUrl, preferUrl) {
   const chain = [];
   const seen = {};
-  // 给地址加一次性查询参数。注意它只对「把整条 URL 当缓存键」的反代有效；
-  // jsDelivr 是按路径缓存的，查询串不进键，实测带不带参数返回同一个 age、同一个版本，
-  // 所以它救不了 jsDelivr 的旧副本——真正管用的是下面的换线顺序。
-  const _cb = String(Date.now());
-  function _bust(u) {
-    if (!/^https?:\/\//i.test(u)) return u;
-    if (/[?&]mpcb=/.test(u)) return u;
-    return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'mpcb=' + _cb;
-  }
+  // 曾经这里给每条地址加过一次 ?mpcb=<时间戳>，想靠查询串穿掉 CDN 缓存。
+  // 实测无效：jsDelivr 按路径缓存，查询串不进缓存键，带不带参数返回同一个 age、同一个版本；
+  // 反面副作用是「第一项必须是官方直连」这类判断会被参数尾巴搞乱，所以整段撤掉。
   function add(url, label, kind) {
-    const raw = String(url || '').trim();
-    const u = _bust(raw);
-    if (!raw || seen[u]) return;
+    const u = String(url || '').trim();
+    if (!u || seen[u]) return;
     seen[u] = 1;
     chain.push({ url: u, label: label, kind: kind });
   }
@@ -733,7 +726,9 @@ async function checkForUpdates(silent) {
         if (!m) {
           try { const j = JSON.parse(t); if (j && j.version) m = [null, String(j.version)]; } catch (e) {}
         }
-        if (!m) return true;
+        // 连版本号都读不出来，说明这条线给的可能是被拦页/错误页，直接换下一条；
+        // 以前的写法在这一步默认可信，结果整条链路「看起来很成功」，更新检查却静默收场。
+        if (!m) return false;
         const cmp = compareVersions(m[1], MOON_FORMULA_VERSION);
         if (cmp !== 0) return cmp > 0;
         const fromJsdelivr = item && /jsdelivr\.net/i.test(String(item.url || ''));

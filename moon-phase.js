@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.8';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.8 更新检查不再吃到旧缓存】\n1. 🔀 换线顺序改了：官方直连之后先走 ghproxy.net、gh-proxy 这两个反代，jsDelivr 挪到最后兜底。同一时刻实测 ghproxy 返回 4.8.7，而 jsDelivr 的 @main 还停在 4.8.6——它按路径缓存 12 小时，刚推完就在发上一个版本的副本，排在前面会让人永远看到「已是最新」。\n2. 🧹 原来那个 ?mpcb= 时间戳参数对 jsDelivr 无效：查询串不进它的缓存键，带不带参数返回同一个 age、同一个版本。注释已按实测改正，不再让人误以为它管用。\n3. 🔁 还补了一个洞：「上次可用的线路」会被优先重试，如果它正好是 jsDelivr，同样会拿旧副本提前收手。现在只要版本号和当前相同、而这条线是 jsDelivr、后面还有别的线路，就继续往下试；全都不比当前新，才判「已是最新」并提示缓存可能没刷新。\n4. 🧪 用本地脚本核对线路表顺序（jsDelivr 必须排在两个反代之后），并实测四条线路各自返回的版本、带不带缓存参数的实际差别。\n5. 🧩 只改更新检查，数值、判定、存档格式一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.9';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.9 首次启动也会查更新】\n1. 🩹 以前只有「常规启动」那条分支会在 8 秒后静默查更新：本地还没写过状态的首次导入，和刚刷新过页面的那一轮，都不会查——新装的人就一直等不到更新提示，看起来像「怎么重启都不更新」。现在三条分支之外统一排一次检查（需要刷新那一轮除外，免得抢在刷新前弹窗）。\n2. 🧹 撤掉了临时加的 ?mpcb= 时间戳参数：它对 jsDelivr 无效（查询串不进缓存键），还会把「第一项必须是官方直连」这类判断搅乱，连带几条回归测试一起红。真正管用的是换线顺序。\n3. 🧪 更新源的可用判定收紧了：以前从某条线路拿到内容、但里面连版本号都读不出来（被拦页、错误页、HTML 提示页）也算通过，链路看着成功、其实什么都拿不到，检查就静默收场。现在这种情况直接换下一条线。\n4. 🧩 只动更新检查的触发时机与判定，数值、判定、存档格式、皮肤资源一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
@@ -4085,19 +4085,12 @@ function _parseGithubSource(url) {
 function buildUpdateSourceChain(primaryUrl, preferUrl) {
   const chain = [];
   const seen = {};
-  // 给地址加一次性查询参数。注意它只对「把整条 URL 当缓存键」的反代有效；
-  // jsDelivr 是按路径缓存的，查询串不进键，实测带不带参数返回同一个 age、同一个版本，
-  // 所以它救不了 jsDelivr 的旧副本——真正管用的是下面的换线顺序。
-  const _cb = String(Date.now());
-  function _bust(u) {
-    if (!/^https?:\/\//i.test(u)) return u;
-    if (/[?&]mpcb=/.test(u)) return u;
-    return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'mpcb=' + _cb;
-  }
+  // 曾经这里给每条地址加过一次 ?mpcb=<时间戳>，想靠查询串穿掉 CDN 缓存。
+  // 实测无效：jsDelivr 按路径缓存，查询串不进缓存键，带不带参数返回同一个 age、同一个版本；
+  // 反面副作用是「第一项必须是官方直连」这类判断会被参数尾巴搞乱，所以整段撤掉。
   function add(url, label, kind) {
-    const raw = String(url || '').trim();
-    const u = _bust(raw);
-    if (!raw || seen[u]) return;
+    const u = String(url || '').trim();
+    if (!u || seen[u]) return;
     seen[u] = 1;
     chain.push({ url: u, label: label, kind: kind });
   }
@@ -4226,7 +4219,9 @@ async function checkForUpdates(silent) {
         if (!m) {
           try { const j = JSON.parse(t); if (j && j.version) m = [null, String(j.version)]; } catch (e) {}
         }
-        if (!m) return true;
+        // 连版本号都读不出来，说明这条线给的可能是被拦页/错误页，直接换下一条；
+        // 以前的写法在这一步默认可信，结果整条链路「看起来很成功」，更新检查却静默收场。
+        if (!m) return false;
         const cmp = compareVersions(m[1], MOON_FORMULA_VERSION);
         if (cmp !== 0) return cmp > 0;
         const fromJsdelivr = item && /jsdelivr\.net/i.test(String(item.url || ''));
@@ -15618,7 +15613,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
   + '#moon-phase-mask{background:radial-gradient(circle at center,rgba(18,10,20,.86) 0%,rgba(6,3,7,.94) 100%)!important;}'
   + '#moon-phase-panel{background:linear-gradient(170deg,#141021 0%,#0a0509 100%)!important;'
   + '  border:1px solid var(--mp-line)!important;color:var(--mp-fg)!important;'
-  + '  box-shadow:0 24px 70px rgba(0,0,0,.72),var(--mp-press)!important;}'
+  + '  box-shadow:0 24px 70px rgba(26,22,32,.72),var(--mp-press)!important;}'
   + '#moon-phase-panel .mp-card{background:linear-gradient(180deg,rgba(244,114,208,.055),rgba(255,255,255,.015))!important;'
   + '  border:1px solid var(--mp-line)!important;box-shadow:var(--mp-press)!important;}'
   + '#moon-phase-panel .mp-menu-card{background:rgba(255,255,255,.028)!important;border:1px solid var(--mp-line)!important;'
@@ -22221,13 +22216,17 @@ if (_needAutoReload) {
   setTimeout(injectMenuEntry, 8000);
   setTimeout(function() { runAdaptiveOpeningFlow(); }, 5500);
   setTimeout(function() { checkPendingMigration(); }, 6500);
+}
 
-  // 启动 8 秒后静默检查更新
+// 不管走哪条分支，都排一次静默检查更新。
+// 以前只有「常规启动」才查：「首次导入」的人（本地还没写过任何状态）和版本变化后要刷新的
+// 那一轮都拿不到新版本提示，看起来就像「怎么重启都不更新」。
+if (!_needAutoReload) {
   setTimeout(function() {
     try {
       const cfg = getUpdateConfig();
       if (cfg.autoCheck && cfg.url) checkForUpdates(true);
     } catch (e) {}
-  }, 8000);
+  }, 9000);
 }
 })();
