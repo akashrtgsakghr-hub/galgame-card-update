@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.9';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.9 首次启动也会查更新】\n1. 🩹 以前只有「常规启动」那条分支会在 8 秒后静默查更新：本地还没写过状态的首次导入，和刚刷新过页面的那一轮，都不会查——新装的人就一直等不到更新提示，看起来像「怎么重启都不更新」。现在三条分支之外统一排一次检查（需要刷新那一轮除外，免得抢在刷新前弹窗）。\n2. 🧹 撤掉了临时加的 ?mpcb= 时间戳参数：它对 jsDelivr 无效（查询串不进缓存键），还会把「第一项必须是官方直连」这类判断搅乱，连带几条回归测试一起红。真正管用的是换线顺序。\n3. 🧪 更新源的可用判定收紧了：以前从某条线路拿到内容、但里面连版本号都读不出来（被拦页、错误页、HTML 提示页）也算通过，链路看着成功、其实什么都拿不到，检查就静默收场。现在这种情况直接换下一条线。\n4. 🧩 只动更新检查的触发时机与判定，数值、判定、存档格式、皮肤资源一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.10';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.10 手机上也能查到更新了】\n1. 📱 检查更新不再整包下载：以前每条线路都要把 1.2MB 的脚本整个拉下来，手机弱网下光检查就要等到超时，最后被当成「没有更新」。现在只读文件开头那一段，版本号和更新公告都在那儿；真要升级时才整包下载。\n2. 🧾 「没查到」和「真的是最新」分开说：线路给的是缓存副本时，现在会明说这是缓存（jsDelivr 的 @main 会压 12 小时），并给出「再查一次 / 换源 / 用导入文件重装」三条出路，不再一句「已是最新」把人堵死。\n3. 🔁 jsDelivr 不再被记成「下次优先线路」，也不会被优先尝试——它最容易给旧副本，排在前面只会让下一次检查先撞一次墙。\n4. 🧷 更新地址如果被手动改成写死的标签/提交（@v4.8.9 这种冻结地址），会自动走回默认地址，免得升级完永远停在那一版。\n5. 🧩 只动更新检查的取数与提示，数值、判定、存档格式、皮肤资源一个字节没改。";
 
   const DEFAULT_UPDATE_URL = 'https://raw.githubusercontent.com/akashrtgsakghr-hub/galgame-card-update/main/moon-phase.js';
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';

@@ -542,7 +542,11 @@ function getUpdateConfig() {
       const o = JSON.parse(raw);
       const savedUrl = String(o.url || '').trim();
       const normalizedSavedUrl = savedUrl.replace(/[?#].*$/, '');
-      const updateUrl = !savedUrl || normalizedSavedUrl === LEGACY_DEFAULT_UPDATE_URL
+      // 为了绕开 jsDelivr 的 12 小时分支缓存，有人会手动把地址改成写死标签/提交的形式
+      // （@v4.8.9、@2f87934…）。那种地址是冻住的，升级完不会自己往前走，
+      // 于是永远停在那一版——这里把它认出来，改回默认地址，让更新重新流动起来。
+      const pinnedRef = /^https?:\/\/(?:cdn|fastly)\.jsdelivr\.net\/gh\/akashrtgsakghr-hub\/galgame-card-update@(?!main(?:\/|$))[^\/]+\/moon-phase\.js$/i.test(normalizedSavedUrl);
+      const updateUrl = !savedUrl || normalizedSavedUrl === LEGACY_DEFAULT_UPDATE_URL || pinnedRef
         ? DEFAULT_UPDATE_URL : savedUrl;
       return {
         url: updateUrl,
@@ -603,7 +607,9 @@ function buildUpdateSourceChain(primaryUrl, preferUrl) {
   }
   const primary = String(primaryUrl || DEFAULT_UPDATE_URL).trim();
   const prefer = String(preferUrl || '').trim();
-  if (prefer && prefer !== primary) add(prefer, '上次可用的线路', 'prefer');
+  // 「上次可用的线路」如果是 jsDelivr，不再放第一位：
+  // 它的 @main 会把上一版压 12 小时，排在最前面时最容易被旧副本骗成「已是最新」。
+  if (prefer && prefer !== primary && !/jsdelivr\.net/i.test(prefer)) add(prefer, '上次可用的线路', 'prefer');
   add(primary, '官方直连', 'direct');
   const gh = _parseGithubSource(primary);
   if (gh) {
@@ -621,8 +627,40 @@ function buildUpdateSourceChain(primaryUrl, preferUrl) {
   return chain;
 }
 
+// 只读文件开头的那一段就收手：版本号和更新公告都写在 00-head.js 里，前 128KB 足够。
+// 手机弱网下把 1.2MB 的脚本整包下五遍，光「检查更新」就能等到超时——这正是一些人
+// 手机上一直转圈、最后被当成「没有更新」的原因。真正要升级时再整包下载。
+const UPDATE_PROBE_BYTES = 131072;
+
+async function readHeadWithLimit(res, limitBytes) {
+  const body = res && res.body;
+  if (!body || typeof body.getReader !== 'function' || typeof TextDecoder !== 'function') {
+    return await res.text();
+  }
+  const limit = Math.max(4096, limitBytes || UPDATE_PROBE_BYTES);
+  const reader = body.getReader();
+  const dec = new TextDecoder('utf-8');
+  let buf = '', bytes = 0, ended = false;
+  try {
+    while (!ended) {
+      const step = await reader.read();
+      if (step.done) break;
+      const value = step.value;
+      if (value && value.byteLength) {
+        bytes += value.byteLength;
+        buf += dec.decode(value, { stream: true });
+        // 已经看到版本号，或者读够了，就不再往下拉
+        if (/MOON_FORMULA_VERSION\s*=/.test(buf) || bytes >= limit) break;
+      }
+    }
+  } finally {
+    try { await reader.cancel(); } catch (e) {}
+  }
+  return buf;
+}
+
 // 带超时的单线路下载：卡住不动也能在限定时间内放弃，避免永远转圈
-async function fetchTextWithTimeout(url, timeoutMs, note) {
+async function fetchTextWithTimeout(url, timeoutMs, note, probeBytes) {
   const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
   const limit = Math.max(3000, timeoutMs || UPDATE_DIRECT_TIMEOUT);
   let timer = null;
@@ -631,7 +669,7 @@ async function fetchTextWithTimeout(url, timeoutMs, note) {
     const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
     if (!res) throw new Error('没有收到响应');
     if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 404 ? '（文件不存在或分支名变了）' : ''));
-    const text = await res.text();
+    const text = probeBytes ? await readHeadWithLimit(res, probeBytes) : await res.text();
     if (!text || !String(text).trim()) throw new Error('返回内容为空');
     return String(text);
   } catch (e) {
@@ -668,7 +706,9 @@ async function fetchUpdateSource(opts) {
     if (typeof o.onBeforeAttempt === 'function') { try { o.onBeforeAttempt(item, attempts.length); } catch (e) {} }
     const timeout = item.kind === 'mirror' ? UPDATE_MIRROR_TIMEOUT : UPDATE_DIRECT_TIMEOUT;
     try {
-      const text = await fetchTextWithTimeout(item.url, timeout, item.kind === 'mirror' ? '' : '直连被墙时属正常现象');
+      // 只在「查版本」时用探头模式（读开头一段就够）；.json 源结构不一样，仍旧整包读。
+      const probeBytes = (o.probe === true && !/\.json(\?|$)/i.test(item.url)) ? UPDATE_PROBE_BYTES : 0;
+      const text = await fetchTextWithTimeout(item.url, timeout, item.kind === 'mirror' ? '' : '直连被墙时属正常现象', probeBytes);
       let fresh = true;
       if (typeof o.accept === 'function') { try { fresh = o.accept(text, item) !== false; } catch (e) { fresh = true; } }
       if (!fresh) {
@@ -677,7 +717,8 @@ async function fetchUpdateSource(opts) {
         continue;
       }
       attempts.push({ label: item.label, url: item.url, ok: true });
-      if (item.kind === 'mirror') { try { mainWin.localStorage.setItem(UPDATE_LAST_GOOD_KEY, item.url); } catch (e) {} }
+      // jsDelivr 不记成「下次优先」：它最容易给旧副本，记下来只会让下一次检查先撞一次墙。
+      if (item.kind === 'mirror' && !/jsdelivr\.net/i.test(String(item.url || ''))) { try { mainWin.localStorage.setItem(UPDATE_LAST_GOOD_KEY, item.url); } catch (e) {} }
       return { text: text, url: item.url, label: item.label, kind: item.kind, attempts: attempts, switched: attempts.length > 1 };
     } catch (e) {
       attempts.push({ label: item.label, url: item.url, ok: false, error: String((e && e.message) || e) });
@@ -713,6 +754,9 @@ async function checkForUpdates(silent) {
     const got = await fetchUpdateSource({
       primaryUrl: cfg.url,
       preferUrl: _updLastGoodSource(),
+      // 查版本只需要文件开头（版本号 + 公告），不用把 1.2MB 整包拉下来；
+      // 真确定要升级时，下载那一步再整包下。
+      probe: true,
       onBeforeAttempt: function(item, tried) {
         if (silent || !tried) return;
         updateLoadingDialogText('直连没接通，正在换「' + item.label + '」…');
@@ -768,7 +812,14 @@ async function checkForUpdates(silent) {
     }
     _cachedUpdateInfo = null;
     try { refreshPanel(); } catch (e) {}
-    if (!silent) showModalDialog('版本检查结果', '<div style="line-height:1.8;">当前版本：<b style="color:#f472d0;">v' + MOON_FORMULA_VERSION + '</b><br>最新版本：<b style="color:#f472d0;">v' + remoteVersion + '</b><br><span style="color:#94a3b8;font-size:10.5px;">线路：' + _updEsc(got.label) + '</span><br><br>你现在使用的已经是最新版本。' + (got.stale ? '<br><span style="color:#fbbf24;font-size:10.5px;">（这条线路还在缓存旧版本，稍后再查可能会发现更新的版本）</span>' : '') + '</div>', null, { confirmText: '关闭' });
+    if (!silent) {
+      if (got.stale) {
+        // 「没查到」和「真的是最新」是两件事，别混成一句「已是最新」把人堵死。
+        showUpdateStaleDialog(remoteVersion, got);
+      } else {
+        showModalDialog('版本检查结果', '<div style="line-height:1.8;">当前版本：<b style="color:#f472d0;">v' + MOON_FORMULA_VERSION + '</b><br>最新版本：<b style="color:#f472d0;">v' + remoteVersion + '</b><br><span style="color:#94a3b8;font-size:10.5px;">线路：' + _updEsc(got.label) + '</span><br><br>你现在使用的已经是最新版本。</div>', null, { confirmText: '关闭' });
+      }
+    }
     return null;
   } catch (e) {
     if (!silent) showUpdateConnectFailedDialog('版本检查失败', '检查新版本需要联网，现在所有线路都没接通。', e.attempts, function() { checkForUpdates(false); });
@@ -805,6 +856,43 @@ function showUpdateConnectFailedDialog(title, lead, attempts, onRetry) {
     function() { if (typeof onRetry === 'function') { try { onRetry(); } catch (e) {} } },
     function() {},
     { confirmText: '🔄 再试一次', cancelText: '关闭',
+      onOpen: function(mask) {
+        try {
+          const cancelBtn = mask.querySelector('#moon-modal-cancel');
+          const row = cancelBtn ? cancelBtn.parentNode : null;
+          if (!row) return;
+          const btn = mainDoc.createElement('button');
+          btn.textContent = '⚙️ 换源';
+          btn.style.cssText = 'flex:0 0 auto;padding:10px 12px;border-radius:9px;border:1px solid rgba(148,163,184,0.3);background:#1e293b;color:#cbd5e1;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;';
+          btn.addEventListener('click', function() {
+            try { mask.remove(); } catch (e) {}
+            setTimeout(function() { openUpdateConfigDialog(null); }, 150);
+          });
+          row.appendChild(btn);
+        } catch (e) {}
+      } });
+}
+
+// 「线路只给旧副本」时的提示：把「没查到」和「真的是最新」分开说，
+// 顺手给出换源入口——很多人就是卡在这一步，以为作者没更新。
+function showUpdateStaleDialog(remoteVersion, got) {
+  const html =
+    '<div style="font-size:11.5px;color:#cbd5e1;line-height:1.8;">' +
+      '当前版本：<b style="color:#f472d0;">v' + _updEsc(MOON_FORMULA_VERSION) + '</b><br>' +
+      '查到的版本：<b style="color:#fbbf24;">v' + _updEsc(remoteVersion) + '</b>' +
+      (got && got.label ? '<br><span style="font-size:10.5px;color:#64748b;">线路：' + _updEsc(got.label) + '</span>' : '') +
+    '</div>' +
+    '<div style="margin-top:10px;padding:9px 11px;background:#171a22;border:1px solid rgba(251,191,36,0.28);border-radius:9px;font-size:10.5px;color:#cbd5e1;line-height:1.75;">' +
+      '这条线路给的是<b style="color:#fbbf24;">缓存副本</b>。jsDelivr 的 @main 会把上一版压 12 小时（实测），' +
+      '所以「查不到新版本」不等于作者没更新。<br>' +
+      '1️⃣ 过几分钟点「🔄 再查一次」；<br>' +
+      '2️⃣ 点「⚙️ 换源」，在更新地址里贴镜像直链（国内更快，也更及时）；<br>' +
+      '3️⃣ 或者直接用最新的导入文件重装一次。' +
+    '</div>';
+  showModalDialogCancelable('📡 这次没查到更新的版本', html,
+    function() { try { checkForUpdates(false); } catch (e) {} },
+    function() {},
+    { confirmText: '🔄 再查一次', cancelText: '关闭',
       onOpen: function(mask) {
         try {
           const cancelBtn = mask.querySelector('#moon-modal-cancel');
