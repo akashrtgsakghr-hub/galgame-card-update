@@ -465,8 +465,6 @@
       }
     } catch (e) {}
     beautifyGalgameEndingInDom();
-    /* 收尾：把 AI 写给自己的 Phase / cot 草稿段藏起来，玩家只看正文和状态卡 */
-    try { mpApplyCotFold(); } catch (e) {}
     scheduleSkinRefresh({ onlyLast: true });
   }
 

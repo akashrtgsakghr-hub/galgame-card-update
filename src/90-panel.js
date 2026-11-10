@@ -76,13 +76,32 @@
     if (!ch) return '<div class="mp-lcd-empty">NO CHARACTER DATA<br>建立角色档案后显示角色状态</div>';
     const imp = String(ch.重要度 || '主要');
     const impColor = imp === '主要' ? '#f472d0' : (imp === '次要' ? '#7dd3fc' : '#94a3b8');
+    const voice = String(ch.心声 || '').trim();
+    /* 周额度：这是「同一天里好感为什么会忽然不动」的唯一答案，
+       以前只在日志里写着，界面上完全看不到，玩家只能猜脚本是不是坏了。 */
+    let quotaHtml = '';
+    try {
+      const mode = getCurrentMode();
+      const cap = Number((MOON_FORMULA_PARAMS.weeklyCap[mode] || MOON_FORMULA_PARAMS.weeklyCap.normal)) || 0;
+      const used = Math.max(0, Number((ch._quota || {}).好感度周上限已用) || 0);
+      const remain = Math.max(0, Math.round((cap - used) * 10) / 10);
+      const full = cap > 0 && remain <= 0;
+      quotaHtml = '<div class="mp-lcd-quota" style="margin-top:8px;padding:7px 9px;border-radius:7px;background:rgba(148,163,184,.10);' +
+        'border:1px solid rgba(148,163,184,.16);font-size:11px;line-height:1.5;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;">' +
+        '<span style="color:#94a3b8;letter-spacing:.08em;">本周好感额度</span>' +
+        '<b style="color:' + (full ? '#fbbf24' : '#6ee7b7') + ';font-variant-numeric:tabular-nums;">' + used.toFixed(1) + ' / ' + cap.toFixed(1) + '</b>' +
+        '<span style="color:#94a3b8;font-size:10.5px;">' + (full ? '已满：剧情照走，加分等游戏内满 7 天重置' : '还能加 ' + remain.toFixed(1)) + '</span>' +
+        '</div>';
+    } catch (e) {}
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
       '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
       '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:600;">' + lcdEscape(imp) + '</span>' +
       '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +
       '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + lcdEscape(ch.情绪 || '😐') + '</span></div>' +
-      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' + lcdEscape(ch.心声 || '暂无心声记录') + '</div></div></div>';
+      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' +
+        (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">这一轮还没收到心声——等下一次 AI 回复，或看看 AI 有没有写「角色.名字.心声=」那一行</span>') +
+      '</div></div>' + quotaHtml + '</div>';
   }
 
   /* =========================================================

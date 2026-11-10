@@ -116,15 +116,13 @@
         pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
           '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
         false) +
-      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、AI 的草稿要不要藏起来',
+      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、用哪一套纸与光',
         '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
         renderSkinPickerHtml() + '</div>' +
         '<div class="mp-set-block"><div class="mp-set-title">🎨 自制美化</div>' +
         '<div class="mp-set-desc">描述你想要的样子，让模型生成一套配色与材质；也可以导出成文档，在外面做好再把 JSON 贴回来。</div>' +
-        '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>' +
-        pocketRow('🙈 藏起 AI 的草稿', s.hideAiCot !== false ? 'AI 写给自己的分析段不显示，你只看正文和状态卡' : 'AI 写出来的全部原样显示',
-          '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? '开' : '关') + '</button>'),
+        '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
         false) +
       pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
         pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
@@ -302,7 +300,10 @@
         if (act === 'adapt') { openUnifiedAdaptDialog(panel); return; }
         if (act === 'gal') {
           let ok = false;
-          try { ok = galFlip() !== false; } catch (e) { ok = false; }
+          try { ok = galFlip() !== false; } catch (e) {
+            ok = false;
+            try { toast('沉浸模式没打开：' + String(e && e.message || e), 'warning'); } catch (e2) {}
+          }
           if (ok !== false) { try { closePanel(); } catch (e) {} }
           return;
         }
@@ -359,7 +360,10 @@
       /* 先进沉浸层，再收面板：反过来的话面板一收就把点击冒泡链断了。
          开/关以 DOM 实际状态判断，不看存档里的 on，避免「点了没反应」。 */
       let ok = false;
-      try { ok = galFlip() !== false; } catch (e) { ok = false; }
+      try { ok = galFlip() !== false; } catch (e) {
+        ok = false;
+        try { toast('沉浸模式没打开：' + String(e && e.message || e), 'warning'); } catch (e2) {}
+      }
       if (ok !== false) { try { closePanel(); } catch (e) {} }
     });
     if (panel.dataset.menuKeysBound !== '1') {
@@ -422,14 +426,6 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
-    const hideCotBtn = panel.querySelector('#moon-phase-hidecot');
-    if (hideCotBtn) hideCotBtn.addEventListener('click', function() {
-      const s2 = getSettings();
-      s2.hideAiCot = !(s2.hideAiCot !== false);
-      saveSettings(s2);
-      try { mpApplyCotFold(); } catch (e) {}
-      refreshPanel();
-    });
     panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
     panel.querySelector('#moon-phase-firstmeet').addEventListener('click', function() {
       const s2 = getSettings();

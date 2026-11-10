@@ -180,6 +180,16 @@
     root = mainDoc.createElement('div');
     root.id = GAL_ROOT_ID;
     root.className = 'mp-gal-root';
+    /* 关键几何写成内联：万一 <style> 没进去（CSP / 别的扩展清理 head），
+       层至少还是一个铺满屏幕的容器，不至于「点了什么也没发生」。 */
+    root.style.position = 'fixed';
+    root.style.top = '0';
+    root.style.right = '0';
+    root.style.bottom = '0';
+    root.style.left = '0';
+    root.style.zIndex = '2147483000';
+    root.style.display = 'none';
+    root.style.overflow = 'hidden';
     root.innerHTML = '' +
       '<div class="mp-gal-bg"></div>' +
       '<div class="mp-gal-sprite-layer"></div>' +
@@ -297,7 +307,11 @@
   /* ── 打开 / 关闭 ───────────────────────────────────────── */
   function galOpen() {
     const root = galEnsureRoot();
+    /* 酒馆重绘 / 切换聊天时可能把节点连同它的父容器一起换掉，
+       节点还在内存里但已经不在文档上——这时怎么点都不会有画面。 */
+    try { if (!root.isConnected || !mainDoc.body.contains(root)) mainDoc.body.appendChild(root); } catch (e) {}
     try { galApplyCssVars(root); } catch (e) {}
+    root.style.display = 'block';
     root.classList.add('open');
     galPatchState({ on: true });
     GAL_RUNTIME.reviewMode = false;
@@ -326,7 +340,7 @@
 
   function galClose() {
     const root = galRootEl();
-    if (root) { root.classList.remove('open'); galCloseSheet(); }
+    if (root) { root.classList.remove('open'); root.style.display = 'none'; galCloseSheet(); }
     galStopTimers();
     galPatchState({ on: false });
   }

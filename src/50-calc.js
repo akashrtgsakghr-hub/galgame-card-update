@@ -29,6 +29,7 @@
 
       const changedChars = [];
       const stageChangedChars = [];
+      const weeklyBlockedChars = [];
       const gateLogs = [];
       const eventLogs = [];
       const achievementRequests = [];
@@ -120,6 +121,9 @@
             ch[result.fieldName] = result.newValue;
             changedChars.push({ name: name, field: result.fieldName, delta: result.delta, newValue: result.newValue });
           }
+          /* 被周上限压住：这一轮不是「脚本没跑」，而是额度真的用完了。
+             以前只写日志、界面上一点动静都没有，玩家只会觉得好感卡住不动了。 */
+          if (result && result.weeklyBlocked && Number(lastRoll.基础值) > 0) weeklyBlockedChars.push(name);
           // 保留 _lastRoll 供阶段门判定与面板「🎲 属性点重掷」读取，仅标记已结算
           ch._lastRoll = {
             事件类型: lastRoll.事件类型,
@@ -179,6 +183,19 @@
           const msg = changedChars.map(function(c) { return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('；');
           console.log('[Doki] 数值更新：', msg);
           toast('数值更新：' + msg, 'info');
+        } catch (e) {}
+      }
+      if (weeklyBlockedChars.length) {
+        try {
+          const cap = Number((MOON_FORMULA_PARAMS.weeklyCap[mode] || MOON_FORMULA_PARAMS.weeklyCap.normal)).toFixed(1);
+          const key = 'moon_quota_hint_' + getChatStateKey() + '_' + String(currentTime || '').slice(0, 11);
+          const store = getStorage();
+          const shown = store ? store.getItem(key) : '1';
+          if (!shown) {
+            if (store) store.setItem(key, '1');
+            toast('本周好感额度已满（' + cap + '）：' + weeklyBlockedChars.join('、') + ' 这轮只走剧情、不再加分。游戏内过满 7 天会自动重置。', 'warning');
+          }
+          console.log('[Doki] 周上限已满：', weeklyBlockedChars.join('、'), '上限', cap);
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}

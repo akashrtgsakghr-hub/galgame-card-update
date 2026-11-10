@@ -16,7 +16,7 @@
     { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' },
     { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' },
     /* 内部 id 仍是 calista：存档里存的就是它，改名只改玩家看得见的部分 */
-    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '书签式状态卡 · 轻点翻开Ta的近况，深浅可换' }
+    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '明信片状态卡 · 正面银箔英文，轻点翻面看Ta的近况' }
   ];
 
   const SKIN_CSS_TICKET = `@import url("https://fontsapi.zeoseven.com/802/main/result.css");
@@ -3263,7 +3263,299 @@
   .mp-skin-calista .cl-voice { font-size: 13px; }
 }
 
+/* ══ 明信片：正面银箔，背面贝母（v4.8.12）══════════════════════════
+   收起态不再是一张书签：这是一张可以翻面的明信片。
+   正面只有英文与银箔压印，背面才是人物近况；点一下绕 Y 轴翻过去。
+   正反两面都不描边、不用纯白：银面靠三层高光与刷丝，背面靠贝母实拍。 */
+.mp-skin-calista .cl-pc {
+  position: relative;
+  width: 100%;
+  perspective: 1400px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mp-skin-calista .cl-pc-inner {
+  position: relative;
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 760ms cubic-bezier(.2, .85, .2, 1);
+  will-change: transform;
+}
+.mp-skin-calista .cl-pc.is-flipped .cl-pc-inner { transform: rotateY(180deg); }
+.mp-skin-calista .cl-pc:focus-visible { outline: none; }
+.mp-skin-calista .cl-pc:focus-visible .cl-pc-front,
+.mp-skin-calista .cl-pc:focus-visible .cl-pc-back {
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair-2),
+    0 0 0 2px var(--cl-bg-1),
+    0 0 0 4px var(--cl-accent-soft),
+    0 14px 30px -20px var(--cl-ambient);
+}
+.mp-skin-calista .cl-pc-face {
+  grid-area: 1 / 1;
+  position: relative;
+  box-sizing: border-box;
+  min-height: 192px;
+  border-radius: 14px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.mp-skin-calista .cl-pc-back { transform: rotateY(180deg); }
+
+/* ── 正面：银箔压印 ─────────────────────────────────────── */
+.mp-skin-calista .cl-pc-front {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 17px 12px;
+  color: #4c5259;
+  font-family: var(--cl-serif);
+  background:
+    linear-gradient(116deg,
+      #c6ccd2 0%, #e9edf0 15%, #b7bec6 32%, #f3f5f7 48%,
+      #c0c7ce 64%, #e6eaee 80%, #c9cfd5 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(92, 99, 107, .30),
+    inset 0 1px 0 rgba(250, 247, 246, .92),
+    0 14px 30px -20px rgba(42, 38, 44, .58);
+}
+/* 刷丝：极细斜纹，只在银面上泛一点点光 */
+.mp-skin-calista .cl-pc-front::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(112deg, rgba(250, 247, 246, .34) 0 1px, transparent 1px 4px);
+  opacity: .55;
+  mix-blend-mode: screen;
+}
+/* 反光：左上高光 + 右下压暗，银器的那种「一半亮一半沉」 */
+.mp-skin-calista .cl-pc-front::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(126% 96% at 14% 6%, rgba(250, 247, 246, .66), transparent 56%),
+    radial-gradient(98% 88% at 88% 98%, rgba(108, 116, 125, .32), transparent 62%);
+}
+.mp-skin-calista .cl-pc-front > * { position: relative; z-index: 1; }
+.mp-skin-calista .cl-pc-kicker {
+  font-size: 8px;
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: #6d757d;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .75);
+}
+.mp-skin-calista .cl-pc-en {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-right: 54px;
+}
+.mp-skin-calista .cl-pc-en-main {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: .30em;
+  text-transform: uppercase;
+  color: #4a5057;
+  text-shadow:
+    0 1px 0 rgba(250, 247, 246, .88),
+    0 -1px 0 rgba(84, 91, 99, .40);
+  word-break: break-word;
+}
+.mp-skin-calista .cl-pc-en-sub {
+  font-style: normal;
+  font-size: 8px;
+  line-height: 1.9;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: #6b737b;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .72);
+}
+/* 邮票：一张贝母小方块，贴着齿孔边 */
+.mp-skin-calista .cl-pc-stamp {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 2;
+  width: 42px;
+  height: 50px;
+  padding: 3px;
+  box-sizing: border-box;
+  background: #f2f4f6;
+  box-shadow: 0 0 0 1px rgba(92, 99, 107, .26);
+}
+.mp-skin-calista .cl-pc-stamp-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--cl-nacre) center / cover no-repeat, var(--cl-pearl-0);
+  box-shadow: inset 0 0 0 1px rgba(92, 99, 107, .20);
+}
+/* 邮戳：一圈虚线，压住右下角 */
+.mp-skin-calista .cl-pc-postmark {
+  position: absolute;
+  right: 16px;
+  bottom: 34px;
+  z-index: 2;
+  width: 60px;
+  height: 60px;
+  border: 1px dashed rgba(88, 95, 103, .42);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 6px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(84, 91, 99, .70);
+  text-align: center;
+  pointer-events: none;
+}
+.mp-skin-calista .cl-pc-postmark em { font-style: normal; }
+.mp-skin-calista .cl-pc-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 7.5px;
+  letter-spacing: .20em;
+  text-transform: uppercase;
+  color: #6d757d;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .70);
+}
+.mp-skin-calista .cl-pc-num { font-variant-numeric: tabular-nums; }
+.mp-skin-calista .cl-pc-tap { color: #59616a; }
+
+/* ── 背面：贝母纸上的近况 ───────────────────────────────── */
+.mp-skin-calista .cl-pc-back {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 15px 12px;
+  background-color: var(--cl-bg-1);
+  background-image:
+    linear-gradient(rgba(250, 245, 243, .58), rgba(242, 234, 233, .68)),
+    var(--cl-nacre);
+  background-size: cover, cover;
+  background-position: center, center;
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair),
+    0 14px 30px -20px var(--cl-ambient);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-back {
+  background-image:
+    linear-gradient(rgba(26, 21, 27, .80), rgba(20, 16, 21, .88)),
+    var(--cl-nacre);
+}
+.mp-skin-calista .cl-pc-back-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mp-skin-calista .cl-pc-back-kicker {
+  font-size: 7.5px;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-pc-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.mp-skin-calista .cl-pc-name {
+  font-family: var(--cl-serif);
+  font-size: 19px;
+  font-weight: var(--cl-fw);
+  letter-spacing: .06em;
+  color: var(--cl-ink);
+  line-height: 1.2;
+}
+.mp-skin-calista .cl-pc-enname {
+  font-size: 7.5px;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-pc-hero {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.mp-skin-calista .cl-pc-big {
+  font-family: var(--cl-serif);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: var(--cl-fw);
+  letter-spacing: -.01em;
+  color: var(--cl-ink);
+  font-variant-numeric: tabular-nums;
+}
+.mp-skin-calista .cl-pc-big small {
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--cl-ink-3);
+  margin-left: 2px;
+}
+.mp-skin-calista .cl-pc-label {
+  font-size: 8.5px;
+  letter-spacing: .22em;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-pc-ring { margin-left: auto; flex: 0 0 auto; }
+.mp-skin-calista .cl-pc-back-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 1px;
+}
+.mp-skin-calista .cl-pc-hint {
+  font-size: 7.5px;
+  letter-spacing: .18em;
+  color: var(--cl-ink-3);
+}
+/* 暗色下的银面：枪灰，字反成浅银 */
+.mp-skin-calista[data-theme="night"] .cl-pc-front {
+  color: #d6dae0;
+  background:
+    linear-gradient(116deg,
+      #31353a 0%, #565b62 16%, #2c3035 33%, #6b7178 49%,
+      #33373c 65%, #4e535a 81%, #2b2f33 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(226, 230, 235, .14),
+    inset 0 1px 0 rgba(244, 246, 248, .22),
+    0 14px 30px -20px rgba(8, 6, 10, .72);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-front::after {
+  background:
+    radial-gradient(126% 96% at 14% 6%, rgba(238, 242, 246, .20), transparent 56%),
+    radial-gradient(98% 88% at 88% 98%, rgba(10, 8, 12, .52), transparent 62%);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-en-main {
+  color: #e4e8ec;
+  text-shadow:
+    0 1px 0 rgba(250, 247, 246, .18),
+    0 -1px 0 rgba(8, 6, 10, .60);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-en-sub,
+.mp-skin-calista[data-theme="night"] .cl-pc-kicker,
+.mp-skin-calista[data-theme="night"] .cl-pc-foot { color: #aeb4bb; }
+.mp-skin-calista[data-theme="night"] .cl-pc-stamp { background: #3c4147; }
+.mp-skin-calista[data-theme="night"] .cl-pc-postmark { color: rgba(206, 211, 217, .62); border-color: rgba(206, 211, 217, .30); }
+
 @media (prefers-reduced-motion: reduce) {
+  .mp-skin-calista .cl-pc-inner,
   .mp-skin-calista .cl-body,
   .mp-skin-calista .cl-fold,
   .mp-skin-calista .cl-fold::after,
@@ -4933,29 +5225,28 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return out;
   }
 
-  /* 收起态统一模板：一张书签卡 = 标题带 + 主行 + 点击涟漪层。
-     有档案与空态两个分支共用，形态完全一致；传入的都是已转义文本。 */
-  function clFoldHtml(o) {
-    return '<button type="button" class="cl-fold" aria-expanded="' + (o.open ? 'true' : 'false') +
-      '" aria-controls="' + o.bodyId + '">' +
-      '<span class="cl-band">' +
-        '<i class="cl-band-bead" aria-hidden="true"></i>' +
-        '<b class="cl-band-title">少女心绪</b>' +
-        '<span class="cl-band-note" aria-hidden="true">MOOD NOTE　·　轻点翻开</span>' +
-      '</span>' +
-      '<span class="cl-main">' +
-        '<span class="cl-orb" aria-hidden="true">' + o.initial + '</span>' +
-        '<span class="cl-id">' +
-          '<span class="cl-name">' + o.name + '</span>' +
-          '<span class="cl-sub">' + o.sub + '</span>' +
-        '</span>' +
-        '<span class="cl-val"><b>' + o.value + '</b><span>好感</span></span>' +
-        '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
-          '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
-        '</svg>' +
-      '</span>' +
-      '<span class="cl-tap-layer" aria-hidden="true"><span class="cl-tap-ripple"></span></span>' +
-    '</button>';
+  /* 收起态统一模板：一张明信片。
+     正面只有英文与银箔压印，背面才是人物近况；点一下绕 Y 轴翻过去。
+     两面都在 DOM 里，翻面只是旋转，不重建，也不打断已读位置。 */
+  function clPostcardHtml(o) {
+    const flip = !!o.open;
+    return '<div class="cl-pc' + (flip ? ' is-flipped' : '') + '" data-cl-flip="1" role="button" tabindex="0"' +
+      ' aria-expanded="' + (flip ? 'true' : 'false') + '" aria-label="少女心绪 · 轻点翻到背面">' +
+      '<div class="cl-pc-inner">' +
+        '<div class="cl-pc-face cl-pc-front">' +
+          '<span class="cl-pc-stamp" aria-hidden="true"><i class="cl-pc-stamp-art"></i></span>' +
+          '<span class="cl-pc-kicker">POST&nbsp;CARD</span>' +
+          '<span class="cl-pc-en">' +
+            '<b class="cl-pc-en-main">' + o.enMain + '</b>' +
+            '<em class="cl-pc-en-sub">' + o.enSub + '</em>' +
+          '</span>' +
+          '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>MEDITERRANÉE</em></span>' +
+          '<span class="cl-pc-foot"><span class="cl-pc-num">No.&nbsp;' + o.num + '</span>' +
+            '<span class="cl-pc-tap">TAP&nbsp;TO&nbsp;TURN</span></span>' +
+        '</div>' +
+        '<div class="cl-pc-face cl-pc-back">' + (o.back || '') + '</div>' +
+      '</div>' +
+    '</div>';
   }
 
   function renderCalistaSkin(scope, statData, msgId, keepOpen) {
@@ -4983,14 +5274,18 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const bodyId = 'mp-cl-body-' + (msgId || 0);
 
     if (!names.length) {
+      const emptyBack =
+        '<div class="cl-pc-back-head"><span class="cl-pc-back-kicker">REVERSE&nbsp;·&nbsp;人物近况</span></div>' +
+        '<div class="cl-empty"><b>还没有人物档案</b>先点面板里的「一键建档案」<br>建好之后这张卡会自己长出数值</div>';
       scope.innerHTML =
         '<div class="cl-wrap">' +
-          clFoldHtml({ bodyId: bodyId, open: !!keepOpen, initial: '少', name: '少女心绪', sub: '尚未建档', value: '—' }) +
-          '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
-            '<div class="cl-body-clip"><div class="cl-sheet">' +
-              '<div class="cl-empty"><b>还没有人物档案</b>先点面板里的「一键建档案」<br>建好之后这张卡会自己长出数值</div>' +
-            '</div></div>' +
-          '</div>' +
+          clPostcardHtml({
+            open: !!keepOpen,
+            enMain: 'CALISTA',
+            enSub: 'A NOTE ON THE TIDE<br>SHELL &amp; SILVER<br>TO BE READ SLOWLY',
+            num: String((Number(msgId) || 0) + 1).padStart(2, '0'),
+            back: emptyBack
+          }) +
         '</div>';
       return false;
     }
@@ -5048,67 +5343,59 @@ var worldData = (rawVars && rawVars['世界']) || {};
         }).join('') + '</div>'
       : '';
 
-    const sheet =
-      '<div class="cl-sheet">' +
-        '<div class="cl-cover">' +
-          '<span class="cl-cover-kicker">少女心绪　·　人物近况</span>' +
-          '<span class="cl-cover-title' + coverCjk + '">' + skinEsc(coverTitle) + '</span>' +
-          '<span class="cl-cover-note">Softly, like a shell.</span>' +
-        '</div>' +
-        '<div class="cl-top">' +
-          '<span class="cl-top-left">' +
-            '<b class="cl-prologue">Prologue.</b>' +
-            '<span class="cl-stagechip">' +
-              (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
-            '</span>' +
-          '</span>' +
-          '<button type="button" class="cl-theme" data-cl-theme="1" aria-label="切换深浅">' +
-            (theme === 'night' ? '浅色' : '深色') +
-          '</button>' +
-        '</div>' +
-        '<div class="cl-grid">' +
-          '<div class="cl-hero">' +
-            '<span class="cl-hero-main">' +
-              '<span class="cl-k">好感</span>' +
-              '<span class="cl-v">' + skinEsc(affection) + '<small>/ 100</small></span>' +
-            '</span>' +
-            '<span class="cl-ring" aria-hidden="true">' +
-              '<svg viewBox="0 0 54 54">' +
-                '<circle cx="27" cy="27" r="24" fill="none" stroke="' + 'var(--cl-bg-3)' + '" stroke-width="2"/>' +
-                '<circle class="cl-ring-arc" cx="27" cy="27" r="24" fill="none" stroke="var(--cl-accent)" stroke-width="2" ' +
-                  'stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="' +
-                  (150.8 - 150.8 * Math.max(0, Math.min(100, Number(lead.好感度) || 0)) / 100).toFixed(2) + '" ' +
-                  'transform="rotate(-90 27 27)"/>' +
-                (affectionPct > 0
-                  ? (function() {
-                      const rad = (affectionPct * 3.6 - 90) * Math.PI / 180;
-                      const px = 27 + 24 * Math.cos(rad);
-                      const py = 27 + 24 * Math.sin(rad);
-                      return '<circle class="cl-ring-bead" cx="' + px.toFixed(2) + '" cy="' + py.toFixed(2) +
-                        '" r="2.6" fill="var(--cl-accent)"/>';
-                    })()
-                  : '') +
-              '</svg>' +
-            '</span>' +
-          '</div>' +
-          '<div class="cl-row3">' +
-            '<div class="cl-tile"><span class="cl-k">亲密</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
-            '<div class="cl-tile"><span class="cl-k">关系</span><span class="cl-v">' +
-              (stage.known ? (stage.num > 0 ? '+' + stage.num : String(stage.num)) : '—') + '</span></div>' +
-            '<div class="cl-tile"><span class="cl-k">醋意</span><span class="cl-v">' + skinEsc(clNum(lead.嫉妒值)) + '</span></div>' +
-          '</div>' +
-        '</div>' +
-        '<blockquote class="cl-voice"><span class="cl-voice-mark">“</span>' + clTypeChars(voice) + '</blockquote>' +
-        (metaBits.length ? '<div class="cl-meta">' + metaBits.join('') + '</div>' : '') +
-        othersHtml +
+    /* 背面：贝母纸上的近况。正面只有英文，信息全在这一面。 */
+    const ringR = 19;
+    const ringC = 2 * Math.PI * ringR;
+    const ringHtml = '<span class="cl-pc-ring" aria-hidden="true">' +
+      '<svg width="44" height="44" viewBox="0 0 44 44">' +
+        '<circle cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-bg-3)" stroke-width="1.6"/>' +
+        '<circle class="cl-ring-arc" cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-accent)" stroke-width="1.6" ' +
+          'stroke-linecap="round" stroke-dasharray="' + ringC.toFixed(1) + '" ' +
+          'stroke-dashoffset="' + (ringC - ringC * affectionPct / 100).toFixed(2) + '" ' +
+          'transform="rotate(-90 22 22)"/>' +
+      '</svg></span>';
+
+    const backHtml =
+      '<div class="cl-pc-back-head">' +
+        '<span class="cl-pc-back-kicker">REVERSE&nbsp;·&nbsp;人物近况</span>' +
+        '<span class="cl-stagechip">' +
+          (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
+        '</span>' +
+      '</div>' +
+      '<div class="cl-pc-identity">' +
+        '<b class="cl-pc-name">' + skinEsc(leadName) + '</b>' +
+        (coverEn ? '<span class="cl-pc-enname">' + skinEsc(coverEn) + '</span>' : '') +
+      '</div>' +
+      '<div class="cl-pc-hero">' +
+        '<span class="cl-pc-big">' + skinEsc(affection) + '<small>/100</small></span>' +
+        '<span class="cl-pc-label">好感</span>' +
+        ringHtml +
+      '</div>' +
+      '<div class="cl-row3">' +
+        '<div class="cl-tile"><span class="cl-k">亲密</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
+        '<div class="cl-tile"><span class="cl-k">关系</span><span class="cl-v">' +
+          (stage.known ? (stage.num > 0 ? '+' + stage.num : String(stage.num)) : '—') + '</span></div>' +
+        '<div class="cl-tile"><span class="cl-k">醋意</span><span class="cl-v">' + skinEsc(clNum(lead.嫉妒值)) + '</span></div>' +
+      '</div>' +
+      '<blockquote class="cl-voice"><span class="cl-voice-mark">“</span>' + clTypeChars(voice) + '</blockquote>' +
+      (metaBits.length ? '<div class="cl-meta">' + metaBits.join('') + '</div>' : '') +
+      othersHtml +
+      '<div class="cl-pc-back-foot">' +
+        '<span class="cl-pc-hint">轻点翻回正面</span>' +
+        '<button type="button" class="cl-theme" data-cl-theme="1" aria-label="切换深浅">' +
+          (theme === 'night' ? '浅色' : '深色') +
+        '</button>' +
       '</div>';
 
     scope.innerHTML =
       '<div class="cl-wrap">' +
-        clFoldHtml({ bodyId: bodyId, open: !!keepOpen, initial: skinEsc(initial), name: skinEsc(leadName), sub: skinEsc(subLine), value: skinEsc(affection) }) +
-        '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
-          '<div class="cl-body-clip">' + sheet + '</div>' +
-        '</div>' +
+        clPostcardHtml({
+          open: !!keepOpen,
+          enMain: skinEsc(String(coverEn || 'CALISTA').toUpperCase()),
+          enSub: 'A NOTE ON THE TIDE<br>SHELL · SILVER · SALT<br>TO BE READ SLOWLY',
+          num: String((Number(msgId) || 0) + 1).padStart(2, '0'),
+          back: backHtml
+        }) +
       '</div>';
 
     return true;
@@ -5393,7 +5680,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       if (existing) {
         if (!opts.force && existing.getAttribute('data-mp-sig') === sig) continue;
         /* 数据变了要重画，但玩家已经展开的报纸／邸报不该自己合上 */
-        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"], .cl-fold[aria-expanded="true"]');
+        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"], .cl-pc.is-flipped, .cl-fold[aria-expanded="true"]');
         if (existing.parentNode) existing.parentNode.removeChild(existing);
       }
       mountSkinIntoMessage(mesEl, statData, skin, sig, keepOpen);
@@ -5436,6 +5723,21 @@ var worldData = (rawVars && rawVars['世界']) || {};
     if (ensureSkinDelegation.done) return;
     ensureSkinDelegation.done = true;
     try {
+      /* 键盘也能翻面：明信片是 role=button，Tab 到它按 Enter / 空格应该翻过去 */
+      mainDoc.addEventListener('keydown', function(e) {
+        if (!e || (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar')) return;
+        const t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('button, a, input, textarea, select')) return;
+        const card = t.closest('[data-cl-flip]');
+        if (!card) return;
+        e.preventDefault();
+        const next = !card.classList.contains('is-flipped');
+        card.classList.toggle('is-flipped', next);
+        card.setAttribute('aria-expanded', String(next));
+        const holder = card.closest('.mp-skin-calista');
+        if (holder) holder.classList.toggle('is-open', next);
+      }, true);
       mainDoc.addEventListener('click', function(e) {
         const target = e.target;
         if (!target || !target.closest) return;
@@ -5514,28 +5816,14 @@ var worldData = (rawVars && rawVars['世界']) || {};
             renderCalistaSkin(scope, getSkinStatData(), mid, true);
             return;
           }
-          const fold = target.closest('.cl-fold');
-          if (!fold) return;
-          const body = clHolder.querySelector('.cl-body');
-          if (!body) return;
-          const show = body.hidden;
-          /* 点哪儿，珠光就从哪儿起：把点击坐标换成卡内坐标；键盘触发时落在中间。
-             先摘掉再强制重排再挂上，同一张卡连点两次也能重播，不靠计时器。 */
-          if (scope) {
-            try {
-              const box = fold.getBoundingClientRect();
-              const px = (e.clientX || (box.left + box.width / 2)) - box.left;
-              const py = (e.clientY || (box.top + box.height / 2)) - box.top;
-              scope.style.setProperty('--cl-tap-x', Math.max(0, Math.min(box.width, px)).toFixed(1) + 'px');
-              scope.style.setProperty('--cl-tap-y', Math.max(0, Math.min(box.height, py)).toFixed(1) + 'px');
-              scope.classList.remove('is-tapped');
-              try { void scope.offsetWidth; } catch (eReflow) {}
-              scope.classList.add('is-tapped');
-            } catch (eTap) {}
-          }
-          body.hidden = !show;
-          fold.setAttribute('aria-expanded', String(show));
-          if (scope) scope.classList.toggle('is-open', show);
+          const card = target.closest('[data-cl-flip]');
+          if (!card) return;
+          /* 明信片：点一下绕 Y 轴翻过去，再点翻回来。
+             翻面是纯 CSS 旋转，不重建 DOM，已读位置与主题都不受影响。 */
+          const next = !card.classList.contains('is-flipped');
+          card.classList.toggle('is-flipped', next);
+          card.setAttribute('aria-expanded', String(next));
+          if (scope) scope.classList.toggle('is-open', next);
           return;
         }
 

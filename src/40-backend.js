@@ -25,6 +25,35 @@
     if (['false', '否', '0', '不在', '离场', 'no', 'off', '退场'].indexOf(v) >= 0) return false;
     return null;
   }
+  /* 角色名归一化：AI 经常把「长谷川 茗」写成「长谷川茗」、「太宰治（Sylveina）」写成「太宰治」，
+     直接按字符串取会取不到人——于是情绪/心声/在场整轮被丢掉，表现就是「建档之后再也不更新」。 */
+  function _normCharKey(raw) {
+    return String(raw == null ? '' : raw)
+      .replace(/[（(【\[].*?[）)】\]]/g, '')
+      .replace(/[\s\u3000·・.\-_—~～'"“”]/g, '')
+      .toLowerCase();
+  }
+  function _findCharKey(chars, raw) {
+    if (!chars || typeof chars !== 'object') return '';
+    const name = String(raw == null ? '' : raw).trim();
+    if (!name) return '';
+    if (Object.prototype.hasOwnProperty.call(chars, name)) return name;
+    const target = _normCharKey(name);
+    if (!target) return '';
+    let exact = '';
+    let partial = '';
+    for (const key in chars) {
+      if (!Object.prototype.hasOwnProperty.call(chars, key)) continue;
+      const nk = _normCharKey(key);
+      if (!nk) continue;
+      if (nk === target) { exact = key; break; }
+      if (target.length >= 2 && nk.length >= 2 && (nk.indexOf(target) >= 0 || target.indexOf(nk) >= 0)) {
+        if (!partial || nk.length > _normCharKey(partial).length) partial = key;
+      }
+    }
+    return exact || partial;
+  }
+
   function _applyBackendVarLines(payload, statData, applied) {
     if (!payload || !statData) return;
     if (!statData.世界) statData.世界 = { 时间: '2000年01月01日 · 星期六 · 00:00', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' };
@@ -58,9 +87,10 @@
         }
         continue;
       }
-      const charName = parts[0];
+      const rawCharName = parts[0];
       const field = parts[1];
-      if (!charName || !field || !statData.角色) continue;
+      if (!rawCharName || !field || !statData.角色) continue;
+      const charName = _findCharKey(statData.角色, rawCharName) || rawCharName;
       const ch = statData.角色[charName];
       if (!ch || isCharSkeleton(ch)) continue;
       if (field === '情绪' || field === '心情' || field === '表情') {

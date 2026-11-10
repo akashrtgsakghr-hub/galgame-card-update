@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.11';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.11 默认更新源换成国内反代，不用自己配】\n1. 🔌 默认更新源改成国内的 GitHub 反代（gh-proxy），不挂梯子也能连、缓存只有秒级，推完立刻查得到（实测 93ms 拿到新版本）。原来的「官方直连」还在，只是排到它后面——挂了梯子的机器照样轮到 raw。\n2. 🎯 查版本时带 Range 只取文件开头一段，反代支持就直接回 4–60KB，不再整包 1.2MB；万一哪条线把 Range 当异常请求拦掉，会自动去掉 Range 再试一次，不会白判一条线不通。\n3. 🧷 老配置自动迁移：之前存过 raw 默认地址、jsDelivr 地址或写死标签的，都会自动换成新默认，不用手动改。\n4. 🧩 只动更新线路与取数方式，数值、判定、存档格式、皮肤资源一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.12';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.12 少女心绪改成会翻面的明信片】\n1. 💌 楼内状态卡「少女心绪」重做：正面是一串银箔压印的英文（POST CARD / 角色英文名 / 邮戳 / 邮票），点一下绕 Y 轴翻过去，背面才是贝母纸上的近况——好感、亲密、关系、醋意、心声、时间地点。再点翻回正面，换深浅也会停在当前那一面。\n2. 🙈 删掉「藏起 AI 的草稿」：它按 Phase./cot 关键词从中间截断，实测会把后面的正文一起藏起来。草稿现在原样显示，上下文字段仍由脚本收走。\n3. 💬 心声每轮都会更新了：提示词把后台变量块写成「每一轮都必须重写」，并明确「心声是即时状态、不是建档字段」；同时角色名容错——AI 少写一个空格、多写一个括号，情绪/心声/在场也能落到同一个人身上。\n4. 📊 好感为什么忽然不加，现在看得见了：状态卡与面板显示「本周好感额度 x / 7.0」，额度用满时弹一次提示——不是脚本停了，是这一周的额度真的用完了（游戏内满 7 天自动重置）。\n5. 🎮 沉浸模式补了兜底：关键几何（全屏、层级）写成内联样式，节点被酒馆重绘挤掉会自动挂回；打不开时会把原因弹出来，而不是点了没反应。\n6. 🧩 只动界面与提示，数值规则、存档格式一个字节没改。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -79,7 +79,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true,
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto',
     /* 初见投资的数值怎么来：
        hybrid —— 骰子定数值，AI 只给「优势/劣势」档位（读过角色卡，判断人设契合度）
        dice   —— 全看骰子，AI 写什么档位都不采信
@@ -1568,13 +1568,14 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('【重要：正则美化触发格式】正文剧情结束后，只在最后单独输出一个 Sylveina 数值标签，下一行只输出小写字母 s。两行示例：');
       lines.push('[Sylveina|L|+|1.2]');
       lines.push('s');
-      lines.push('【后台变量块 · 必须输出】在 s 之后再输出下面这些后台变量行（脚本会自动读取并把它们隐藏，玩家看不到）：');
+      lines.push('【后台变量块 · 每一轮都必须重写一遍】不是建档写一次就完事；这一轮漏写，脚本就收不到这一轮的情绪与心声，状态卡会停在上一轮。放在 s 之后、正文之外，脚本会自动收走，玩家看不到：');
       lines.push('世界.时间=<本轮结束时的世界时间，格式必须是 YYYY年MM月DD日 · 星期X · HH:MM，只能前进不能倒退>');
       lines.push('世界.地点=<本轮结束时的场景地点>');
-      lines.push('为本轮有互动的每个角色各输出三行（角色名用档案里的正名）：');
-      lines.push('角色.<角色名>.情绪=<单个 emoji>');
-      lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写Ta此刻没有说出口的真实想法>');
+      lines.push('接着给本轮出场的每个角色各写三行（角色名照抄档案里的正名，一个字都别改）：');
+      lines.push('角色.<角色名>.情绪=<单个 emoji，写Ta这一轮结束时的情绪>');
+      lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写Ta这一轮真正没说出口的那一句>');
       lines.push('角色.<角色名>.在场=true 或 false');
+      lines.push('→ 心声与情绪是「每轮刷新的即时状态」，不是档案字段：每一轮都要按本轮剧情重写，哪怕和上一轮很像也要换一句新的。直接复制上一轮的心声，等同于这一轮没写。');
       lines.push('（当前世界时间：' + (world.时间 || '未记录') + '｜当前地点：' + (world.地点 || '未记录') + '｜游戏日：第 ' + (Number(world._游戏日) || 0) + ' 天。'
         + '节奏规则：同一场景内的对话，每轮只推进 ' + getTurnMinutes() + ' 分钟（最多不超过 ' + (getTurnMinutes() * 2) + ' 分钟），不要自行跳到几小时之后或第二天；'
         + '只有玩家明确要求（第二天 / 三天后 / 睡一觉 / 跳过）或剧情确实需要转场时，才写出跨时段或跨天的新时间。'
@@ -1781,6 +1782,35 @@ async function _collectAllWorldbooks(includeDisabled) {
     if (['false', '否', '0', '不在', '离场', 'no', 'off', '退场'].indexOf(v) >= 0) return false;
     return null;
   }
+  /* 角色名归一化：AI 经常把「长谷川 茗」写成「长谷川茗」、「太宰治（Sylveina）」写成「太宰治」，
+     直接按字符串取会取不到人——于是情绪/心声/在场整轮被丢掉，表现就是「建档之后再也不更新」。 */
+  function _normCharKey(raw) {
+    return String(raw == null ? '' : raw)
+      .replace(/[（(【\[].*?[）)】\]]/g, '')
+      .replace(/[\s\u3000·・.\-_—~～'"“”]/g, '')
+      .toLowerCase();
+  }
+  function _findCharKey(chars, raw) {
+    if (!chars || typeof chars !== 'object') return '';
+    const name = String(raw == null ? '' : raw).trim();
+    if (!name) return '';
+    if (Object.prototype.hasOwnProperty.call(chars, name)) return name;
+    const target = _normCharKey(name);
+    if (!target) return '';
+    let exact = '';
+    let partial = '';
+    for (const key in chars) {
+      if (!Object.prototype.hasOwnProperty.call(chars, key)) continue;
+      const nk = _normCharKey(key);
+      if (!nk) continue;
+      if (nk === target) { exact = key; break; }
+      if (target.length >= 2 && nk.length >= 2 && (nk.indexOf(target) >= 0 || target.indexOf(nk) >= 0)) {
+        if (!partial || nk.length > _normCharKey(partial).length) partial = key;
+      }
+    }
+    return exact || partial;
+  }
+
   function _applyBackendVarLines(payload, statData, applied) {
     if (!payload || !statData) return;
     if (!statData.世界) statData.世界 = { 时间: '2000年01月01日 · 星期六 · 00:00', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' };
@@ -1814,9 +1844,10 @@ async function _collectAllWorldbooks(includeDisabled) {
         }
         continue;
       }
-      const charName = parts[0];
+      const rawCharName = parts[0];
       const field = parts[1];
-      if (!charName || !field || !statData.角色) continue;
+      if (!rawCharName || !field || !statData.角色) continue;
+      const charName = _findCharKey(statData.角色, rawCharName) || rawCharName;
       const ch = statData.角色[charName];
       if (!ch || isCharSkeleton(ch)) continue;
       if (field === '情绪' || field === '心情' || field === '表情') {
@@ -2113,6 +2144,7 @@ async function _collectAllWorldbooks(includeDisabled) {
 
       const changedChars = [];
       const stageChangedChars = [];
+      const weeklyBlockedChars = [];
       const gateLogs = [];
       const eventLogs = [];
       const achievementRequests = [];
@@ -2204,6 +2236,9 @@ async function _collectAllWorldbooks(includeDisabled) {
             ch[result.fieldName] = result.newValue;
             changedChars.push({ name: name, field: result.fieldName, delta: result.delta, newValue: result.newValue });
           }
+          /* 被周上限压住：这一轮不是「脚本没跑」，而是额度真的用完了。
+             以前只写日志、界面上一点动静都没有，玩家只会觉得好感卡住不动了。 */
+          if (result && result.weeklyBlocked && Number(lastRoll.基础值) > 0) weeklyBlockedChars.push(name);
           // 保留 _lastRoll 供阶段门判定与面板「🎲 属性点重掷」读取，仅标记已结算
           ch._lastRoll = {
             事件类型: lastRoll.事件类型,
@@ -2263,6 +2298,19 @@ async function _collectAllWorldbooks(includeDisabled) {
           const msg = changedChars.map(function(c) { return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('；');
           console.log('[Doki] 数值更新：', msg);
           toast('数值更新：' + msg, 'info');
+        } catch (e) {}
+      }
+      if (weeklyBlockedChars.length) {
+        try {
+          const cap = Number((MOON_FORMULA_PARAMS.weeklyCap[mode] || MOON_FORMULA_PARAMS.weeklyCap.normal)).toFixed(1);
+          const key = 'moon_quota_hint_' + getChatStateKey() + '_' + String(currentTime || '').slice(0, 11);
+          const store = getStorage();
+          const shown = store ? store.getItem(key) : '1';
+          if (!shown) {
+            if (store) store.setItem(key, '1');
+            toast('本周好感额度已满（' + cap + '）：' + weeklyBlockedChars.join('、') + ' 这轮只走剧情、不再加分。游戏内过满 7 天会自动重置。', 'warning');
+          }
+          console.log('[Doki] 周上限已满：', weeklyBlockedChars.join('、'), '上限', cap);
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}
@@ -3150,8 +3198,6 @@ async function _collectAllWorldbooks(includeDisabled) {
       }
     } catch (e) {}
     beautifyGalgameEndingInDom();
-    /* 收尾：把 AI 写给自己的 Phase / cot 草稿段藏起来，玩家只看正文和状态卡 */
-    try { mpApplyCotFold(); } catch (e) {}
     scheduleSkinRefresh({ onlyLast: true });
   }
 
@@ -3203,163 +3249,6 @@ async function _collectAllWorldbooks(includeDisabled) {
     }
   }
   /* ───────────────────────────────────────────────────────── */
-/* 66-cot-hide.js —— 把「只给脚本看的草稿段」从消息里藏掉。
- *
- * AI 有时会在正文后面跟一段写给自己的思考，例如：
- *     Phase. 爱意自然呈现
- *     当前关系阶段：初识观察期（好感度24）……
- *     Phase. 文风cot
- *     <太宰治内置cot> 已严格读取并遵循… </太宰治内置cot>
- * 这些内容玩家不该看到（数值由脚本独占，它自己复述只会和状态卡打架）。
- *
- * 做法：渲染后把从第一个 Phase 小标题（或行首 <…cot> 块）到消息结尾的那一段
- * 收进一个 hidden 容器。原文一个字都不删 —— 换存档、别的正则、AI 上下文
- * 还要读它，只是不显示。
- */
-
-  const MP_COT_HIDDEN_CLASS = 'mp-cot-hidden';
-  const MP_COT_FOLD_ATTR = 'data-mp-cot';
-  // 行首的草稿小标题：Phase.xxx 或 <角色名cot>
-  const MP_COT_HEAD_RE = /(^|\n)[ \t]*(?:Phase[ \t]*[.．:：]|<\/?[A-Za-z0-9_\u4e00-\u9fa5]{1,16}cot>)/;
-  // 小标题之后要能看出「这确实是一段草稿」，否则可能只是正文里提到了 Phase
-  const MP_COT_TAIL_RE = /(?:Phase[ \t]*[.．:：]|<[^<>\n]{1,16}cot>|关系阶段|阶段分析|写作思路|文风|人设|反恋爱脑|潜台词|叙事要求)/;
-
-  function mpCotHideEnabled() { return getSettings().hideAiCot !== false; }
-
-  /* 在纯文本里找草稿段起点；返回 -1 表示这段消息里没有草稿 */
-  function mpFindCotStart(text) {
-    const s = String(text == null ? '' : text);
-    if (s.length < 8) return -1;
-    const m = MP_COT_HEAD_RE.exec(s);
-    if (!m) return -1;
-    const start = m.index + (m[1] ? m[1].length : 0);
-    if (!MP_COT_TAIL_RE.test(s.slice(start))) return -1;
-    return start;
-  }
-
-  /* 把 <br> / </p> 也当成换行，得到与 textContent 同序的纯文本（标签本身不占字符） */
-  function mpElementPlainText(el) {
-    if (!el) return '';
-    const html = String(el.innerHTML || '')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/(?:p|div|li)>/gi, '\n')
-      .replace(/<[^>]*>/g, '');
-    return html.replace(/&nbsp;/gi, ' ').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&amp;/gi, '&');
-  }
-
-  /* 纯文本偏移 → DOM 位置（文本节点按文档顺序累加，<br> 记一个换行） */
-  function mpPointFromOffset(root, offset) {
-    let acc = 0;
-    let hit = null;
-    const walk = function(node) {
-      if (hit || !node) return;
-      const kids = node.childNodes || [];
-      for (let i = 0; i < kids.length; i++) {
-        if (hit) return;
-        const kid = kids[i];
-        if (kid.nodeType === 3) {
-          const len = kid.nodeValue ? kid.nodeValue.length : 0;
-          if (offset <= acc + len) { hit = { node: kid, offset: Math.max(0, offset - acc) }; return; }
-          acc += len;
-        } else if (kid.nodeType === 1) {
-          if (kid.tagName === 'BR') {
-            if (offset <= acc) { hit = { node: kid.parentNode, offset: mpIndexOfNode(kid) }; return; }
-            acc += 1;
-          } else {
-            walk(kid);
-          }
-        }
-      }
-    };
-    walk(root);
-    return hit;
-  }
-  function mpIndexOfNode(node) {
-    try {
-      const parent = node.parentNode;
-      for (let i = 0; i < parent.childNodes.length; i++) if (parent.childNodes[i] === node) return i;
-    } catch (e) {}
-    return 0;
-  }
-
-  function mpHideOneCotBlock(el) {
-    try {
-      if (!el || el.getAttribute(MP_COT_FOLD_ATTR) === '1') return false;
-      const plain = mpElementPlainText(el);
-      const start = mpFindCotStart(plain);
-      if (start < 0) return false;
-      const point = mpPointFromOffset(el, start);
-      if (!point) return false;
-      let range = null;
-      try {
-        range = mainDoc.createRange();
-        range.setStart(point.node, point.offset);
-        range.setEnd(el, el.childNodes.length);
-      } catch (e) { return false; }
-      const frag = range.extractContents();
-      if (!frag || (!frag.textContent && !frag.childNodes.length)) return false;
-      const box = mainDoc.createElement('span');
-      box.className = MP_COT_HIDDEN_CLASS;
-      box.setAttribute('hidden', 'hidden');
-      box.setAttribute('aria-hidden', 'true');
-      box.style.display = 'none';
-      box.appendChild(frag);
-      el.appendChild(box);
-      el.setAttribute(MP_COT_FOLD_ATTR, '1');
-      return true;
-    } catch (e) { return false; }
-  }
-
-  function mpShowOneCotBlock(el) {
-    try {
-      const box = el && el.querySelector ? el.querySelector('.' + MP_COT_HIDDEN_CLASS) : null;
-      if (!box || !box.parentNode) return false;
-      const parent = box.parentNode;
-      while (box.firstChild) parent.insertBefore(box.firstChild, box);
-      parent.removeChild(box);
-      el.removeAttribute(MP_COT_FOLD_ATTR);
-      return true;
-    } catch (e) { return false; }
-  }
-
-  /* 最近 N 条消息里执行；返回实际藏了几条 */
-  function mpHideCotBlocksInDom(limit) {
-    let n = 0;
-    try {
-      if (!mpCotHideEnabled()) return 0;
-      const nodes = mainDoc.querySelectorAll('.mes .mes_text');
-      const max = Number(limit) || 12;
-      for (let i = Math.max(0, nodes.length - max); i < nodes.length; i++) {
-        if (mpHideOneCotBlock(nodes[i])) n++;
-      }
-    } catch (e) {}
-    return n;
-  }
-
-  /* 关掉开关时把已经藏起来的内容原样放回去 */
-  function mpShowCotBlocksInDom() {
-    let n = 0;
-    try {
-      const nodes = mainDoc.querySelectorAll('.mes .mes_text[' + MP_COT_FOLD_ATTR + '="1"]');
-      for (let i = 0; i < nodes.length; i++) { if (mpShowOneCotBlock(nodes[i])) n++; }
-    } catch (e) {}
-    return n;
-  }
-
-  function mpApplyCotFold() {
-    if (mpCotHideEnabled()) mpHideCotBlocksInDom();
-    else mpShowCotBlocksInDom();
-  }
-
-  /* 纯文本版：沉浸模式不走 DOM，直接从字符串尾巴上把草稿段切掉 */
-  function mpTrimCotText(text) {
-    const s = String(text == null ? '' : text);
-    if (!mpCotHideEnabled()) return s;
-    const start = mpFindCotStart(s);
-    if (start < 0) return s;
-    return s.slice(0, start).replace(/[ \t]+$/, '');
-  }
   function captureLatestContent() {
     try {
       const ctx = getSTCtx();
@@ -7554,8 +7443,6 @@ function openUpdateConfigDialog(panel) {
     // 图片标签单独由图片适配层处理，这里先摘掉避免重复显示
     text = text.replace(/<img\b[^>]*>/gi, '');
     text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
-    // 只给脚本看的草稿段（Phase.xxx / <角色名内置cot>）整段摘掉
-    text = mpTrimCotText(text);
     text = text.replace(/\n{3,}/g, '\n\n');
     return text.trim();
   }
@@ -8985,6 +8872,16 @@ function openUpdateConfigDialog(panel) {
     root = mainDoc.createElement('div');
     root.id = GAL_ROOT_ID;
     root.className = 'mp-gal-root';
+    /* 关键几何写成内联：万一 <style> 没进去（CSP / 别的扩展清理 head），
+       层至少还是一个铺满屏幕的容器，不至于「点了什么也没发生」。 */
+    root.style.position = 'fixed';
+    root.style.top = '0';
+    root.style.right = '0';
+    root.style.bottom = '0';
+    root.style.left = '0';
+    root.style.zIndex = '2147483000';
+    root.style.display = 'none';
+    root.style.overflow = 'hidden';
     root.innerHTML = '' +
       '<div class="mp-gal-bg"></div>' +
       '<div class="mp-gal-sprite-layer"></div>' +
@@ -9102,7 +8999,11 @@ function openUpdateConfigDialog(panel) {
   /* ── 打开 / 关闭 ───────────────────────────────────────── */
   function galOpen() {
     const root = galEnsureRoot();
+    /* 酒馆重绘 / 切换聊天时可能把节点连同它的父容器一起换掉，
+       节点还在内存里但已经不在文档上——这时怎么点都不会有画面。 */
+    try { if (!root.isConnected || !mainDoc.body.contains(root)) mainDoc.body.appendChild(root); } catch (e) {}
     try { galApplyCssVars(root); } catch (e) {}
+    root.style.display = 'block';
     root.classList.add('open');
     galPatchState({ on: true });
     GAL_RUNTIME.reviewMode = false;
@@ -9131,7 +9032,7 @@ function openUpdateConfigDialog(panel) {
 
   function galClose() {
     const root = galRootEl();
-    if (root) { root.classList.remove('open'); galCloseSheet(); }
+    if (root) { root.classList.remove('open'); root.style.display = 'none'; galCloseSheet(); }
     galStopTimers();
     galPatchState({ on: false });
   }
@@ -10175,7 +10076,7 @@ function openUpdateConfigDialog(panel) {
     { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' },
     { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' },
     /* 内部 id 仍是 calista：存档里存的就是它，改名只改玩家看得见的部分 */
-    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '书签式状态卡 · 轻点翻开Ta的近况，深浅可换' }
+    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '明信片状态卡 · 正面银箔英文，轻点翻面看Ta的近况' }
   ];
 
   const SKIN_CSS_TICKET = `@import url("https://fontsapi.zeoseven.com/802/main/result.css");
@@ -13422,7 +13323,299 @@ function openUpdateConfigDialog(panel) {
   .mp-skin-calista .cl-voice { font-size: 13px; }
 }
 
+/* ══ 明信片：正面银箔，背面贝母（v4.8.12）══════════════════════════
+   收起态不再是一张书签：这是一张可以翻面的明信片。
+   正面只有英文与银箔压印，背面才是人物近况；点一下绕 Y 轴翻过去。
+   正反两面都不描边、不用纯白：银面靠三层高光与刷丝，背面靠贝母实拍。 */
+.mp-skin-calista .cl-pc {
+  position: relative;
+  width: 100%;
+  perspective: 1400px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mp-skin-calista .cl-pc-inner {
+  position: relative;
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 760ms cubic-bezier(.2, .85, .2, 1);
+  will-change: transform;
+}
+.mp-skin-calista .cl-pc.is-flipped .cl-pc-inner { transform: rotateY(180deg); }
+.mp-skin-calista .cl-pc:focus-visible { outline: none; }
+.mp-skin-calista .cl-pc:focus-visible .cl-pc-front,
+.mp-skin-calista .cl-pc:focus-visible .cl-pc-back {
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair-2),
+    0 0 0 2px var(--cl-bg-1),
+    0 0 0 4px var(--cl-accent-soft),
+    0 14px 30px -20px var(--cl-ambient);
+}
+.mp-skin-calista .cl-pc-face {
+  grid-area: 1 / 1;
+  position: relative;
+  box-sizing: border-box;
+  min-height: 192px;
+  border-radius: 14px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.mp-skin-calista .cl-pc-back { transform: rotateY(180deg); }
+
+/* ── 正面：银箔压印 ─────────────────────────────────────── */
+.mp-skin-calista .cl-pc-front {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 17px 12px;
+  color: #4c5259;
+  font-family: var(--cl-serif);
+  background:
+    linear-gradient(116deg,
+      #c6ccd2 0%, #e9edf0 15%, #b7bec6 32%, #f3f5f7 48%,
+      #c0c7ce 64%, #e6eaee 80%, #c9cfd5 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(92, 99, 107, .30),
+    inset 0 1px 0 rgba(250, 247, 246, .92),
+    0 14px 30px -20px rgba(42, 38, 44, .58);
+}
+/* 刷丝：极细斜纹，只在银面上泛一点点光 */
+.mp-skin-calista .cl-pc-front::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(112deg, rgba(250, 247, 246, .34) 0 1px, transparent 1px 4px);
+  opacity: .55;
+  mix-blend-mode: screen;
+}
+/* 反光：左上高光 + 右下压暗，银器的那种「一半亮一半沉」 */
+.mp-skin-calista .cl-pc-front::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(126% 96% at 14% 6%, rgba(250, 247, 246, .66), transparent 56%),
+    radial-gradient(98% 88% at 88% 98%, rgba(108, 116, 125, .32), transparent 62%);
+}
+.mp-skin-calista .cl-pc-front > * { position: relative; z-index: 1; }
+.mp-skin-calista .cl-pc-kicker {
+  font-size: 8px;
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: #6d757d;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .75);
+}
+.mp-skin-calista .cl-pc-en {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-right: 54px;
+}
+.mp-skin-calista .cl-pc-en-main {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: .30em;
+  text-transform: uppercase;
+  color: #4a5057;
+  text-shadow:
+    0 1px 0 rgba(250, 247, 246, .88),
+    0 -1px 0 rgba(84, 91, 99, .40);
+  word-break: break-word;
+}
+.mp-skin-calista .cl-pc-en-sub {
+  font-style: normal;
+  font-size: 8px;
+  line-height: 1.9;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: #6b737b;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .72);
+}
+/* 邮票：一张贝母小方块，贴着齿孔边 */
+.mp-skin-calista .cl-pc-stamp {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 2;
+  width: 42px;
+  height: 50px;
+  padding: 3px;
+  box-sizing: border-box;
+  background: #f2f4f6;
+  box-shadow: 0 0 0 1px rgba(92, 99, 107, .26);
+}
+.mp-skin-calista .cl-pc-stamp-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--cl-nacre) center / cover no-repeat, var(--cl-pearl-0);
+  box-shadow: inset 0 0 0 1px rgba(92, 99, 107, .20);
+}
+/* 邮戳：一圈虚线，压住右下角 */
+.mp-skin-calista .cl-pc-postmark {
+  position: absolute;
+  right: 16px;
+  bottom: 34px;
+  z-index: 2;
+  width: 60px;
+  height: 60px;
+  border: 1px dashed rgba(88, 95, 103, .42);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 6px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(84, 91, 99, .70);
+  text-align: center;
+  pointer-events: none;
+}
+.mp-skin-calista .cl-pc-postmark em { font-style: normal; }
+.mp-skin-calista .cl-pc-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 7.5px;
+  letter-spacing: .20em;
+  text-transform: uppercase;
+  color: #6d757d;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .70);
+}
+.mp-skin-calista .cl-pc-num { font-variant-numeric: tabular-nums; }
+.mp-skin-calista .cl-pc-tap { color: #59616a; }
+
+/* ── 背面：贝母纸上的近况 ───────────────────────────────── */
+.mp-skin-calista .cl-pc-back {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 15px 12px;
+  background-color: var(--cl-bg-1);
+  background-image:
+    linear-gradient(rgba(250, 245, 243, .58), rgba(242, 234, 233, .68)),
+    var(--cl-nacre);
+  background-size: cover, cover;
+  background-position: center, center;
+  box-shadow:
+    inset 0 0 0 1px var(--cl-hair),
+    0 14px 30px -20px var(--cl-ambient);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-back {
+  background-image:
+    linear-gradient(rgba(26, 21, 27, .80), rgba(20, 16, 21, .88)),
+    var(--cl-nacre);
+}
+.mp-skin-calista .cl-pc-back-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mp-skin-calista .cl-pc-back-kicker {
+  font-size: 7.5px;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-pc-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.mp-skin-calista .cl-pc-name {
+  font-family: var(--cl-serif);
+  font-size: 19px;
+  font-weight: var(--cl-fw);
+  letter-spacing: .06em;
+  color: var(--cl-ink);
+  line-height: 1.2;
+}
+.mp-skin-calista .cl-pc-enname {
+  font-size: 7.5px;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-pc-hero {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.mp-skin-calista .cl-pc-big {
+  font-family: var(--cl-serif);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: var(--cl-fw);
+  letter-spacing: -.01em;
+  color: var(--cl-ink);
+  font-variant-numeric: tabular-nums;
+}
+.mp-skin-calista .cl-pc-big small {
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--cl-ink-3);
+  margin-left: 2px;
+}
+.mp-skin-calista .cl-pc-label {
+  font-size: 8.5px;
+  letter-spacing: .22em;
+  color: var(--cl-ink-3);
+}
+.mp-skin-calista .cl-pc-ring { margin-left: auto; flex: 0 0 auto; }
+.mp-skin-calista .cl-pc-back-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 1px;
+}
+.mp-skin-calista .cl-pc-hint {
+  font-size: 7.5px;
+  letter-spacing: .18em;
+  color: var(--cl-ink-3);
+}
+/* 暗色下的银面：枪灰，字反成浅银 */
+.mp-skin-calista[data-theme="night"] .cl-pc-front {
+  color: #d6dae0;
+  background:
+    linear-gradient(116deg,
+      #31353a 0%, #565b62 16%, #2c3035 33%, #6b7178 49%,
+      #33373c 65%, #4e535a 81%, #2b2f33 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(226, 230, 235, .14),
+    inset 0 1px 0 rgba(244, 246, 248, .22),
+    0 14px 30px -20px rgba(8, 6, 10, .72);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-front::after {
+  background:
+    radial-gradient(126% 96% at 14% 6%, rgba(238, 242, 246, .20), transparent 56%),
+    radial-gradient(98% 88% at 88% 98%, rgba(10, 8, 12, .52), transparent 62%);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-en-main {
+  color: #e4e8ec;
+  text-shadow:
+    0 1px 0 rgba(250, 247, 246, .18),
+    0 -1px 0 rgba(8, 6, 10, .60);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-en-sub,
+.mp-skin-calista[data-theme="night"] .cl-pc-kicker,
+.mp-skin-calista[data-theme="night"] .cl-pc-foot { color: #aeb4bb; }
+.mp-skin-calista[data-theme="night"] .cl-pc-stamp { background: #3c4147; }
+.mp-skin-calista[data-theme="night"] .cl-pc-postmark { color: rgba(206, 211, 217, .62); border-color: rgba(206, 211, 217, .30); }
+
 @media (prefers-reduced-motion: reduce) {
+  .mp-skin-calista .cl-pc-inner,
   .mp-skin-calista .cl-body,
   .mp-skin-calista .cl-fold,
   .mp-skin-calista .cl-fold::after,
@@ -15092,29 +15285,28 @@ var worldData = (rawVars && rawVars['世界']) || {};
     return out;
   }
 
-  /* 收起态统一模板：一张书签卡 = 标题带 + 主行 + 点击涟漪层。
-     有档案与空态两个分支共用，形态完全一致；传入的都是已转义文本。 */
-  function clFoldHtml(o) {
-    return '<button type="button" class="cl-fold" aria-expanded="' + (o.open ? 'true' : 'false') +
-      '" aria-controls="' + o.bodyId + '">' +
-      '<span class="cl-band">' +
-        '<i class="cl-band-bead" aria-hidden="true"></i>' +
-        '<b class="cl-band-title">少女心绪</b>' +
-        '<span class="cl-band-note" aria-hidden="true">MOOD NOTE　·　轻点翻开</span>' +
-      '</span>' +
-      '<span class="cl-main">' +
-        '<span class="cl-orb" aria-hidden="true">' + o.initial + '</span>' +
-        '<span class="cl-id">' +
-          '<span class="cl-name">' + o.name + '</span>' +
-          '<span class="cl-sub">' + o.sub + '</span>' +
-        '</span>' +
-        '<span class="cl-val"><b>' + o.value + '</b><span>好感</span></span>' +
-        '<svg class="cl-chev" viewBox="0 0 16 16" aria-hidden="true" fill="none">' +
-          '<path d="M4 6.5 8 10.5l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
-        '</svg>' +
-      '</span>' +
-      '<span class="cl-tap-layer" aria-hidden="true"><span class="cl-tap-ripple"></span></span>' +
-    '</button>';
+  /* 收起态统一模板：一张明信片。
+     正面只有英文与银箔压印，背面才是人物近况；点一下绕 Y 轴翻过去。
+     两面都在 DOM 里，翻面只是旋转，不重建，也不打断已读位置。 */
+  function clPostcardHtml(o) {
+    const flip = !!o.open;
+    return '<div class="cl-pc' + (flip ? ' is-flipped' : '') + '" data-cl-flip="1" role="button" tabindex="0"' +
+      ' aria-expanded="' + (flip ? 'true' : 'false') + '" aria-label="少女心绪 · 轻点翻到背面">' +
+      '<div class="cl-pc-inner">' +
+        '<div class="cl-pc-face cl-pc-front">' +
+          '<span class="cl-pc-stamp" aria-hidden="true"><i class="cl-pc-stamp-art"></i></span>' +
+          '<span class="cl-pc-kicker">POST&nbsp;CARD</span>' +
+          '<span class="cl-pc-en">' +
+            '<b class="cl-pc-en-main">' + o.enMain + '</b>' +
+            '<em class="cl-pc-en-sub">' + o.enSub + '</em>' +
+          '</span>' +
+          '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>MEDITERRANÉE</em></span>' +
+          '<span class="cl-pc-foot"><span class="cl-pc-num">No.&nbsp;' + o.num + '</span>' +
+            '<span class="cl-pc-tap">TAP&nbsp;TO&nbsp;TURN</span></span>' +
+        '</div>' +
+        '<div class="cl-pc-face cl-pc-back">' + (o.back || '') + '</div>' +
+      '</div>' +
+    '</div>';
   }
 
   function renderCalistaSkin(scope, statData, msgId, keepOpen) {
@@ -15142,14 +15334,18 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const bodyId = 'mp-cl-body-' + (msgId || 0);
 
     if (!names.length) {
+      const emptyBack =
+        '<div class="cl-pc-back-head"><span class="cl-pc-back-kicker">REVERSE&nbsp;·&nbsp;人物近况</span></div>' +
+        '<div class="cl-empty"><b>还没有人物档案</b>先点面板里的「一键建档案」<br>建好之后这张卡会自己长出数值</div>';
       scope.innerHTML =
         '<div class="cl-wrap">' +
-          clFoldHtml({ bodyId: bodyId, open: !!keepOpen, initial: '少', name: '少女心绪', sub: '尚未建档', value: '—' }) +
-          '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
-            '<div class="cl-body-clip"><div class="cl-sheet">' +
-              '<div class="cl-empty"><b>还没有人物档案</b>先点面板里的「一键建档案」<br>建好之后这张卡会自己长出数值</div>' +
-            '</div></div>' +
-          '</div>' +
+          clPostcardHtml({
+            open: !!keepOpen,
+            enMain: 'CALISTA',
+            enSub: 'A NOTE ON THE TIDE<br>SHELL &amp; SILVER<br>TO BE READ SLOWLY',
+            num: String((Number(msgId) || 0) + 1).padStart(2, '0'),
+            back: emptyBack
+          }) +
         '</div>';
       return false;
     }
@@ -15207,67 +15403,59 @@ var worldData = (rawVars && rawVars['世界']) || {};
         }).join('') + '</div>'
       : '';
 
-    const sheet =
-      '<div class="cl-sheet">' +
-        '<div class="cl-cover">' +
-          '<span class="cl-cover-kicker">少女心绪　·　人物近况</span>' +
-          '<span class="cl-cover-title' + coverCjk + '">' + skinEsc(coverTitle) + '</span>' +
-          '<span class="cl-cover-note">Softly, like a shell.</span>' +
-        '</div>' +
-        '<div class="cl-top">' +
-          '<span class="cl-top-left">' +
-            '<b class="cl-prologue">Prologue.</b>' +
-            '<span class="cl-stagechip">' +
-              (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
-            '</span>' +
-          '</span>' +
-          '<button type="button" class="cl-theme" data-cl-theme="1" aria-label="切换深浅">' +
-            (theme === 'night' ? '浅色' : '深色') +
-          '</button>' +
-        '</div>' +
-        '<div class="cl-grid">' +
-          '<div class="cl-hero">' +
-            '<span class="cl-hero-main">' +
-              '<span class="cl-k">好感</span>' +
-              '<span class="cl-v">' + skinEsc(affection) + '<small>/ 100</small></span>' +
-            '</span>' +
-            '<span class="cl-ring" aria-hidden="true">' +
-              '<svg viewBox="0 0 54 54">' +
-                '<circle cx="27" cy="27" r="24" fill="none" stroke="' + 'var(--cl-bg-3)' + '" stroke-width="2"/>' +
-                '<circle class="cl-ring-arc" cx="27" cy="27" r="24" fill="none" stroke="var(--cl-accent)" stroke-width="2" ' +
-                  'stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="' +
-                  (150.8 - 150.8 * Math.max(0, Math.min(100, Number(lead.好感度) || 0)) / 100).toFixed(2) + '" ' +
-                  'transform="rotate(-90 27 27)"/>' +
-                (affectionPct > 0
-                  ? (function() {
-                      const rad = (affectionPct * 3.6 - 90) * Math.PI / 180;
-                      const px = 27 + 24 * Math.cos(rad);
-                      const py = 27 + 24 * Math.sin(rad);
-                      return '<circle class="cl-ring-bead" cx="' + px.toFixed(2) + '" cy="' + py.toFixed(2) +
-                        '" r="2.6" fill="var(--cl-accent)"/>';
-                    })()
-                  : '') +
-              '</svg>' +
-            '</span>' +
-          '</div>' +
-          '<div class="cl-row3">' +
-            '<div class="cl-tile"><span class="cl-k">亲密</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
-            '<div class="cl-tile"><span class="cl-k">关系</span><span class="cl-v">' +
-              (stage.known ? (stage.num > 0 ? '+' + stage.num : String(stage.num)) : '—') + '</span></div>' +
-            '<div class="cl-tile"><span class="cl-k">醋意</span><span class="cl-v">' + skinEsc(clNum(lead.嫉妒值)) + '</span></div>' +
-          '</div>' +
-        '</div>' +
-        '<blockquote class="cl-voice"><span class="cl-voice-mark">“</span>' + clTypeChars(voice) + '</blockquote>' +
-        (metaBits.length ? '<div class="cl-meta">' + metaBits.join('') + '</div>' : '') +
-        othersHtml +
+    /* 背面：贝母纸上的近况。正面只有英文，信息全在这一面。 */
+    const ringR = 19;
+    const ringC = 2 * Math.PI * ringR;
+    const ringHtml = '<span class="cl-pc-ring" aria-hidden="true">' +
+      '<svg width="44" height="44" viewBox="0 0 44 44">' +
+        '<circle cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-bg-3)" stroke-width="1.6"/>' +
+        '<circle class="cl-ring-arc" cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-accent)" stroke-width="1.6" ' +
+          'stroke-linecap="round" stroke-dasharray="' + ringC.toFixed(1) + '" ' +
+          'stroke-dashoffset="' + (ringC - ringC * affectionPct / 100).toFixed(2) + '" ' +
+          'transform="rotate(-90 22 22)"/>' +
+      '</svg></span>';
+
+    const backHtml =
+      '<div class="cl-pc-back-head">' +
+        '<span class="cl-pc-back-kicker">REVERSE&nbsp;·&nbsp;人物近况</span>' +
+        '<span class="cl-stagechip">' +
+          (stage.known ? 'LV.' + stage.num + ' · ' + skinEsc(stage.name) : '关系未录') +
+        '</span>' +
+      '</div>' +
+      '<div class="cl-pc-identity">' +
+        '<b class="cl-pc-name">' + skinEsc(leadName) + '</b>' +
+        (coverEn ? '<span class="cl-pc-enname">' + skinEsc(coverEn) + '</span>' : '') +
+      '</div>' +
+      '<div class="cl-pc-hero">' +
+        '<span class="cl-pc-big">' + skinEsc(affection) + '<small>/100</small></span>' +
+        '<span class="cl-pc-label">好感</span>' +
+        ringHtml +
+      '</div>' +
+      '<div class="cl-row3">' +
+        '<div class="cl-tile"><span class="cl-k">亲密</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
+        '<div class="cl-tile"><span class="cl-k">关系</span><span class="cl-v">' +
+          (stage.known ? (stage.num > 0 ? '+' + stage.num : String(stage.num)) : '—') + '</span></div>' +
+        '<div class="cl-tile"><span class="cl-k">醋意</span><span class="cl-v">' + skinEsc(clNum(lead.嫉妒值)) + '</span></div>' +
+      '</div>' +
+      '<blockquote class="cl-voice"><span class="cl-voice-mark">“</span>' + clTypeChars(voice) + '</blockquote>' +
+      (metaBits.length ? '<div class="cl-meta">' + metaBits.join('') + '</div>' : '') +
+      othersHtml +
+      '<div class="cl-pc-back-foot">' +
+        '<span class="cl-pc-hint">轻点翻回正面</span>' +
+        '<button type="button" class="cl-theme" data-cl-theme="1" aria-label="切换深浅">' +
+          (theme === 'night' ? '浅色' : '深色') +
+        '</button>' +
       '</div>';
 
     scope.innerHTML =
       '<div class="cl-wrap">' +
-        clFoldHtml({ bodyId: bodyId, open: !!keepOpen, initial: skinEsc(initial), name: skinEsc(leadName), sub: skinEsc(subLine), value: skinEsc(affection) }) +
-        '<div class="cl-body" id="' + bodyId + '"' + (keepOpen ? '' : ' hidden') + '>' +
-          '<div class="cl-body-clip">' + sheet + '</div>' +
-        '</div>' +
+        clPostcardHtml({
+          open: !!keepOpen,
+          enMain: skinEsc(String(coverEn || 'CALISTA').toUpperCase()),
+          enSub: 'A NOTE ON THE TIDE<br>SHELL · SILVER · SALT<br>TO BE READ SLOWLY',
+          num: String((Number(msgId) || 0) + 1).padStart(2, '0'),
+          back: backHtml
+        }) +
       '</div>';
 
     return true;
@@ -15552,7 +15740,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       if (existing) {
         if (!opts.force && existing.getAttribute('data-mp-sig') === sig) continue;
         /* 数据变了要重画，但玩家已经展开的报纸／邸报不该自己合上 */
-        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"], .cl-fold[aria-expanded="true"]');
+        keepOpen = !!existing.querySelector('.mpp-fold[aria-expanded="true"], .db-fold[aria-expanded="true"], .cl-pc.is-flipped, .cl-fold[aria-expanded="true"]');
         if (existing.parentNode) existing.parentNode.removeChild(existing);
       }
       mountSkinIntoMessage(mesEl, statData, skin, sig, keepOpen);
@@ -15595,6 +15783,21 @@ var worldData = (rawVars && rawVars['世界']) || {};
     if (ensureSkinDelegation.done) return;
     ensureSkinDelegation.done = true;
     try {
+      /* 键盘也能翻面：明信片是 role=button，Tab 到它按 Enter / 空格应该翻过去 */
+      mainDoc.addEventListener('keydown', function(e) {
+        if (!e || (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar')) return;
+        const t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('button, a, input, textarea, select')) return;
+        const card = t.closest('[data-cl-flip]');
+        if (!card) return;
+        e.preventDefault();
+        const next = !card.classList.contains('is-flipped');
+        card.classList.toggle('is-flipped', next);
+        card.setAttribute('aria-expanded', String(next));
+        const holder = card.closest('.mp-skin-calista');
+        if (holder) holder.classList.toggle('is-open', next);
+      }, true);
       mainDoc.addEventListener('click', function(e) {
         const target = e.target;
         if (!target || !target.closest) return;
@@ -15673,28 +15876,14 @@ var worldData = (rawVars && rawVars['世界']) || {};
             renderCalistaSkin(scope, getSkinStatData(), mid, true);
             return;
           }
-          const fold = target.closest('.cl-fold');
-          if (!fold) return;
-          const body = clHolder.querySelector('.cl-body');
-          if (!body) return;
-          const show = body.hidden;
-          /* 点哪儿，珠光就从哪儿起：把点击坐标换成卡内坐标；键盘触发时落在中间。
-             先摘掉再强制重排再挂上，同一张卡连点两次也能重播，不靠计时器。 */
-          if (scope) {
-            try {
-              const box = fold.getBoundingClientRect();
-              const px = (e.clientX || (box.left + box.width / 2)) - box.left;
-              const py = (e.clientY || (box.top + box.height / 2)) - box.top;
-              scope.style.setProperty('--cl-tap-x', Math.max(0, Math.min(box.width, px)).toFixed(1) + 'px');
-              scope.style.setProperty('--cl-tap-y', Math.max(0, Math.min(box.height, py)).toFixed(1) + 'px');
-              scope.classList.remove('is-tapped');
-              try { void scope.offsetWidth; } catch (eReflow) {}
-              scope.classList.add('is-tapped');
-            } catch (eTap) {}
-          }
-          body.hidden = !show;
-          fold.setAttribute('aria-expanded', String(show));
-          if (scope) scope.classList.toggle('is-open', show);
+          const card = target.closest('[data-cl-flip]');
+          if (!card) return;
+          /* 明信片：点一下绕 Y 轴翻过去，再点翻回来。
+             翻面是纯 CSS 旋转，不重建 DOM，已读位置与主题都不受影响。 */
+          const next = !card.classList.contains('is-flipped');
+          card.classList.toggle('is-flipped', next);
+          card.setAttribute('aria-expanded', String(next));
+          if (scope) scope.classList.toggle('is-open', next);
           return;
         }
 
@@ -16045,13 +16234,32 @@ var worldData = (rawVars && rawVars['世界']) || {};
     if (!ch) return '<div class="mp-lcd-empty">NO CHARACTER DATA<br>建立角色档案后显示角色状态</div>';
     const imp = String(ch.重要度 || '主要');
     const impColor = imp === '主要' ? '#f472d0' : (imp === '次要' ? '#7dd3fc' : '#94a3b8');
+    const voice = String(ch.心声 || '').trim();
+    /* 周额度：这是「同一天里好感为什么会忽然不动」的唯一答案，
+       以前只在日志里写着，界面上完全看不到，玩家只能猜脚本是不是坏了。 */
+    let quotaHtml = '';
+    try {
+      const mode = getCurrentMode();
+      const cap = Number((MOON_FORMULA_PARAMS.weeklyCap[mode] || MOON_FORMULA_PARAMS.weeklyCap.normal)) || 0;
+      const used = Math.max(0, Number((ch._quota || {}).好感度周上限已用) || 0);
+      const remain = Math.max(0, Math.round((cap - used) * 10) / 10);
+      const full = cap > 0 && remain <= 0;
+      quotaHtml = '<div class="mp-lcd-quota" style="margin-top:8px;padding:7px 9px;border-radius:7px;background:rgba(148,163,184,.10);' +
+        'border:1px solid rgba(148,163,184,.16);font-size:11px;line-height:1.5;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;">' +
+        '<span style="color:#94a3b8;letter-spacing:.08em;">本周好感额度</span>' +
+        '<b style="color:' + (full ? '#fbbf24' : '#6ee7b7') + ';font-variant-numeric:tabular-nums;">' + used.toFixed(1) + ' / ' + cap.toFixed(1) + '</b>' +
+        '<span style="color:#94a3b8;font-size:10.5px;">' + (full ? '已满：剧情照走，加分等游戏内满 7 天重置' : '还能加 ' + remain.toFixed(1)) + '</span>' +
+        '</div>';
+    } catch (e) {}
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
       '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
       '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:600;">' + lcdEscape(imp) + '</span>' +
       '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +
       '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + lcdEscape(ch.情绪 || '😐') + '</span></div>' +
-      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' + lcdEscape(ch.心声 || '暂无心声记录') + '</div></div></div>';
+      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' +
+        (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">这一轮还没收到心声——等下一次 AI 回复，或看看 AI 有没有写「角色.名字.心声=」那一行</span>') +
+      '</div></div>' + quotaHtml + '</div>';
   }
 
   /* =========================================================
@@ -17474,15 +17682,13 @@ var worldData = (rawVars && rawVars['世界']) || {};
         pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
           '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
         false) +
-      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、AI 的草稿要不要藏起来',
+      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、用哪一套纸与光',
         '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
         renderSkinPickerHtml() + '</div>' +
         '<div class="mp-set-block"><div class="mp-set-title">🎨 自制美化</div>' +
         '<div class="mp-set-desc">描述你想要的样子，让模型生成一套配色与材质；也可以导出成文档，在外面做好再把 JSON 贴回来。</div>' +
-        '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>' +
-        pocketRow('🙈 藏起 AI 的草稿', s.hideAiCot !== false ? 'AI 写给自己的分析段不显示，你只看正文和状态卡' : 'AI 写出来的全部原样显示',
-          '<button class="mp-safelock-btn ' + (s.hideAiCot !== false ? 'on' : 'off') + '" id="moon-phase-hidecot">' + (s.hideAiCot !== false ? '开' : '关') + '</button>'),
+        '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
         false) +
       pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
         pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
@@ -17660,7 +17866,10 @@ var worldData = (rawVars && rawVars['世界']) || {};
         if (act === 'adapt') { openUnifiedAdaptDialog(panel); return; }
         if (act === 'gal') {
           let ok = false;
-          try { ok = galFlip() !== false; } catch (e) { ok = false; }
+          try { ok = galFlip() !== false; } catch (e) {
+            ok = false;
+            try { toast('沉浸模式没打开：' + String(e && e.message || e), 'warning'); } catch (e2) {}
+          }
           if (ok !== false) { try { closePanel(); } catch (e) {} }
           return;
         }
@@ -17717,7 +17926,10 @@ var worldData = (rawVars && rawVars['世界']) || {};
       /* 先进沉浸层，再收面板：反过来的话面板一收就把点击冒泡链断了。
          开/关以 DOM 实际状态判断，不看存档里的 on，避免「点了没反应」。 */
       let ok = false;
-      try { ok = galFlip() !== false; } catch (e) { ok = false; }
+      try { ok = galFlip() !== false; } catch (e) {
+        ok = false;
+        try { toast('沉浸模式没打开：' + String(e && e.message || e), 'warning'); } catch (e2) {}
+      }
       if (ok !== false) { try { closePanel(); } catch (e) {} }
     });
     if (panel.dataset.menuKeysBound !== '1') {
@@ -17780,14 +17992,6 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
     panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
-    const hideCotBtn = panel.querySelector('#moon-phase-hidecot');
-    if (hideCotBtn) hideCotBtn.addEventListener('click', function() {
-      const s2 = getSettings();
-      s2.hideAiCot = !(s2.hideAiCot !== false);
-      saveSettings(s2);
-      try { mpApplyCotFold(); } catch (e) {}
-      refreshPanel();
-    });
     panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
     panel.querySelector('#moon-phase-firstmeet').addEventListener('click', function() {
       const s2 = getSettings();

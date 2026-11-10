@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.11';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.11 默认更新源换成国内反代，不用自己配】\n1. 🔌 默认更新源改成国内的 GitHub 反代（gh-proxy），不挂梯子也能连、缓存只有秒级，推完立刻查得到（实测 93ms 拿到新版本）。原来的「官方直连」还在，只是排到它后面——挂了梯子的机器照样轮到 raw。\n2. 🎯 查版本时带 Range 只取文件开头一段，反代支持就直接回 4–60KB，不再整包 1.2MB；万一哪条线把 Range 当异常请求拦掉，会自动去掉 Range 再试一次，不会白判一条线不通。\n3. 🧷 老配置自动迁移：之前存过 raw 默认地址、jsDelivr 地址或写死标签的，都会自动换成新默认，不用手动改。\n4. 🧩 只动更新线路与取数方式，数值、判定、存档格式、皮肤资源一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.12';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.12 少女心绪改成会翻面的明信片】\n1. 💌 楼内状态卡「少女心绪」重做：正面是一串银箔压印的英文（POST CARD / 角色英文名 / 邮戳 / 邮票），点一下绕 Y 轴翻过去，背面才是贝母纸上的近况——好感、亲密、关系、醋意、心声、时间地点。再点翻回正面，换深浅也会停在当前那一面。\n2. 🙈 删掉「藏起 AI 的草稿」：它按 Phase./cot 关键词从中间截断，实测会把后面的正文一起藏起来。草稿现在原样显示，上下文字段仍由脚本收走。\n3. 💬 心声每轮都会更新了：提示词把后台变量块写成「每一轮都必须重写」，并明确「心声是即时状态、不是建档字段」；同时角色名容错——AI 少写一个空格、多写一个括号，情绪/心声/在场也能落到同一个人身上。\n4. 📊 好感为什么忽然不加，现在看得见了：状态卡与面板显示「本周好感额度 x / 7.0」，额度用满时弹一次提示——不是脚本停了，是这一周的额度真的用完了（游戏内满 7 天自动重置）。\n5. 🎮 沉浸模式补了兜底：关键几何（全屏、层级）写成内联样式，节点被酒馆重绘挤掉会自动挂回；打不开时会把原因弹出来，而不是点了没反应。\n6. 🧩 只动界面与提示，数值规则、存档格式一个字节没改。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -79,7 +79,7 @@
     mode: 'hell', antisl: true, extraModel: 'off', cardMode: 'single', safetyLock: true,
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
-    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto', hideAiCot: true,
+    turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto',
     /* 初见投资的数值怎么来：
        hybrid —— 骰子定数值，AI 只给「优势/劣势」档位（读过角色卡，判断人设契合度）
        dice   —— 全看骰子，AI 写什么档位都不采信
