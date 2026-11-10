@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.12';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.12 少女心绪改成会翻面的明信片】\n1. 💌 楼内状态卡「少女心绪」重做：正面是一串银箔压印的英文（POST CARD / 角色英文名 / 邮戳 / 邮票），点一下绕 Y 轴翻过去，背面才是贝母纸上的近况——好感、亲密、关系、醋意、心声、时间地点。再点翻回正面，换深浅也会停在当前那一面。\n2. 🙈 删掉「藏起 AI 的草稿」：它按 Phase./cot 关键词从中间截断，实测会把后面的正文一起藏起来。草稿现在原样显示，上下文字段仍由脚本收走。\n3. 💬 心声每轮都会更新了：提示词把后台变量块写成「每一轮都必须重写」，并明确「心声是即时状态、不是建档字段」；同时角色名容错——AI 少写一个空格、多写一个括号，情绪/心声/在场也能落到同一个人身上。\n4. 📊 好感为什么忽然不加，现在看得见了：状态卡与面板显示「本周好感额度 x / 7.0」，额度用满时弹一次提示——不是脚本停了，是这一周的额度真的用完了（游戏内满 7 天自动重置）。\n5. 🎮 沉浸模式补了兜底：关键几何（全屏、层级）写成内联样式，节点被酒馆重绘挤掉会自动挂回；打不开时会把原因弹出来，而不是点了没反应。\n6. 🧩 只动界面与提示，数值规则、存档格式一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.13';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.13 明信片：贝母的底、银的只有字】\n1. 💌 楼内状态卡「少女心绪」重做成一张会翻面的明信片：正面底托是珍珠贝母——乳白底上压着极淡的虹彩与一圈圈同心层理，跟背面同一块贝壳；只有那行英文名是银箔压进去的，不是整张铝板。轻点一下绕 Y 轴翻过去，背面才是近况：好感、亲密、关系、醋意、心声、时间地点。再点翻回正面，换深浅也停在当前那一面。\n2. 📈 背面的好感数字与进度环之间拉了一道虚线，环不再孤零零飘在右边。\n3. 🙈 删掉「藏起 AI 的草稿」：它按 Phase./cot 关键词从中间截断，实测会把后面的正文一起藏起来。草稿现在原样显示，上下文字段仍由脚本收走。\n4. 💬 心声每轮都会更新了：提示词把后台变量块写成「每一轮都必须重写」，并明确「心声是即时状态、不是建档字段」；同时角色名容错——AI 少写一个空格、多写一个括号，情绪/心声/在场也能落到同一个人身上。\n5. 📊 好感为什么忽然不加，现在看得见了：状态卡与面板显示「本周好感额度 x / 7.0」，额度用满时弹一次提示——不是脚本停了，是这一周的额度真的用完了（游戏内满 7 天自动重置）。\n6. 🎮 沉浸模式补了兜底：关键几何（全屏、层级）写成内联样式，节点被酒馆重绘挤掉会自动挂回；打不开时会把原因弹出来，而不是点了没反应。\n7. 🧩 只动界面与提示，数值规则、存档格式一个字节没改。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -10076,7 +10076,7 @@ function openUpdateConfigDialog(panel) {
     { id: 'prophet', short: '日报', name: '预言家日报', hint: '头版道具 · 折叠展开，带人物档案' },
     { id: 'dibao', short: '邸报', name: '朱丝栏邸报', hint: '暗调抄本 · 护眼四层，点题签展卷' },
     /* 内部 id 仍是 calista：存档里存的就是它，改名只改玩家看得见的部分 */
-    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '明信片状态卡 · 正面银箔英文，轻点翻面看Ta的近况' }
+    { id: 'calista', short: '少女心绪', name: '少女心绪', hint: '明信片状态卡 · 贝母的底、银的英文，轻点翻面看Ta的近况' }
   ];
 
   const SKIN_CSS_TICKET = `@import url("https://fontsapi.zeoseven.com/802/main/result.css");
@@ -13323,10 +13323,10 @@ function openUpdateConfigDialog(panel) {
   .mp-skin-calista .cl-voice { font-size: 13px; }
 }
 
-/* ══ 明信片：正面银箔，背面贝母（v4.8.12）══════════════════════════
+/* ══ 明信片：正面珍珠贝母 + 银字，背面贝母实拍（v4.8.13）════════════
    收起态不再是一张书签：这是一张可以翻面的明信片。
-   正面只有英文与银箔压印，背面才是人物近况；点一下绕 Y 轴翻过去。
-   正反两面都不描边、不用纯白：银面靠三层高光与刷丝，背面靠贝母实拍。 */
+   正反两面是同一块贝壳：乳白、极淡虹彩、同心层理。银只压在正面那行英文上。
+   背面才是人物近况；点一下绕 Y 轴翻过去。两面都不描边、不用纯白。 */
 .mp-skin-calista .cl-pc {
   position: relative;
   width: 100%;
@@ -13363,78 +13363,133 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-calista .cl-pc-back { transform: rotateY(180deg); }
 
-/* ── 正面：银箔压印 ─────────────────────────────────────── */
+/* ── 正面：珍珠贝母底托 + 银质压印字 ───────────────────────
+   底托跟背面是同一块贝壳：乳白、泛很淡的虹彩、有同心层理。
+   银只出现在字上——字是银箔压进贝母里的那种，不是整张铝板。 */
 .mp-skin-calista .cl-pc-front {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 10px;
-  padding: 14px 17px 12px;
-  color: #4c5259;
+  padding: 15px 18px 13px;
+  color: #464d54;
   font-family: var(--cl-serif);
-  background:
-    linear-gradient(116deg,
-      #c6ccd2 0%, #e9edf0 15%, #b7bec6 32%, #f3f5f7 48%,
-      #c0c7ce 64%, #e6eaee 80%, #c9cfd5 100%);
+  background-color: #f5f2f0;
+  background-image:
+    /* 虹彩：贝母在光下换色，压得很淡 */
+    conic-gradient(from 204deg at 26% 14%,
+      rgba(206, 228, 232, .50) 0deg,
+      rgba(243, 216, 226, .44) 58deg,
+      rgba(246, 240, 214, .48) 120deg,
+      rgba(209, 223, 242, .44) 184deg,
+      rgba(231, 213, 240, .42) 246deg,
+      rgba(211, 235, 229, .46) 308deg,
+      rgba(206, 228, 232, .50) 360deg),
+    /* 珍珠层理：贝壳一圈圈的同心细弧，圆心落在右下角外面 */
+    repeating-radial-gradient(circle at 116% 122%,
+      rgba(250, 247, 246, .50) 0 2px,
+      rgba(198, 201, 208, .10) 2px 6px),
+    /* 底托：乳白微冷，没有任何金属分段 */
+    linear-gradient(152deg, #fbf8f6 0%, #f1f0f0 42%, #faf6f3 70%, #efeff1 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(92, 99, 107, .30),
-    inset 0 1px 0 rgba(250, 247, 246, .92),
-    0 14px 30px -20px rgba(42, 38, 44, .58);
+    inset 0 0 0 1px rgba(112, 119, 127, .16),
+    inset 0 1px 0 rgba(250, 247, 246, .95),
+    0 14px 30px -20px rgba(42, 38, 44, .50);
 }
-/* 刷丝：极细斜纹，只在银面上泛一点点光 */
+/* 珠光：左上那片柔白 + 右下一层极淡的冷紫，像照过光的贝壳内壁 */
 .mp-skin-calista .cl-pc-front::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(112deg, rgba(250, 247, 246, .34) 0 1px, transparent 1px 4px);
-  opacity: .55;
-  mix-blend-mode: screen;
+  background:
+    radial-gradient(118% 88% at 16% 4%, rgba(250, 247, 246, .74), transparent 58%),
+    radial-gradient(92% 82% at 86% 96%, rgba(154, 150, 164, .14), transparent 62%);
 }
-/* 反光：左上高光 + 右下压暗，银器的那种「一半亮一半沉」 */
+/* 油膜反光：一道很宽的斜向亮带，扫过去就没了 */
 .mp-skin-calista .cl-pc-front::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(126% 96% at 14% 6%, rgba(250, 247, 246, .66), transparent 56%),
-    radial-gradient(98% 88% at 88% 98%, rgba(108, 116, 125, .32), transparent 62%);
+  background: linear-gradient(104deg,
+    transparent 32%, rgba(250, 247, 246, .46) 45%, transparent 58%);
+  opacity: .6;
 }
 .mp-skin-calista .cl-pc-front > * { position: relative; z-index: 1; }
 .mp-skin-calista .cl-pc-kicker {
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: .34em;
   text-transform: uppercase;
-  color: #6d757d;
-  text-shadow: 0 1px 0 rgba(250, 247, 246, .75);
+  color: #5d666e;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .88);
 }
 .mp-skin-calista .cl-pc-en {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding-right: 54px;
+  padding-right: 80px;
 }
+/* 银字：横向一道银箔渐变（暗-亮-暗），靠上下两道投影压出刻痕。
+   整体压得比纯银暗两档——底托是米白贝母，字太亮就浮不起来。 */
 .mp-skin-calista .cl-pc-en-main {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 400;
   line-height: 1.18;
-  letter-spacing: .30em;
+  letter-spacing: .2em;
   text-transform: uppercase;
-  color: #4a5057;
-  text-shadow:
-    0 1px 0 rgba(250, 247, 246, .88),
-    0 -1px 0 rgba(84, 91, 99, .40);
+  color: #626b72;
+  background-image: linear-gradient(98deg,
+    #4f585f 0%, #818a91 15%, #c9d0d5 31%, #5b646b 47%,
+    #bcc4ca 64%, #7a838a 81%, #4a535a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 1px 0 rgba(250, 247, 246, .95))
+    drop-shadow(0 -0.7px 0 rgba(62, 70, 78, .45));
   word-break: break-word;
+}
+/* 标题下的一道刻线：像银器上錾出来的一笔，不要太长 */
+.mp-skin-calista .cl-pc-en-main::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 1px;
+  margin-top: 10px;
+  background: linear-gradient(90deg, rgba(86, 93, 101, .52), rgba(86, 93, 101, 0));
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-en-main::after {
+  background: linear-gradient(90deg, rgba(226, 230, 235, .46), rgba(226, 230, 235, 0));
+}
+/* 右下三条地址线：明信片背面才有的那种虚线，正面只留淡淡的印刷痕 */
+.mp-skin-calista .cl-pc-lines {
+  position: absolute;
+  right: 19px;
+  bottom: 42px;
+  z-index: 1;
+  width: 108px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.mp-skin-calista .cl-pc-lines i {
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(86, 93, 101, 0), rgba(86, 93, 101, .30));
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-lines i {
+  background: linear-gradient(90deg, rgba(226, 230, 235, 0), rgba(226, 230, 235, .22));
 }
 .mp-skin-calista .cl-pc-en-sub {
   font-style: normal;
-  font-size: 8px;
-  line-height: 1.9;
+  font-size: 8.5px;
+  line-height: 2;
   letter-spacing: .26em;
   text-transform: uppercase;
-  color: #6b737b;
-  text-shadow: 0 1px 0 rgba(250, 247, 246, .72);
+  color: #5a636b;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .80);
 }
 /* 邮票：一张贝母小方块，贴着齿孔边 */
 .mp-skin-calista .cl-pc-stamp {
@@ -13456,14 +13511,15 @@ function openUpdateConfigDialog(panel) {
   background: var(--cl-nacre) center / cover no-repeat, var(--cl-pearl-0);
   box-shadow: inset 0 0 0 1px rgba(92, 99, 107, .20);
 }
-/* 邮戳：一圈虚线，压住右下角 */
+/* 邮戳：一圈虚线，落在邮票正下方，字必须收在圈里 */
 .mp-skin-calista .cl-pc-postmark {
   position: absolute;
-  right: 16px;
-  bottom: 34px;
+  right: 17px;
+  top: 66px;
   z-index: 2;
-  width: 60px;
-  height: 60px;
+  width: 62px;
+  height: 62px;
+  box-sizing: border-box;
   border: 1px dashed rgba(88, 95, 103, .42);
   border-radius: 50%;
   transform: rotate(-12deg);
@@ -13472,27 +13528,28 @@ function openUpdateConfigDialog(panel) {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  font-size: 6px;
-  letter-spacing: .16em;
+  font-size: 5.4px;
+  line-height: 1.5;
+  letter-spacing: .06em;
   text-transform: uppercase;
   color: rgba(84, 91, 99, .70);
   text-align: center;
   pointer-events: none;
 }
-.mp-skin-calista .cl-pc-postmark em { font-style: normal; }
+.mp-skin-calista .cl-pc-postmark em { font-style: normal; display: block; max-width: 50px; }
 .mp-skin-calista .cl-pc-foot {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
-  font-size: 7.5px;
+  font-size: 8px;
   letter-spacing: .20em;
   text-transform: uppercase;
-  color: #6d757d;
-  text-shadow: 0 1px 0 rgba(250, 247, 246, .70);
+  color: #565f67;
+  text-shadow: 0 1px 0 rgba(250, 247, 246, .82);
 }
 .mp-skin-calista .cl-pc-num { font-variant-numeric: tabular-nums; }
-.mp-skin-calista .cl-pc-tap { color: #59616a; }
+.mp-skin-calista .cl-pc-tap { color: #4c545c; }
 
 /* ── 背面：贝母纸上的近况 ───────────────────────────────── */
 .mp-skin-calista .cl-pc-back {
@@ -13502,7 +13559,7 @@ function openUpdateConfigDialog(panel) {
   padding: 13px 15px 12px;
   background-color: var(--cl-bg-1);
   background-image:
-    linear-gradient(rgba(250, 245, 243, .58), rgba(242, 234, 233, .68)),
+    linear-gradient(rgba(250, 245, 243, .40), rgba(242, 234, 233, .50)),
     var(--cl-nacre);
   background-size: cover, cover;
   background-position: center, center;
@@ -13510,10 +13567,33 @@ function openUpdateConfigDialog(panel) {
     inset 0 0 0 1px var(--cl-hair),
     0 14px 30px -20px var(--cl-ambient);
 }
+/* 贝母晕彩：一层极淡的彩虹，随角度换色。不压字——只做柔光叠上去 */
+.mp-skin-calista .cl-pc-back::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(from 206deg at 28% 16%,
+    rgba(196, 226, 233, .58) 0deg,
+    rgba(238, 209, 224, .50) 62deg,
+    rgba(246, 238, 205, .54) 124deg,
+    rgba(198, 216, 240, .52) 188deg,
+    rgba(226, 208, 238, .48) 250deg,
+    rgba(201, 231, 226, .54) 312deg,
+    rgba(196, 226, 233, .58) 360deg);
+  mix-blend-mode: soft-light;
+  opacity: .95;
+}
+.mp-skin-calista .cl-pc-back > * { position: relative; z-index: 1; }
 .mp-skin-calista[data-theme="night"] .cl-pc-back {
   background-image:
-    linear-gradient(rgba(26, 21, 27, .80), rgba(20, 16, 21, .88)),
+    linear-gradient(rgba(26, 21, 27, .74), rgba(20, 16, 21, .82)),
     var(--cl-nacre);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-back::before {
+  mix-blend-mode: screen;
+  opacity: .16;
 }
 .mp-skin-calista .cl-pc-back-head {
   display: flex;
@@ -13573,6 +13653,21 @@ function openUpdateConfigDialog(panel) {
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-pc-ring { margin-left: auto; flex: 0 0 auto; }
+/* 好感数字与进度环之间拉一道虚线：像明信片上手写的引导线，别让中间空着 */
+.mp-skin-calista .cl-pc-leader {
+  flex: 1 1 auto;
+  min-width: 12px;
+  height: 0;
+  margin: 0 3px;
+  align-self: center;
+  border-bottom: 1px dashed var(--cl-hair-2);
+}
+/* 背面那行时间地点比别处长，字号收一点免得「16°C」单独掉到下一行 */
+.mp-skin-calista .cl-pc-back .cl-meta {
+  font-size: 9px;
+  letter-spacing: .06em;
+  gap: 2px 9px;
+}
 .mp-skin-calista .cl-pc-back-foot {
   display: flex;
   align-items: center;
@@ -13585,32 +13680,56 @@ function openUpdateConfigDialog(panel) {
   letter-spacing: .18em;
   color: var(--cl-ink-3);
 }
-/* 暗色下的银面：枪灰，字反成浅银 */
+/* 暗色：贝母收进夜色，只剩一点冷虹彩；银字提亮一档 */
 .mp-skin-calista[data-theme="night"] .cl-pc-front {
   color: #d6dae0;
-  background:
-    linear-gradient(116deg,
-      #31353a 0%, #565b62 16%, #2c3035 33%, #6b7178 49%,
-      #33373c 65%, #4e535a 81%, #2b2f33 100%);
+  background-color: #232129;
+  background-image:
+    conic-gradient(from 204deg at 26% 14%,
+      rgba(58, 72, 84, .34) 0deg,
+      rgba(72, 58, 72, .28) 58deg,
+      rgba(74, 70, 54, .26) 120deg,
+      rgba(54, 62, 80, .32) 184deg,
+      rgba(68, 56, 76, .26) 246deg,
+      rgba(52, 70, 70, .28) 308deg,
+      rgba(58, 72, 84, .34) 360deg),
+    repeating-radial-gradient(circle at 116% 122%,
+      rgba(228, 232, 236, .05) 0 2px,
+      rgba(10, 8, 12, .12) 2px 6px),
+    linear-gradient(152deg, #2b2931 0%, #232129 44%, #2c2832 72%, #201e25 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(226, 230, 235, .14),
-    inset 0 1px 0 rgba(244, 246, 248, .22),
+    inset 0 0 0 1px rgba(226, 230, 235, .13),
+    inset 0 1px 0 rgba(244, 246, 248, .16),
     0 14px 30px -20px rgba(8, 6, 10, .72);
 }
-.mp-skin-calista[data-theme="night"] .cl-pc-front::after {
+.mp-skin-calista[data-theme="night"] .cl-pc-front::before {
   background:
-    radial-gradient(126% 96% at 14% 6%, rgba(238, 242, 246, .20), transparent 56%),
-    radial-gradient(98% 88% at 88% 98%, rgba(10, 8, 12, .52), transparent 62%);
+    radial-gradient(118% 88% at 16% 4%, rgba(226, 232, 238, .13), transparent 58%),
+    radial-gradient(92% 82% at 86% 96%, rgba(8, 6, 12, .38), transparent 62%);
+}
+.mp-skin-calista[data-theme="night"] .cl-pc-front::after {
+  background: linear-gradient(104deg,
+    transparent 32%, rgba(232, 238, 244, .16) 45%, transparent 58%);
+  opacity: .7;
 }
 .mp-skin-calista[data-theme="night"] .cl-pc-en-main {
-  color: #e4e8ec;
+  color: #dfe4e9;
+  background-image: linear-gradient(98deg,
+    #8d959d 0%, #d6dce1 18%, #f6f9fa 34%, #98a1a9 50%,
+    #e9eef1 66%, #b3bcc3 82%, #8a929a 100%);
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 1px 0 rgba(10, 8, 12, .82))
+    drop-shadow(0 -0.6px 0 rgba(236, 240, 244, .28));
+}
   text-shadow:
     0 1px 0 rgba(250, 247, 246, .18),
     0 -1px 0 rgba(8, 6, 10, .60);
 }
 .mp-skin-calista[data-theme="night"] .cl-pc-en-sub,
 .mp-skin-calista[data-theme="night"] .cl-pc-kicker,
-.mp-skin-calista[data-theme="night"] .cl-pc-foot { color: #aeb4bb; }
+.mp-skin-calista[data-theme="night"] .cl-pc-foot { color: #c8ced5; }
+.mp-skin-calista[data-theme="night"] .cl-pc-tap { color: #e2e6ea; }
 .mp-skin-calista[data-theme="night"] .cl-pc-stamp { background: #3c4147; }
 .mp-skin-calista[data-theme="night"] .cl-pc-postmark { color: rgba(206, 211, 217, .62); border-color: rgba(206, 211, 217, .30); }
 
@@ -15286,7 +15405,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
   }
 
   /* 收起态统一模板：一张明信片。
-     正面只有英文与银箔压印，背面才是人物近况；点一下绕 Y 轴翻过去。
+     正反两面同一块贝壳（乳白 + 极淡虹彩 + 同心层理），银只压在正面那行英文上；
+     背面才是人物近况，点一下绕 Y 轴翻过去。
      两面都在 DOM 里，翻面只是旋转，不重建，也不打断已读位置。 */
   function clPostcardHtml(o) {
     const flip = !!o.open;
@@ -15301,6 +15421,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
             '<em class="cl-pc-en-sub">' + o.enSub + '</em>' +
           '</span>' +
           '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>MEDITERRANÉE</em></span>' +
+          '<span class="cl-pc-lines" aria-hidden="true"><i></i><i></i><i></i></span>' +
           '<span class="cl-pc-foot"><span class="cl-pc-num">No.&nbsp;' + o.num + '</span>' +
             '<span class="cl-pc-tap">TAP&nbsp;TO&nbsp;TURN</span></span>' +
         '</div>' +
@@ -15429,6 +15550,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="cl-pc-hero">' +
         '<span class="cl-pc-big">' + skinEsc(affection) + '<small>/100</small></span>' +
         '<span class="cl-pc-label">好感</span>' +
+        '<span class="cl-pc-leader" aria-hidden="true"></span>' +
         ringHtml +
       '</div>' +
       '<div class="cl-row3">' +
