@@ -986,9 +986,13 @@ function showUpdateAnnouncementOnce() {
   const safeVersion = String(MOON_FORMULA_VERSION).replace(/[&<>"']/g, function(ch) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
   });
-  const safeInfo = String(MOON_FORMULA_CHANGELOG || '本次更新已完成。').replace(/[&<>"']/g, function(ch) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-  });
+  const safeInfo = String(MOON_FORMULA_CHANGELOG || '本次更新已完成。')
+    /* 公告在源码里写成 \\n 是为了让远端用 JSON.parse 解析；本地直接读常量时
+       拿到的是字面反斜杠+n，这里还原成真换行，否则公告会带着 \n 显示。 */
+    .replace(/\\n/g, '\n')
+    .replace(/[&<>"']/g, function(ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
   const html = '<div style="font-size:12px;color:#cbd5e1;line-height:1.8;margin-bottom:10px;">' +
     '已更新至 <b style="color:#fde047;">v' + safeVersion + '</b></div>' +
     '<div style="padding:10px 12px;background:#171a22;border:1px solid rgba(148,163,184,0.15);border-radius:9px;font-size:11.5px;color:#cbd5e1;line-height:1.8;white-space:pre-wrap;">' +
