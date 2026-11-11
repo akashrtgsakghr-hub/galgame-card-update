@@ -209,7 +209,7 @@
       '#moon-phase-panel .mp-power-led i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4ecd;box-shadow:0 0 6px #ff4ecd;}' +
       '#moon-phase-panel .mp-lcd-quick-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #182019;}' +
       '#moon-phase-panel .mp-lcd-quick-tab{padding:3px 2px;border:1px solid #182019;background:#707d63;color:#182019;font:600 11px "MP Fusion Pixel","Zpix","Courier New",monospace;cursor:pointer;text-align:center;}' +
-      '#moon-phase-panel .mp-lcd-quick-tab.active{background:#182019;color:#7d896f !important;}' +
+      '#moon-phase-panel .mp-lcd-quick-tab.active{background:rgba(24,32,25,.18);color:#182019 !important;box-shadow:inset 0 -2px 0 #182019;}' +
       '#moon-phase-panel .mp-console-pillbar{display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 11px;padding:4px 6px;}' +
       '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #a94d8b;border-radius:999px;background:linear-gradient(180deg,#2a1126,#150916);color:#ffc4e9;font:600 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;letter-spacing:0.4px;}' +
       '#moon-phase-panel .mp-select-start-btn:hover{border-color:#f472d0;background:#3b1535;color:#f4f1ea;transform:translate(-1px,-1px);}' +
@@ -401,10 +401,12 @@
   text-align: center !important;
   box-shadow: inset 1px 1px 0 rgba(255,255,255,0.15) !important;
 }
+/* 选中态：一格浅墨 + 压重下边线，不再整块反白 */
 #moon-phase-panel .mp-lcd-quick-tab.active {
-  background: #182019 !important;
-  color: #7d896f !important;
+  background: rgba(24, 32, 25, .18) !important;
+  color: #182019 !important;
   font-weight: 600 !important;
+  box-shadow: inset 0 -2px 0 #182019 !important;
 }
 
 /* RPG 四维状态槽 (点阵墨墨黑) */
@@ -494,7 +496,7 @@
   cursor: pointer;
   user-select: none;
   font-weight: bold;
-  transition: all 0.1s;
+  transition: color 120ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), background-color 120ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), border-color 120ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1));
 }
 .mp-dpad-btn:active {
   background: #3e123a;
@@ -524,7 +526,7 @@
   border: 1px solid #9e3e7f;
   border-radius: 10px;
   color: #ffc4e9;
-  font: 600 9.5px monospace;
+  font: 600 10.5px monospace;
   cursor: pointer;
   box-shadow: 1px 2px 0 #1a0817;
   letter-spacing: 0.5px;
@@ -540,9 +542,9 @@
 .mp-pill-labels {
   display: flex;
   gap: 12px;
-  font: 600 8.5px "Courier New", monospace;
+  font: 600 10px "Courier New", monospace;
   color: #e2a6d1;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   margin-top: 2px;
 }
 
@@ -571,12 +573,12 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 1px 2px 0 #4a0d33, 0 0 6px rgba(244,114,208,0.4);
+  box-shadow: 1px 2px 0 #4a0d33;
   user-select: none;
 }
 .mp-round-btn:hover {
   background: #f472d0;
-  box-shadow: 1px 2px 0 #4a0d33, 0 0 10px rgba(244,114,208,0.7);
+  box-shadow: 1px 2px 0 #4a0d33;
 }
 .mp-round-btn:active {
   transform: translate(1px, 1px);
@@ -622,7 +624,7 @@
   cursor: pointer;
   text-align: center;
   font-family: inherit;
-  transition: all 0.15s;
+  transition: color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), background-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), border-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1));
 }
 .mp-lunar-dial-btn.active {
   border-color: #f472d0;
@@ -659,7 +661,7 @@
   cursor: pointer;
   font-family: inherit;
   text-align: left;
-  transition: all 0.12s;
+  transition: color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), background-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), border-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1));
   box-shadow: 2px 2px 0 #20081d;
 }
 .mp-cartridge-slot:hover {

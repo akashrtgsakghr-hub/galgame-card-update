@@ -304,8 +304,8 @@
   margin-bottom: 7px !important;
   border-bottom: 1px solid var(--k-line) !important;
   color: var(--k-fg-3) !important;
-  font: 600 8.5px/1.3 var(--k-font-pixel) !important;
-  letter-spacing: .7px;
+  font: 600 10px/1.3 var(--k-font-pixel) !important;
+  letter-spacing: .3px;
 }
 #moon-phase-panel .mp-power-led { color: var(--k-accent-2) !important; font-size: 8px !important; }
 #moon-phase-panel .mp-power-led i { width: 6px !important; height: 6px !important; background: var(--k-accent) !important; box-shadow: 0 0 6px rgba(244, 114, 208, .8) !important; }
@@ -332,7 +332,7 @@
 #moon-phase-panel .mp-lcd-screen :is(button, select):active { transform: translate(1px, 1px); }
 #moon-phase-panel .mp-lcd-screen-head { padding-bottom: 6px !important; font-size: 11.5px !important; letter-spacing: .4px; }
 #moon-phase-panel .mp-lcd-screen-head b { padding: 1px 5px !important; font-size: 9px !important; border: 1px solid var(--k-lcd-line) !important; }
-#moon-phase-panel .mp-lcd-quick-tabs { gap: 3px !important; margin: 6px 0 8px !important; padding-bottom: 7px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-quick-tabs { gap: 4px !important; margin: 8px 0 8px !important; padding-bottom: 8px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-quick-tab {
   min-height: 34px;
   padding: 4px 2px !important;
@@ -343,13 +343,19 @@
   letter-spacing: .2px;
   box-shadow: none !important;
 }
-#moon-phase-panel .mp-lcd-quick-tab.active { background: var(--k-lcd-ink) !important; color: #a8b89a !important; }
+/* 选中态不再整块反白：一格浅墨 + 一条压重的下边线，跟其它三格同一个面孔 */
+#moon-phase-panel .mp-lcd-quick-tab.active {
+  background: rgba(28, 37, 29, .18) !important;
+  color: var(--k-lcd-ink) !important;
+  box-shadow: inset 0 -2px 0 var(--k-lcd-ink) !important;
+}
 #moon-phase-panel .mp-lcd-world-time { padding: 8px 0 7px !important; font-size: 12.5px !important; font-weight: 600 !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
-#moon-phase-panel .mp-lcd-screen-foot { font-size: 9.5px !important; padding-top: 6px !important; border-top: 1px solid var(--k-lcd-line) !important; color: rgba(28, 37, 29, .72) !important; }
-#moon-phase-panel .mp-lcd-page-nav { gap: 6px !important; margin-top: 5px !important; padding-top: 6px !important; border-top: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-screen-foot { font-size: 10.5px !important; padding-top: 8px !important; border-top: 1px solid var(--k-lcd-line) !important; color: rgba(28, 37, 29, .72) !important; }
+#moon-phase-panel .mp-lcd-page-nav { gap: 8px !important; margin-top: 4px !important; padding-top: 8px !important; border-top: 1px solid var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-pages, #moon-phase-panel .mp-lcd-page { min-height: 132px !important; }
 #moon-phase-panel .mp-lcd-selection { min-height: 0 !important; }
-#moon-phase-panel .mp-lcd-page-nav button { min-height: 38px !important; min-width: 44px !important; }
+#moon-phase-panel .mp-lcd-page-nav button { min-height: 40px !important; min-width: 44px !important; color: var(--k-lcd-ink) !important; display: grid !important; place-items: center !important; }
+#moon-phase-panel .mp-lcd-page-nav button svg { display: block; }
 #moon-phase-panel .mp-lcd-difficulty { gap: 7px !important; padding: 8px 0 7px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-empty { padding: 14px 6px !important; font-size: 12.5px !important; line-height: 1.65 !important; }
 
@@ -370,7 +376,7 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 8px !important;
-  font: 600 9px/1.2 var(--k-font-pixel) !important;
+  font: 600 10.5px/1.2 var(--k-font-pixel) !important;
   letter-spacing: 1.4px !important;
   color: var(--k-fg-3) !important;
   text-shadow: none !important;
@@ -382,13 +388,13 @@
   height: 1px;
   background: linear-gradient(90deg, var(--k-line), transparent);
 }
-#moon-phase-panel .mp-menu-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 7px !important; }
+#moon-phase-panel .mp-menu-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; }
 #moon-phase-panel .mp-menu-card {
-  min-height: 58px !important;
-  gap: 10px !important;
-  padding: 9px 10px !important;
+  min-height: 56px !important;
+  gap: 12px !important;
+  padding: 10px 12px !important;
   border: 1px solid var(--k-line) !important;
-  border-radius: 3px !important;
+  border-radius: 8px !important;
   background: linear-gradient(180deg, var(--k-ink-3) 0%, var(--k-ink-1) 100%) !important;
   color: var(--k-fg) !important;
   box-shadow: 2px 2px 0 var(--k-shadow) !important;
@@ -404,17 +410,22 @@
   border-color: var(--k-line-2) !important;
   background: linear-gradient(180deg, #2c1327 0%, #150d1b 100%) !important;
 }
+/* 图标格子：跟卡片同一块表面 + 一根发丝线，不再往里灌一层粉色。
+   图标用次级文字色，不抢主标题；六个图标同尺寸、同描边。 */
 #moon-phase-panel .mp-menu-icon {
   width: 32px !important;
   height: 32px !important;
   flex: 0 0 32px !important;
   border: 1px solid var(--k-line) !important;
-  border-radius: 2px;
-  background: rgba(244, 114, 208, .09) !important;
-  color: var(--k-accent-2) !important;
+  border-radius: 4px;
+  background: var(--k-ink-1) !important;
+  color: var(--k-fg-2) !important;
   font-size: 15px !important;
   text-shadow: none !important;
 }
+#moon-phase-panel .mp-menu-card:hover .mp-menu-icon,
+#moon-phase-panel .mp-menu-card:focus-visible .mp-menu-icon { color: var(--k-fg) !important; border-color: var(--k-line-2) !important; }
+#moon-phase-panel .mp-lico { display: block; }
 #moon-phase-panel .mp-menu-card b {
   font: 600 12px/1.4 var(--k-font-body) !important;
   color: var(--k-fg) !important;
@@ -434,8 +445,8 @@
   display: flex !important;
   flex-wrap: wrap;
   gap: 6px 12px !important;
-  margin-top: 11px !important;
-  padding-top: 9px !important;
+  margin-top: 12px !important;
+  padding-top: 12px !important;
   border-top: 1px solid var(--k-line) !important;
   color: var(--k-fg-3) !important;
   font: 9.5px/1.5 var(--k-font-body) !important;
@@ -662,14 +673,14 @@
 #moon-phase-panel .mp-dpad-left { left: 0; top: 26px; width: 26px; height: 20px; }
 #moon-phase-panel .mp-dpad-right { right: 0; top: 26px; width: 26px; height: 20px; }
 #moon-phase-panel .mp-pill-keys { display: flex !important; flex-direction: column; align-items: center; gap: 4px; }
-#moon-phase-panel .mp-pill-row { display: flex; gap: 14px; }
+#moon-phase-panel .mp-pill-row { display: flex; gap: 12px; }
 #moon-phase-panel .mp-select-key,
 #moon-phase-panel .mp-start-key {
-  min-width: 58px;
-  min-height: 30px;
-  padding: 5px 10px;
+  min-width: 60px;
+  min-height: 32px;
+  padding: 6px 12px;
   border: 1px solid var(--k-line) !important;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--k-ink-3) !important;
   color: var(--k-fg-2) !important;
   font: 600 9px/1.2 var(--k-font-pixel) !important;
@@ -683,11 +694,11 @@
 #moon-phase-panel .mp-start-key:hover { border-color: var(--k-line-2) !important; color: var(--k-accent-2) !important; }
 /* 没填钥匙不是错误，只是「没设」：用虚线和低对比表示，不用黄色警报 */
 #moon-phase-panel .mp-start-key.unconfigured { border-style: dashed !important; border-color: rgba(244, 114, 208, .30) !important; color: var(--k-fg-3) !important; }
-#moon-phase-panel .mp-pill-labels { display: flex; gap: 8px; color: var(--k-fg-3); font: 8.5px/1.3 var(--k-font-body); }
+#moon-phase-panel .mp-pill-labels { display: flex; color: var(--k-fg-3); font: 10px/1.4 var(--k-font-body); }
 #moon-phase-panel .mp-pill-labels { gap: 12px !important; }
 #moon-phase-panel .mp-pill-labels span { min-width: 58px; text-align: center; }
-#moon-phase-panel .mp-action-block { display: flex; align-items: center; gap: 9px; }
-#moon-phase-panel .mp-action-cluster { display: flex; gap: 7px; }
+#moon-phase-panel .mp-action-block { display: flex; align-items: center; gap: 8px; }
+#moon-phase-panel .mp-action-cluster { display: flex; gap: 8px; }
 #moon-phase-panel .mp-round-btn {
   width: 32px !important;
   height: 32px !important;
@@ -823,7 +834,7 @@
   box-shadow:
     0 0 0 2px var(--k-accent),
     0 0 0 9999px rgba(6, 3, 7, .78);
-  transition: all 220ms var(--k-ease);
+  transition: color 160ms var(--k-ease), background-color 160ms var(--k-ease), border-color 160ms var(--k-ease), transform 160ms var(--k-ease);
   pointer-events: none;
 }
 .mp-tour-card {
@@ -897,22 +908,22 @@
 }
 #moon-modal-mask .mp-faq-item[data-open="1"] { border-color: rgba(244, 114, 208, .34); }
 #moon-modal-mask .mp-faq-foot {
-  margin-top: 10px; padding-top: 9px;
+  margin-top: 12px; padding-top: 12px;
   border-top: 1px dashed var(--k-line);
   color: var(--k-fg-3); font: 10px/1.6 var(--k-font-body);
 }
 #moon-modal-mask .mp-faq-foot b { color: var(--k-fg-2); font-weight: 600; }
 #moon-modal-mask .mp-faq-chip {
-  min-height: 38px; padding: 7px 12px;
-  border: 1px solid var(--k-line); border-radius: 999px;
+  min-height: 40px; padding: 8px 12px;
+  border: 1px solid var(--k-line); border-radius: 8px;
   background: var(--k-ink-3); color: var(--k-fg-2);
   font: 10.5px/1.3 var(--k-font-body); cursor: pointer;
 }
 #moon-modal-mask .mp-faq-chip.active { border-color: var(--k-accent); background: rgba(244, 114, 208, .14); color: var(--k-accent-2); }
-#moon-modal-mask .mp-faq-item { border: 1px solid var(--k-line); border-radius: 3px; margin-bottom: 6px; overflow: hidden; background: var(--k-ink-1); }
+#moon-modal-mask .mp-faq-item { border: 1px solid var(--k-line); border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: var(--k-ink-1); }
 #moon-modal-mask .mp-faq-q {
-  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px;
-  padding: 9px 10px; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px;
+  padding: 10px 12px; border: 0; background: transparent;
   color: var(--k-fg); font: 600 11.5px/1.45 var(--k-font-body) !important; text-align: left;
   cursor: pointer; box-shadow: none !important;
 }

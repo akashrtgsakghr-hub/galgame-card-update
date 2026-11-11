@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.13';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.13 明信片：贝母的底、银的只有字】\n1. 💌 楼内状态卡「少女心绪」重做成一张会翻面的明信片：正面底托是珍珠贝母——乳白底上压着极淡的虹彩与一圈圈同心层理，跟背面同一块贝壳；只有那行英文名是银箔压进去的，不是整张铝板。轻点一下绕 Y 轴翻过去，背面才是近况：好感、亲密、关系、醋意、心声、时间地点。再点翻回正面，换深浅也停在当前那一面。\n2. 📈 背面的好感数字与进度环之间拉了一道虚线，环不再孤零零飘在右边。\n3. 🙈 删掉「藏起 AI 的草稿」：它按 Phase./cot 关键词从中间截断，实测会把后面的正文一起藏起来。草稿现在原样显示，上下文字段仍由脚本收走。\n4. 💬 心声每轮都会更新了：提示词把后台变量块写成「每一轮都必须重写」，并明确「心声是即时状态、不是建档字段」；同时角色名容错——AI 少写一个空格、多写一个括号，情绪/心声/在场也能落到同一个人身上。\n5. 📊 好感为什么忽然不加，现在看得见了：状态卡与面板显示「本周好感额度 x / 7.0」，额度用满时弹一次提示——不是脚本停了，是这一周的额度真的用完了（游戏内满 7 天自动重置）。\n6. 🎮 沉浸模式补了兜底：关键几何（全屏、层级）写成内联样式，节点被酒馆重绘挤掉会自动挂回；打不开时会把原因弹出来，而不是点了没反应。\n7. 🧩 只动界面与提示，数值规则、存档格式一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.14';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.14 全部状态卡按可读性重排了一遍】\n1. 字号：五套状态卡里最小的字原来是 5.4px（邮戳、条形码旁注那一类）。现在承载信息的字一律 10.5px 起，纯装饰的微缩编号不低于 9.5px。\n2. 字距：小字上的字间距原来最大到 .34em，还有一堆 1.2–1.4px 的绝对值，字被撑散了。小字现在统一收到 .1em 以内，大标题不受影响。\n3. 车票的文案瘦身：BIENNALE ADMIT 改 ADMIT ONE，去掉 \"NO. 0007 // ARCHIVE\" 的尾巴、\"GALLERY ACCESS · CATALOGUE RAISONNÉ\" 整行、\"NON-TRANSFERABLE\"，以及「英文 // 中文」这种一段话写两遍的写法。表头不再挤成两行。\n4. 图标统一成线稿：车票的昼夜键、书页的翻转提示、书页背面的表情引号，都不再用字体符号和 emoji。\n5. 明信片背面：三格改成印在纸上的栏位（发丝线），不再是三张白卡片；好感环换成墨色并加粗，才看得出 12 / 100 的进度；纸面加厚，虹彩去饱和，字压得住。\n6. 邮戳印字缩短为 CALM SEA / POSTED：MEDITERRANÉE 太长，一直冲出虚线圈。\n7. 好感环的珠光外发光删掉，深度交给纸面与发丝线。\n8. 数值规则、存档格式、页面结构一个字节没改。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -5401,7 +5401,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-power-led i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff4ecd;box-shadow:0 0 6px #ff4ecd;}' +
       '#moon-phase-panel .mp-lcd-quick-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #182019;}' +
       '#moon-phase-panel .mp-lcd-quick-tab{padding:3px 2px;border:1px solid #182019;background:#707d63;color:#182019;font:600 11px "MP Fusion Pixel","Zpix","Courier New",monospace;cursor:pointer;text-align:center;}' +
-      '#moon-phase-panel .mp-lcd-quick-tab.active{background:#182019;color:#7d896f !important;}' +
+      '#moon-phase-panel .mp-lcd-quick-tab.active{background:rgba(24,32,25,.18);color:#182019 !important;box-shadow:inset 0 -2px 0 #182019;}' +
       '#moon-phase-panel .mp-console-pillbar{display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 11px;padding:4px 6px;}' +
       '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #a94d8b;border-radius:999px;background:linear-gradient(180deg,#2a1126,#150916);color:#ffc4e9;font:600 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #35152f;letter-spacing:0.4px;}' +
       '#moon-phase-panel .mp-select-start-btn:hover{border-color:#f472d0;background:#3b1535;color:#f4f1ea;transform:translate(-1px,-1px);}' +
@@ -5593,10 +5593,12 @@ function openUpdateConfigDialog(panel) {
   text-align: center !important;
   box-shadow: inset 1px 1px 0 rgba(255,255,255,0.15) !important;
 }
+/* 选中态：一格浅墨 + 压重下边线，不再整块反白 */
 #moon-phase-panel .mp-lcd-quick-tab.active {
-  background: #182019 !important;
-  color: #7d896f !important;
+  background: rgba(24, 32, 25, .18) !important;
+  color: #182019 !important;
   font-weight: 600 !important;
+  box-shadow: inset 0 -2px 0 #182019 !important;
 }
 
 /* RPG 四维状态槽 (点阵墨墨黑) */
@@ -5686,7 +5688,7 @@ function openUpdateConfigDialog(panel) {
   cursor: pointer;
   user-select: none;
   font-weight: bold;
-  transition: all 0.1s;
+  transition: color 120ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), background-color 120ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), border-color 120ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1));
 }
 .mp-dpad-btn:active {
   background: #3e123a;
@@ -5716,7 +5718,7 @@ function openUpdateConfigDialog(panel) {
   border: 1px solid #9e3e7f;
   border-radius: 10px;
   color: #ffc4e9;
-  font: 600 9.5px monospace;
+  font: 600 10.5px monospace;
   cursor: pointer;
   box-shadow: 1px 2px 0 #1a0817;
   letter-spacing: 0.5px;
@@ -5732,9 +5734,9 @@ function openUpdateConfigDialog(panel) {
 .mp-pill-labels {
   display: flex;
   gap: 12px;
-  font: 600 8.5px "Courier New", monospace;
+  font: 600 10px "Courier New", monospace;
   color: #e2a6d1;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   margin-top: 2px;
 }
 
@@ -5763,12 +5765,12 @@ function openUpdateConfigDialog(panel) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 1px 2px 0 #4a0d33, 0 0 6px rgba(244,114,208,0.4);
+  box-shadow: 1px 2px 0 #4a0d33;
   user-select: none;
 }
 .mp-round-btn:hover {
   background: #f472d0;
-  box-shadow: 1px 2px 0 #4a0d33, 0 0 10px rgba(244,114,208,0.7);
+  box-shadow: 1px 2px 0 #4a0d33;
 }
 .mp-round-btn:active {
   transform: translate(1px, 1px);
@@ -5814,7 +5816,7 @@ function openUpdateConfigDialog(panel) {
   cursor: pointer;
   text-align: center;
   font-family: inherit;
-  transition: all 0.15s;
+  transition: color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), background-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), border-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1));
 }
 .mp-lunar-dial-btn.active {
   border-color: #f472d0;
@@ -5851,7 +5853,7 @@ function openUpdateConfigDialog(panel) {
   cursor: pointer;
   font-family: inherit;
   text-align: left;
-  transition: all 0.12s;
+  transition: color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), background-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1)), border-color 140ms var(--mp-ease, cubic-bezier(.22, 1, .36, 1));
   box-shadow: 2px 2px 0 #20081d;
 }
 .mp-cartridge-slot:hover {
@@ -6355,8 +6357,8 @@ function openUpdateConfigDialog(panel) {
   margin-bottom: 7px !important;
   border-bottom: 1px solid var(--k-line) !important;
   color: var(--k-fg-3) !important;
-  font: 600 8.5px/1.3 var(--k-font-pixel) !important;
-  letter-spacing: .7px;
+  font: 600 10px/1.3 var(--k-font-pixel) !important;
+  letter-spacing: .3px;
 }
 #moon-phase-panel .mp-power-led { color: var(--k-accent-2) !important; font-size: 8px !important; }
 #moon-phase-panel .mp-power-led i { width: 6px !important; height: 6px !important; background: var(--k-accent) !important; box-shadow: 0 0 6px rgba(244, 114, 208, .8) !important; }
@@ -6383,7 +6385,7 @@ function openUpdateConfigDialog(panel) {
 #moon-phase-panel .mp-lcd-screen :is(button, select):active { transform: translate(1px, 1px); }
 #moon-phase-panel .mp-lcd-screen-head { padding-bottom: 6px !important; font-size: 11.5px !important; letter-spacing: .4px; }
 #moon-phase-panel .mp-lcd-screen-head b { padding: 1px 5px !important; font-size: 9px !important; border: 1px solid var(--k-lcd-line) !important; }
-#moon-phase-panel .mp-lcd-quick-tabs { gap: 3px !important; margin: 6px 0 8px !important; padding-bottom: 7px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-quick-tabs { gap: 4px !important; margin: 8px 0 8px !important; padding-bottom: 8px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-quick-tab {
   min-height: 34px;
   padding: 4px 2px !important;
@@ -6394,13 +6396,19 @@ function openUpdateConfigDialog(panel) {
   letter-spacing: .2px;
   box-shadow: none !important;
 }
-#moon-phase-panel .mp-lcd-quick-tab.active { background: var(--k-lcd-ink) !important; color: #a8b89a !important; }
+/* 选中态不再整块反白：一格浅墨 + 一条压重的下边线，跟其它三格同一个面孔 */
+#moon-phase-panel .mp-lcd-quick-tab.active {
+  background: rgba(28, 37, 29, .18) !important;
+  color: var(--k-lcd-ink) !important;
+  box-shadow: inset 0 -2px 0 var(--k-lcd-ink) !important;
+}
 #moon-phase-panel .mp-lcd-world-time { padding: 8px 0 7px !important; font-size: 12.5px !important; font-weight: 600 !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
-#moon-phase-panel .mp-lcd-screen-foot { font-size: 9.5px !important; padding-top: 6px !important; border-top: 1px solid var(--k-lcd-line) !important; color: rgba(28, 37, 29, .72) !important; }
-#moon-phase-panel .mp-lcd-page-nav { gap: 6px !important; margin-top: 5px !important; padding-top: 6px !important; border-top: 1px solid var(--k-lcd-line) !important; }
+#moon-phase-panel .mp-lcd-screen-foot { font-size: 10.5px !important; padding-top: 8px !important; border-top: 1px solid var(--k-lcd-line) !important; color: rgba(28, 37, 29, .72) !important; }
+#moon-phase-panel .mp-lcd-page-nav { gap: 8px !important; margin-top: 4px !important; padding-top: 8px !important; border-top: 1px solid var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-pages, #moon-phase-panel .mp-lcd-page { min-height: 132px !important; }
 #moon-phase-panel .mp-lcd-selection { min-height: 0 !important; }
-#moon-phase-panel .mp-lcd-page-nav button { min-height: 38px !important; min-width: 44px !important; }
+#moon-phase-panel .mp-lcd-page-nav button { min-height: 40px !important; min-width: 44px !important; color: var(--k-lcd-ink) !important; display: grid !important; place-items: center !important; }
+#moon-phase-panel .mp-lcd-page-nav button svg { display: block; }
 #moon-phase-panel .mp-lcd-difficulty { gap: 7px !important; padding: 8px 0 7px !important; border-bottom: 1px solid var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-empty { padding: 14px 6px !important; font-size: 12.5px !important; line-height: 1.65 !important; }
 
@@ -6421,7 +6429,7 @@ function openUpdateConfigDialog(panel) {
   align-items: center;
   gap: 7px;
   margin: 0 0 8px !important;
-  font: 600 9px/1.2 var(--k-font-pixel) !important;
+  font: 600 10.5px/1.2 var(--k-font-pixel) !important;
   letter-spacing: 1.4px !important;
   color: var(--k-fg-3) !important;
   text-shadow: none !important;
@@ -6433,13 +6441,13 @@ function openUpdateConfigDialog(panel) {
   height: 1px;
   background: linear-gradient(90deg, var(--k-line), transparent);
 }
-#moon-phase-panel .mp-menu-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 7px !important; }
+#moon-phase-panel .mp-menu-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; }
 #moon-phase-panel .mp-menu-card {
-  min-height: 58px !important;
-  gap: 10px !important;
-  padding: 9px 10px !important;
+  min-height: 56px !important;
+  gap: 12px !important;
+  padding: 10px 12px !important;
   border: 1px solid var(--k-line) !important;
-  border-radius: 3px !important;
+  border-radius: 8px !important;
   background: linear-gradient(180deg, var(--k-ink-3) 0%, var(--k-ink-1) 100%) !important;
   color: var(--k-fg) !important;
   box-shadow: 2px 2px 0 var(--k-shadow) !important;
@@ -6455,17 +6463,22 @@ function openUpdateConfigDialog(panel) {
   border-color: var(--k-line-2) !important;
   background: linear-gradient(180deg, #2c1327 0%, #150d1b 100%) !important;
 }
+/* 图标格子：跟卡片同一块表面 + 一根发丝线，不再往里灌一层粉色。
+   图标用次级文字色，不抢主标题；六个图标同尺寸、同描边。 */
 #moon-phase-panel .mp-menu-icon {
   width: 32px !important;
   height: 32px !important;
   flex: 0 0 32px !important;
   border: 1px solid var(--k-line) !important;
-  border-radius: 2px;
-  background: rgba(244, 114, 208, .09) !important;
-  color: var(--k-accent-2) !important;
+  border-radius: 4px;
+  background: var(--k-ink-1) !important;
+  color: var(--k-fg-2) !important;
   font-size: 15px !important;
   text-shadow: none !important;
 }
+#moon-phase-panel .mp-menu-card:hover .mp-menu-icon,
+#moon-phase-panel .mp-menu-card:focus-visible .mp-menu-icon { color: var(--k-fg) !important; border-color: var(--k-line-2) !important; }
+#moon-phase-panel .mp-lico { display: block; }
 #moon-phase-panel .mp-menu-card b {
   font: 600 12px/1.4 var(--k-font-body) !important;
   color: var(--k-fg) !important;
@@ -6485,8 +6498,8 @@ function openUpdateConfigDialog(panel) {
   display: flex !important;
   flex-wrap: wrap;
   gap: 6px 12px !important;
-  margin-top: 11px !important;
-  padding-top: 9px !important;
+  margin-top: 12px !important;
+  padding-top: 12px !important;
   border-top: 1px solid var(--k-line) !important;
   color: var(--k-fg-3) !important;
   font: 9.5px/1.5 var(--k-font-body) !important;
@@ -6713,14 +6726,14 @@ function openUpdateConfigDialog(panel) {
 #moon-phase-panel .mp-dpad-left { left: 0; top: 26px; width: 26px; height: 20px; }
 #moon-phase-panel .mp-dpad-right { right: 0; top: 26px; width: 26px; height: 20px; }
 #moon-phase-panel .mp-pill-keys { display: flex !important; flex-direction: column; align-items: center; gap: 4px; }
-#moon-phase-panel .mp-pill-row { display: flex; gap: 14px; }
+#moon-phase-panel .mp-pill-row { display: flex; gap: 12px; }
 #moon-phase-panel .mp-select-key,
 #moon-phase-panel .mp-start-key {
-  min-width: 58px;
-  min-height: 30px;
-  padding: 5px 10px;
+  min-width: 60px;
+  min-height: 32px;
+  padding: 6px 12px;
   border: 1px solid var(--k-line) !important;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--k-ink-3) !important;
   color: var(--k-fg-2) !important;
   font: 600 9px/1.2 var(--k-font-pixel) !important;
@@ -6734,11 +6747,11 @@ function openUpdateConfigDialog(panel) {
 #moon-phase-panel .mp-start-key:hover { border-color: var(--k-line-2) !important; color: var(--k-accent-2) !important; }
 /* 没填钥匙不是错误，只是「没设」：用虚线和低对比表示，不用黄色警报 */
 #moon-phase-panel .mp-start-key.unconfigured { border-style: dashed !important; border-color: rgba(244, 114, 208, .30) !important; color: var(--k-fg-3) !important; }
-#moon-phase-panel .mp-pill-labels { display: flex; gap: 8px; color: var(--k-fg-3); font: 8.5px/1.3 var(--k-font-body); }
+#moon-phase-panel .mp-pill-labels { display: flex; color: var(--k-fg-3); font: 10px/1.4 var(--k-font-body); }
 #moon-phase-panel .mp-pill-labels { gap: 12px !important; }
 #moon-phase-panel .mp-pill-labels span { min-width: 58px; text-align: center; }
-#moon-phase-panel .mp-action-block { display: flex; align-items: center; gap: 9px; }
-#moon-phase-panel .mp-action-cluster { display: flex; gap: 7px; }
+#moon-phase-panel .mp-action-block { display: flex; align-items: center; gap: 8px; }
+#moon-phase-panel .mp-action-cluster { display: flex; gap: 8px; }
 #moon-phase-panel .mp-round-btn {
   width: 32px !important;
   height: 32px !important;
@@ -6874,7 +6887,7 @@ function openUpdateConfigDialog(panel) {
   box-shadow:
     0 0 0 2px var(--k-accent),
     0 0 0 9999px rgba(6, 3, 7, .78);
-  transition: all 220ms var(--k-ease);
+  transition: color 160ms var(--k-ease), background-color 160ms var(--k-ease), border-color 160ms var(--k-ease), transform 160ms var(--k-ease);
   pointer-events: none;
 }
 .mp-tour-card {
@@ -6948,22 +6961,22 @@ function openUpdateConfigDialog(panel) {
 }
 #moon-modal-mask .mp-faq-item[data-open="1"] { border-color: rgba(244, 114, 208, .34); }
 #moon-modal-mask .mp-faq-foot {
-  margin-top: 10px; padding-top: 9px;
+  margin-top: 12px; padding-top: 12px;
   border-top: 1px dashed var(--k-line);
   color: var(--k-fg-3); font: 10px/1.6 var(--k-font-body);
 }
 #moon-modal-mask .mp-faq-foot b { color: var(--k-fg-2); font-weight: 600; }
 #moon-modal-mask .mp-faq-chip {
-  min-height: 38px; padding: 7px 12px;
-  border: 1px solid var(--k-line); border-radius: 999px;
+  min-height: 40px; padding: 8px 12px;
+  border: 1px solid var(--k-line); border-radius: 8px;
   background: var(--k-ink-3); color: var(--k-fg-2);
   font: 10.5px/1.3 var(--k-font-body); cursor: pointer;
 }
 #moon-modal-mask .mp-faq-chip.active { border-color: var(--k-accent); background: rgba(244, 114, 208, .14); color: var(--k-accent-2); }
-#moon-modal-mask .mp-faq-item { border: 1px solid var(--k-line); border-radius: 3px; margin-bottom: 6px; overflow: hidden; background: var(--k-ink-1); }
+#moon-modal-mask .mp-faq-item { border: 1px solid var(--k-line); border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: var(--k-ink-1); }
 #moon-modal-mask .mp-faq-q {
-  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px;
-  padding: 9px 10px; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px;
+  padding: 10px 12px; border: 0; background: transparent;
   color: var(--k-fg); font: 600 11.5px/1.45 var(--k-font-body) !important; text-align: left;
   cursor: pointer; box-shadow: none !important;
 }
@@ -10241,7 +10254,7 @@ function openUpdateConfigDialog(panel) {
   .tkt-cross-mark {
     position: absolute;
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 10px;
+    font-size: 10.5px;
     line-height: 1;
     color: var(--t-border);
     opacity: 0.45;
@@ -10395,15 +10408,17 @@ function openUpdateConfigDialog(panel) {
     color: var(--t-invert-ink);
     padding: 2px 7px;
     font-weight: 600;
-    font-size: 8.5px;
-    letter-spacing: 1.4px;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    white-space: nowrap;
     border-radius: 1px;
     font-family: "Noto Serif SC", "Songti SC", serif;
   }
   .tkt-curator-mark {
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: 1.2px;
+    letter-spacing: .1em;
+    white-space: nowrap;
     color: var(--t-dim);
     text-transform: uppercase;
     font-family: "Noto Serif SC", "Songti SC", serif;
@@ -10411,8 +10426,9 @@ function openUpdateConfigDialog(panel) {
   .tkt-header-seq {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-weight: 600;
-    font-size: 10px;
-    letter-spacing: 1.2px;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    white-space: nowrap;
     opacity: 0.9;
   }
 
@@ -10427,15 +10443,15 @@ function openUpdateConfigDialog(panel) {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 8px;
+    font-size: 9.5px;
     font-family: "Noto Serif SC", "Songti SC", serif;
     color: var(--t-dim);
-    letter-spacing: 1.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
   }
   .tkt-title-meta-badge::before {
     content: "■";
-    font-size: 6px;
+    font-size: 9px;
     color: var(--t-accent-red);
   }
 
@@ -10443,7 +10459,7 @@ function openUpdateConfigDialog(panel) {
     font-family: "Byron Mark II", "Special Elite", "Courier Prime", "Courier New", monospace;
     font-size: 40px;
     font-weight: 600;
-    letter-spacing: 2.5px;
+    letter-spacing: 0.06em;
     line-height: 0.95;
     text-transform: uppercase;
     display: block;
@@ -10461,8 +10477,8 @@ function openUpdateConfigDialog(panel) {
     margin-top: 4px;
   }
   .tkt-sign-lbl {
-    font-size: 8.5px;
-    letter-spacing: 1.4px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     color: var(--t-dim);
     text-transform: uppercase;
     font-weight: 600;
@@ -10491,12 +10507,12 @@ function openUpdateConfigDialog(panel) {
 
   .tkt-gender-m {
     transform: rotate(-3deg);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.06em;
     font-weight: 500;
   }
   .tkt-gender-f {
     transform: rotate(-1.2deg);
-    letter-spacing: 1.1px;
+    letter-spacing: 0.06em;
     font-weight: 400;
   }
 
@@ -10515,7 +10531,7 @@ function openUpdateConfigDialog(panel) {
 
   .tkt-quick-grid {
     display: grid;
-    grid-template-columns: 1.65fr 1fr 1fr;
+    grid-template-columns: 1.3fr 1fr 1fr;
     border: 1.2px solid var(--t-border);
     background: transparent;
     position: relative;
@@ -10537,9 +10553,9 @@ function openUpdateConfigDialog(panel) {
     border-right: none;
   }
   .tkt-meta-lbl {
-    font-size: 7.5px;
+    font-size: 9px;
     color: var(--t-dim);
-    letter-spacing: 1.2px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
@@ -10568,8 +10584,8 @@ function openUpdateConfigDialog(panel) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 8.5px;
-    letter-spacing: 1.8px;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
     color: var(--t-dim);
     padding-top: 6px;
     text-transform: uppercase;
@@ -10590,7 +10606,7 @@ function openUpdateConfigDialog(panel) {
     opacity: 0.6;
   }
   .tkt-fold .arrow {
-    font-size: 9px;
+    font-size: 9.5px;
     transition: transform 0.28s cubic-bezier(0.2, 1, 0.3, 1);
   }
   .tkt-container.is-open .tkt-fold .arrow { transform: rotate(180deg); }
@@ -10621,9 +10637,9 @@ function openUpdateConfigDialog(panel) {
 
   .tkt-stub-tag {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 7.5px;
+    font-size: 9px;
     font-weight: 600;
-    letter-spacing: 2px;
+    letter-spacing: 0.1em;
     color: var(--t-dim);
     text-transform: uppercase;
     border-bottom: 1px solid var(--t-grid);
@@ -10634,7 +10650,7 @@ function openUpdateConfigDialog(panel) {
   .tkt-stub-serial {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 15px;
-    letter-spacing: 2.2px;
+    letter-spacing: 0.12em;
     font-weight: 600;
     text-align: center;
     position: relative;
@@ -10657,13 +10673,13 @@ function openUpdateConfigDialog(panel) {
     border: 1.2px solid var(--t-border);
     color: var(--t-ink);
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 600;
     padding: 4px 6px;
     cursor: pointer;
-    letter-spacing: 1px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    transition: all 0.15s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
     width: 100%;
     text-align: center;
     box-sizing: border-box;
@@ -10702,9 +10718,9 @@ function openUpdateConfigDialog(panel) {
     border-radius: 1px;
     padding: 3px 8px;
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 600;
-    letter-spacing: 1.6px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     text-align: center;
     white-space: nowrap;
@@ -10731,8 +10747,8 @@ function openUpdateConfigDialog(panel) {
   }
 
   .tkt-stub-notice {
-    font-size: 7px;
-    letter-spacing: 1.6px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
     font-family: "Noto Serif SC", "Songti SC", serif;
     color: var(--t-dim);
     text-transform: uppercase;
@@ -10760,8 +10776,8 @@ function openUpdateConfigDialog(panel) {
   }
   .tkt-sec {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 8.5px;
-    letter-spacing: 2px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 600;
     border-bottom: 1.2px solid var(--t-border);
@@ -10792,10 +10808,10 @@ function openUpdateConfigDialog(panel) {
   }
   .tkt-cell:last-child { border-right: none; }
   .tkt-cell-lbl {
-    font-size: 7.5px;
+    font-size: 9px;
     color: var(--t-dim);
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 0.1em;
     font-family: "Noto Serif SC", "Songti SC", serif;
     line-height: 1;
     margin-bottom: 5px;
@@ -10836,17 +10852,17 @@ function openUpdateConfigDialog(panel) {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 17px;
     font-weight: 600;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
   }
   .tkt-pill {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 7.5px;
+    font-size: 9px;
     font-weight: 600;
     padding: 2px 5px;
     border: 1px solid var(--t-border);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.04em;
   }
   .tkt-pill.active {
     background: var(--t-invert-bg);
@@ -10862,12 +10878,12 @@ function openUpdateConfigDialog(panel) {
   .tkt-gauge-lbl {
     display: flex;
     justify-content: space-between;
-    font-size: 8.5px;
+    font-size: 9.5px;
     font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.04em;
   }
-  .tkt-gauge-lbl .gauge-code { color: var(--t-dim); font-size: 8px; }
+  .tkt-gauge-lbl .gauge-code { color: var(--t-dim); font-size: 9.5px; }
   .tkt-gauge-track {
     height: 5px;
     background: var(--t-subtle);
@@ -10905,7 +10921,7 @@ function openUpdateConfigDialog(panel) {
     line-height: 1.45;
   }
   .tkt-outfit {
-    font-size: 9px;
+    font-size: 9.5px;
     color: var(--t-dim);
     word-break: break-all;
     font-family: "Noto Serif SC", "Songti SC", serif;
@@ -10933,8 +10949,8 @@ function openUpdateConfigDialog(panel) {
   }
   .tkt-warn {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 8px;
-    letter-spacing: 1.4px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--t-dim);
     text-align: left;
@@ -10961,8 +10977,8 @@ function openUpdateConfigDialog(panel) {
   .tkt-w3 { width: 3.4px; }
   .tkt-barcode-serial {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 6.5px;
-    letter-spacing: 2.2px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
     color: var(--t-dim);
     line-height: 1;
     margin-left: 2px;
@@ -10980,22 +10996,22 @@ function openUpdateConfigDialog(panel) {
       gap: 5px !important;
     }
     .tkt-type-tag {
-      font-size: 7px !important;
+      font-size: 9px !important;
       padding: 1px 4px !important;
     }
     .tkt-curator-mark {
-      font-size: 7px !important;
+      font-size: 9px !important;
     }
     .tkt-header-seq {
-      font-size: 8px !important;
+      font-size: 9.5px !important;
     }
     .tkt-title-meta-badge {
-      font-size: 7px !important;
-      letter-spacing: 0.8px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.05em !important;
     }
     .tkt-title-text {
       font-size: 30px !important; /* 主标题增大，重塑 PC 视觉张力 */
-      letter-spacing: 1.6px !important;
+      letter-spacing: 0.1em !important;
       margin: 2px 0 1px !important;
       line-height: 1 !important;
     }
@@ -11004,8 +11020,8 @@ function openUpdateConfigDialog(panel) {
       gap: 5px !important;
     }
     .tkt-sign-lbl {
-      font-size: 7.5px !important;
-      letter-spacing: 1px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.06em !important;
     }
     .tkt-lang-zh-cn, .tkt-lang-zh-tw, .tkt-lang-ja {
       font-size: 15px !important;
@@ -11024,18 +11040,18 @@ function openUpdateConfigDialog(panel) {
       padding: 3px 5px !important;
     }
     .tkt-meta-lbl {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       margin-bottom: 2px !important;
     }
     .tkt-meta-txt {
-      font-size: 9.5px !important;
+      font-size: 10.5px !important;
     }
     .tkt-hook-glance-time {
-      font-size: 8.5px !important;
+      font-size: 9.5px !important;
     }
     .tkt-fold {
-      font-size: 7.5px !important;
-      letter-spacing: 1px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.06em !important;
       padding-top: 4px !important;
     }
     .tkt-fold-dot {
@@ -11046,32 +11062,32 @@ function openUpdateConfigDialog(panel) {
       padding: 10px 6px !important;
     }
     .tkt-stub-tag {
-      font-size: 6.5px !important;
-      letter-spacing: 1.2px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.1em !important;
       padding-bottom: 2px !important;
     }
     .tkt-stub-serial {
       font-size: 12px !important;
-      letter-spacing: 1.5px !important;
+      letter-spacing: 0.1em !important;
       margin: 2px 0 !important;
     }
     .tkt-btn {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
       padding: 3px 2px !important;
-      letter-spacing: 0.5px !important;
+      letter-spacing: 0.04em !important;
     }
     .tkt-stub-actions {
       margin: 4px 0 !important;
       gap: 3px !important;
     }
     .tkt-stamp {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       padding: 2px 3px !important;
-      letter-spacing: 0.8px !important;
+      letter-spacing: 0.05em !important;
     }
     .tkt-stub-notice {
-      font-size: 5.5px !important;
-      letter-spacing: 0.8px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.05em !important;
     }
     .tkt-stub-footer {
       min-height: 28px !important;
@@ -11086,7 +11102,7 @@ function openUpdateConfigDialog(panel) {
       padding: 12px 14px 14px 14px !important;
     }
     .tkt-sec {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
       margin-bottom: 8px !important;
     }
     .tkt-env {
@@ -11096,11 +11112,11 @@ function openUpdateConfigDialog(panel) {
       padding: 6px 8px !important;
     }
     .tkt-cell-lbl {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       margin-bottom: 3px !important;
     }
     .tkt-cell-val {
-      font-size: 10px !important;
+      font-size: 10.5px !important;
     }
     .tkt-roster {
       gap: 8px !important;
@@ -11112,7 +11128,7 @@ function openUpdateConfigDialog(panel) {
       font-size: 12px !important;
     }
     .tkt-pill {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       padding: 1px 3px !important;
     }
     .tkt-gauges {
@@ -11120,10 +11136,10 @@ function openUpdateConfigDialog(panel) {
       margin-bottom: 8px !important;
     }
     .tkt-gauge-lbl {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
     }
     .tkt-gauge-lbl .gauge-code {
-      font-size: 7px !important;
+      font-size: 9px !important;
     }
     .tkt-gauge-track {
       height: 4px !important;
@@ -11134,16 +11150,16 @@ function openUpdateConfigDialog(panel) {
       padding-top: 8px !important;
     }
     .tkt-outfit {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
     }
     .tkt-quote {
-      font-size: 10px !important;
+      font-size: 10.5px !important;
     }
     .tkt-bottom {
       padding: 8px 12px 10px 12px !important;
     }
     .tkt-warn {
-      font-size: 6px !important;
+      font-size: 9px !important;
       line-height: 1.3 !important;
     }
     .tkt-barcode {
@@ -11156,7 +11172,7 @@ function openUpdateConfigDialog(panel) {
       height: 20px !important;
     }
     .tkt-barcode-serial {
-      font-size: 5.5px !important;
+      font-size: 9px !important;
     }
   }`;
 
@@ -11197,10 +11213,10 @@ function openUpdateConfigDialog(panel) {
   border: 1px solid var(--frame-border);
   position: relative; padding: 14px 16px;
   display: flex; flex-direction: column; justify-content: space-between;
-}.mp-skin-book .washi-inner-box::before{ content:"+"; position:absolute; top:4px; left:6px; font-size:8px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-inner-box::after{ content:"+"; position:absolute; bottom:4px; right:6px; font-size:8px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-front{ z-index: 2; }.mp-skin-book .season-seal-btn{
+}.mp-skin-book .washi-inner-box::before{ content:"+"; position:absolute; top:4px; left:6px; font-size: 9.5px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-inner-box::after{ content:"+"; position:absolute; bottom:4px; right:6px; font-size: 9.5px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-front{ z-index: 2; }.mp-skin-book .season-seal-btn{
   position: absolute; top: 14px; left: 16px; z-index: 5;
   background: transparent; border: none; color: var(--ink-secondary);
-  font-size: 9px; letter-spacing: 0.16em; cursor: pointer;
+  font-size: 9.5px; letter-spacing: 0.1em; cursor: pointer;
   display: flex; align-items: center; gap: 5px;
   font-family: 'Cinzel', serif; transition: color 0.2s ease;
 }.mp-skin-book .season-seal-btn:hover{ color: var(--ink-poem-origin); }.mp-skin-book .season-dot{ width:4px; height:4px; border-radius:50%; background-color:var(--ink-poem-origin); display:inline-block; }.mp-skin-book .interlinear-poem-stage{
@@ -11210,19 +11226,19 @@ function openUpdateConfigDialog(panel) {
 }.mp-skin-book .couplet-unit{ display: inline-block; vertical-align: top; margin-left: 14px; }.mp-skin-book .couplet-origin{
   display: block; white-space: nowrap;
   font-family: 'Yuji Boku', 'Noto Serif SC', serif;
-  font-size: 13.5px; letter-spacing: 0.16em; line-height: 1.35;
+  font-size: 13.5px; letter-spacing: 0.14em; line-height: 1.35;
   color: var(--ink-poem-origin); opacity: 0.95; margin-left: 5px;
 }.mp-skin-book .couplet-trans{
   display: block; white-space: nowrap;
   font-family: 'Noto Serif SC', serif; font-weight: 400;
-  font-size: 9.5px; letter-spacing: 0.18em; line-height: 1.35;
+  font-size: 10.5px; letter-spacing: 0.1em; line-height: 1.35;
   color: var(--ink-poem-trans); opacity: 0.85; padding-top: 2px;
 }.mp-skin-book .front-author-lockup{
   position: absolute; left: 18px; bottom: 16px; z-index: 3;
   display: flex; flex-direction: column; gap: 4px;
 }.mp-skin-book .char-latin-name{
   font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 600;
-  letter-spacing: 0.3em; text-transform: uppercase;
+  letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--ink-secondary); line-height: 1;
 }.mp-skin-book .signature-row{ display: flex; align-items: baseline; gap: 8px; }.mp-skin-book .char-handwritten-signature{
   font-family: 'Yuji Boku', 'Noto Serif SC', serif;
@@ -11233,32 +11249,32 @@ function openUpdateConfigDialog(panel) {
   display: inline-flex; justify-content: center; align-items: center;
   border: 1px solid var(--ink-seal-border);
   background-color: var(--ink-seal-bg);
-  color: var(--ink-seal-text); font-size: 8px;
+  color: var(--ink-seal-text); font-size: 9.5px;
   font-family: 'Noto Serif SC', serif; line-height: 1;
   border-radius: 1px; transform: translateY(-2px);
 }.mp-skin-book .flip-guide-under-sig{
-  font-family: 'Cinzel', serif; font-size: 7.5px;
-  letter-spacing: 0.22em; color: var(--ink-secondary);
+  font-family: 'Cinzel', serif; font-size: 9px;
+  letter-spacing: 0.1em; color: var(--ink-secondary);
   opacity: 0.45; margin-top: 3px;
 }.mp-skin-book .washi-back{ transform: rotateY(180deg); z-index: 1; }.mp-skin-book .back-header{
   display: flex; justify-content: space-between; align-items: center;
   padding-bottom: 7px; border-bottom: 1px solid var(--divider);
 }.mp-skin-book .back-header-title{
-  font-family: 'Cinzel', serif; font-size: 9px;
-  letter-spacing: 0.28em; color: var(--ink-secondary);
-}.mp-skin-book .back-header-stage{ font-size: 9.5px; letter-spacing: 0.12em; color: var(--ink-poem-origin); }.mp-skin-book .back-metrics-grid{
+  font-family: 'Cinzel', serif; font-size: 9.5px;
+  letter-spacing: 0.1em; color: var(--ink-secondary);
+}.mp-skin-book .back-header-stage{ font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink-poem-origin); }.mp-skin-book .back-metrics-grid{
   display: grid; grid-template-columns: repeat(4, 1fr);
   margin: 12px 0; border-bottom: 1px solid var(--divider); padding-bottom: 11px;
 }.mp-skin-book .metric-item{ display: flex; flex-direction: column; align-items: center; position: relative; }.mp-skin-book .metric-item:not(:last-child)::after{
   content:""; position:absolute; right:0; top:15%; height:70%; width:1px;
   background-color: var(--divider);
 }.mp-skin-book .metric-tag{
-  font-family: 'Cinzel', serif; font-size: 7.5px;
-  letter-spacing: 0.18em; color: var(--ink-secondary); margin-bottom: 2px;
+  font-family: 'Cinzel', serif; font-size: 9px;
+  letter-spacing: 0.1em; color: var(--ink-secondary); margin-bottom: 2px;
 }.mp-skin-book .metric-number{
   font-family: 'Cormorant Garamond', monospace;
   font-size: 17px; font-weight: 600; color: var(--ink-primary); line-height: 1.1;
-}.mp-skin-book .metric-cn{ font-size: 8px; color: var(--ink-secondary); letter-spacing: 0.08em; margin-top: 1px; }.mp-skin-book .back-voice-wrap{ display: flex; gap: 10px; align-items: flex-start; padding-top: 2px; }.mp-skin-book .back-voice-emoji{ font-size: 15px; line-height: 1; opacity: 0.85; padding-top: 1px; }.mp-skin-book .back-voice-quote{
+}.mp-skin-book .metric-cn{ font-size: 9.5px; color: var(--ink-secondary); letter-spacing: 0.08em; margin-top: 1px; }.mp-skin-book .back-voice-wrap{ display: flex; gap: 10px; align-items: flex-start; padding-top: 2px; }.mp-skin-book .back-voice-rule{ flex: 0 0 auto; width: 1px; align-self: stretch; margin-top: 2px; background: var(--frame-border); opacity: .55; }.mp-skin-book .back-voice-quote{
   font-family: 'Cormorant Garamond', 'Noto Serif SC', serif;
   font-size: 11px; line-height: 1.6; color: var(--ink-primary);
   font-style: italic; letter-spacing: 0.04em;
@@ -11266,7 +11282,7 @@ function openUpdateConfigDialog(panel) {
   overflow: hidden; text-overflow: ellipsis; opacity: 0.9;
 }.mp-skin-book .empty-card{
   text-align: center; padding: 70px 0;
-  color: var(--ink-secondary); font-size: 11px; letter-spacing: 0.15em;
+  color: var(--ink-secondary); font-size: 11px; letter-spacing: 0.1em;
 }`;
 
   const SKIN_CSS_PROPHET = `/* ══════════════════════════════════════════════════════════════════
@@ -11353,7 +11369,7 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-prophet .mpp-fold-hint {
   margin-left: auto;
   font: 400 9px/1 "Songti SC", "SimSun", serif;
-  letter-spacing: .18em;
+  letter-spacing: 0.14em;
   color: var(--mpp-ink-3);
   white-space: nowrap;
 }
@@ -11433,8 +11449,8 @@ function openUpdateConfigDialog(panel) {
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
-  font-size: 7px;
-  letter-spacing: .18em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-2);
   padding-bottom: 3px;
@@ -11487,14 +11503,14 @@ function openUpdateConfigDialog(panel) {
   gap: 7px;
   padding: 3px 0 4px;
   border-bottom: 1px solid var(--mpp-hair);
-  font-size: 7px;
-  letter-spacing: .22em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-2);
 }
 .mp-skin-prophet .mpp-mast-cn {
   font: 900 13px/1 "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
-  letter-spacing: .3em;
+  letter-spacing: 0.14em;
   text-indent: .3em;
   color: var(--mpp-ink);
 }
@@ -11513,7 +11529,7 @@ function openUpdateConfigDialog(panel) {
   border-bottom: 1px solid var(--mpp-rule);
 }
 .mp-skin-prophet .mpp-adbar span {
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.35;
   letter-spacing: .1em;
   text-align: center;
@@ -11543,8 +11559,8 @@ function openUpdateConfigDialog(panel) {
   align-items: center;
   justify-content: flex-start;
   padding: 8px 0;
-  font-size: 7px;
-  letter-spacing: .28em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-2);
   border-right: 1px solid var(--mpp-hair);
@@ -11575,7 +11591,7 @@ function openUpdateConfigDialog(panel) {
   border: 2px solid var(--mpp-seal);
   box-shadow: inset 0 0 0 1px rgba(141, 47, 33, .45);
   font: 900 clamp(11px, 2.2cqw, 16px)/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   text-indent: .16em;
   color: var(--mpp-seal);
   opacity: .78;
@@ -11588,7 +11604,7 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-prophet .mpp-kicker {
   display: inline-block;
   font: 600 7.5px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .22em;
+  letter-spacing: 0.14em;
   text-indent: .22em;
   padding: 1px 5px;
   border: 1px solid var(--mpp-ink);
@@ -11627,7 +11643,7 @@ function openUpdateConfigDialog(panel) {
   margin: 5px 0 0;
   padding: 3px 0;
   border-top: 1px solid var(--mpp-hair);
-  font-size: 10px;
+  font-size: 10.5px;
   line-height: 1.5;
   font-style: italic;
   color: var(--mpp-ink-2);
@@ -11635,8 +11651,8 @@ function openUpdateConfigDialog(panel) {
 
 /* 署名行 */
 .mp-skin-prophet .mpp-byline {
-  font-size: 7px;
-  letter-spacing: .2em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-3);
   padding: 2px 0 3px;
@@ -11765,7 +11781,7 @@ function openUpdateConfigDialog(panel) {
 
 .mp-skin-prophet .mpp-caption {
   display: block;
-  font-size: 7.5px;
+  font-size: 9px;
   line-height: 1.45;
   letter-spacing: .06em;
   color: var(--mpp-ink-2);
@@ -11790,7 +11806,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-prophet .mpp-box-head {
   font: 600 7px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--mpp-hair);
   padding-bottom: 2px;
@@ -11801,7 +11817,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-prophet .mpp-box-head b { font-weight: 600; color: var(--mpp-seal); }
 .mp-skin-prophet .mpp-box-body {
-  font-size: 8px;
+  font-size: 9.5px;
   line-height: 1.55;
   color: var(--mpp-ink-2);
   overflow-wrap: anywhere;
@@ -11812,7 +11828,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-prophet .mpp-lotto {
   font: 600 15px/1.1 Georgia, "Times New Roman", serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   font-variant-numeric: tabular-nums;
   color: var(--mpp-ink);
 }
@@ -11826,7 +11842,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-prophet .mpp-dossier-head {
   font: 600 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .24em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: 3px;
 }
@@ -11848,7 +11864,7 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-prophet .mpp-stat b {
   display: block;
   font: 400 7px/1.6 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   color: var(--mpp-ink-3);
   white-space: nowrap;
 }
@@ -11877,7 +11893,7 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-prophet .mpp-quote-title {
   font: 600 7px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   font-style: normal;
-  letter-spacing: .2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--mpp-seal);
   margin-bottom: 1px;
@@ -11898,7 +11914,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-prophet .mpp-briefs-head {
   font: 600 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .24em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
@@ -11912,7 +11928,7 @@ function openUpdateConfigDialog(panel) {
   gap: 5px;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 8.5px;
+  font-size: 9.5px;
   line-height: 1.6;
   padding: 1px 0;
   border-bottom: 1px dotted rgba(23, 19, 14, .32);
@@ -11939,8 +11955,8 @@ function openUpdateConfigDialog(panel) {
   margin-top: 5px;
   padding-top: 3px;
   border-top: 1px solid var(--mpp-hair);
-  font-size: 7px;
-  letter-spacing: .16em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-3);
 }
@@ -11955,7 +11971,7 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-prophet .mpp-empty small {
   display: block;
   font: 400 8px/1.8 "Songti SC", "SimSun", serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   color: var(--mpp-ink-3);
   margin-top: 3px;
 }
@@ -12045,8 +12061,8 @@ function openUpdateConfigDialog(panel) {
   background: transparent;
   color: var(--mpp-ink-3);
   font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
-  font-size: 8.5px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   cursor: pointer;
   transition: color 180ms ease, background-color 180ms ease;
 }
@@ -12144,10 +12160,10 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-dibao .db-fold-ico svg { display: block; width: 100%; height: 100%; }
 .mp-skin-dibao .db-fold-title {
   font-size: 13px;
-  letter-spacing: .22em;
+  letter-spacing: 0.14em;
 }
 .mp-skin-dibao .db-fold-meta {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
   letter-spacing: .1em;
   color: var(--db-fg-soft);
@@ -12156,9 +12172,9 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-dibao .db-fold-hint {
   margin-left: auto;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
-  letter-spacing: .16em;
+  letter-spacing: 0.1em;
   color: var(--db-seal);
   white-space: nowrap;
 }
@@ -12227,7 +12243,7 @@ function openUpdateConfigDialog(panel) {
   background: var(--db-l3);
   border: 1px solid var(--db-hair);
   border-radius: 2px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
   line-height: 1.6;
   letter-spacing: .06em;
@@ -12259,14 +12275,14 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-dibao .db-banner-title {
   font-size: clamp(15px, 3.1cqw, 21px);
   font-weight: var(--db-fw);
-  letter-spacing: .34em;
+  letter-spacing: 0.14em;
   line-height: 1.3;
   white-space: nowrap;
 }
 .mp-skin-dibao .db-banner-vol {
   margin-left: auto;
-  font-size: 9.5px;
-  letter-spacing: .14em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   white-space: nowrap;
 }
@@ -12305,9 +12321,9 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-dibao .db-rail-label {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: var(--db-fw);
-  letter-spacing: .34em;
+  letter-spacing: 0.1em;
   color: var(--db-seal);
   white-space: nowrap;
 }
@@ -12348,7 +12364,7 @@ function openUpdateConfigDialog(panel) {
   margin: 0 0 9px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--db-hair);
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .08em;
   line-height: 1.7;
   color: var(--db-fg-soft);
@@ -12381,8 +12397,8 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-dibao .db-cell:last-child { border-right: 0; }
 .mp-skin-dibao .db-cell-label {
   display: block;
-  font-size: 9px;
-  letter-spacing: .22em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   white-space: nowrap;
 }
@@ -12397,7 +12413,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-dibao .db-cell-value.is-seal { color: var(--db-seal); }
 .mp-skin-dibao .db-cell-unit {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
   letter-spacing: .06em;
   color: var(--db-fg-soft);
@@ -12431,8 +12447,8 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-dibao .db-quote-sign {
   display: block;
   margin-top: 4px;
-  font-size: 9.5px;
-  letter-spacing: .12em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   text-align: right;
 }
@@ -12444,8 +12460,8 @@ function openUpdateConfigDialog(panel) {
   border-top: 1px solid var(--db-hair);
 }
 .mp-skin-dibao .db-briefs-title {
-  font-size: 9.5px;
-  letter-spacing: .26em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--db-seal);
   margin: 0 0 5px;
 }
@@ -12481,8 +12497,8 @@ function openUpdateConfigDialog(panel) {
   margin-top: 10px;
   padding-top: 7px;
   border-top: 1px solid var(--db-hair);
-  font-size: 9px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -12534,7 +12550,7 @@ function openUpdateConfigDialog(panel) {
   color: var(--db-fg-soft);
   text-wrap: pretty;
 }
-.mp-skin-dibao .db-empty small { font-size: 9.5px; opacity: .78; }
+.mp-skin-dibao .db-empty small { font-size: 10.5px; opacity: .78; }
 
 /* ── 窄屏：竖排退化成横排，四格改两格 ───────────────────── */
 @media (max-width: 600px) {
@@ -12770,14 +12786,14 @@ function openUpdateConfigDialog(panel) {
   font-family: var(--cl-serif);
   font-size: 10.5px;
   font-weight: var(--cl-fw);
-  letter-spacing: .18em;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-2);
   white-space: nowrap;
 }
 .mp-skin-calista .cl-band-note {
   margin-left: auto;
-  font-size: 8px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
   white-space: nowrap;
 }
@@ -12885,9 +12901,9 @@ function openUpdateConfigDialog(panel) {
   text-overflow: ellipsis;
 }
 .mp-skin-calista .cl-sub {
-  font-size: 9px;
+  font-size: 9.5px;
   line-height: 1.4;
-  letter-spacing: .16em;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
   white-space: nowrap;
   overflow: hidden;
@@ -12910,8 +12926,8 @@ function openUpdateConfigDialog(panel) {
   font-variant-numeric: tabular-nums;
 }
 .mp-skin-calista .cl-val span {
-  font-size: 8.5px;
-  letter-spacing: .12em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 
@@ -13019,8 +13035,8 @@ function openUpdateConfigDialog(panel) {
   border-radius: 20px 20px 0 0;
 }
 .mp-skin-calista .cl-cover-kicker {
-  font-size: 8.5px;
-  letter-spacing: .24em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-cover-title {
@@ -13079,8 +13095,8 @@ function openUpdateConfigDialog(panel) {
   white-space: nowrap;
 }
 .mp-skin-calista .cl-stagechip {
-  font-size: 9.5px;
-  letter-spacing: .16em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-2);
 }
 .mp-skin-calista .cl-theme {
@@ -13088,8 +13104,8 @@ function openUpdateConfigDialog(panel) {
   background: transparent;
   color: var(--cl-ink-3);
   font: inherit;
-  font-size: 10px;
-  letter-spacing: .12em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   padding: 6px 8px;
   margin: -6px -4px -6px 0;
   border-radius: 999px;
@@ -13130,15 +13146,13 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-calista .cl-ring .cl-ring-arc {
   transition: stroke-dashoffset 900ms var(--cl-spring);
 }
-.mp-skin-calista .cl-ring-bead {
-  filter: drop-shadow(0 0 3px rgba(192, 134, 127, .45));
-}
+.mp-skin-calista .cl-ring-bead { filter: none; }
 .mp-skin-calista .cl-hero-main { display: grid; gap: 2px; min-width: 0; }
 .mp-skin-calista .cl-hero .cl-v { font-size: 34px; }
 .mp-skin-calista .cl-k {
   display: block;
-  font-size: 9px;
-  letter-spacing: .18em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-v {
@@ -13158,7 +13172,7 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-calista .cl-v small {
   font-family: var(--cl-sans);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: var(--cl-fw-body);
   letter-spacing: .1em;
   color: var(--cl-ink-3);
@@ -13169,12 +13183,17 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-calista .cl-row3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
 }
 .mp-skin-calista .cl-tile {
-  padding: 9px 10px 10px;
-  border-radius: 14px;
-  background: var(--cl-bg-2);
+  padding: 10px 12px 12px;
+  border-radius: 8px;
+  background: rgba(250, 247, 246, .30);
+  box-shadow: inset 0 0 0 1px var(--cl-hair-2);
+}
+.mp-skin-calista[data-theme="night"] .cl-tile {
+  background: rgba(30, 24, 28, .28);
+  box-shadow: inset 0 0 0 1px var(--cl-hair-2);
 }
 .mp-skin-calista .cl-tile .cl-v { font-size: 17px; }
 .mp-skin-calista .cl-tile .cl-v.is-text {
@@ -13220,7 +13239,7 @@ function openUpdateConfigDialog(panel) {
   flex-wrap: wrap;
   gap: 3px 12px;
   margin: 9px 0 0;
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .1em;
   color: var(--cl-ink-3);
 }
@@ -13378,13 +13397,13 @@ function openUpdateConfigDialog(panel) {
   background-image:
     /* 虹彩：贝母在光下换色，压得很淡 */
     conic-gradient(from 204deg at 26% 14%,
-      rgba(206, 228, 232, .50) 0deg,
-      rgba(243, 216, 226, .44) 58deg,
-      rgba(246, 240, 214, .48) 120deg,
-      rgba(209, 223, 242, .44) 184deg,
-      rgba(231, 213, 240, .42) 246deg,
-      rgba(211, 235, 229, .46) 308deg,
-      rgba(206, 228, 232, .50) 360deg),
+      rgba(222, 232, 230, .34) 0deg,
+      rgba(243, 224, 228, .32) 58deg,
+      rgba(246, 240, 220, .34) 120deg,
+      rgba(226, 230, 238, .30) 184deg,
+      rgba(235, 224, 240, .30) 246deg,
+      rgba(226, 236, 230, .32) 308deg,
+      rgba(222, 232, 230, .34) 360deg),
     /* 珍珠层理：贝壳一圈圈的同心细弧，圆心落在右下角外面 */
     repeating-radial-gradient(circle at 116% 122%,
       rgba(250, 247, 246, .50) 0 2px,
@@ -13418,8 +13437,8 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-calista .cl-pc-front > * { position: relative; z-index: 1; }
 .mp-skin-calista .cl-pc-kicker {
-  font-size: 8.5px;
-  letter-spacing: .34em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #5d666e;
   text-shadow: 0 1px 0 rgba(250, 247, 246, .88);
@@ -13436,7 +13455,7 @@ function openUpdateConfigDialog(panel) {
   font-size: 21px;
   font-weight: 400;
   line-height: 1.18;
-  letter-spacing: .2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #626b72;
   background-image: linear-gradient(98deg,
@@ -13484,11 +13503,11 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-skin-calista .cl-pc-en-sub {
   font-style: normal;
-  font-size: 8.5px;
-  line-height: 2;
-  letter-spacing: .26em;
+  font-size: 10.5px;
+  line-height: 1.9;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5a636b;
+  color: #4a545c;
   text-shadow: 0 1px 0 rgba(250, 247, 246, .80);
 }
 /* 邮票：一张贝母小方块，贴着齿孔边 */
@@ -13528,7 +13547,7 @@ function openUpdateConfigDialog(panel) {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  font-size: 5.4px;
+  font-size: 9px;
   line-height: 1.5;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -13542,8 +13561,8 @@ function openUpdateConfigDialog(panel) {
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
-  font-size: 8px;
-  letter-spacing: .20em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #565f67;
   text-shadow: 0 1px 0 rgba(250, 247, 246, .82);
@@ -13555,11 +13574,11 @@ function openUpdateConfigDialog(panel) {
 .mp-skin-calista .cl-pc-back {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 13px 15px 12px;
+  gap: 8px;
+  padding: 12px 16px 12px;
   background-color: var(--cl-bg-1);
   background-image:
-    linear-gradient(rgba(250, 245, 243, .40), rgba(242, 234, 233, .50)),
+    linear-gradient(rgba(250, 245, 243, .76), rgba(242, 234, 233, .84)),
     var(--cl-nacre);
   background-size: cover, cover;
   background-position: center, center;
@@ -13583,12 +13602,12 @@ function openUpdateConfigDialog(panel) {
     rgba(201, 231, 226, .54) 312deg,
     rgba(196, 226, 233, .58) 360deg);
   mix-blend-mode: soft-light;
-  opacity: .95;
+  opacity: .5;
 }
 .mp-skin-calista .cl-pc-back > * { position: relative; z-index: 1; }
 .mp-skin-calista[data-theme="night"] .cl-pc-back {
   background-image:
-    linear-gradient(rgba(26, 21, 27, .74), rgba(20, 16, 21, .82)),
+    linear-gradient(rgba(26, 21, 27, .88), rgba(20, 16, 21, .94)),
     var(--cl-nacre);
 }
 .mp-skin-calista[data-theme="night"] .cl-pc-back::before {
@@ -13602,8 +13621,8 @@ function openUpdateConfigDialog(panel) {
   gap: 8px;
 }
 .mp-skin-calista .cl-pc-back-kicker {
-  font-size: 7.5px;
-  letter-spacing: .26em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cl-ink-3);
 }
@@ -13622,8 +13641,8 @@ function openUpdateConfigDialog(panel) {
   line-height: 1.2;
 }
 .mp-skin-calista .cl-pc-enname {
-  font-size: 7.5px;
-  letter-spacing: .24em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cl-ink-3);
 }
@@ -13642,14 +13661,14 @@ function openUpdateConfigDialog(panel) {
   font-variant-numeric: tabular-nums;
 }
 .mp-skin-calista .cl-pc-big small {
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .04em;
   color: var(--cl-ink-3);
   margin-left: 2px;
 }
 .mp-skin-calista .cl-pc-label {
-  font-size: 8.5px;
-  letter-spacing: .22em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-pc-ring { margin-left: auto; flex: 0 0 auto; }
@@ -13664,7 +13683,7 @@ function openUpdateConfigDialog(panel) {
 }
 /* 背面那行时间地点比别处长，字号收一点免得「16°C」单独掉到下一行 */
 .mp-skin-calista .cl-pc-back .cl-meta {
-  font-size: 9px;
+  font-size: 9.5px;
   letter-spacing: .06em;
   gap: 2px 9px;
 }
@@ -13676,8 +13695,8 @@ function openUpdateConfigDialog(panel) {
   margin-top: 1px;
 }
 .mp-skin-calista .cl-pc-hint {
-  font-size: 7.5px;
-  letter-spacing: .18em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 /* 暗色：贝母收进夜色，只剩一点冷虹彩；银字提亮一档 */
@@ -13821,14 +13840,13 @@ function openUpdateConfigDialog(panel) {
       <div class="tkt-main">
         <div class="tkt-slip-header">
           <div class="tkt-header-left">
-            <span class="tkt-type-tag">BIENNALE ADMIT</span>
-            <span class="tkt-curator-mark">EDITION 01/01</span>
+            <span class="tkt-type-tag">ADMIT ONE</span>
+            <span class="tkt-curator-mark">ED. 01</span>
           </div>
-          <span class="tkt-header-seq tkt-hook-seq">NO. 0000 // ARCHIVE</span>
+          <span class="tkt-header-seq tkt-hook-seq">NO. 0000</span>
         </div>
 
         <div class="tkt-name-stage">
-          <div class="tkt-title-meta-badge">GALLERY ACCESS · CATALOGUE RAISONNÉ</div>
           <span class="tkt-title-text tkt-hook-char-latin">AMORE</span>
 
           <div class="tkt-sign-zone">
@@ -13856,7 +13874,7 @@ function openUpdateConfigDialog(panel) {
         <div class="tkt-fold">
           <div class="tkt-fold-status">
             <span class="tkt-fold-dot"></span>
-            <span>INSPECT CURATORIAL MANIFEST</span>
+            <span>MANIFEST</span>
           </div>
           <span class="arrow">▼</span>
         </div>
@@ -13869,7 +13887,7 @@ function openUpdateConfigDialog(panel) {
 
         <div class="tkt-stub-actions">
           <button type="button" class="tkt-btn tkt-hook-btn-mode" title="切换夜间/日间展厅模式">
-            MODE <span class="tkt-theme-icon">◐</span>
+            MODE <svg class="tkt-theme-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7.6"/><path d="M12 4.4a7.6 7.6 0 0 0 0 15.2z" fill="currentColor" stroke="none"/></svg>
           </button>
           <button type="button" class="tkt-btn tkt-hook-btn-toggle">
             <span class="tkt-hook-toggle-word">UNFOLD</span>
@@ -13877,8 +13895,7 @@ function openUpdateConfigDialog(panel) {
         </div>
 
         <div class="tkt-stub-footer">
-          <div class="tkt-stamp">★ ADMITTED ★</div>
-          <div class="tkt-stub-notice">NON-TRANSFERABLE</div>
+          <div class="tkt-stamp">ADMITTED</div>
         </div>
       </div>
     </div>
@@ -13886,7 +13903,7 @@ function openUpdateConfigDialog(panel) {
     <!-- 展开详情区 -->
     <div class="tkt-body">
       <div class="tkt-sec">
-        <span>EXHIBITION PAVILION // 展馆环境</span>
+        <span>展馆环境</span>
         <span class="tkt-sec-tag">SECT. 01</span>
       </div>
       <div class="tkt-env">
@@ -13905,7 +13922,7 @@ function openUpdateConfigDialog(panel) {
       </div>
 
       <div class="tkt-sec">
-        <span>PERSONA PROFILE // 参展样本名册</span>
+        <span>参展样本</span>
         <span class="tkt-sec-tag">SECT. 02</span>
       </div>
       <div class="tkt-roster tkt-hook-roster"></div>
@@ -13914,8 +13931,8 @@ function openUpdateConfigDialog(panel) {
     <!-- 底部版记与条形码 -->
     <div class="tkt-bottom">
       <div class="tkt-warn">
-        <strong>THE TWILIGHT LINE</strong> // EXHIBITION SERIES BY SYLVAINE<br />
-        ARCHIVAL DOSSIER · STRICTLY PRESERVED · MODS PERMITTED
+        <strong>THE TWILIGHT LINE</strong><br />
+        ARCHIVAL DOSSIER
       </div>
       <div class="tkt-barcode-wrap">
         <div class="tkt-barcode">
@@ -14394,7 +14411,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     }
   }
 
-  setText('.tkt-hook-seq', 'NO. ' + String(msgId).padStart(4, '0') + ' // ARCHIVE');
+  setText('.tkt-hook-seq', 'NO. ' + String(msgId).padStart(4, '0'));
   setText('.tkt-hook-stub-id', '#' + String(msgId).padStart(3, '0'));
   setText('.tkt-hook-char-latin', bigLatinTitle);
 
@@ -15420,7 +15437,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
             '<b class="cl-pc-en-main">' + o.enMain + '</b>' +
             '<em class="cl-pc-en-sub">' + o.enSub + '</em>' +
           '</span>' +
-          '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>MEDITERRANÉE</em></span>' +
+          '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>POSTED</em></span>' +
           '<span class="cl-pc-lines" aria-hidden="true"><i></i><i></i><i></i></span>' +
           '<span class="cl-pc-foot"><span class="cl-pc-num">No.&nbsp;' + o.num + '</span>' +
             '<span class="cl-pc-tap">TAP&nbsp;TO&nbsp;TURN</span></span>' +
@@ -15529,8 +15546,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const ringC = 2 * Math.PI * ringR;
     const ringHtml = '<span class="cl-pc-ring" aria-hidden="true">' +
       '<svg width="44" height="44" viewBox="0 0 44 44">' +
-        '<circle cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-bg-3)" stroke-width="1.6"/>' +
-        '<circle class="cl-ring-arc" cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-accent)" stroke-width="1.6" ' +
+        '<circle cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-hair-2)" stroke-width="2"/>' +
+        '<circle class="cl-ring-arc" cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-ink-2)" stroke-width="2.2" ' +
           'stroke-linecap="round" stroke-dasharray="' + ringC.toFixed(1) + '" ' +
           'stroke-dashoffset="' + (ringC - ringC * affectionPct / 100).toFixed(2) + '" ' +
           'transform="rotate(-90 22 22)"/>' +
@@ -15545,7 +15562,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '</div>' +
       '<div class="cl-pc-identity">' +
         '<b class="cl-pc-name">' + skinEsc(leadName) + '</b>' +
-        (coverEn ? '<span class="cl-pc-enname">' + skinEsc(coverEn) + '</span>' : '') +
+        (coverEn && String(coverEn).trim().toLowerCase() !== String(leadName).trim().toLowerCase()
+          ? '<span class="cl-pc-enname">' + skinEsc(coverEn) + '</span>' : '') +
       '</div>' +
       '<div class="cl-pc-hero">' +
         '<span class="cl-pc-big">' + skinEsc(affection) + '<small>/100</small></span>' +
@@ -15662,8 +15680,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const sealChar = signName.replace(/[^\u4e00-\u9fa5\u3040-\u30ff]/g, '').slice(0, 1) || '印';
 
     const themeLabel = (theme === 'day')
-      ? '<span class="season-dot"></span> DIURNE · 白昼'
-      : '<span class="season-dot"></span> NOCTURNE · 幽夜';
+      ? '<span class="season-dot"></span> 白昼'
+      : '<span class="season-dot"></span> 幽夜';
 
     const coupletsHtml = couplets.map(function(pair) {
       return '<div class="couplet-unit">' +
@@ -15684,7 +15702,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
                 '<span class="char-handwritten-signature">' + skinEsc(signName) + '</span>' +
                 '<span class="hanko-seal">' + skinEsc(sealChar) + '</span>' +
               '</div>' +
-              '<span class="flip-guide-under-sig">EX LIBRIS · TOUCH TO TURN ↺</span>' +
+              '<span class="flip-guide-under-sig">EX LIBRIS · TOUCH TO TURN</span>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -15701,7 +15719,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
               '<div class="metric-item"><span class="metric-tag">INVIDIA</span><span class="metric-number">' + I + '</span><span class="metric-cn">暗涌</span></div>' +
             '</div>' +
             '<div class="back-voice-wrap">' +
-              '<span class="back-voice-emoji">' + skinEsc(emoji) + '</span>' +
+              '<span class="back-voice-rule" aria-hidden="true"></span>' +
               '<div class="back-voice-quote">“' + skinEsc(voice) + '”</div>' +
             '</div>' +
             '<span class="turn-guide" style="position:absolute;right:14px;bottom:7px;font-size:8px;color:var(--ink-secondary);letter-spacing:0.18em;font-family:\'Cormorant Garamond\',serif;font-style:italic;opacity:0.55;">Return ↺</span>' +
@@ -16296,8 +16314,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
       html += '<div class="mp-lcd-event-entry"><b>' + lcdEscape(name) + '</b>';
       const days = Number(es && es._距离主线天数);
       if (!isNaN(days) && isFinite(days)) {
-        if (days <= 0) html += '<div>▣ 主线已触发</div>';
-        else html += '<div>▣ 主线倒计时：约 ' + Math.floor(days) + ' 天</div>';
+        if (days <= 0) html += '<div>主线已触发</div>';
+        else html += '<div>主线倒计时：约 ' + Math.floor(days) + ' 天</div>';
       }
       if (!es) html += '<div>· 状态未初始化</div>';
       else {
@@ -16333,6 +16351,36 @@ var worldData = (rawVars && rawVars['世界']) || {};
       return '<i class="' + (cell === 'L' ? 'lit' : cell === 'S' ? 'shadow' : '') + '"></i>';
     }).join('');
     return '<span class="mp-moon-pixel" role="img" aria-label="' + lcdEscape(title) + '像素月相" title="' + lcdEscape(title) + '">' + cells + '</span>';
+  }
+
+  /* 情绪的中文名：像素脸已经把心情画出来了，旁边就不再贴一遍 emoji。
+     AI 给的若是普通文字（「平静」），原样显示；若是 emoji，翻成这五个词。 */
+  const MOOD_KIND_LABEL = { neutral: '平静', happy: '愉快', sad: '低落', angry: '恼火', shy: '害羞' };
+  function moodKindOf(emotion) {
+    const e = String(emotion || '');
+    if (/[\u{1F600}-\u{1F64F}\u{1F970}-\u{1F97A}\u2764\u{1F495}\u{1F496}\u{1F498}\u{1F618}]/u.test(e)) {
+      if (/[\u{1F60A}\u{1F604}\u{1F601}\u{1F642}\u{1F970}\u{1F60D}\u2764\u{1F495}\u{1F496}\u{1F498}\u{1F618}]/u.test(e)) return 'happy';
+      if (/[\u{1F622}\u{1F62D}\u{1F61E}\u2639\u{1F97A}]/u.test(e)) return 'sad';
+      if (/[\u{1F620}\u{1F621}\u{1F92C}\u{1F4A2}]/u.test(e)) return 'angry';
+      if (/[\u{1F633}\u263A\u{1F636}]/u.test(e)) return 'shy';
+    }
+    return '';
+  }
+  function moodLabel(emotion) {
+    const raw = String(emotion || '').trim();
+    if (!raw) return MOOD_KIND_LABEL.neutral;
+    const kind = moodKindOf(raw);
+    if (kind) return MOOD_KIND_LABEL[kind];
+    // 纯文字（平静 / 有点紧张 / 强撑）就照原样显示
+    return lcdEscape(raw.replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu, '').trim() || MOOD_KIND_LABEL.neutral);
+  }
+
+  /* 显示屏翻页键：用两根线稿尖角，不再依赖字体里的三角字符
+     （不同像素字体对 ◀ ▶ 的字宽处理不一致，容易把键撑歪）。 */
+  function lcdArrow(dir) {
+    const d = dir === 'prev' ? 'M14.5 6 8.5 12l6 6' : 'M9.5 6l6 6-6 6';
+    return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
   }
 
   function renderLcdMood(emotion) {
@@ -16378,7 +16426,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
       '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:600;">' + lcdEscape(imp) + '</span>' +
       '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +
-      '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + lcdEscape(ch.情绪 || '😐') + '</span></div>' +
+      '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + moodLabel(ch.情绪) + '</span></div>' +
       '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' +
         (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">这一轮还没收到心声——等下一次 AI 回复，或看看 AI 有没有写「角色.名字.心声=」那一行</span>') +
       '</div></div>' + quotaHtml + '</div>';
@@ -16631,7 +16679,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       presets: [
         {
           id: 'preset_default_gal',
-          name: '🌸 日系Galgame清透CG（默认示例）',
+          name: ' 日系Galgame清透CG（默认示例）',
           artistPrompt: 'anime style, key visual, visual novel CG, makoto shinkai, kyoto animation, ask (askzy), ciloranko',
           positivePrompt: 'masterpiece, best quality, ultra-detailed, horizontal composition, 16:9 aspect ratio, cinematic lighting, soft dramatic shadows, expressive eyes, detailed background',
           negativePrompt: 'lowres, bad anatomy, bad hands, extra digits, fewer digits, text, watermark, signature, worst quality, low quality, blurry, vertical orientation',
@@ -16667,15 +16715,15 @@ var worldData = (rawVars && rawVars['世界']) || {};
       const isEn = p.enabled === true;
       return '<div style="padding:10px;margin-bottom:8px;background:#100a13;border:1px solid ' + (isEn ? '#f472d0' : '#59304d') + ';border-radius:4px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px;">' +
-          '<b style="color:#ffb8eb;font-size:12px;">🎨 ' + escapeFeatureHtml(p.name || '未命名预设') + '</b>' +
-          '<button type="button" class="moon-cg-preset-toggle" data-id="' + escapeFeatureHtml(p.id) + '" style="padding:3px 9px;font-size:10.5px;cursor:pointer;background:' + (isEn ? '#37102f;border:1px solid #6ee7b7;color:#6ee7b7' : '#1c1020;border:1px solid #a94d8b;color:#e9c3dc') + ';">' + (isEn ? '● 已启用' : '○ 启用此预设') + '</button>' +
+          '<b style="color:#ffb8eb;font-size:12px;">' + escapeFeatureHtml(p.name || '未命名预设') + '</b>' +
+          '<button type="button" class="moon-cg-preset-toggle" data-id="' + escapeFeatureHtml(p.id) + '" style="padding:3px 9px;font-size:10.5px;cursor:pointer;background:' + (isEn ? '#37102f;border:1px solid #6ee7b7;color:#6ee7b7' : '#1c1020;border:1px solid #a94d8b;color:#e9c3dc') + ';">' + (isEn ? '已启用' : '启用此预设') + '</button>' +
         '</div>' +
         '<div style="font-size:10px;color:#a5f3fc;line-height:1.5;word-break:break-all;"><b>画师串：</b>' + escapeFeatureHtml(String(p.artistPrompt || '(无)').slice(0, 110)) + '</div>' +
         '<div style="font-size:10px;color:#cbd5e1;line-height:1.5;word-break:break-all;"><b>正面词：</b>' + escapeFeatureHtml(String(p.positivePrompt || '(无)').slice(0, 110)) + '</div>' +
         '<div style="font-size:10px;color:#94a3b8;line-height:1.5;word-break:break-all;"><b>负面词：</b>' + escapeFeatureHtml(String(p.negativePrompt || '(无)').slice(0, 90)) + '</div>' +
         '<div style="display:flex;gap:6px;margin-top:7px;">' +
-          '<button type="button" class="moon-cg-preset-edit" data-id="' + escapeFeatureHtml(p.id) + '" style="flex:1;padding:5px;font-size:10.5px;">✏️ 编辑</button>' +
-          '<button type="button" class="moon-cg-preset-del" data-id="' + escapeFeatureHtml(p.id) + '" style="flex:0.6;padding:5px;font-size:10.5px;">🗑 删除</button>' +
+          '<button type="button" class="moon-cg-preset-edit" data-id="' + escapeFeatureHtml(p.id) + '" style="flex:1;padding:5px;font-size:10.5px;">编辑</button>' +
+          '<button type="button" class="moon-cg-preset-del" data-id="' + escapeFeatureHtml(p.id) + '" style="flex:0.6;padding:5px;font-size:10.5px;">删除</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -16687,7 +16735,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '</div>' +
       '<div style="max-height:46vh;overflow-y:auto;">' + (rows || '<div style="padding:16px;text-align:center;color:#94a3b8;">暂无预设，点击上方按钮新建一套吧！</div>') + '</div>';
 
-    showModalDialog('🎨 画风与画师串预设库', html, function() {
+    showModalDialog('画风与画师串预设库', html, function() {
       if (typeof onBack === 'function') setTimeout(onBack, 150);
     }, {
       confirmText: '完成返回',
@@ -16756,7 +16804,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:#ffb8eb;"><input type="checkbox" id="moon-cgp-enable"' + (item.enabled !== false ? ' checked' : '') + '> 保存后立即启用此预设</label>' +
     '</div>';
 
-    showModalDialogCancelable(existing ? '✏️ 编辑画风预设' : '＋ 新建画风预设', html,
+    showModalDialogCancelable(existing ? ' 编辑画风预设' : '＋ 新建画风预设', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
         const name = mask.querySelector('#moon-cgp-name').value.trim() || '自定义画风预设';
@@ -16786,7 +16834,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
         if (typeof onDone === 'function') setTimeout(onDone, 150);
       },
       function() { if (typeof onDone === 'function') setTimeout(onDone, 150); },
-      { confirmText: '💾 保存预设', cancelText: '取消' }
+      { confirmText: '保存预设', cancelText: '取消' }
     );
   }
 
@@ -16993,13 +17041,13 @@ var worldData = (rawVars && rawVars['世界']) || {};
       };
       list.unshift(item);
       saveGalleryList(list);
-      const html = '<div style="text-align:center;padding:8px 0"><div style="font-size:30px">🏆</div><b>成就解锁</b><div style="font-size:15px;color:#f9a8d4;margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊（默认不自动生图，点击下方「查看当前回忆」即可发送生图请求显影 CG）。</div></div>';
-      showModalDialogCancelable('🏆 成就记录', html,
+      const html = '<div style="text-align:center;padding:8px 0"><b>成就解锁</b><div style="font-size:15px;color:#f9a8d4;margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊（默认不自动生图，点击下方「查看当前回忆」即可发送生图请求显影 CG）。</div></div>';
+      showModalDialogCancelable('成就记录', html,
         function() {
           setTimeout(function() { developCGItem(item); }, 150);
         },
         null,
-        { confirmText: '🖼️ 查看当前回忆（显影 CG）', cancelText: '先收入回忆' }
+        { confirmText: '查看当前回忆（显影 CG）', cancelText: '先收入回忆' }
       );
     })();
   }
@@ -17022,7 +17070,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       if (!saveGalleryList(list)) throw new Error('图片已生成，但无法保存回忆索引');
       closeLoadingDialog();
       const previewUrl = /^https?:\/\//i.test(stored.imageUrl) ? stored.imageUrl : generated;
-      showModalDialog('✨ 回忆 CG 已显影', '<div id="moon-cg-preview" style="margin:8px 0"></div><div>已归档到当前聊天的回忆画廊。</div>', null, { confirmText: '知道了', onOpen: function(mask) { const image = mainDoc.createElement('img'); image.src = previewUrl; image.alt = item.title; image.style.cssText = 'width:100%;display:block;border:1px solid #693253'; mask.querySelector('#moon-cg-preview').appendChild(image); } });
+      showModalDialog('回忆 CG 已显影', '<div id="moon-cg-preview" style="margin:8px 0"></div><div>已归档到当前聊天的回忆画廊。</div>', null, { confirmText: '知道了', onOpen: function(mask) { const image = mainDoc.createElement('img'); image.src = previewUrl; image.alt = item.title; image.style.cssText = 'width:100%;display:block;border:1px solid #693253'; mask.querySelector('#moon-cg-preview').appendChild(image); } });
     } catch (err) {
       closeLoadingDialog();
       toast('CG 显影失败：' + String(err && err.message || err).slice(0, 180), 'warning');
@@ -17052,8 +17100,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const secondaryMeta = imgCfg.secondaryProvider && imgCfg.secondaryProvider !== 'none' ? IMAGE_PROVIDER_META[imgCfg.secondaryProvider] : null;
 
     const topBarHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:7px;background:#100a13;border:1px solid #693253;">' +
-      '<button type="button" id="moon-gal-presets-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">🎨 画风预设' + (enabledPreset ? ' (已启用)' : '') + '</button>' +
-      '<button type="button" id="moon-gal-imgcfg-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">🖼️ 渠道设定</button>' +
+      '<button type="button" id="moon-gal-presets-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">画风预设' + (enabledPreset ? ' (已启用)' : '') + '</button>' +
+      '<button type="button" id="moon-gal-imgcfg-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">渠道设定</button>' +
     '</div>' +
     '<div style="font-size:10px;color:#e9c3dc;margin-bottom:8px;line-height:1.5;">' +
       '当前主渠道：<b style="color:#7dd3fc;">' + escapeFeatureHtml(primaryMeta.name) + '</b>' +
@@ -17066,10 +17114,10 @@ var worldData = (rawVars && rawVars['世界']) || {};
         '<b>《' + escapeFeatureHtml(item.title || '未命名回忆') + '》</b><div style="font-size:10px;color:#9ca3af">' + escapeFeatureHtml(item.char || '') + (item.isEnding ? ' · 周目结局' : ' · 成就') + ' · ' + new Date(Number(item.createdAt) || Date.now()).toLocaleString() + '</div>' +
         '<div style="margin:5px 0">' + escapeFeatureHtml(item.desc || '') + '</div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap"><button type="button" data-gallery-view="' + escapeFeatureHtml(item.id) + '">查看</button><button type="button" data-gallery-generate="' + escapeFeatureHtml(item.id) + '"' + (!item.prompt ? ' disabled' : '') + '>显影 CG</button><button type="button" data-gallery-download="' + escapeFeatureHtml(item.id) + '"' + (!(item.imageKey || item.imageUrl) ? ' disabled' : '') + '>下载</button><button type="button" data-gallery-delete="' + escapeFeatureHtml(item.id) + '">移除</button></div></article>';
-    }).join('') : '<div style="text-align:center;padding:20px 4px;color:#cbd5e1;">这里还没有成就或周目结局。经历重大事件或彩蛋后，成就会自动入档。<br>可点击上方<b>「🎨 画风预设」或「🖼️ 渠道设定」</b>提前配置画师串与生图渠道。</div>';
+    }).join('') : '<div style="text-align:center;padding:20px 4px;color:#cbd5e1;">这里还没有成就或周目结局。经历重大事件或彩蛋后，成就会自动入档。<br>可点击上方<b>「画风预设」或「渠道设定」</b>提前配置画师串与生图渠道。</div>';
 
     const html = topBarHtml + '<div style="max-height:36vh;overflow:auto">' + rows + '</div><div id="moon-gallery-preview" style="margin-top:10px"></div>';
-    showModalDialog('📚 回忆画廊 · ' + list.length + ' 项', html, null, { confirmText: '关闭', onOpen: function(mask) {
+    showModalDialog('回忆画廊 · ' + list.length + ' 项', html, null, { confirmText: '关闭', onOpen: function(mask) {
       const presetBtn = mask.querySelector('#moon-gal-presets-btn');
       if (presetBtn) presetBtn.addEventListener('click', function() { closeFeatureModal(mask); setTimeout(function() { openCgStylePresetsDialog(openMemoryGalleryDialog); }, 160); });
       const imgCfgBtn = mask.querySelector('#moon-gal-imgcfg-btn');
@@ -17141,16 +17189,16 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const html = '<div style="line-height:1.7;margin-bottom:8px;color:#f9a8d4;font-size:11px;">' +
       '每个生图渠道均可<b>独立配置并单独保存</b>。当默认主渠道生成失败时，系统会自动重新发起请求（最多重试 <b>5 次</b>）；若配置了次用渠道，主渠道失败后会自动切换至次用渠道继续生成。</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
-        '<button type="button" id="moon-imgcfg-open-presets" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">🎨 管理画师串与正/负面提示词预设库</button>' +
+        '<button type="button" id="moon-imgcfg-open-presets" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">管理画师串与正/负面提示词预设库</button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">' +
-        '<label style="font-size:11px;">⭐ 默认主渠道<select id="moon-image-primary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#6ee7b7;border:1px solid #a94d8b;">' + primaryOptions + '</select></label>' +
-        '<label style="font-size:11px;">🛡️ 次用备用渠道<select id="moon-image-secondary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#fde047;border:1px solid #a94d8b;">' + secondaryOptions + '</select></label>' +
+        '<label style="font-size:11px;">默认主渠道<select id="moon-image-primary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#6ee7b7;border:1px solid #a94d8b;">' + primaryOptions + '</select></label>' +
+        '<label style="font-size:11px;">次用备用渠道<select id="moon-image-secondary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#fde047;border:1px solid #a94d8b;">' + secondaryOptions + '</select></label>' +
       '</div>' +
       '<div style="padding:10px;background:#140b18;border:1px solid #f472d0;border-radius:4px;margin-bottom:8px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;">' +
           '<select id="moon-image-provider" style="flex:1;padding:7px;background:#09060d;color:#ffb8eb;border:1px solid #f472d0;font-weight:600;">' + editOptions + '</select>' +
-          '<button type="button" id="moon-image-save-channel" style="padding:7px 10px;font-size:11px;cursor:pointer;">💾 单独保存此渠道</button>' +
+          '<button type="button" id="moon-image-save-channel" style="padding:7px 10px;font-size:11px;cursor:pointer;">单独保存此渠道</button>' +
         '</div>' +
         '<label style="display:block;margin-top:6px;font-size:11px;">接口地址 (API URL)<input id="moon-image-url" value="' + escapeFeatureHtml(initCh.apiUrl) + '" placeholder="留空则使用该渠道官方默认地址" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
         '<label style="display:block;margin-top:6px;font-size:11px;">API Key（独立保存在掌机中）<input id="moon-image-key" type="password" value="' + escapeFeatureHtml(initCh.apiKey) + '" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
@@ -17163,7 +17211,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<label style="display:block;margin-top:8px;font-size:11px;">默认负面提示词（未启用画风预设时兜底使用）<textarea id="moon-image-negative" style="width:100%;box-sizing:border-box;min-height:44px;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;">' + escapeFeatureHtml(config.imageNegativePrompt) + '</textarea></label>' +
       '<label style="display:block;margin-top:8px;font-size:11px;">后日谈目标字数（1500–8000）<input id="moon-epilogue-words" type="number" min="1500" max="8000" step="500" value="' + Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>';
 
-    showModalDialogCancelable('⚙️ 回忆与生图设定', html, function() {
+    showModalDialogCancelable('回忆与生图设定', html, function() {
       const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
       const editSel = mask.querySelector('#moon-image-provider').value;
       workingChannels[editSel] = {
@@ -17324,7 +17372,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
         if (!sent && typeof mainWin.Generate === 'function') {
           try { mainWin.Generate('normal'); sent = true; } catch (e) {}
         }
-        toast(sent ? '🌌 已将周目结算提示词注入聊天框并自动发送！AI 回复后将通过内置正则渲染日系 Galgame 结局报幕' : '🌌 已将周目结算提示词填入聊天框，请点击发送按钮触发结局报幕', 'success');
+        toast(sent ? ' 已将周目结算提示词注入聊天框并自动发送！AI 回复后将通过内置正则渲染日系 Galgame 结局报幕' : ' 已将周目结算提示词填入聊天框，请点击发送按钮触发结局报幕', 'success');
       }, 160);
       return true;
     }
@@ -17401,7 +17449,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
         if (!sent && typeof mainWin.Generate === 'function') {
           try { mainWin.Generate('normal'); sent = true; } catch (e) {}
         }
-        toast(sent ? '📖 已将《' + record.charName + '》视角后日谈（5000~8000字）提示词填入聊天框并自动发送！' : '📖 已将后日谈提示词填入聊天框，请点击发送按钮开始创作', 'success');
+        toast(sent ? ' 已将《' + record.charName + '》视角后日谈（5000~8000字）提示词填入聊天框并自动发送！' : ' 已将后日谈提示词填入聊天框，请点击发送按钮开始创作', 'success');
       }, 160);
       return true;
     }
@@ -17416,29 +17464,29 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const eReason = (endingInfo && endingInfo.reason) || '玩家主动选择结算周目';
     const routeMeta = ENDING_ROUTE_META[eType] || ENDING_ROUTE_META.TE;
     const html = '<div style="text-align:center;padding:8px 0">' +
-      '<div style="font-size:28px">🌌</div>' +
+      '' +
       '<b style="color:#f9a8d4;font-size:14px;">世界线收束 · 日系 Galgame 终局报幕</b>' +
       '<div style="margin-top:8px;line-height:1.7;color:#fce7f3;">' +
         (isManual ? '即将为角色《<b>' + escapeFeatureHtml(charName) + '</b>》发起本周目的终局结算。' : '《<b>' + escapeFeatureHtml(charName) + '</b>》达成了终局条件：<b style="color:' + routeMeta.accent + ';">' + escapeFeatureHtml(routeMeta.badge) + '</b>（' + escapeFeatureHtml(eReason) + '）。') +
       '</div>' +
       '<div style="margin-top:10px;padding:9px 11px;background:#100a13;border:1px solid #f472d0;text-align:left;font-size:11px;line-height:1.7;color:#f9a8d4;">' +
-        '<b>🎬 公屏结局报幕流程（内置正则美化）：</b><br>' +
-        '1. 点击下方<b>「💬 注入聊天框并自动发送」</b>，系统会将周目结算提示词自动填入酒馆聊天框并发送。<br>' +
+        '<b>公屏结局报幕流程（内置正则美化）：</b><br>' +
+        '1. 点击下方<b>「注入聊天框并自动发送」</b>，系统会将周目结算提示词自动填入酒馆聊天框并发送。<br>' +
         '2. AI 撰写终幕剧情并输出 <code>[GalgameEnding|...]</code> 标签后，<b>脚本内置正则会自动将其替换为日系经典 Galgame 结局报幕（Staff Roll / Fin 演出卡）</b>！<br>' +
-        '3. 报幕卡内自带<b>「✨ 查看后日谈」</b>交互按钮（点击自动填入输入框并发送，让 AI 在当前对话内以角色视角创作 <b>5000～8000字</b> 结局后完整番外），以及<b>显影横构图结局 CG、导出结算卡</b>。' +
+        '3. 报幕卡内自带<b>「查看后日谈」</b>交互按钮（点击自动填入输入框并发送，让 AI 在当前对话内以角色视角创作 <b>5000～8000字</b> 结局后完整番外），以及<b>显影横构图结局 CG、导出结算卡</b>。' +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-top:10px;">' +
-        '<button type="button" id="moon-ending-silent-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">⚡ 不发消息·直接弹窗生成报幕</button>' +
+        '<button type="button" id="moon-ending-silent-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">不发消息·直接弹窗生成报幕</button>' +
       '</div>' +
     '</div>';
 
-    showModalDialogCancelable('✦ 终局报幕确认', html,
+    showModalDialogCancelable('终局报幕确认', html,
       function() {
         injectAndSendEndingPromptToChatbox(charName, ch, eType, eReason);
       },
       null,
       {
-        confirmText: '💬 注入聊天框并自动发送',
+        confirmText: '注入聊天框并自动发送',
         cancelText: '继续游玩',
         onOpen: function(mask) {
           const silentBtn = mask.querySelector('#moon-ending-silent-btn');
@@ -17474,7 +17522,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       return;
     }
     const options = names.map(function(name) { return '<option value="' + escapeFeatureHtml(name) + '">' + escapeFeatureHtml(name) + '</option>'; }).join('');
-    showModalDialogCancelable('🌌 选择周目结算角色与路线',
+    showModalDialogCancelable('选择周目结算角色与路线',
       '<label style="display:block;margin-bottom:8px;">结算角色档案<select id="moon-ending-char-select" style="width:100%;padding:8px;margin-top:4px;background:#100a13;color:#fce7f3;border:1px solid #a94d8b;">' + options + '</select></label>' +
       '<label style="display:block;">结局报幕路线<select id="moon-ending-route-select" style="width:100%;padding:8px;margin-top:4px;background:#100a13;color:#f9a8d4;border:1px solid #a94d8b;">' + routeOptions + '</select></label>',
       function() {
@@ -17510,7 +17558,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
   function openGalgameEndingClearDialog(record, galleryItem) {
     bindGalgameEndingCardDelegation();
     const html = renderGalgameEndingCurtainHtml(record);
-    showModalDialog('🎬 日系 Galgame 结局报幕 · 周目结算', html, null, { confirmText: '收下结局报幕卡' });
+    showModalDialog('日系 Galgame 结局报幕 · 周目结算', html, null, { confirmText: '收下结局报幕卡' });
   }
   async function generateSteamShareCard(record) {
     try {
@@ -17555,7 +17603,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
   function openEpilogueReaderDialog(title, text) {
     const safeTitle = escapeFeatureHtml(title);
     const html = '<div id="moon-epilogue-text" style="max-height:55vh;overflow:auto;padding:12px;background:#100a13;border:1px solid #693253;font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div><div style="margin-top:9px;text-align:right"><button id="moon-export-epilogue">导出 TXT</button></div>';
-    showModalDialog('📖 后日谈 · 《' + safeTitle + '》', html, null, { confirmText: '阅读完毕', onOpen: function(mask) {
+    showModalDialog('后日谈 · 《' + safeTitle + '》', html, null, { confirmText: '阅读完毕', onOpen: function(mask) {
       mask.querySelector('#moon-export-epilogue').addEventListener('click', function() {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = (mainWin.URL || URL).createObjectURL(blob);
@@ -17594,7 +17642,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const quickCharSummary = ch
       ? '<div style="padding:6px 8px;margin-top:6px;border:1px solid #151d14;font-size:11.5px;line-height:1.4;background:rgba(21,29,20,0.06);">' +
           '<div style="font-weight:bold;margin-bottom:4px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(21,29,20,0.4);padding-bottom:3px;">' +
-            '<span>♥ ' + lcdEscape(selected) + '</span>' +
+            '<span>' + lcdEscape(selected) + '</span>' +
             '<span>' + lcdEscape(stageInfo.name) + '</span>' +
           '</div>' +
           '<div class="mp-rpg-stat-row"><span class="mp-rpg-stat-label">好感</span>' + calcBar(eVal + 100, 200) + '<span class="mp-rpg-stat-val">' + eVal.toFixed(1) + '</span></div>' +
@@ -17629,10 +17677,10 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="mp-lcd-token-head"><span>这个聊天占多少字</span><button type="button" class="mp-lcd-small-btn" id="moon-token-refresh">↻ 刷新</button></div>' +
       '<div id="moon-token-box">点右边「刷新」开始算</div></section></div>' +
       '<nav class="mp-lcd-page-nav" aria-label="显示屏翻页">' +
-      '<button type="button" data-lcd-page-step="-1" aria-label="上一页">◀</button>' +
+      '<button type="button" data-lcd-page-step="-1" aria-label="上一页">' + lcdArrow('prev') + '</button>' +
       '<div class="mp-lcd-page-indicator"><b data-lcd-page-label>' + pageNames[activePage] + '</b><span data-lcd-page-count>' + String(activePage + 1).padStart(2, '0') + ' / 04</span></div>' +
-      '<button type="button" data-lcd-page-step="1" aria-label="下一页">▶</button></nav>' +
-      '<div class="mp-lcd-screen-foot">点上面四个页签，或用 ◀ ▶ 翻页</div></div>';
+      '<button type="button" data-lcd-page-step="1" aria-label="下一页">' + lcdArrow('next') + '</button></nav>' +
+      '<div class="mp-lcd-screen-foot">点上面四个页签，或用两边的箭头翻页</div></div>';
   }
 
   function setLcdPage(panel, page) {
@@ -17687,7 +17735,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
   }
 
   function renderArcadeGameScreen() {
-    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
+    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">MOON POCKET ARCADE </div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
   }
 
   /* 难度四档。四处都会用到（面板、街机、设置组），所以抽成一个函数，
@@ -17706,6 +17754,22 @@ var worldData = (rawVars && rawVars['世界']) || {};
         ? '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + '</b>　' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。只影响小游戏，不改剧情难度。'
         : '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '</b>　' + LUNAR_META[selectedLevel].detail) +
       '</div>';
+  }
+
+  /* 面板图标：一套线稿，18px、1.5 描边、颜色跟随文字。
+     以前六个菜单项混着 ▶ ⚙ 和一个彩色 emoji，扫码扫不动；
+     现在统一成同一套线，emoji 全部从界面里撤掉。 */
+  function uiIco(name) {
+    const P = {
+      play: '<path d="M8.4 5.4v13.2L19.4 12z"/>',
+      heart: '<path d="M12 20.2C7.7 17 4.2 14 4.2 10.5A4.3 4.3 0 0 1 12 7.7a4.3 4.3 0 0 1 7.8 2.8c0 3.5-3.5 6.5-7.8 9.7z"/>',
+      journal: '<path d="M5.2 4.8h11.4A2.4 2.4 0 0 1 19 7.2v11.9H7.6a2.4 2.4 0 0 1-2.4-2.4z"/><path d="M8.8 9h6.8M8.8 12.6h6.8M8.8 16.2h4.2"/>',
+      wrench: '<path d="M14.9 4.7a4.6 4.6 0 0 0-5.7 6.1l-4.8 4.8a1.9 1.9 0 0 0 2.7 2.7l4.8-4.8a4.6 4.6 0 0 0 6.1-5.7l-2.9 2.9-2.4-.6-.6-2.4z"/>',
+      sliders: '<path d="M5 7.6h5.6M16 7.6h3M5 16.4h3M13.4 16.4h5.6"/><circle cx="13" cy="7.6" r="2.1"/><circle cx="10.6" cy="16.4" r="2.1"/>',
+      gamepad: '<path d="M7.6 8.6h8.8a4.5 4.5 0 0 1 0 9h-.5l-1.8-1.9h-4.2l-1.8 1.9h-.5a4.5 4.5 0 0 1 0-9z"/><path d="M8.4 11.4v3.4M6.7 13.1h3.4"/><circle cx="15.2" cy="12.2" r=".75"/><circle cx="16.8" cy="14" r=".75"/>'
+    };
+    return '<svg class="mp-lico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[name] || '') + '</svg>';
   }
 
   function renderPanel(panel) {
@@ -17789,48 +17853,48 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
     /* 设置卡放到主菜单之后：先给「现在做什么」，再给「怎么调」 */
     const settingsCardHtml = '<div class="mp-card">' +
-      pocketFold('play', '⚙ 玩法与手感', '难度、卡组、建档、骰子、事件节奏',
-        '<div class="mp-set-block"><div class="mp-set-title">🎮 游戏难度</div>' +
+      pocketFold('play', '玩法与手感', '难度、卡组、建档、骰子、事件节奏',
+        '<div class="mp-set-block"><div class="mp-set-title">游戏难度</div>' +
         '<div class="mp-set-desc">' + currentMeta.detail + '</div>' +
         renderDifficultyPicker(selectedLevel, false) + '</div>' +
-        pocketRow('🃏 这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在Ta头上',
+        pocketRow('这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在Ta头上',
           '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
-        pocketRow('🧾 自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
+        pocketRow('自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
           '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
-        pocketRow('🎲 初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+        pocketRow('初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
           '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
-        pocketRow('🎬 小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
+        pocketRow('小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
           '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
-        pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
+        pocketRow('借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
           '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
         false) +
-      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、用哪一套纸与光',
-        '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
+      pocketFold('look', '外观与阅读', '状态卡长什么样、用哪一套纸与光',
+        '<div class="mp-set-block"><div class="mp-set-title">楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
         renderSkinPickerHtml() + '</div>' +
-        '<div class="mp-set-block"><div class="mp-set-title">🎨 自制美化</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">自制美化</div>' +
         '<div class="mp-set-desc">描述你想要的样子，让模型生成一套配色与材质；也可以导出成文档，在外面做好再把 JSON 贴回来。</div>' +
         '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
         false) +
-      pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
-        pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
+      pocketFold('ai', 'AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
+        pocketRow('让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
           '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? '已配置' : '去配置') + '</button>') +
-        '<div class="mp-set-block"><div class="mp-set-title">📜 演绎规则</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">演绎规则</div>' +
         '<div class="mp-set-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div>' +
         renderCoreRulePickerHtml() + '</div>' +
-        '<div class="mp-set-block"><div class="mp-set-title">🏷 词条释义</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">词条释义</div>' +
         '<div class="mp-set-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div>' +
         renderGlossaryPickerHtml() + '</div>',
         false) +
-      pocketFold('risk', '🌑 开了就回不了头', '这两个开关会影响整局，看清楚再用',
-        pocketRow('🔒 安全锁', getSafetyLock() ? '开：Ta最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
+      pocketFold('risk', '开了就回不了头', '这两个开关会影响整局，看清楚再用',
+        pocketRow('安全锁', getSafetyLock() ? '开：Ta最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
           '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '开' : '关') + '</button>') +
-        pocketRow('🌑 锁死这段剧情', (antisl || anchorLocked) ? '已经开了：Ta一旦心凉就锁死，只能开新对话重来' : '关着。打开后Ta心凉就回不了头，删楼重摇都没用',
+        pocketRow('锁死这段剧情', (antisl || anchorLocked) ? '已经开了：Ta一旦心凉就锁死，只能开新对话重来' : '关着。打开后Ta心凉就回不了头，删楼重摇都没用',
           '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '已锁死' : (antisl ? '开' : '关')) + '</button>'),
         false) +
       '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
       '<span class="mp-fate-dot" style="background:' + (fateActive ? '#ff8ab2' : '#7fd8a8') + ';"></span>' +
-      '<span>' + (fateActive ? '🌑 已经锁死了，只能开新对话' : '🌓 还没锁，随时能反悔') + '</span></div></div>';
+      '<span>' + (fateActive ? '已经锁死了，只能开新对话' : '还没锁，随时能反悔') + '</span></div></div>';
 
     panel.innerHTML = '' +
       /* 头部：品牌名固定一行（长卡名收成副标题），版本号独立成块，不再把标题挤成三行 */
@@ -17842,24 +17906,24 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
       guideHtml +
       '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
-      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机小游戏</button></div>' +
+      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板</button>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button></div>' +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
       (isArcadeMode
         ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
         : '') +
       '<div class="mp-system-content">' +
-      (bioStatus.count > 0 ? '<div class="mp-card"><div class="mp-card-title">📖 已有 ' + bioStatus.count + ' 份角色小抄生效<small>BIO</small></div><div class="mp-set-desc">' + bioStatus.charNames.join('、') + '</div></div>' : '') +
-      (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">👤 玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
+      (bioStatus.count > 0 ? '<div class="mp-card"><div class="mp-card-title">已有 ' + bioStatus.count + ' 份角色小抄生效<small>BIO</small></div><div class="mp-set-desc">' + bioStatus.charNames.join('、') + '</div></div>' : '') +
+      (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
       '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
       '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
-      '</div><div class="mp-menu-controls"><span>💡 不知道点哪，回最上面看那条粉色提示</span></div>' +
+      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">' + uiIco('play') + '</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">' + uiIco('gamepad') + '</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span>不知道点哪，回最上面看那条粉色提示</span></div>' +
       '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
         '<div class="mp-dpad" aria-hidden="true">' +
           '<button type="button" class="mp-dpad-btn mp-dpad-up" tabindex="-1" aria-label="上">▲</button>' +
@@ -17890,60 +17954,60 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">♥ 角色</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">▤ 日志</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">⚙ 检修</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">▧ 选项</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">角色</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">日志</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">检修</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">选项</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 一键建档案</span><small>AI 读一遍聊天记录，把人和现在的数值填好</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 搬旧存档</span><small>换到新聊天时，把这里的档案带过去</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>一键建档案</span><small>AI 读一遍聊天记录，把人和现在的数值填好</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>搬旧存档</span><small>换到新聊天时，把这里的档案带过去</small></button></div>', true) +
       pocketFold('adv-roll', '重摇 / 查上限', '觉得这轮加少了，或者想知道上限清没清',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 重摇这一轮</span><small>不满意就重摇，摇到满意再确认，可以一直摇</small></button>' +
-        '<button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 检查每周上限</span><small>算一下这周的加分额度该清零了没</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>重摇这一轮</span><small>不满意就重摇，摇到满意再确认，可以一直摇</small></button>' +
+        '<button class="mp-btn" id="moon-phase-countdown"><span>检查每周上限</span><small>算一下这周的加分额度该清零了没</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色与存档</div>' +
       pocketFold('chr-files', '人物档案', '认错人、说话不像、想手改数值',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
       pocketFold('chr-you', '关于「你」', '让 AI 记住你是谁、什么脾气',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 写一份我的设定</span><small>把你写清楚，Ta回话才不会跑偏</small></button>' +
-        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>写一份我的设定</span><small>把你写清楚，Ta回话才不会跑偏</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
       pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
-        '<button class="mp-btn" id="moon-phase-ending"><span>🌌 结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ending"><span>结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志（可选）</div>' +
       pocketFold('tl-list', '世界大事表', '不写也能正常玩；写了 AI 会有主线目标',
         '<div class="mp-grid">' +
-        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
-        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
-        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-list"><span>看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-gen"><span>让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
+        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
       '</div>', true) +
       pocketFold('tl-edit', '自己补 / 改日期', 'AI 写漏了，或者日期读错了',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
-        '<button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
+        '<button class="mp-btn" id="moon-phase-manual-tl"><span>手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修</div>' +
       pocketFold('sys-check', '先体检', '不知道哪坏了，就点这两个',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>一条条列给你：哪项正常、哪项不正常</small></button>' +
-        '<button class="mp-btn" id="moon-phase-simtest"><span>🧪 拿假数据试算</span><small>不碰你的存档，只验证算法跑不跑得通</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>系统自检</span><small>一条条列给你：哪项正常、哪项不正常</small></button>' +
+        '<button class="mp-btn" id="moon-phase-simtest"><span>拿假数据试算</span><small>不碰你的存档，只验证算法跑不跑得通</small></button></div>', true) +
       pocketFold('sys-conflict', '查打架', '怀疑和别的插件/世界书撞了',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书里有没有重复、互相打架的条目</small></button>' +
-        '<button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 让 AI 帮我看</span><small>它读完给出结论，也能顺手推荐个难度</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>冲突扫描</span><small>查世界书里有没有重复、互相打架的条目</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ai-detect"><span>让 AI 帮我看</span><small>它读完给出结论，也能顺手推荐个难度</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项</div>' +
       pocketFold('opt-ai', 'AI 与接口', '可选：让插件单独用一个 AI',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ AI 钥匙</span><small>' + (hasApi ? '已填：' + lcdEscape(String(apiCfg.model).slice(0, 12)) : '不用填，不填就用酒馆里那个 AI') + '</small></button>' +
-        '<button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 改提示词</span><small>AI 收到的指令在这里，看得懂再改</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>AI 钥匙</span><small>' + (hasApi ? '已填：' + lcdEscape(String(apiCfg.model).slice(0, 12)) : '不用填，不填就用酒馆里那个 AI') + '</small></button>' +
+        '<button class="mp-btn" id="moon-phase-prompt-edit"><span>改提示词</span><small>AI 收到的指令在这里，看得懂再改</small></button></div>', true) +
       pocketFold('opt-art', '插画与番外', '用哪家画图、番外写多长',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 画图与番外设定</span><small>选画图渠道，定番外字数</small></button>' +
-        '<button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 新手说明书</span><small>一步一步讲，30 秒看完</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>画图与番外设定</span><small>选画图渠道，定番外字数</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>新手说明书</span><small>一步一步讲，30 秒看完</small></button></div>', true) +
       pocketFold('opt-update', '更新与帮助', '拉最新版、遇到问题先搜这里',
-        '<div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 有新版本' : '🔄 检查更新') + '</span><small>连不上会自动换线路重试</small></button>' +
-        '<button class="mp-btn" id="moon-phase-faq"><span>❓ 遇到问题</span><small>按情况分好类，一句话一个答案</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '有新版本' : '检查更新') + '</span><small>连不上会自动换线路重试</small></button>' +
+        '<button class="mp-btn" id="moon-phase-faq"><span>遇到问题</span><small>按情况分好类，一句话一个答案</small></button></div>', true) +
       '</div></section>' +
       settingsCardHtml +
       '<div class="mp-status" id="moon-phase-status">准备好了。要做的事都写在最上面那条提示里。</div></div>';
@@ -18144,10 +18208,10 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     })();
     panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
-    panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">⚡ 捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
-    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">⏳ 运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
-    panel.querySelector('#moon-phase-simtest').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
-    panel.querySelector('#moon-phase-conflict').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
+    panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
+    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
+    panel.querySelector('#moon-phase-simtest').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
+    panel.querySelector('#moon-phase-conflict').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
     panel.querySelector('#moon-phase-reroll').addEventListener('click', function() { openRerollDialog(panel); });
     panel.querySelector('#moon-phase-pack-migrate').addEventListener('click', function() { startMigrationPack(panel); });
     panel.querySelector('#moon-phase-bio').addEventListener('click', function() { openAuditionMainDialog(panel); });
@@ -18207,8 +18271,8 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     const pacingName = { Adi: 'Adagio · 柔板', And: 'Andante · 行板', All: 'Allegro · 快板' }[getEventPacing()] || getEventPacing();
     info('推进节奏：' + pacingName);
     info('同人台词补强：' + (getFanficEnhance() ? 'ON' : 'OFF'));
-    info('安全锁：' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF'));
-    info('锚定：' + (getAntiSL() ? '🔒 ON' : '⚠️ OFF'));
+    info('安全锁：' + (getSafetyLock() ? 'ON' : '⚠ OFF'));
+    info('锚定：' + (getAntiSL() ? 'ON' : '⚠ OFF'));
     info('当前难度：' + (LUNAR_META[getCurrentMode()]?.name || getCurrentMode()));
 
     lines.push('<div class="mp-log-subhead">── 独立 API ──</div>');
@@ -18308,7 +18372,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
   async function runSimulationTest() {
     const lines = [];
     let _nFail = 0, _nWarn = 0;
-    lines.push('<b style="color:#6ee7b7">🧪 ' + SYSTEM_UI_NAME + ' · 综合测试</b><br>');
+    lines.push('<b style="color:#6ee7b7">' + SYSTEM_UI_NAME + ' · 综合测试</b><br>');
     lines.push('<span style="color:#94a3b8;font-size:10px;">测试使用假数据 (Amore: E5/P2/R1/I0)，不污染真实变量</span><br>');
 
     lines.push('<div class="mp-log-subhead">【测试1】时间解析</div>');
@@ -18394,13 +18458,13 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     try {
       const mockStat = {
         世界: { 时间: '2000年01月01日 · 星期六 · 00:00', 地点: '教室', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' },
-        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '😐', 心声: '……', 在场: true, 重要度: '主要' } }
+        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '', 心声: '……', 在场: true, 重要度: '主要' } }
       };
-      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=😄\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
+      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
       const res = ingestBackendVariables(mockMes, mockStat);
       const okTime = String(mockStat.世界.时间).indexOf('01月02日') >= 0;
       const okVoice = String(mockStat.角色['长谷川茗'].心声).indexOf('开心') >= 0;
-      const okEmoji = String(mockStat.角色['长谷川茗'].情绪) === '😄';
+      const okEmoji = String(mockStat.角色['长谷川茗'].情绪) === '';
       const okStrip = String(res.text).indexOf('角色.长谷川茗.心声') < 0 && String(res.text).indexOf('世界.时间') < 0;
       if (okTime && okVoice && okEmoji && okStrip) lines.push('✔ 时间 / 心声 / 情绪 均被写入，且已从正文清理');
       else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 清理' + okStrip);
@@ -18431,7 +18495,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
       else lines.push('✖ 相对时间换算异常：' + d1 + ' / ' + d2 + ' / ' + d3);
     } catch (e) { lines.push('✖ 相对时间测试异常：' + (e.message || e)); }
 
-    lines.push('<br><b style="color:#6ee7b7">✨ 综合测试完毕，本地化引擎运转正常。</b>');
+    lines.push('<br><b style="color:#6ee7b7">综合测试完毕，本地化引擎运转正常。</b>');
     return lines.join('<br>');
   }
 
@@ -18446,7 +18510,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     const bad = function(s) { lines.push('<span style="color:#f87171">✖</span> ' + s); };
     let hasConflict = false;
     let fatalCount = 0;
-    lines.push('<b style="color:#93c5fd">🔍 全环境冲突扫描</b>');
+    lines.push('<b style="color:#93c5fd">全环境冲突扫描</b>');
 
 const stateKey = getChatStateKey();
     const localRaw = (getStorage() || localStorage).getItem(stateKey);
@@ -18466,7 +18530,7 @@ const stateKey = getChatStateKey();
     info('当前标签格式：' + (getCardMode() === 'multi' ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]'));
     info('数值全由掌机自己算；AI 只负责报时间和Ta心里的想法，这些玩家看不到');
 
-    lines.push('<div class="mp-log-subhead">📋 总结</div>');
+    lines.push('<div class="mp-log-subhead">总结</div>');
     if (fatalCount > 0) bad('发现 ' + fatalCount + ' 项致命冲突');
     else if (hasConflict) warn('发现若干可修复的冲突');
     else ok('未发现明显冲突');
@@ -18538,7 +18602,7 @@ const stateKey = getChatStateKey();
   async function refreshTokenCard(panel) {
     const box = panel.querySelector('#moon-token-box');
     if (!box) return;
-    box.innerHTML = '<span style="color:#94a3b8;">⏳ 正在算…</span>';
+    box.innerHTML = '<span style="color:#94a3b8;">正在算…</span>';
     try {
       const r = await computeTokenBreakdown();
       const lines = [];
@@ -18577,7 +18641,7 @@ const stateKey = getChatStateKey();
     const data = readMvuLatest();
     const chars = (data && data.stat_data && data.stat_data.角色) || {};
     const names = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
-    if (!names.length) { showModalDialog('👥 角色定位', '<div style="line-height:1.8;">这个对话还没有角色档案。<br>先去 <b>▶ 开始游戏 → 🚀 开局适配</b> 点一下，建好再回来。</div>', null, { confirmText: '关闭' }); return; }
+    if (!names.length) { showModalDialog('角色定位', '<div style="line-height:1.8;">这个对话还没有角色档案。<br>先去 <b>▶ 开始游戏 → 开局适配</b> 点一下，建好再回来。</div>', null, { confirmText: '关闭' }); return; }
     const world = (data.stat_data && data.stat_data.世界) || {};
     const impOptions = function(cur) {
       return ['主要', '次要', 'NPC'].map(function(v) {
@@ -18603,7 +18667,7 @@ const stateKey = getChatStateKey();
         '<div style="display:flex;gap:6px;align-items:center;">' +
         '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#22262f;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
         '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button>' +
-        '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 补掷</button></div>' +
+        '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">补掷</button></div>' +
         '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="Ta心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
         '</div>';
     }).join('');
@@ -18614,7 +18678,7 @@ const stateKey = getChatStateKey();
       '<div style="flex:1.6;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">世界时间</div><input id="moon-roster-world-time" value="' + escapeFeatureHtml(world.时间 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
       '<div style="flex:1;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-roster-world-place" value="' + escapeFeatureHtml(world.地点 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div></div>' +
       '<div style="max-height:46dvh;overflow-y:auto;padding-right:3px;">' + rows + '</div>';
-    showModalDialog('👥 角色定位 · 顺便修时间和内心话', html, function() {
+    showModalDialog('角色定位 · 顺便修时间和内心话', html, function() {
       const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
       const d = readMvuLatest();
       const stat = d && d.stat_data; if (!stat) return;
@@ -18638,7 +18702,7 @@ const stateKey = getChatStateKey();
         if (pBtn) ch.在场 = pBtn.getAttribute('data-on') === '1';
         const vInput = row.querySelector('.moon-roster-voice');
         if (vInput) { const v = String(vInput.value || '').trim(); if (v) ch.心声 = v.slice(0, 300); }
-        /* 点了「🎲 补掷」：清掉旧的初见结论，重新走一次结算。
+        /* 点了「补掷」：清掉旧的初见结论，重新走一次结算。
            自己往变量里加的人、或者旧存档里从没掷过的角色，都靠这个补上开局投资。 */
         const fBtn = row.querySelector('.moon-roster-firstmeet');
         if (fBtn && fBtn.getAttribute('data-on') === '1') {
@@ -18682,7 +18746,7 @@ const stateKey = getChatStateKey();
           btn.setAttribute('data-on', next ? '1' : '0');
           btn.style.borderColor = next ? 'rgba(244,114,182,0.8)' : 'rgba(168,85,247,0.45)';
           btn.style.background = next ? '#4a1030' : '#2a1040';
-          btn.textContent = next ? '🎲 待掷' : '🎲 补掷';
+          btn.textContent = next ? '待掷' : '补掷';
         });
       });
     } });
@@ -18690,13 +18754,13 @@ const stateKey = getChatStateKey();
 
   function openRerollDialog(panel) {
     const data = readMvuLatest();
-    if (!data || !data.stat_data || !data.stat_data.角色) { showModalDialog('🎲 数值重Roll', '<div>当前没有可用的角色数据。</div>', null, { confirmText: '关闭' }); return; }
+    if (!data || !data.stat_data || !data.stat_data.角色) { showModalDialog('数值重Roll', '<div>当前没有可用的角色数据。</div>', null, { confirmText: '关闭' }); return; }
     const chars = data.stat_data.角色;
     const charNames = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
-    if (!charNames.length) { showModalDialog('🎲 数值重Roll', '<div>没有角色可供重Roll。</div>', null, { confirmText: '关闭' }); return; }
+    if (!charNames.length) { showModalDialog('数值重Roll', '<div>没有角色可供重Roll。</div>', null, { confirmText: '关闭' }); return; }
     const html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">给谁重摇？</div>' +
       '<select id="moon-reroll-char" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;">' + charNames.map(function(n) { return '<option value="' + escapeFeatureHtml(n) + '">' + escapeFeatureHtml(n) + '</option>'; }).join('') + '</select>' +
-      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#171a22;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「🎲 重Roll」开始</div>' +
+      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#171a22;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「重Roll」开始</div>' +
       '<div id="moon-reroll-manual" style="display:none;margin-top:10px;padding:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:8px;font-size:11px;color:#fde68a;">' +
         '<div style="margin-bottom:6px;">这一轮没找到 AI 的判定 → 你自己定一个：</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
@@ -18706,7 +18770,7 @@ const stateKey = getChatStateKey();
         '<div style="margin-top:6px;color:#a16207;line-height:1.6;">这只用于这次重摇，不会改掉剧情里已经发生的事。</div>' +
       '</div>' +
       '<div style="margin-top:12px;display:flex;gap:8px;">' +
-      '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 重Roll</button>' +
+      '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">重Roll</button>' +
       '<button id="moon-reroll-confirm" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(16,185,129,0.5);background:#052e20;color:#6ee7b7;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" disabled>确认覆盖</button></div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">每点一次就重摇一次，可以一直摇到满意，再点「确认覆盖」。</div>';
     let pendingResult = null; const mode = getCurrentMode();
@@ -18728,7 +18792,7 @@ const stateKey = getChatStateKey();
       if (!tagName && validNames.length > 1 && primary !== name) return null;
       return { 事件类型: ext.eventType || '日常', 方向: ext.direction || '正向', 主维度: ext.dimension || 'E', 基础值: Number(ext.value) || 0 };
     }
-    showModalDialog('🎲 数值重Roll', html, null, {
+    showModalDialog('数值重Roll', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
         const sel = mask.querySelector('#moon-reroll-char'); const infoEl = mask.querySelector('#moon-reroll-info');
@@ -18847,7 +18911,7 @@ const stateKey = getChatStateKey();
     { cat: 'start', q: '要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置', '插件'],
       a: '不用装任何东西，也<b>不需要 MVU</b>。<br>所有数据都存在这台掌机里，跟别的插件不冲突。' },
     { cat: 'start', q: '找不到入口 / 点了没反应', keys: ['刷新', '导入', '菜单', '入口', '没反应'],
-      a: '先确认脚本是<b>已启用</b>状态，再刷新一次酒馆页面。<br>入口在右上角扩展菜单里，图标是 <b>🌕</b>。' },
+      a: '先确认脚本是<b>已启用</b>状态，再刷新一次酒馆页面。<br>入口在右上角扩展菜单里，图标是 <b></b>。' },
     { cat: 'start', q: '这台掌机上一堆按钮，都是干什么的？', keys: ['看不懂', '说明', '按钮', '说明书', '教程'],
       a: '点最下面那排的 <b>说明书</b>，它会一步一步指着告诉你哪个是哪个，30 秒看完。<br>看完就关了，不会再打扰你。' },
 
@@ -18913,7 +18977,7 @@ const stateKey = getChatStateKey();
       '<div id="moon-faq-list"></div>' +
       '<div class="mp-faq-foot">还是没有？走一趟 <b>系统检修 → 系统自检</b>，把结果截图发帖，比描述半天管用。</div>';
 
-    showModalDialog('❓ 遇到问题', html, null, {
+    showModalDialog('遇到问题', html, null, {
       confirmText: '知道了',
       onOpen: function(mask) {
         const input = mask.querySelector('#moon-faq-search');

@@ -1,5 +1,5 @@
   function renderArcadeGameScreen() {
-    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">▣ MOON POCKET ARCADE ▣</div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
+    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">MOON POCKET ARCADE </div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
   }
 
   /* 难度四档。四处都会用到（面板、街机、设置组），所以抽成一个函数，
@@ -18,6 +18,22 @@
         ? '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + '</b>　' + ARCADE_DIFFICULTY_HINTS[selectedLevel] + '。只影响小游戏，不改剧情难度。'
         : '<b>' + LUNAR_META[selectedLevel].glyph + ' ' + LUNAR_META[selectedLevel].name + ' · ' + LUNAR_META[selectedLevel].title + '</b>　' + LUNAR_META[selectedLevel].detail) +
       '</div>';
+  }
+
+  /* 面板图标：一套线稿，18px、1.5 描边、颜色跟随文字。
+     以前六个菜单项混着 ▶ ⚙ 和一个彩色 emoji，扫码扫不动；
+     现在统一成同一套线，emoji 全部从界面里撤掉。 */
+  function uiIco(name) {
+    const P = {
+      play: '<path d="M8.4 5.4v13.2L19.4 12z"/>',
+      heart: '<path d="M12 20.2C7.7 17 4.2 14 4.2 10.5A4.3 4.3 0 0 1 12 7.7a4.3 4.3 0 0 1 7.8 2.8c0 3.5-3.5 6.5-7.8 9.7z"/>',
+      journal: '<path d="M5.2 4.8h11.4A2.4 2.4 0 0 1 19 7.2v11.9H7.6a2.4 2.4 0 0 1-2.4-2.4z"/><path d="M8.8 9h6.8M8.8 12.6h6.8M8.8 16.2h4.2"/>',
+      wrench: '<path d="M14.9 4.7a4.6 4.6 0 0 0-5.7 6.1l-4.8 4.8a1.9 1.9 0 0 0 2.7 2.7l4.8-4.8a4.6 4.6 0 0 0 6.1-5.7l-2.9 2.9-2.4-.6-.6-2.4z"/>',
+      sliders: '<path d="M5 7.6h5.6M16 7.6h3M5 16.4h3M13.4 16.4h5.6"/><circle cx="13" cy="7.6" r="2.1"/><circle cx="10.6" cy="16.4" r="2.1"/>',
+      gamepad: '<path d="M7.6 8.6h8.8a4.5 4.5 0 0 1 0 9h-.5l-1.8-1.9h-4.2l-1.8 1.9h-.5a4.5 4.5 0 0 1 0-9z"/><path d="M8.4 11.4v3.4M6.7 13.1h3.4"/><circle cx="15.2" cy="12.2" r=".75"/><circle cx="16.8" cy="14" r=".75"/>'
+    };
+    return '<svg class="mp-lico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[name] || '') + '</svg>';
   }
 
   function renderPanel(panel) {
@@ -101,48 +117,48 @@
 
     /* 设置卡放到主菜单之后：先给「现在做什么」，再给「怎么调」 */
     const settingsCardHtml = '<div class="mp-card">' +
-      pocketFold('play', '⚙ 玩法与手感', '难度、卡组、建档、骰子、事件节奏',
-        '<div class="mp-set-block"><div class="mp-set-title">🎮 游戏难度</div>' +
+      pocketFold('play', '玩法与手感', '难度、卡组、建档、骰子、事件节奏',
+        '<div class="mp-set-block"><div class="mp-set-title">游戏难度</div>' +
         '<div class="mp-set-desc">' + currentMeta.detail + '</div>' +
         renderDifficultyPicker(selectedLevel, false) + '</div>' +
-        pocketRow('🃏 这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在Ta头上',
+        pocketRow('这张卡有几个人', cardMode === 'multi' ? '好几个人都能攻略：谁在场就算谁的分' : '只有一个人：所有加减都算在Ta头上',
           '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
-        pocketRow('🧾 自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
+        pocketRow('自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
           '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
-        pocketRow('🎲 初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+        pocketRow('初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
           '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
-        pocketRow('🎬 小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
+        pocketRow('小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
           '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
-        pocketRow('🌐 借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
+        pocketRow('借原作台词', fanficOn ? '会参考原作里Ta说过的话，更像本人' : '只按角色卡演，不引用原作',
           '<button class="mp-fanfic-btn' + (fanficOn ? ' on' : '') + '" id="moon-phase-fanfic">' + (fanficOn ? '开' : '关') + '</button>'),
         false) +
-      pocketFold('look', '🎫 外观与阅读', '状态卡长什么样、用哪一套纸与光',
-        '<div class="mp-set-block"><div class="mp-set-title">🎫 楼内状态卡</div>' +
+      pocketFold('look', '外观与阅读', '状态卡长什么样、用哪一套纸与光',
+        '<div class="mp-set-block"><div class="mp-set-title">楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
         renderSkinPickerHtml() + '</div>' +
-        '<div class="mp-set-block"><div class="mp-set-title">🎨 自制美化</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">自制美化</div>' +
         '<div class="mp-set-desc">描述你想要的样子，让模型生成一套配色与材质；也可以导出成文档，在外面做好再把 JSON 贴回来。</div>' +
         '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
         false) +
-      pocketFold('ai', '🔑 AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
-        pocketRow('🔑 让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
+      pocketFold('ai', 'AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
+        pocketRow('让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',
           '<button class="mp-extra-btn ' + (hasApi ? 'on' : '') + '" id="moon-phase-extramodel">' + (hasApi ? '已配置' : '去配置') + '</button>') +
-        '<div class="mp-set-block"><div class="mp-set-title">📜 演绎规则</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">演绎规则</div>' +
         '<div class="mp-set-desc" id="moon-phase-core-desc">' + lcdEscape(getCoreRuleHint()) + '</div>' +
         renderCoreRulePickerHtml() + '</div>' +
-        '<div class="mp-set-block"><div class="mp-set-title">🏷 词条释义</div>' +
+        '<div class="mp-set-block"><div class="mp-set-title">词条释义</div>' +
         '<div class="mp-set-desc" id="moon-phase-glossary-desc">' + lcdEscape(getGlossaryHint()) + '</div>' +
         renderGlossaryPickerHtml() + '</div>',
         false) +
-      pocketFold('risk', '🌑 开了就回不了头', '这两个开关会影响整局，看清楚再用',
-        pocketRow('🔒 安全锁', getSafetyLock() ? '开：Ta最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
+      pocketFold('risk', '开了就回不了头', '这两个开关会影响整局，看清楚再用',
+        pocketRow('安全锁', getSafetyLock() ? '开：Ta最多嘴上凶，不会真的伤害你' : '关：剧情可能真的动手',
           '<button class="mp-safelock-btn ' + (getSafetyLock() ? 'on' : 'off') + '" id="moon-phase-safetylock">' + (getSafetyLock() ? '开' : '关') + '</button>') +
-        pocketRow('🌑 锁死这段剧情', (antisl || anchorLocked) ? '已经开了：Ta一旦心凉就锁死，只能开新对话重来' : '关着。打开后Ta心凉就回不了头，删楼重摇都没用',
+        pocketRow('锁死这段剧情', (antisl || anchorLocked) ? '已经开了：Ta一旦心凉就锁死，只能开新对话重来' : '关着。打开后Ta心凉就回不了头，删楼重摇都没用',
           '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '已锁死' : (antisl ? '开' : '关')) + '</button>'),
         false) +
       '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
       '<span class="mp-fate-dot" style="background:' + (fateActive ? '#ff8ab2' : '#7fd8a8') + ';"></span>' +
-      '<span>' + (fateActive ? '🌑 已经锁死了，只能开新对话' : '🌓 还没锁，随时能反悔') + '</span></div></div>';
+      '<span>' + (fateActive ? '已经锁死了，只能开新对话' : '还没锁，随时能反悔') + '</span></div></div>';
 
     panel.innerHTML = '' +
       /* 头部：品牌名固定一行（长卡名收成副标题），版本号独立成块，不再把标题挤成三行 */
@@ -154,24 +170,24 @@
       '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
       guideHtml +
       '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
-      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">▤ 系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">▣ 街机小游戏</button></div>' +
+      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板</button>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button></div>' +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
       (isArcadeMode
         ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
         : '') +
       '<div class="mp-system-content">' +
-      (bioStatus.count > 0 ? '<div class="mp-card"><div class="mp-card-title">📖 已有 ' + bioStatus.count + ' 份角色小抄生效<small>BIO</small></div><div class="mp-set-desc">' + bioStatus.charNames.join('、') + '</div></div>' : '') +
-      (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">👤 玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
+      (bioStatus.count > 0 ? '<div class="mp-card"><div class="mp-card-title">已有 ' + bioStatus.count + ' 份角色小抄生效<small>BIO</small></div><div class="mp-set-desc">' + bioStatus.charNames.join('、') + '</div></div>' : '') +
+      (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
       '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
       '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">▶</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">♥</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">▤</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">⚙</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">▧</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">🎮</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
-      '</div><div class="mp-menu-controls"><span>💡 不知道点哪，回最上面看那条粉色提示</span></div>' +
+      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">' + uiIco('play') + '</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">' + uiIco('gamepad') + '</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
+      '</div><div class="mp-menu-controls"><span>不知道点哪，回最上面看那条粉色提示</span></div>' +
       '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
         '<div class="mp-dpad" aria-hidden="true">' +
           '<button type="button" class="mp-dpad-btn mp-dpad-up" tabindex="-1" aria-label="上">▲</button>' +
@@ -202,60 +218,60 @@
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">♥ 角色</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">▤ 日志</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">⚙ 检修</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">▧ 选项</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">角色</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">日志</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">检修</button>' +
+        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">选项</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>🚀 一键建档案</span><small>AI 读一遍聊天记录，把人和现在的数值填好</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>📦 搬旧存档</span><small>换到新聊天时，把这里的档案带过去</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-adapt"><span>一键建档案</span><small>AI 读一遍聊天记录，把人和现在的数值填好</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-pack-migrate"><span>搬旧存档</span><small>换到新聊天时，把这里的档案带过去</small></button></div>', true) +
       pocketFold('adv-roll', '重摇 / 查上限', '觉得这轮加少了，或者想知道上限清没清',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>🎲 重摇这一轮</span><small>不满意就重摇，摇到满意再确认，可以一直摇</small></button>' +
-        '<button class="mp-btn" id="moon-phase-countdown"><span>⏱️ 检查每周上限</span><small>算一下这周的加分额度该清零了没</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-reroll"><span>重摇这一轮</span><small>不满意就重摇，摇到满意再确认，可以一直摇</small></button>' +
+        '<button class="mp-btn" id="moon-phase-countdown"><span>检查每周上限</span><small>算一下这周的加分额度该清零了没</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="characters" style="display:' + (activeMenuKey === 'characters' ? 'block' : 'none') + '"><div class="mp-sub-label">角色与存档</div>' +
       pocketFold('chr-files', '人物档案', '认错人、说话不像、想手改数值',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>👥 查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>🎬 让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>📚 已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
       pocketFold('chr-you', '关于「你」', '让 AI 记住你是谁、什么脾气',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>👤 写一份我的设定</span><small>把你写清楚，Ta回话才不会跑偏</small></button>' +
-        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>📂 已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>写一份我的设定</span><small>把你写清楚，Ta回话才不会跑偏</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
       pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>🏆 回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
-        '<button class="mp-btn" id="moon-phase-ending"><span>🌌 结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ending"><span>结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志（可选）</div>' +
       pocketFold('tl-list', '世界大事表', '不写也能正常玩；写了 AI 会有主线目标',
         '<div class="mp-grid">' +
-        '<button class="mp-btn" id="moon-phase-tl-list"><span>📋 看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
-        '<button class="mp-btn" id="moon-phase-tl-gen"><span>📝 让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
-        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>📥 从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-list"><span>看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
+        '<button class="mp-btn" id="moon-phase-tl-gen"><span>让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
+        '<button class="mp-btn" id="moon-phase-scan-timeline"><span>从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
       '</div>', true) +
       pocketFold('tl-edit', '自己补 / 改日期', 'AI 写漏了，或者日期读错了',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>🏷️ 日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
-        '<button class="mp-btn" id="moon-phase-manual-tl"><span>✍️ 手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
+        '<button class="mp-btn" id="moon-phase-manual-tl"><span>手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="system" style="display:' + (activeMenuKey === 'system' ? 'block' : 'none') + '"><div class="mp-sub-label">系统检修</div>' +
       pocketFold('sys-check', '先体检', '不知道哪坏了，就点这两个',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>🔭 系统自检</span><small>一条条列给你：哪项正常、哪项不正常</small></button>' +
-        '<button class="mp-btn" id="moon-phase-simtest"><span>🧪 拿假数据试算</span><small>不碰你的存档，只验证算法跑不跑得通</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-selfcheck"><span>系统自检</span><small>一条条列给你：哪项正常、哪项不正常</small></button>' +
+        '<button class="mp-btn" id="moon-phase-simtest"><span>拿假数据试算</span><small>不碰你的存档，只验证算法跑不跑得通</small></button></div>', true) +
       pocketFold('sys-conflict', '查打架', '怀疑和别的插件/世界书撞了',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>🔍 冲突扫描</span><small>查世界书里有没有重复、互相打架的条目</small></button>' +
-        '<button class="mp-btn" id="moon-phase-ai-detect"><span>🤖 让 AI 帮我看</span><small>它读完给出结论，也能顺手推荐个难度</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-conflict"><span>冲突扫描</span><small>查世界书里有没有重复、互相打架的条目</small></button>' +
+        '<button class="mp-btn" id="moon-phase-ai-detect"><span>让 AI 帮我看</span><small>它读完给出结论，也能顺手推荐个难度</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="settings" style="display:' + (activeMenuKey === 'settings' ? 'block' : 'none') + '"><div class="mp-sub-label">系统选项</div>' +
       pocketFold('opt-ai', 'AI 与接口', '可选：让插件单独用一个 AI',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>⚙️ AI 钥匙</span><small>' + (hasApi ? '已填：' + lcdEscape(String(apiCfg.model).slice(0, 12)) : '不用填，不填就用酒馆里那个 AI') + '</small></button>' +
-        '<button class="mp-btn" id="moon-phase-prompt-edit"><span>🧩 改提示词</span><small>AI 收到的指令在这里，看得懂再改</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-custom-ai"><span>AI 钥匙</span><small>' + (hasApi ? '已填：' + lcdEscape(String(apiCfg.model).slice(0, 12)) : '不用填，不填就用酒馆里那个 AI') + '</small></button>' +
+        '<button class="mp-btn" id="moon-phase-prompt-edit"><span>改提示词</span><small>AI 收到的指令在这里，看得懂再改</small></button></div>', true) +
       pocketFold('opt-art', '插画与番外', '用哪家画图、番外写多长',
-        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>🖼️ 画图与番外设定</span><small>选画图渠道，定番外字数</small></button>' +
-        '<button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>📖 新手说明书</span><small>一步一步讲，30 秒看完</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn" id="moon-phase-image-settings"><span>画图与番外设定</span><small>选画图渠道，定番外字数</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-tutorial-btn"><span>新手说明书</span><small>一步一步讲，30 秒看完</small></button></div>', true) +
       pocketFold('opt-update', '更新与帮助', '拉最新版、遇到问题先搜这里',
-        '<div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '⬇ 有新版本' : '🔄 检查更新') + '</span><small>连不上会自动换线路重试</small></button>' +
-        '<button class="mp-btn" id="moon-phase-faq"><span>❓ 遇到问题</span><small>按情况分好类，一句话一个答案</small></button></div>', true) +
+        '<div class="mp-grid"><button class="mp-btn' + (_cachedUpdateInfo ? ' mp-btn-highlight' : '') + '" id="moon-phase-update"><span>' + (_cachedUpdateInfo ? '有新版本' : '检查更新') + '</span><small>连不上会自动换线路重试</small></button>' +
+        '<button class="mp-btn" id="moon-phase-faq"><span>遇到问题</span><small>按情况分好类，一句话一个答案</small></button></div>', true) +
       '</div></section>' +
       settingsCardHtml +
       '<div class="mp-status" id="moon-phase-status">准备好了。要做的事都写在最上面那条提示里。</div></div>';
@@ -456,10 +472,10 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     })();
     panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
     panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
-    panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">⚡ 捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
-    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">⏳ 运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
-    panel.querySelector('#moon-phase-simtest').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
-    panel.querySelector('#moon-phase-conflict').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">⏳ 扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
+    panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
+    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
+    panel.querySelector('#moon-phase-simtest').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
+    panel.querySelector('#moon-phase-conflict').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
     panel.querySelector('#moon-phase-reroll').addEventListener('click', function() { openRerollDialog(panel); });
     panel.querySelector('#moon-phase-pack-migrate').addEventListener('click', function() { startMigrationPack(panel); });
     panel.querySelector('#moon-phase-bio').addEventListener('click', function() { openAuditionMainDialog(panel); });
@@ -519,8 +535,8 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
     const pacingName = { Adi: 'Adagio · 柔板', And: 'Andante · 行板', All: 'Allegro · 快板' }[getEventPacing()] || getEventPacing();
     info('推进节奏：' + pacingName);
     info('同人台词补强：' + (getFanficEnhance() ? 'ON' : 'OFF'));
-    info('安全锁：' + (getSafetyLock() ? '🔒 ON' : '⚠️ OFF'));
-    info('锚定：' + (getAntiSL() ? '🔒 ON' : '⚠️ OFF'));
+    info('安全锁：' + (getSafetyLock() ? 'ON' : '⚠ OFF'));
+    info('锚定：' + (getAntiSL() ? 'ON' : '⚠ OFF'));
     info('当前难度：' + (LUNAR_META[getCurrentMode()]?.name || getCurrentMode()));
 
     lines.push('<div class="mp-log-subhead">── 独立 API ──</div>');
@@ -620,7 +636,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
   async function runSimulationTest() {
     const lines = [];
     let _nFail = 0, _nWarn = 0;
-    lines.push('<b style="color:#6ee7b7">🧪 ' + SYSTEM_UI_NAME + ' · 综合测试</b><br>');
+    lines.push('<b style="color:#6ee7b7">' + SYSTEM_UI_NAME + ' · 综合测试</b><br>');
     lines.push('<span style="color:#94a3b8;font-size:10px;">测试使用假数据 (Amore: E5/P2/R1/I0)，不污染真实变量</span><br>');
 
     lines.push('<div class="mp-log-subhead">【测试1】时间解析</div>');
@@ -706,13 +722,13 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     try {
       const mockStat = {
         世界: { 时间: '2000年01月01日 · 星期六 · 00:00', 地点: '教室', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' },
-        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '😐', 心声: '……', 在场: true, 重要度: '主要' } }
+        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '', 心声: '……', 在场: true, 重要度: '主要' } }
       };
-      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=😄\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
+      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
       const res = ingestBackendVariables(mockMes, mockStat);
       const okTime = String(mockStat.世界.时间).indexOf('01月02日') >= 0;
       const okVoice = String(mockStat.角色['长谷川茗'].心声).indexOf('开心') >= 0;
-      const okEmoji = String(mockStat.角色['长谷川茗'].情绪) === '😄';
+      const okEmoji = String(mockStat.角色['长谷川茗'].情绪) === '';
       const okStrip = String(res.text).indexOf('角色.长谷川茗.心声') < 0 && String(res.text).indexOf('世界.时间') < 0;
       if (okTime && okVoice && okEmoji && okStrip) lines.push('✔ 时间 / 心声 / 情绪 均被写入，且已从正文清理');
       else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 清理' + okStrip);
@@ -743,7 +759,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
       else lines.push('✖ 相对时间换算异常：' + d1 + ' / ' + d2 + ' / ' + d3);
     } catch (e) { lines.push('✖ 相对时间测试异常：' + (e.message || e)); }
 
-    lines.push('<br><b style="color:#6ee7b7">✨ 综合测试完毕，本地化引擎运转正常。</b>');
+    lines.push('<br><b style="color:#6ee7b7">综合测试完毕，本地化引擎运转正常。</b>');
     return lines.join('<br>');
   }
 
@@ -758,7 +774,7 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     const bad = function(s) { lines.push('<span style="color:#f87171">✖</span> ' + s); };
     let hasConflict = false;
     let fatalCount = 0;
-    lines.push('<b style="color:#93c5fd">🔍 全环境冲突扫描</b>');
+    lines.push('<b style="color:#93c5fd">全环境冲突扫描</b>');
 
 const stateKey = getChatStateKey();
     const localRaw = (getStorage() || localStorage).getItem(stateKey);
@@ -778,7 +794,7 @@ const stateKey = getChatStateKey();
     info('当前标签格式：' + (getCardMode() === 'multi' ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]'));
     info('数值全由掌机自己算；AI 只负责报时间和Ta心里的想法，这些玩家看不到');
 
-    lines.push('<div class="mp-log-subhead">📋 总结</div>');
+    lines.push('<div class="mp-log-subhead">总结</div>');
     if (fatalCount > 0) bad('发现 ' + fatalCount + ' 项致命冲突');
     else if (hasConflict) warn('发现若干可修复的冲突');
     else ok('未发现明显冲突');
@@ -850,7 +866,7 @@ const stateKey = getChatStateKey();
   async function refreshTokenCard(panel) {
     const box = panel.querySelector('#moon-token-box');
     if (!box) return;
-    box.innerHTML = '<span style="color:#94a3b8;">⏳ 正在算…</span>';
+    box.innerHTML = '<span style="color:#94a3b8;">正在算…</span>';
     try {
       const r = await computeTokenBreakdown();
       const lines = [];
@@ -889,7 +905,7 @@ const stateKey = getChatStateKey();
     const data = readMvuLatest();
     const chars = (data && data.stat_data && data.stat_data.角色) || {};
     const names = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
-    if (!names.length) { showModalDialog('👥 角色定位', '<div style="line-height:1.8;">这个对话还没有角色档案。<br>先去 <b>▶ 开始游戏 → 🚀 开局适配</b> 点一下，建好再回来。</div>', null, { confirmText: '关闭' }); return; }
+    if (!names.length) { showModalDialog('角色定位', '<div style="line-height:1.8;">这个对话还没有角色档案。<br>先去 <b>▶ 开始游戏 → 开局适配</b> 点一下，建好再回来。</div>', null, { confirmText: '关闭' }); return; }
     const world = (data.stat_data && data.stat_data.世界) || {};
     const impOptions = function(cur) {
       return ['主要', '次要', 'NPC'].map(function(v) {
@@ -915,7 +931,7 @@ const stateKey = getChatStateKey();
         '<div style="display:flex;gap:6px;align-items:center;">' +
         '<select class="moon-roster-imp" data-idx="' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#22262f;color:#e2e8f0;font-size:11.5px;font-family:inherit;">' + impOptions(imp) + '</select>' +
         '<button type="button" class="moon-roster-presence" data-idx="' + i + '" data-on="' + (present ? '1' : '0') + '" style="padding:6px 10px;border-radius:6px;border:1px solid ' + (present ? 'rgba(110,231,183,0.5)' : 'rgba(148,163,184,0.3)') + ';background:' + (present ? '#052e20' : '#111827') + ';color:' + (present ? '#6ee7b7' : '#94a3b8') + ';font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (present ? '在场' : '不在场') + '</button>' +
-        '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 补掷</button></div>' +
+        '<button type="button" class="moon-roster-firstmeet" data-idx="' + i + '" data-on="0" title="给这个人补掷一次初见骰（自己加进档案的角色用这个）" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(168,85,247,0.45);background:#2a1040;color:#e9d5ff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">补掷</button></div>' +
         '<input class="moon-roster-voice" data-idx="' + i + '" value="' + escapeFeatureHtml(ch.心声 || '') + '" placeholder="Ta心里在想什么（可以自己改）" style="width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.2);background:#22262f;color:#cbd5e1;font-size:11px;font-family:inherit;">' +
         '</div>';
     }).join('');
@@ -926,7 +942,7 @@ const stateKey = getChatStateKey();
       '<div style="flex:1.6;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">世界时间</div><input id="moon-roster-world-time" value="' + escapeFeatureHtml(world.时间 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
       '<div style="flex:1;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">地点</div><input id="moon-roster-world-place" value="' + escapeFeatureHtml(world.地点 || '') + '" style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div></div>' +
       '<div style="max-height:46dvh;overflow-y:auto;padding-right:3px;">' + rows + '</div>';
-    showModalDialog('👥 角色定位 · 顺便修时间和内心话', html, function() {
+    showModalDialog('角色定位 · 顺便修时间和内心话', html, function() {
       const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
       const d = readMvuLatest();
       const stat = d && d.stat_data; if (!stat) return;
@@ -950,7 +966,7 @@ const stateKey = getChatStateKey();
         if (pBtn) ch.在场 = pBtn.getAttribute('data-on') === '1';
         const vInput = row.querySelector('.moon-roster-voice');
         if (vInput) { const v = String(vInput.value || '').trim(); if (v) ch.心声 = v.slice(0, 300); }
-        /* 点了「🎲 补掷」：清掉旧的初见结论，重新走一次结算。
+        /* 点了「补掷」：清掉旧的初见结论，重新走一次结算。
            自己往变量里加的人、或者旧存档里从没掷过的角色，都靠这个补上开局投资。 */
         const fBtn = row.querySelector('.moon-roster-firstmeet');
         if (fBtn && fBtn.getAttribute('data-on') === '1') {
@@ -994,7 +1010,7 @@ const stateKey = getChatStateKey();
           btn.setAttribute('data-on', next ? '1' : '0');
           btn.style.borderColor = next ? 'rgba(244,114,182,0.8)' : 'rgba(168,85,247,0.45)';
           btn.style.background = next ? '#4a1030' : '#2a1040';
-          btn.textContent = next ? '🎲 待掷' : '🎲 补掷';
+          btn.textContent = next ? '待掷' : '补掷';
         });
       });
     } });
@@ -1002,13 +1018,13 @@ const stateKey = getChatStateKey();
 
   function openRerollDialog(panel) {
     const data = readMvuLatest();
-    if (!data || !data.stat_data || !data.stat_data.角色) { showModalDialog('🎲 数值重Roll', '<div>当前没有可用的角色数据。</div>', null, { confirmText: '关闭' }); return; }
+    if (!data || !data.stat_data || !data.stat_data.角色) { showModalDialog('数值重Roll', '<div>当前没有可用的角色数据。</div>', null, { confirmText: '关闭' }); return; }
     const chars = data.stat_data.角色;
     const charNames = Object.keys(chars).filter(function(n) { return !isCharSkeleton(chars[n]); });
-    if (!charNames.length) { showModalDialog('🎲 数值重Roll', '<div>没有角色可供重Roll。</div>', null, { confirmText: '关闭' }); return; }
+    if (!charNames.length) { showModalDialog('数值重Roll', '<div>没有角色可供重Roll。</div>', null, { confirmText: '关闭' }); return; }
     const html = '<div style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">给谁重摇？</div>' +
       '<select id="moon-reroll-char" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:#171a22;color:#e2e8f0;font-size:12px;">' + charNames.map(function(n) { return '<option value="' + escapeFeatureHtml(n) + '">' + escapeFeatureHtml(n) + '</option>'; }).join('') + '</select>' +
-      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#171a22;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「🎲 重Roll」开始</div>' +
+      '<div id="moon-reroll-info" style="margin-top:12px;padding:10px;background:#171a22;border-radius:8px;font-size:11px;line-height:1.7;color:#cbd5e1;min-height:80px;">点下面「重Roll」开始</div>' +
       '<div id="moon-reroll-manual" style="display:none;margin-top:10px;padding:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:8px;font-size:11px;color:#fde68a;">' +
         '<div style="margin-bottom:6px;">这一轮没找到 AI 的判定 → 你自己定一个：</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
@@ -1018,7 +1034,7 @@ const stateKey = getChatStateKey();
         '<div style="margin-top:6px;color:#a16207;line-height:1.6;">这只用于这次重摇，不会改掉剧情里已经发生的事。</div>' +
       '</div>' +
       '<div style="margin-top:12px;display:flex;gap:8px;">' +
-      '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">🎲 重Roll</button>' +
+      '<button id="moon-reroll-do" style="flex:1;padding:10px;border-radius:9px;border:1px solid transparent;background:#0369a1;color:#f4f1ea;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">重Roll</button>' +
       '<button id="moon-reroll-confirm" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(16,185,129,0.5);background:#052e20;color:#6ee7b7;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" disabled>确认覆盖</button></div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:#64748b;line-height:1.6;">每点一次就重摇一次，可以一直摇到满意，再点「确认覆盖」。</div>';
     let pendingResult = null; const mode = getCurrentMode();
@@ -1040,7 +1056,7 @@ const stateKey = getChatStateKey();
       if (!tagName && validNames.length > 1 && primary !== name) return null;
       return { 事件类型: ext.eventType || '日常', 方向: ext.direction || '正向', 主维度: ext.dimension || 'E', 基础值: Number(ext.value) || 0 };
     }
-    showModalDialog('🎲 数值重Roll', html, null, {
+    showModalDialog('数值重Roll', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
         const sel = mask.querySelector('#moon-reroll-char'); const infoEl = mask.querySelector('#moon-reroll-info');
@@ -1159,7 +1175,7 @@ const stateKey = getChatStateKey();
     { cat: 'start', q: '要装别的东西吗？', keys: ['依赖', 'mvu', '安装', '前置', '插件'],
       a: '不用装任何东西，也<b>不需要 MVU</b>。<br>所有数据都存在这台掌机里，跟别的插件不冲突。' },
     { cat: 'start', q: '找不到入口 / 点了没反应', keys: ['刷新', '导入', '菜单', '入口', '没反应'],
-      a: '先确认脚本是<b>已启用</b>状态，再刷新一次酒馆页面。<br>入口在右上角扩展菜单里，图标是 <b>🌕</b>。' },
+      a: '先确认脚本是<b>已启用</b>状态，再刷新一次酒馆页面。<br>入口在右上角扩展菜单里，图标是 <b></b>。' },
     { cat: 'start', q: '这台掌机上一堆按钮，都是干什么的？', keys: ['看不懂', '说明', '按钮', '说明书', '教程'],
       a: '点最下面那排的 <b>说明书</b>，它会一步一步指着告诉你哪个是哪个，30 秒看完。<br>看完就关了，不会再打扰你。' },
 
@@ -1225,7 +1241,7 @@ const stateKey = getChatStateKey();
       '<div id="moon-faq-list"></div>' +
       '<div class="mp-faq-foot">还是没有？走一趟 <b>系统检修 → 系统自检</b>，把结果截图发帖，比描述半天管用。</div>';
 
-    showModalDialog('❓ 遇到问题', html, null, {
+    showModalDialog('遇到问题', html, null, {
       confirmText: '知道了',
       onOpen: function(mask) {
         const input = mask.querySelector('#moon-faq-search');

@@ -181,7 +181,7 @@
   .tkt-cross-mark {
     position: absolute;
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 10px;
+    font-size: 10.5px;
     line-height: 1;
     color: var(--t-border);
     opacity: 0.45;
@@ -335,15 +335,17 @@
     color: var(--t-invert-ink);
     padding: 2px 7px;
     font-weight: 600;
-    font-size: 8.5px;
-    letter-spacing: 1.4px;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    white-space: nowrap;
     border-radius: 1px;
     font-family: "Noto Serif SC", "Songti SC", serif;
   }
   .tkt-curator-mark {
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: 1.2px;
+    letter-spacing: .1em;
+    white-space: nowrap;
     color: var(--t-dim);
     text-transform: uppercase;
     font-family: "Noto Serif SC", "Songti SC", serif;
@@ -351,8 +353,9 @@
   .tkt-header-seq {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-weight: 600;
-    font-size: 10px;
-    letter-spacing: 1.2px;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    white-space: nowrap;
     opacity: 0.9;
   }
 
@@ -367,15 +370,15 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 8px;
+    font-size: 9.5px;
     font-family: "Noto Serif SC", "Songti SC", serif;
     color: var(--t-dim);
-    letter-spacing: 1.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
   }
   .tkt-title-meta-badge::before {
     content: "■";
-    font-size: 6px;
+    font-size: 9px;
     color: var(--t-accent-red);
   }
 
@@ -383,7 +386,7 @@
     font-family: "Byron Mark II", "Special Elite", "Courier Prime", "Courier New", monospace;
     font-size: 40px;
     font-weight: 600;
-    letter-spacing: 2.5px;
+    letter-spacing: 0.06em;
     line-height: 0.95;
     text-transform: uppercase;
     display: block;
@@ -401,8 +404,8 @@
     margin-top: 4px;
   }
   .tkt-sign-lbl {
-    font-size: 8.5px;
-    letter-spacing: 1.4px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     color: var(--t-dim);
     text-transform: uppercase;
     font-weight: 600;
@@ -431,12 +434,12 @@
 
   .tkt-gender-m {
     transform: rotate(-3deg);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.06em;
     font-weight: 500;
   }
   .tkt-gender-f {
     transform: rotate(-1.2deg);
-    letter-spacing: 1.1px;
+    letter-spacing: 0.06em;
     font-weight: 400;
   }
 
@@ -455,7 +458,7 @@
 
   .tkt-quick-grid {
     display: grid;
-    grid-template-columns: 1.65fr 1fr 1fr;
+    grid-template-columns: 1.3fr 1fr 1fr;
     border: 1.2px solid var(--t-border);
     background: transparent;
     position: relative;
@@ -477,9 +480,9 @@
     border-right: none;
   }
   .tkt-meta-lbl {
-    font-size: 7.5px;
+    font-size: 9px;
     color: var(--t-dim);
-    letter-spacing: 1.2px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
@@ -508,8 +511,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 8.5px;
-    letter-spacing: 1.8px;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
     color: var(--t-dim);
     padding-top: 6px;
     text-transform: uppercase;
@@ -530,7 +533,7 @@
     opacity: 0.6;
   }
   .tkt-fold .arrow {
-    font-size: 9px;
+    font-size: 9.5px;
     transition: transform 0.28s cubic-bezier(0.2, 1, 0.3, 1);
   }
   .tkt-container.is-open .tkt-fold .arrow { transform: rotate(180deg); }
@@ -561,9 +564,9 @@
 
   .tkt-stub-tag {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 7.5px;
+    font-size: 9px;
     font-weight: 600;
-    letter-spacing: 2px;
+    letter-spacing: 0.1em;
     color: var(--t-dim);
     text-transform: uppercase;
     border-bottom: 1px solid var(--t-grid);
@@ -574,7 +577,7 @@
   .tkt-stub-serial {
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 15px;
-    letter-spacing: 2.2px;
+    letter-spacing: 0.12em;
     font-weight: 600;
     text-align: center;
     position: relative;
@@ -597,13 +600,13 @@
     border: 1.2px solid var(--t-border);
     color: var(--t-ink);
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 600;
     padding: 4px 6px;
     cursor: pointer;
-    letter-spacing: 1px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    transition: all 0.15s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
     width: 100%;
     text-align: center;
     box-sizing: border-box;
@@ -642,9 +645,9 @@
     border-radius: 1px;
     padding: 3px 8px;
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 600;
-    letter-spacing: 1.6px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     text-align: center;
     white-space: nowrap;
@@ -671,8 +674,8 @@
   }
 
   .tkt-stub-notice {
-    font-size: 7px;
-    letter-spacing: 1.6px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
     font-family: "Noto Serif SC", "Songti SC", serif;
     color: var(--t-dim);
     text-transform: uppercase;
@@ -700,8 +703,8 @@
   }
   .tkt-sec {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 8.5px;
-    letter-spacing: 2px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 600;
     border-bottom: 1.2px solid var(--t-border);
@@ -732,10 +735,10 @@
   }
   .tkt-cell:last-child { border-right: none; }
   .tkt-cell-lbl {
-    font-size: 7.5px;
+    font-size: 9px;
     color: var(--t-dim);
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 0.1em;
     font-family: "Noto Serif SC", "Songti SC", serif;
     line-height: 1;
     margin-bottom: 5px;
@@ -776,17 +779,17 @@
     font-family: "Noto Serif SC", "Songti SC", serif;
     font-size: 17px;
     font-weight: 600;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
   }
   .tkt-pill {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 7.5px;
+    font-size: 9px;
     font-weight: 600;
     padding: 2px 5px;
     border: 1px solid var(--t-border);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.04em;
   }
   .tkt-pill.active {
     background: var(--t-invert-bg);
@@ -802,12 +805,12 @@
   .tkt-gauge-lbl {
     display: flex;
     justify-content: space-between;
-    font-size: 8.5px;
+    font-size: 9.5px;
     font-weight: 600;
     font-family: "Noto Serif SC", "Songti SC", serif;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.04em;
   }
-  .tkt-gauge-lbl .gauge-code { color: var(--t-dim); font-size: 8px; }
+  .tkt-gauge-lbl .gauge-code { color: var(--t-dim); font-size: 9.5px; }
   .tkt-gauge-track {
     height: 5px;
     background: var(--t-subtle);
@@ -845,7 +848,7 @@
     line-height: 1.45;
   }
   .tkt-outfit {
-    font-size: 9px;
+    font-size: 9.5px;
     color: var(--t-dim);
     word-break: break-all;
     font-family: "Noto Serif SC", "Songti SC", serif;
@@ -873,8 +876,8 @@
   }
   .tkt-warn {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 8px;
-    letter-spacing: 1.4px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--t-dim);
     text-align: left;
@@ -901,8 +904,8 @@
   .tkt-w3 { width: 3.4px; }
   .tkt-barcode-serial {
     font-family: "Noto Serif SC", "Songti SC", serif;
-    font-size: 6.5px;
-    letter-spacing: 2.2px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
     color: var(--t-dim);
     line-height: 1;
     margin-left: 2px;
@@ -920,22 +923,22 @@
       gap: 5px !important;
     }
     .tkt-type-tag {
-      font-size: 7px !important;
+      font-size: 9px !important;
       padding: 1px 4px !important;
     }
     .tkt-curator-mark {
-      font-size: 7px !important;
+      font-size: 9px !important;
     }
     .tkt-header-seq {
-      font-size: 8px !important;
+      font-size: 9.5px !important;
     }
     .tkt-title-meta-badge {
-      font-size: 7px !important;
-      letter-spacing: 0.8px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.05em !important;
     }
     .tkt-title-text {
       font-size: 30px !important; /* 主标题增大，重塑 PC 视觉张力 */
-      letter-spacing: 1.6px !important;
+      letter-spacing: 0.1em !important;
       margin: 2px 0 1px !important;
       line-height: 1 !important;
     }
@@ -944,8 +947,8 @@
       gap: 5px !important;
     }
     .tkt-sign-lbl {
-      font-size: 7.5px !important;
-      letter-spacing: 1px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.06em !important;
     }
     .tkt-lang-zh-cn, .tkt-lang-zh-tw, .tkt-lang-ja {
       font-size: 15px !important;
@@ -964,18 +967,18 @@
       padding: 3px 5px !important;
     }
     .tkt-meta-lbl {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       margin-bottom: 2px !important;
     }
     .tkt-meta-txt {
-      font-size: 9.5px !important;
+      font-size: 10.5px !important;
     }
     .tkt-hook-glance-time {
-      font-size: 8.5px !important;
+      font-size: 9.5px !important;
     }
     .tkt-fold {
-      font-size: 7.5px !important;
-      letter-spacing: 1px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.06em !important;
       padding-top: 4px !important;
     }
     .tkt-fold-dot {
@@ -986,32 +989,32 @@
       padding: 10px 6px !important;
     }
     .tkt-stub-tag {
-      font-size: 6.5px !important;
-      letter-spacing: 1.2px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.1em !important;
       padding-bottom: 2px !important;
     }
     .tkt-stub-serial {
       font-size: 12px !important;
-      letter-spacing: 1.5px !important;
+      letter-spacing: 0.1em !important;
       margin: 2px 0 !important;
     }
     .tkt-btn {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
       padding: 3px 2px !important;
-      letter-spacing: 0.5px !important;
+      letter-spacing: 0.04em !important;
     }
     .tkt-stub-actions {
       margin: 4px 0 !important;
       gap: 3px !important;
     }
     .tkt-stamp {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       padding: 2px 3px !important;
-      letter-spacing: 0.8px !important;
+      letter-spacing: 0.05em !important;
     }
     .tkt-stub-notice {
-      font-size: 5.5px !important;
-      letter-spacing: 0.8px !important;
+      font-size: 9px !important;
+      letter-spacing: 0.05em !important;
     }
     .tkt-stub-footer {
       min-height: 28px !important;
@@ -1026,7 +1029,7 @@
       padding: 12px 14px 14px 14px !important;
     }
     .tkt-sec {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
       margin-bottom: 8px !important;
     }
     .tkt-env {
@@ -1036,11 +1039,11 @@
       padding: 6px 8px !important;
     }
     .tkt-cell-lbl {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       margin-bottom: 3px !important;
     }
     .tkt-cell-val {
-      font-size: 10px !important;
+      font-size: 10.5px !important;
     }
     .tkt-roster {
       gap: 8px !important;
@@ -1052,7 +1055,7 @@
       font-size: 12px !important;
     }
     .tkt-pill {
-      font-size: 6.5px !important;
+      font-size: 9px !important;
       padding: 1px 3px !important;
     }
     .tkt-gauges {
@@ -1060,10 +1063,10 @@
       margin-bottom: 8px !important;
     }
     .tkt-gauge-lbl {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
     }
     .tkt-gauge-lbl .gauge-code {
-      font-size: 7px !important;
+      font-size: 9px !important;
     }
     .tkt-gauge-track {
       height: 4px !important;
@@ -1074,16 +1077,16 @@
       padding-top: 8px !important;
     }
     .tkt-outfit {
-      font-size: 7.5px !important;
+      font-size: 9px !important;
     }
     .tkt-quote {
-      font-size: 10px !important;
+      font-size: 10.5px !important;
     }
     .tkt-bottom {
       padding: 8px 12px 10px 12px !important;
     }
     .tkt-warn {
-      font-size: 6px !important;
+      font-size: 9px !important;
       line-height: 1.3 !important;
     }
     .tkt-barcode {
@@ -1096,7 +1099,7 @@
       height: 20px !important;
     }
     .tkt-barcode-serial {
-      font-size: 5.5px !important;
+      font-size: 9px !important;
     }
   }`;
 
@@ -1137,10 +1140,10 @@
   border: 1px solid var(--frame-border);
   position: relative; padding: 14px 16px;
   display: flex; flex-direction: column; justify-content: space-between;
-}.mp-skin-book .washi-inner-box::before{ content:"+"; position:absolute; top:4px; left:6px; font-size:8px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-inner-box::after{ content:"+"; position:absolute; bottom:4px; right:6px; font-size:8px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-front{ z-index: 2; }.mp-skin-book .season-seal-btn{
+}.mp-skin-book .washi-inner-box::before{ content:"+"; position:absolute; top:4px; left:6px; font-size: 9.5px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-inner-box::after{ content:"+"; position:absolute; bottom:4px; right:6px; font-size: 9.5px; color:var(--frame-border); font-family:monospace; }.mp-skin-book .washi-front{ z-index: 2; }.mp-skin-book .season-seal-btn{
   position: absolute; top: 14px; left: 16px; z-index: 5;
   background: transparent; border: none; color: var(--ink-secondary);
-  font-size: 9px; letter-spacing: 0.16em; cursor: pointer;
+  font-size: 9.5px; letter-spacing: 0.1em; cursor: pointer;
   display: flex; align-items: center; gap: 5px;
   font-family: 'Cinzel', serif; transition: color 0.2s ease;
 }.mp-skin-book .season-seal-btn:hover{ color: var(--ink-poem-origin); }.mp-skin-book .season-dot{ width:4px; height:4px; border-radius:50%; background-color:var(--ink-poem-origin); display:inline-block; }.mp-skin-book .interlinear-poem-stage{
@@ -1150,19 +1153,19 @@
 }.mp-skin-book .couplet-unit{ display: inline-block; vertical-align: top; margin-left: 14px; }.mp-skin-book .couplet-origin{
   display: block; white-space: nowrap;
   font-family: 'Yuji Boku', 'Noto Serif SC', serif;
-  font-size: 13.5px; letter-spacing: 0.16em; line-height: 1.35;
+  font-size: 13.5px; letter-spacing: 0.14em; line-height: 1.35;
   color: var(--ink-poem-origin); opacity: 0.95; margin-left: 5px;
 }.mp-skin-book .couplet-trans{
   display: block; white-space: nowrap;
   font-family: 'Noto Serif SC', serif; font-weight: 400;
-  font-size: 9.5px; letter-spacing: 0.18em; line-height: 1.35;
+  font-size: 10.5px; letter-spacing: 0.1em; line-height: 1.35;
   color: var(--ink-poem-trans); opacity: 0.85; padding-top: 2px;
 }.mp-skin-book .front-author-lockup{
   position: absolute; left: 18px; bottom: 16px; z-index: 3;
   display: flex; flex-direction: column; gap: 4px;
 }.mp-skin-book .char-latin-name{
   font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 600;
-  letter-spacing: 0.3em; text-transform: uppercase;
+  letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--ink-secondary); line-height: 1;
 }.mp-skin-book .signature-row{ display: flex; align-items: baseline; gap: 8px; }.mp-skin-book .char-handwritten-signature{
   font-family: 'Yuji Boku', 'Noto Serif SC', serif;
@@ -1173,32 +1176,32 @@
   display: inline-flex; justify-content: center; align-items: center;
   border: 1px solid var(--ink-seal-border);
   background-color: var(--ink-seal-bg);
-  color: var(--ink-seal-text); font-size: 8px;
+  color: var(--ink-seal-text); font-size: 9.5px;
   font-family: 'Noto Serif SC', serif; line-height: 1;
   border-radius: 1px; transform: translateY(-2px);
 }.mp-skin-book .flip-guide-under-sig{
-  font-family: 'Cinzel', serif; font-size: 7.5px;
-  letter-spacing: 0.22em; color: var(--ink-secondary);
+  font-family: 'Cinzel', serif; font-size: 9px;
+  letter-spacing: 0.1em; color: var(--ink-secondary);
   opacity: 0.45; margin-top: 3px;
 }.mp-skin-book .washi-back{ transform: rotateY(180deg); z-index: 1; }.mp-skin-book .back-header{
   display: flex; justify-content: space-between; align-items: center;
   padding-bottom: 7px; border-bottom: 1px solid var(--divider);
 }.mp-skin-book .back-header-title{
-  font-family: 'Cinzel', serif; font-size: 9px;
-  letter-spacing: 0.28em; color: var(--ink-secondary);
-}.mp-skin-book .back-header-stage{ font-size: 9.5px; letter-spacing: 0.12em; color: var(--ink-poem-origin); }.mp-skin-book .back-metrics-grid{
+  font-family: 'Cinzel', serif; font-size: 9.5px;
+  letter-spacing: 0.1em; color: var(--ink-secondary);
+}.mp-skin-book .back-header-stage{ font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink-poem-origin); }.mp-skin-book .back-metrics-grid{
   display: grid; grid-template-columns: repeat(4, 1fr);
   margin: 12px 0; border-bottom: 1px solid var(--divider); padding-bottom: 11px;
 }.mp-skin-book .metric-item{ display: flex; flex-direction: column; align-items: center; position: relative; }.mp-skin-book .metric-item:not(:last-child)::after{
   content:""; position:absolute; right:0; top:15%; height:70%; width:1px;
   background-color: var(--divider);
 }.mp-skin-book .metric-tag{
-  font-family: 'Cinzel', serif; font-size: 7.5px;
-  letter-spacing: 0.18em; color: var(--ink-secondary); margin-bottom: 2px;
+  font-family: 'Cinzel', serif; font-size: 9px;
+  letter-spacing: 0.1em; color: var(--ink-secondary); margin-bottom: 2px;
 }.mp-skin-book .metric-number{
   font-family: 'Cormorant Garamond', monospace;
   font-size: 17px; font-weight: 600; color: var(--ink-primary); line-height: 1.1;
-}.mp-skin-book .metric-cn{ font-size: 8px; color: var(--ink-secondary); letter-spacing: 0.08em; margin-top: 1px; }.mp-skin-book .back-voice-wrap{ display: flex; gap: 10px; align-items: flex-start; padding-top: 2px; }.mp-skin-book .back-voice-emoji{ font-size: 15px; line-height: 1; opacity: 0.85; padding-top: 1px; }.mp-skin-book .back-voice-quote{
+}.mp-skin-book .metric-cn{ font-size: 9.5px; color: var(--ink-secondary); letter-spacing: 0.08em; margin-top: 1px; }.mp-skin-book .back-voice-wrap{ display: flex; gap: 10px; align-items: flex-start; padding-top: 2px; }.mp-skin-book .back-voice-rule{ flex: 0 0 auto; width: 1px; align-self: stretch; margin-top: 2px; background: var(--frame-border); opacity: .55; }.mp-skin-book .back-voice-quote{
   font-family: 'Cormorant Garamond', 'Noto Serif SC', serif;
   font-size: 11px; line-height: 1.6; color: var(--ink-primary);
   font-style: italic; letter-spacing: 0.04em;
@@ -1206,7 +1209,7 @@
   overflow: hidden; text-overflow: ellipsis; opacity: 0.9;
 }.mp-skin-book .empty-card{
   text-align: center; padding: 70px 0;
-  color: var(--ink-secondary); font-size: 11px; letter-spacing: 0.15em;
+  color: var(--ink-secondary); font-size: 11px; letter-spacing: 0.1em;
 }`;
 
   const SKIN_CSS_PROPHET = `/* ══════════════════════════════════════════════════════════════════
@@ -1293,7 +1296,7 @@
 .mp-skin-prophet .mpp-fold-hint {
   margin-left: auto;
   font: 400 9px/1 "Songti SC", "SimSun", serif;
-  letter-spacing: .18em;
+  letter-spacing: 0.14em;
   color: var(--mpp-ink-3);
   white-space: nowrap;
 }
@@ -1373,8 +1376,8 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
-  font-size: 7px;
-  letter-spacing: .18em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-2);
   padding-bottom: 3px;
@@ -1427,14 +1430,14 @@
   gap: 7px;
   padding: 3px 0 4px;
   border-bottom: 1px solid var(--mpp-hair);
-  font-size: 7px;
-  letter-spacing: .22em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-2);
 }
 .mp-skin-prophet .mpp-mast-cn {
   font: 900 13px/1 "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
-  letter-spacing: .3em;
+  letter-spacing: 0.14em;
   text-indent: .3em;
   color: var(--mpp-ink);
 }
@@ -1453,7 +1456,7 @@
   border-bottom: 1px solid var(--mpp-rule);
 }
 .mp-skin-prophet .mpp-adbar span {
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1.35;
   letter-spacing: .1em;
   text-align: center;
@@ -1483,8 +1486,8 @@
   align-items: center;
   justify-content: flex-start;
   padding: 8px 0;
-  font-size: 7px;
-  letter-spacing: .28em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-2);
   border-right: 1px solid var(--mpp-hair);
@@ -1515,7 +1518,7 @@
   border: 2px solid var(--mpp-seal);
   box-shadow: inset 0 0 0 1px rgba(141, 47, 33, .45);
   font: 900 clamp(11px, 2.2cqw, 16px)/1 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   text-indent: .16em;
   color: var(--mpp-seal);
   opacity: .78;
@@ -1528,7 +1531,7 @@
 .mp-skin-prophet .mpp-kicker {
   display: inline-block;
   font: 600 7.5px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .22em;
+  letter-spacing: 0.14em;
   text-indent: .22em;
   padding: 1px 5px;
   border: 1px solid var(--mpp-ink);
@@ -1567,7 +1570,7 @@
   margin: 5px 0 0;
   padding: 3px 0;
   border-top: 1px solid var(--mpp-hair);
-  font-size: 10px;
+  font-size: 10.5px;
   line-height: 1.5;
   font-style: italic;
   color: var(--mpp-ink-2);
@@ -1575,8 +1578,8 @@
 
 /* 署名行 */
 .mp-skin-prophet .mpp-byline {
-  font-size: 7px;
-  letter-spacing: .2em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-3);
   padding: 2px 0 3px;
@@ -1705,7 +1708,7 @@
 
 .mp-skin-prophet .mpp-caption {
   display: block;
-  font-size: 7.5px;
+  font-size: 9px;
   line-height: 1.45;
   letter-spacing: .06em;
   color: var(--mpp-ink-2);
@@ -1730,7 +1733,7 @@
 }
 .mp-skin-prophet .mpp-box-head {
   font: 600 7px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--mpp-hair);
   padding-bottom: 2px;
@@ -1741,7 +1744,7 @@
 }
 .mp-skin-prophet .mpp-box-head b { font-weight: 600; color: var(--mpp-seal); }
 .mp-skin-prophet .mpp-box-body {
-  font-size: 8px;
+  font-size: 9.5px;
   line-height: 1.55;
   color: var(--mpp-ink-2);
   overflow-wrap: anywhere;
@@ -1752,7 +1755,7 @@
 }
 .mp-skin-prophet .mpp-lotto {
   font: 600 15px/1.1 Georgia, "Times New Roman", serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   font-variant-numeric: tabular-nums;
   color: var(--mpp-ink);
 }
@@ -1766,7 +1769,7 @@
 }
 .mp-skin-prophet .mpp-dossier-head {
   font: 600 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .24em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: 3px;
 }
@@ -1788,7 +1791,7 @@
 .mp-skin-prophet .mpp-stat b {
   display: block;
   font: 400 7px/1.6 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   color: var(--mpp-ink-3);
   white-space: nowrap;
 }
@@ -1817,7 +1820,7 @@
 .mp-skin-prophet .mpp-quote-title {
   font: 600 7px/1.5 "Noto Sans SC", "Microsoft YaHei", sans-serif;
   font-style: normal;
-  letter-spacing: .2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--mpp-seal);
   margin-bottom: 1px;
@@ -1838,7 +1841,7 @@
 }
 .mp-skin-prophet .mpp-briefs-head {
   font: 600 7.5px/1.4 "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: .24em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
@@ -1852,7 +1855,7 @@
   gap: 5px;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 8.5px;
+  font-size: 9.5px;
   line-height: 1.6;
   padding: 1px 0;
   border-bottom: 1px dotted rgba(23, 19, 14, .32);
@@ -1879,8 +1882,8 @@
   margin-top: 5px;
   padding-top: 3px;
   border-top: 1px solid var(--mpp-hair);
-  font-size: 7px;
-  letter-spacing: .16em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mpp-ink-3);
 }
@@ -1895,7 +1898,7 @@
 .mp-skin-prophet .mpp-empty small {
   display: block;
   font: 400 8px/1.8 "Songti SC", "SimSun", serif;
-  letter-spacing: .16em;
+  letter-spacing: 0.14em;
   color: var(--mpp-ink-3);
   margin-top: 3px;
 }
@@ -1985,8 +1988,8 @@
   background: transparent;
   color: var(--mpp-ink-3);
   font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
-  font-size: 8.5px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   cursor: pointer;
   transition: color 180ms ease, background-color 180ms ease;
 }
@@ -2084,10 +2087,10 @@
 .mp-skin-dibao .db-fold-ico svg { display: block; width: 100%; height: 100%; }
 .mp-skin-dibao .db-fold-title {
   font-size: 13px;
-  letter-spacing: .22em;
+  letter-spacing: 0.14em;
 }
 .mp-skin-dibao .db-fold-meta {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
   letter-spacing: .1em;
   color: var(--db-fg-soft);
@@ -2096,9 +2099,9 @@
 }
 .mp-skin-dibao .db-fold-hint {
   margin-left: auto;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
-  letter-spacing: .16em;
+  letter-spacing: 0.1em;
   color: var(--db-seal);
   white-space: nowrap;
 }
@@ -2167,7 +2170,7 @@
   background: var(--db-l3);
   border: 1px solid var(--db-hair);
   border-radius: 2px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
   line-height: 1.6;
   letter-spacing: .06em;
@@ -2199,14 +2202,14 @@
 .mp-skin-dibao .db-banner-title {
   font-size: clamp(15px, 3.1cqw, 21px);
   font-weight: var(--db-fw);
-  letter-spacing: .34em;
+  letter-spacing: 0.14em;
   line-height: 1.3;
   white-space: nowrap;
 }
 .mp-skin-dibao .db-banner-vol {
   margin-left: auto;
-  font-size: 9.5px;
-  letter-spacing: .14em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   white-space: nowrap;
 }
@@ -2245,9 +2248,9 @@
 .mp-skin-dibao .db-rail-label {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: var(--db-fw);
-  letter-spacing: .34em;
+  letter-spacing: 0.1em;
   color: var(--db-seal);
   white-space: nowrap;
 }
@@ -2288,7 +2291,7 @@
   margin: 0 0 9px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--db-hair);
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .08em;
   line-height: 1.7;
   color: var(--db-fg-soft);
@@ -2321,8 +2324,8 @@
 .mp-skin-dibao .db-cell:last-child { border-right: 0; }
 .mp-skin-dibao .db-cell-label {
   display: block;
-  font-size: 9px;
-  letter-spacing: .22em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   white-space: nowrap;
 }
@@ -2337,7 +2340,7 @@
 }
 .mp-skin-dibao .db-cell-value.is-seal { color: var(--db-seal); }
 .mp-skin-dibao .db-cell-unit {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 400;
   letter-spacing: .06em;
   color: var(--db-fg-soft);
@@ -2371,8 +2374,8 @@
 .mp-skin-dibao .db-quote-sign {
   display: block;
   margin-top: 4px;
-  font-size: 9.5px;
-  letter-spacing: .12em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   text-align: right;
 }
@@ -2384,8 +2387,8 @@
   border-top: 1px solid var(--db-hair);
 }
 .mp-skin-dibao .db-briefs-title {
-  font-size: 9.5px;
-  letter-spacing: .26em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--db-seal);
   margin: 0 0 5px;
 }
@@ -2421,8 +2424,8 @@
   margin-top: 10px;
   padding-top: 7px;
   border-top: 1px solid var(--db-hair);
-  font-size: 9px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--db-fg-soft);
   font-variant-numeric: tabular-nums;
 }
@@ -2474,7 +2477,7 @@
   color: var(--db-fg-soft);
   text-wrap: pretty;
 }
-.mp-skin-dibao .db-empty small { font-size: 9.5px; opacity: .78; }
+.mp-skin-dibao .db-empty small { font-size: 10.5px; opacity: .78; }
 
 /* ── 窄屏：竖排退化成横排，四格改两格 ───────────────────── */
 @media (max-width: 600px) {
@@ -2710,14 +2713,14 @@
   font-family: var(--cl-serif);
   font-size: 10.5px;
   font-weight: var(--cl-fw);
-  letter-spacing: .18em;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-2);
   white-space: nowrap;
 }
 .mp-skin-calista .cl-band-note {
   margin-left: auto;
-  font-size: 8px;
-  letter-spacing: .14em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
   white-space: nowrap;
 }
@@ -2825,9 +2828,9 @@
   text-overflow: ellipsis;
 }
 .mp-skin-calista .cl-sub {
-  font-size: 9px;
+  font-size: 9.5px;
   line-height: 1.4;
-  letter-spacing: .16em;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
   white-space: nowrap;
   overflow: hidden;
@@ -2850,8 +2853,8 @@
   font-variant-numeric: tabular-nums;
 }
 .mp-skin-calista .cl-val span {
-  font-size: 8.5px;
-  letter-spacing: .12em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 
@@ -2959,8 +2962,8 @@
   border-radius: 20px 20px 0 0;
 }
 .mp-skin-calista .cl-cover-kicker {
-  font-size: 8.5px;
-  letter-spacing: .24em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-cover-title {
@@ -3019,8 +3022,8 @@
   white-space: nowrap;
 }
 .mp-skin-calista .cl-stagechip {
-  font-size: 9.5px;
-  letter-spacing: .16em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-2);
 }
 .mp-skin-calista .cl-theme {
@@ -3028,8 +3031,8 @@
   background: transparent;
   color: var(--cl-ink-3);
   font: inherit;
-  font-size: 10px;
-  letter-spacing: .12em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   padding: 6px 8px;
   margin: -6px -4px -6px 0;
   border-radius: 999px;
@@ -3070,15 +3073,13 @@
 .mp-skin-calista .cl-ring .cl-ring-arc {
   transition: stroke-dashoffset 900ms var(--cl-spring);
 }
-.mp-skin-calista .cl-ring-bead {
-  filter: drop-shadow(0 0 3px rgba(192, 134, 127, .45));
-}
+.mp-skin-calista .cl-ring-bead { filter: none; }
 .mp-skin-calista .cl-hero-main { display: grid; gap: 2px; min-width: 0; }
 .mp-skin-calista .cl-hero .cl-v { font-size: 34px; }
 .mp-skin-calista .cl-k {
   display: block;
-  font-size: 9px;
-  letter-spacing: .18em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-v {
@@ -3098,7 +3099,7 @@
 }
 .mp-skin-calista .cl-v small {
   font-family: var(--cl-sans);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: var(--cl-fw-body);
   letter-spacing: .1em;
   color: var(--cl-ink-3);
@@ -3109,12 +3110,17 @@
 .mp-skin-calista .cl-row3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
 }
 .mp-skin-calista .cl-tile {
-  padding: 9px 10px 10px;
-  border-radius: 14px;
-  background: var(--cl-bg-2);
+  padding: 10px 12px 12px;
+  border-radius: 8px;
+  background: rgba(250, 247, 246, .30);
+  box-shadow: inset 0 0 0 1px var(--cl-hair-2);
+}
+.mp-skin-calista[data-theme="night"] .cl-tile {
+  background: rgba(30, 24, 28, .28);
+  box-shadow: inset 0 0 0 1px var(--cl-hair-2);
 }
 .mp-skin-calista .cl-tile .cl-v { font-size: 17px; }
 .mp-skin-calista .cl-tile .cl-v.is-text {
@@ -3160,7 +3166,7 @@
   flex-wrap: wrap;
   gap: 3px 12px;
   margin: 9px 0 0;
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .1em;
   color: var(--cl-ink-3);
 }
@@ -3318,13 +3324,13 @@
   background-image:
     /* 虹彩：贝母在光下换色，压得很淡 */
     conic-gradient(from 204deg at 26% 14%,
-      rgba(206, 228, 232, .50) 0deg,
-      rgba(243, 216, 226, .44) 58deg,
-      rgba(246, 240, 214, .48) 120deg,
-      rgba(209, 223, 242, .44) 184deg,
-      rgba(231, 213, 240, .42) 246deg,
-      rgba(211, 235, 229, .46) 308deg,
-      rgba(206, 228, 232, .50) 360deg),
+      rgba(222, 232, 230, .34) 0deg,
+      rgba(243, 224, 228, .32) 58deg,
+      rgba(246, 240, 220, .34) 120deg,
+      rgba(226, 230, 238, .30) 184deg,
+      rgba(235, 224, 240, .30) 246deg,
+      rgba(226, 236, 230, .32) 308deg,
+      rgba(222, 232, 230, .34) 360deg),
     /* 珍珠层理：贝壳一圈圈的同心细弧，圆心落在右下角外面 */
     repeating-radial-gradient(circle at 116% 122%,
       rgba(250, 247, 246, .50) 0 2px,
@@ -3358,8 +3364,8 @@
 }
 .mp-skin-calista .cl-pc-front > * { position: relative; z-index: 1; }
 .mp-skin-calista .cl-pc-kicker {
-  font-size: 8.5px;
-  letter-spacing: .34em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #5d666e;
   text-shadow: 0 1px 0 rgba(250, 247, 246, .88);
@@ -3376,7 +3382,7 @@
   font-size: 21px;
   font-weight: 400;
   line-height: 1.18;
-  letter-spacing: .2em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #626b72;
   background-image: linear-gradient(98deg,
@@ -3424,11 +3430,11 @@
 }
 .mp-skin-calista .cl-pc-en-sub {
   font-style: normal;
-  font-size: 8.5px;
-  line-height: 2;
-  letter-spacing: .26em;
+  font-size: 10.5px;
+  line-height: 1.9;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5a636b;
+  color: #4a545c;
   text-shadow: 0 1px 0 rgba(250, 247, 246, .80);
 }
 /* 邮票：一张贝母小方块，贴着齿孔边 */
@@ -3468,7 +3474,7 @@
   align-items: center;
   justify-content: center;
   gap: 1px;
-  font-size: 5.4px;
+  font-size: 9px;
   line-height: 1.5;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -3482,8 +3488,8 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
-  font-size: 8px;
-  letter-spacing: .20em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #565f67;
   text-shadow: 0 1px 0 rgba(250, 247, 246, .82);
@@ -3495,11 +3501,11 @@
 .mp-skin-calista .cl-pc-back {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 13px 15px 12px;
+  gap: 8px;
+  padding: 12px 16px 12px;
   background-color: var(--cl-bg-1);
   background-image:
-    linear-gradient(rgba(250, 245, 243, .40), rgba(242, 234, 233, .50)),
+    linear-gradient(rgba(250, 245, 243, .76), rgba(242, 234, 233, .84)),
     var(--cl-nacre);
   background-size: cover, cover;
   background-position: center, center;
@@ -3523,12 +3529,12 @@
     rgba(201, 231, 226, .54) 312deg,
     rgba(196, 226, 233, .58) 360deg);
   mix-blend-mode: soft-light;
-  opacity: .95;
+  opacity: .5;
 }
 .mp-skin-calista .cl-pc-back > * { position: relative; z-index: 1; }
 .mp-skin-calista[data-theme="night"] .cl-pc-back {
   background-image:
-    linear-gradient(rgba(26, 21, 27, .74), rgba(20, 16, 21, .82)),
+    linear-gradient(rgba(26, 21, 27, .88), rgba(20, 16, 21, .94)),
     var(--cl-nacre);
 }
 .mp-skin-calista[data-theme="night"] .cl-pc-back::before {
@@ -3542,8 +3548,8 @@
   gap: 8px;
 }
 .mp-skin-calista .cl-pc-back-kicker {
-  font-size: 7.5px;
-  letter-spacing: .26em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cl-ink-3);
 }
@@ -3562,8 +3568,8 @@
   line-height: 1.2;
 }
 .mp-skin-calista .cl-pc-enname {
-  font-size: 7.5px;
-  letter-spacing: .24em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cl-ink-3);
 }
@@ -3582,14 +3588,14 @@
   font-variant-numeric: tabular-nums;
 }
 .mp-skin-calista .cl-pc-big small {
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: .04em;
   color: var(--cl-ink-3);
   margin-left: 2px;
 }
 .mp-skin-calista .cl-pc-label {
-  font-size: 8.5px;
-  letter-spacing: .22em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 .mp-skin-calista .cl-pc-ring { margin-left: auto; flex: 0 0 auto; }
@@ -3604,7 +3610,7 @@
 }
 /* 背面那行时间地点比别处长，字号收一点免得「16°C」单独掉到下一行 */
 .mp-skin-calista .cl-pc-back .cl-meta {
-  font-size: 9px;
+  font-size: 9.5px;
   letter-spacing: .06em;
   gap: 2px 9px;
 }
@@ -3616,8 +3622,8 @@
   margin-top: 1px;
 }
 .mp-skin-calista .cl-pc-hint {
-  font-size: 7.5px;
-  letter-spacing: .18em;
+  font-size: 9px;
+  letter-spacing: 0.1em;
   color: var(--cl-ink-3);
 }
 /* 暗色：贝母收进夜色，只剩一点冷虹彩；银字提亮一档 */
@@ -3761,14 +3767,13 @@
       <div class="tkt-main">
         <div class="tkt-slip-header">
           <div class="tkt-header-left">
-            <span class="tkt-type-tag">BIENNALE ADMIT</span>
-            <span class="tkt-curator-mark">EDITION 01/01</span>
+            <span class="tkt-type-tag">ADMIT ONE</span>
+            <span class="tkt-curator-mark">ED. 01</span>
           </div>
-          <span class="tkt-header-seq tkt-hook-seq">NO. 0000 // ARCHIVE</span>
+          <span class="tkt-header-seq tkt-hook-seq">NO. 0000</span>
         </div>
 
         <div class="tkt-name-stage">
-          <div class="tkt-title-meta-badge">GALLERY ACCESS · CATALOGUE RAISONNÉ</div>
           <span class="tkt-title-text tkt-hook-char-latin">AMORE</span>
 
           <div class="tkt-sign-zone">
@@ -3796,7 +3801,7 @@
         <div class="tkt-fold">
           <div class="tkt-fold-status">
             <span class="tkt-fold-dot"></span>
-            <span>INSPECT CURATORIAL MANIFEST</span>
+            <span>MANIFEST</span>
           </div>
           <span class="arrow">▼</span>
         </div>
@@ -3809,7 +3814,7 @@
 
         <div class="tkt-stub-actions">
           <button type="button" class="tkt-btn tkt-hook-btn-mode" title="切换夜间/日间展厅模式">
-            MODE <span class="tkt-theme-icon">◐</span>
+            MODE <svg class="tkt-theme-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7.6"/><path d="M12 4.4a7.6 7.6 0 0 0 0 15.2z" fill="currentColor" stroke="none"/></svg>
           </button>
           <button type="button" class="tkt-btn tkt-hook-btn-toggle">
             <span class="tkt-hook-toggle-word">UNFOLD</span>
@@ -3817,8 +3822,7 @@
         </div>
 
         <div class="tkt-stub-footer">
-          <div class="tkt-stamp">★ ADMITTED ★</div>
-          <div class="tkt-stub-notice">NON-TRANSFERABLE</div>
+          <div class="tkt-stamp">ADMITTED</div>
         </div>
       </div>
     </div>
@@ -3826,7 +3830,7 @@
     <!-- 展开详情区 -->
     <div class="tkt-body">
       <div class="tkt-sec">
-        <span>EXHIBITION PAVILION // 展馆环境</span>
+        <span>展馆环境</span>
         <span class="tkt-sec-tag">SECT. 01</span>
       </div>
       <div class="tkt-env">
@@ -3845,7 +3849,7 @@
       </div>
 
       <div class="tkt-sec">
-        <span>PERSONA PROFILE // 参展样本名册</span>
+        <span>参展样本</span>
         <span class="tkt-sec-tag">SECT. 02</span>
       </div>
       <div class="tkt-roster tkt-hook-roster"></div>
@@ -3854,8 +3858,8 @@
     <!-- 底部版记与条形码 -->
     <div class="tkt-bottom">
       <div class="tkt-warn">
-        <strong>THE TWILIGHT LINE</strong> // EXHIBITION SERIES BY SYLVAINE<br />
-        ARCHIVAL DOSSIER · STRICTLY PRESERVED · MODS PERMITTED
+        <strong>THE TWILIGHT LINE</strong><br />
+        ARCHIVAL DOSSIER
       </div>
       <div class="tkt-barcode-wrap">
         <div class="tkt-barcode">
@@ -4334,7 +4338,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     }
   }
 
-  setText('.tkt-hook-seq', 'NO. ' + String(msgId).padStart(4, '0') + ' // ARCHIVE');
+  setText('.tkt-hook-seq', 'NO. ' + String(msgId).padStart(4, '0'));
   setText('.tkt-hook-stub-id', '#' + String(msgId).padStart(3, '0'));
   setText('.tkt-hook-char-latin', bigLatinTitle);
 
@@ -5360,7 +5364,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
             '<b class="cl-pc-en-main">' + o.enMain + '</b>' +
             '<em class="cl-pc-en-sub">' + o.enSub + '</em>' +
           '</span>' +
-          '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>MEDITERRANÉE</em></span>' +
+          '<span class="cl-pc-postmark" aria-hidden="true"><em>CALM&nbsp;SEA</em><em>POSTED</em></span>' +
           '<span class="cl-pc-lines" aria-hidden="true"><i></i><i></i><i></i></span>' +
           '<span class="cl-pc-foot"><span class="cl-pc-num">No.&nbsp;' + o.num + '</span>' +
             '<span class="cl-pc-tap">TAP&nbsp;TO&nbsp;TURN</span></span>' +
@@ -5469,8 +5473,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const ringC = 2 * Math.PI * ringR;
     const ringHtml = '<span class="cl-pc-ring" aria-hidden="true">' +
       '<svg width="44" height="44" viewBox="0 0 44 44">' +
-        '<circle cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-bg-3)" stroke-width="1.6"/>' +
-        '<circle class="cl-ring-arc" cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-accent)" stroke-width="1.6" ' +
+        '<circle cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-hair-2)" stroke-width="2"/>' +
+        '<circle class="cl-ring-arc" cx="22" cy="22" r="' + ringR + '" fill="none" stroke="var(--cl-ink-2)" stroke-width="2.2" ' +
           'stroke-linecap="round" stroke-dasharray="' + ringC.toFixed(1) + '" ' +
           'stroke-dashoffset="' + (ringC - ringC * affectionPct / 100).toFixed(2) + '" ' +
           'transform="rotate(-90 22 22)"/>' +
@@ -5485,7 +5489,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '</div>' +
       '<div class="cl-pc-identity">' +
         '<b class="cl-pc-name">' + skinEsc(leadName) + '</b>' +
-        (coverEn ? '<span class="cl-pc-enname">' + skinEsc(coverEn) + '</span>' : '') +
+        (coverEn && String(coverEn).trim().toLowerCase() !== String(leadName).trim().toLowerCase()
+          ? '<span class="cl-pc-enname">' + skinEsc(coverEn) + '</span>' : '') +
       '</div>' +
       '<div class="cl-pc-hero">' +
         '<span class="cl-pc-big">' + skinEsc(affection) + '<small>/100</small></span>' +
@@ -5602,8 +5607,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
     const sealChar = signName.replace(/[^\u4e00-\u9fa5\u3040-\u30ff]/g, '').slice(0, 1) || '印';
 
     const themeLabel = (theme === 'day')
-      ? '<span class="season-dot"></span> DIURNE · 白昼'
-      : '<span class="season-dot"></span> NOCTURNE · 幽夜';
+      ? '<span class="season-dot"></span> 白昼'
+      : '<span class="season-dot"></span> 幽夜';
 
     const coupletsHtml = couplets.map(function(pair) {
       return '<div class="couplet-unit">' +
@@ -5624,7 +5629,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
                 '<span class="char-handwritten-signature">' + skinEsc(signName) + '</span>' +
                 '<span class="hanko-seal">' + skinEsc(sealChar) + '</span>' +
               '</div>' +
-              '<span class="flip-guide-under-sig">EX LIBRIS · TOUCH TO TURN ↺</span>' +
+              '<span class="flip-guide-under-sig">EX LIBRIS · TOUCH TO TURN</span>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -5641,7 +5646,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
               '<div class="metric-item"><span class="metric-tag">INVIDIA</span><span class="metric-number">' + I + '</span><span class="metric-cn">暗涌</span></div>' +
             '</div>' +
             '<div class="back-voice-wrap">' +
-              '<span class="back-voice-emoji">' + skinEsc(emoji) + '</span>' +
+              '<span class="back-voice-rule" aria-hidden="true"></span>' +
               '<div class="back-voice-quote">“' + skinEsc(voice) + '”</div>' +
             '</div>' +
             '<span class="turn-guide" style="position:absolute;right:14px;bottom:7px;font-size:8px;color:var(--ink-secondary);letter-spacing:0.18em;font-family:\'Cormorant Garamond\',serif;font-style:italic;opacity:0.55;">Return ↺</span>' +
