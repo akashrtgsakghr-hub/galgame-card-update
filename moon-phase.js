@@ -24,8 +24,8 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.19';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.19 夜版换成黑蝶贝】\\n1. 🐚 夜里的底图原来是紫灰色的，闷；这次按红贝（黑蝶贝 Pinctada margaritifera）的取色重做——近黑底，只在受光那一弧里炸出铜红。\\n2. 🔴 红是主角：色相在光带中心「停留」得久一点，所以中间是暖红铜，往两侧才快速掠过玫红、紫、青——这就是五彩斑斓黑，而不是一整张紫。\\n3. 🌈 彩跟着丝走：虹彩相位直接吃拉丝场，丝的明暗和色相一起起伏；再叠一层沿光带方向的低频碎彩，避免整条带只有一个颜色（那会读成一条棕红皮带）。\\n4. 🕶️ 暗部不出彩：虹彩乘了受光权重，纯黑区域干干净净，不会泛出脏紫或油膜色。\\n5. 🧵 丝退到若有若无：夜版把拉丝幅度从 4.5 压到 1.9，太强就成木纹——夜里靠虹彩立质感，白天那版不变。\\n6. 🪟 同时撤掉正面两层压暗遮罩（原来叠了 12%–18% 的黑和右下角 26% 的压暗），贴图的彩光和丝纹才透得出来。\\n7. 🧩 只动皮肤素材与那两层遮罩，数值规则、存档格式、其他皮肤一个字节没改。";
+  const MOON_FORMULA_VERSION = '4.8.20';
+  const MOON_FORMULA_CHANGELOG = "【v4.8.20 沉浸模式重做版式】\\n1. 🪟 顶栏从「六个小胶囊」变成一排字：没有底色、没有描边，鼠标扫过才有一条铜色发丝线划过去。那些彩色小图标全撤了——它们和画面里的雨夜一点都不搭。\\n2. 📖 台词不再是一块半透明板子：边框、阴影、圆角全部去掉，台词直接落在压暗的画面和一片柔光上，像电影字幕。\\n3. 🖋 旁白用宋、台词用黑：括号里的环境与心理描写是宋体、说话是黑体，像剧本里的舞台指示与对白。旁白也不再用伪斜体——中文的斜体是机器掰弯的，一眼假。\\n4. ⑊ 选项从「两个实心条」变成一张表：序号 01 / 02、上下两根两端渐隐的发丝线、悬停时铜色从左侧擦进来。进场错峰 70ms，一行一行浮上来。\\n5. 🎛 底部工具栏收成一条控制带，项与项之间只有一根竖发丝；工具栏弹出时台词会自动抬起，不压字。\\n6. 🌫 整屏加了一层 5% 的胶片颗粒和一圈暗角，抽屉换成平板底色 + 发丝边。只动沉浸模式的样式与图标，数值规则、存档格式、其他界面一个字节没改。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -8722,161 +8722,243 @@ function openUpdateConfigDialog(panel) {
     if (!el) { el = mainDoc.createElement('style'); el.id = GAL_STYLE_ID; mainDoc.head.appendChild(el); }
     el.textContent = `
 .mp-gal-root{position:fixed;inset:0;z-index:2147483000;display:none;overflow:hidden;
-  --k-ink-0:#0a0509;--k-ink-1:#110a15;--k-ink-2:#171021;--k-ink-3:#1f182a;
-  --k-line:rgba(244,114,208,.15);--k-line-2:rgba(244,114,208,.34);
-  --k-fg:#f2e7ef;--k-fg-2:#c6adc0;--k-fg-3:#9c8698;
-  --k-accent:#f472d0;--k-accent-2:#ffb3e8;--k-shadow:rgba(6,3,7,.70);
+  --k-ink-0:#0a0509;--k-ink-1:#0e0e12;--k-ink-2:#141419;--k-ink-3:#1b1b22;
+  --k-line:rgba(244,239,231,.10);--k-line-2:rgba(244,239,231,.18);
+  --k-fg:#f4efe7;--k-fg-2:rgba(244,239,231,.62);--k-fg-3:rgba(244,239,231,.34);
+  /* 墨樱粉保留为兼容令牌（面板等其他界面仍在用），沉浸层本身只用月光铜 */
+  --k-accent:#f472d0;--k-accent-2:#ffb3e8;
+  --k-brass:#e9cba4;--k-brass-2:#f7e7cf;
+  --k-shadow:rgba(4,4,6,.72);
   --k-font-pixel:"MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","Courier New",monospace;
-  --k-font-body:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,sans-serif;
+  --k-font-body:"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",-apple-system,sans-serif;
+  --k-font-serif:"Songti SC","Noto Serif CJK SC","Source Han Serif SC","Source Han Serif CN","STSong","SimSun",serif;
   --k-ease:cubic-bezier(.16,1,.3,1);
-  background:
-    radial-gradient(120% 60% at 50% 0%,rgba(244,114,208,.07),transparent 60%),
-    var(--k-ink-0) !important;
+  background:var(--k-ink-0) !important;
   font-family:var(--k-font-body);
-  color:var(--gal-color,var(--k-fg));-webkit-tap-highlight-color:transparent;}
-.mp-gal-root.open{display:block;animation:mpGalFade .22s ease;}
+  color:var(--gal-color,var(--k-fg));-webkit-tap-highlight-color:transparent;
+  text-rendering:optimizeLegibility;}
+.mp-gal-root.open{display:block;animation:mpGalFade .34s ease;}
 @keyframes mpGalFade{from{opacity:0}to{opacity:1}}
+/* 胶片颗粒：压在整屏最上层，只做质感，不挡点击 */
+.mp-gal-root::after{content:"";position:absolute;inset:0;z-index:30;pointer-events:none;
+  opacity:.05;mix-blend-mode:soft-light;background-size:180px 180px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");}
+
 .mp-gal-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-color:var(--k-ink-0);
-  filter:saturate(.95);transition:background-image .45s ease;z-index:0;}
+  filter:saturate(.92) contrast(1.03);transition:background-image .45s ease;z-index:0;}
+/* 底图压层：一圈暗角 + 下重上轻的渐变。台词不靠色块托底，靠这片暗下来的画面 */
 .mp-gal-bg::before{content:"";position:absolute;inset:0;pointer-events:none;
   background:
-    radial-gradient(90% 52% at 50% 10%,rgba(244,114,208,.10),transparent 62%),
-    radial-gradient(60% 40% at 50% 100%,rgba(244,114,208,.05),transparent 70%),
-    repeating-linear-gradient(0deg,rgba(255,255,255,.016) 0 1px,transparent 1px 3px);}
-.mp-gal-bg::after{content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(10,5,9,.42) 0%,rgba(10,5,9,.02) 26%,rgba(10,5,9,.12) 58%,rgba(10,5,9,.68) 100%);}
+    radial-gradient(76% 62% at 50% 44%,transparent 38%,rgba(5,5,8,.46) 100%),
+    radial-gradient(120% 70% at 50% -10%,rgba(233,203,164,.07),transparent 62%);}
+.mp-gal-bg::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(6,6,9,.52) 0%,rgba(6,6,9,.03) 17%,rgba(6,6,9,.06) 52%,rgba(6,6,9,.66) 88%,rgba(6,6,9,.82) 100%);}
 .mp-gal-sprite-layer{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;z-index:1;pointer-events:none;}
 .mp-gal-sprite{max-height:82%;max-width:46%;object-fit:contain;filter:drop-shadow(0 12px 30px rgba(6,3,7,.55));
   transition:opacity .3s ease, transform .3s ease;}
 .mp-gal-sprite.side-left{margin-right:auto;margin-left:4%;}
 .mp-gal-sprite.side-right{margin-left:auto;margin-right:4%;}
-.mp-gal-cg{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;background:rgba(10,5,9,.94);
-  cursor:pointer;}
+.mp-gal-cg{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;
+  background:rgba(4,4,6,.96);cursor:pointer;}
 .mp-gal-cg.show{display:flex;}
-.mp-gal-cg img{max-width:96%;max-height:92%;object-fit:contain;box-shadow:0 18px 60px rgba(6,3,7,.7);border-radius:6px;}
+.mp-gal-cg img{max-width:94%;max-height:90%;object-fit:contain;border-radius:2px;
+  box-shadow:0 30px 90px rgba(4,4,7,.8),0 0 0 1px rgba(244,239,231,.10);}
 
-/* ── 顶栏：只占一行。返回固定在左，工具按钮横向滑动，不换行、不挤压 ───── */
-.mp-gal-top{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:8px;
-  padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 18px;
-  background:linear-gradient(180deg,rgba(10,5,9,.72) 0%,rgba(10,5,9,.42) 55%,rgba(10,5,9,0) 100%);
+/* ── 顶栏：一排字，没有按钮框。返回靠左，工具组在桌面端贴右 ───────── */
+.mp-gal-top{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:0;
+  padding:calc(env(safe-area-inset-top,0px) + 6px) 18px 26px;
+  background:linear-gradient(180deg,rgba(5,5,8,.62) 0%,rgba(5,5,8,.24) 58%,rgba(5,5,8,0) 100%);
   transition:opacity .22s ease,transform .22s ease;}
 .mp-gal-title{display:none;}
-.mp-gal-back{flex:0 0 auto;white-space:nowrap;}
-.mp-gal-top-right{flex:1 1 auto;min-width:0;display:flex;flex-wrap:nowrap;gap:6px;justify-content:flex-start;
-  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;
-  padding:2px 2px 2px 0;}
+.mp-gal-top-right{flex:1 1 auto;min-width:0;display:flex;flex-wrap:nowrap;gap:2px;justify-content:flex-start;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;padding:2px 0;}
 .mp-gal-top-right::-webkit-scrollbar{display:none;}
-.mp-gal-top button,.mp-gal-toolbar button,.mp-gal-sheet button{font-family:inherit;cursor:pointer;
-  min-height:42px;padding:8px 12px;box-sizing:border-box;
-  border:1px solid var(--k-line);border-radius:3px;
-  background:rgba(23,16,33,.74);color:var(--k-fg-2);
-  font:600 11px/1.25 var(--k-font-body);white-space:nowrap;
-  box-shadow:1px 1px 0 rgba(6,3,7,.55);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  transition:background .15s ease,border-color .15s ease,color .15s ease;}
-.mp-gal-top button:hover,.mp-gal-toolbar button:hover,.mp-gal-sheet button:hover{
-  background:rgba(244,114,208,.12);border-color:var(--k-line-2);color:var(--k-accent-2);}
-.mp-gal-top .mp-gal-back{border-color:var(--k-line-2);color:var(--k-fg);}
+
+/* 文字按钮：无底色、无描边，只有字和一条扫过的发丝下划线 */
+.mp-gal-top button,.mp-gal-toolbar button{position:relative;font-family:inherit;cursor:pointer;
+  min-height:44px;padding:6px 12px;box-sizing:border-box;border:0;border-radius:0;background:transparent;
+  color:var(--k-fg-2);font:400 11px/1.2 var(--k-font-body);letter-spacing:.18em;white-space:nowrap;
+  transition:color .18s ease;}
+.mp-gal-top button::after,.mp-gal-toolbar button::after{content:"";position:absolute;left:12px;right:12px;bottom:11px;
+  height:1px;background:var(--k-brass);opacity:.85;transform:scaleX(0);transform-origin:left center;
+  transition:transform .3s var(--k-ease);}
+.mp-gal-top button:hover,.mp-gal-top button:focus-visible,
+.mp-gal-toolbar button:hover,.mp-gal-toolbar button:focus-visible{color:var(--k-fg);}
+.mp-gal-top button:hover::after,.mp-gal-top button:focus-visible::after,
+.mp-gal-toolbar button:hover::after,.mp-gal-toolbar button:focus-visible::after{transform:scaleX(1);}
+.mp-gal-top button[data-on="1"]{color:var(--k-brass);}
+.mp-gal-top button[data-on="1"]::after{transform:scaleX(1);opacity:.45;}
+.mp-gal-top .mp-gal-back{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;
+  margin-right:10px;padding-right:18px;border-right:1px solid var(--k-line);
+  color:var(--k-fg);letter-spacing:.24em;}
+.mp-gal-top .mp-gal-back::before{content:"";width:6px;height:6px;
+  border-left:1px solid currentColor;border-bottom:1px solid currentColor;
+  opacity:.8;transform:rotate(45deg);margin-top:-1px;}
 .mp-gal-top button:active,.mp-gal-toolbar button:active{transform:translateY(1px);}
+.mp-gal-top :is(button,[data-gal-act]):focus-visible,.mp-gal-toolbar button:focus-visible{
+  outline:1px solid rgba(233,203,164,.7);outline-offset:2px;}
 
-/* ── 对话框：和面板同一套墨层，不靠粗黑框 ───────────────────────────── */
-/* 护眼层用 .mp-gal-dialog{background:var(--mp-l2)!important} 覆盖过一遍；
-   这里用 .mp-gal-root 前缀把特异性抬到 (0,2,0)，保证墨樱这一套始终生效。 */
-.mp-gal-root .mp-gal-dialog{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);transform:translateX(-50%);
-  width:min(920px,calc(100% - 20px));z-index:5;box-sizing:border-box;
-  background:linear-gradient(180deg,rgba(31,24,42,var(--gal-op,.86)),rgba(17,10,21,calc(var(--gal-op,.86) + .06))) !important;
-  border:1px solid var(--k-line-2) !important;border-radius:4px !important;
-  box-shadow:0 18px 44px rgba(6,3,7,.62),inset 0 1px 0 rgba(255,190,235,.10) !important;
-  backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
-  padding:13px 16px 18px;min-height:96px;transition:opacity .2s ease,transform .2s ease;}
-.mp-gal-name{font:600 11px/1.3 var(--k-font-pixel);letter-spacing:.5px;color:var(--k-accent-2);
-  margin-bottom:7px;display:flex;align-items:center;gap:7px;min-height:16px;}
+/* ── 对话框：没有盒子。台词落在一片柔和的光池上 ───────────────────── */
+/* 护眼层给 .mp-gal-dialog 塞过 --mp-l2 底色；这里用 (0,2,0) + !important + 后注入压回去 */
+.mp-gal-root .mp-gal-dialog{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);
+  transform:translateX(-50%);width:min(820px,calc(100% - 24px));z-index:5;box-sizing:border-box;
+  display:grid;grid-template-columns:1fr auto;
+  grid-template-areas:"name name" "text text" "meta next";
+  background:radial-gradient(124% 128% at 50% 116%,rgba(5,5,8,.86) 0%,rgba(5,5,8,.60) 44%,rgba(5,5,8,.20) 72%,rgba(5,5,8,0) 88%) !important;
+  border:0 !important;border-radius:0 !important;box-shadow:none !important;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  padding:36px 26px 26px;min-height:124px;
+  transition:opacity .2s ease,transform .24s var(--k-ease);}
+.mp-gal-name{grid-area:name;font:400 12.5px/1.4 var(--k-font-serif);letter-spacing:.34em;
+  color:var(--k-brass);margin-bottom:13px;display:flex;align-items:center;gap:11px;min-height:0;}
 .mp-gal-name:empty{display:none;}
-.mp-gal-name::before{content:"";width:2px;height:12px;border-radius:1px;background:var(--k-accent);}
-.mp-gal-text{font-size:var(--gal-fs,17px);line-height:var(--gal-lh,1.75);color:var(--gal-color,var(--k-fg));
-  white-space:pre-wrap;word-break:break-word;max-height:30vh;overflow:hidden;
-  background:transparent !important;padding:0 !important;border:0 !important;}
-.mp-gal-text .gal-narr{color:#cdb9c8;font-style:italic;}
-.mp-gal-text .gal-thought{color:#9fd8e0;opacity:.92;}
-.mp-gal-text .gal-body{color:var(--gal-color,var(--k-fg));}
-.mp-gal-next{position:absolute;right:14px;bottom:6px;font-size:10px;color:var(--k-accent);
-  animation:mpGalBlink 1.15s infinite;}
-@keyframes mpGalBlink{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(3px)}}
-.mp-gal-meta{position:absolute;left:16px;bottom:6px;font:9.5px/1.4 var(--k-font-pixel);color:var(--k-fg-3);letter-spacing:.4px;}
+.mp-gal-name::before{content:"";flex:0 0 auto;width:24px;height:1px;background:var(--k-brass);opacity:.5;}
+.mp-gal-text{grid-area:text;font-size:var(--gal-fs,17.5px);line-height:var(--gal-lh,1.95);
+  letter-spacing:.015em;color:var(--gal-color,var(--k-fg));
+  white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:hidden;
+  background:transparent !important;padding:0 !important;border:0 !important;
+  text-shadow:0 1px 3px rgba(2,2,4,.62);}
+/* 旁白用宋、台词用黑：像剧本里的舞台指示与对白，各自听起来不一样 */
+.mp-gal-text .gal-narr{font-family:var(--k-font-serif);font-size:calc(var(--gal-fs,17.5px) - .5px);
+  line-height:calc(var(--gal-lh,1.95) + .05);color:rgba(244,239,231,.80);letter-spacing:.03em;font-style:normal;}
+.mp-gal-text .gal-body{color:var(--gal-color,var(--k-fg));letter-spacing:.01em;}
+.mp-gal-text .gal-thought{font-family:var(--k-font-serif);font-style:normal;
+  color:#b9cbd2;opacity:.94;letter-spacing:.03em;}
+.mp-gal-next{grid-area:next;align-self:end;justify-self:end;margin-top:18px;
+  font:400 8px/1 var(--k-font-pixel);color:var(--k-brass);opacity:.35;
+  animation:mpGalBlink 2.6s ease-in-out infinite;}
+@keyframes mpGalBlink{0%,100%{opacity:.22;transform:translateY(0)}50%{opacity:.9;transform:translateY(2px)}}
+.mp-gal-meta{grid-area:meta;align-self:end;margin-top:18px;
+  font:400 9.5px/1.4 var(--k-font-pixel);color:rgba(244,239,231,.42);letter-spacing:.18em;}
 
-/* ── 选项：整块可点，不做描边嵌套 ─────────────────────────────────── */
+/* ── 选项：一张表，不是两个按钮。发丝分隔 + 极薄磨砂 + 序号 ────────── */
 .mp-gal-choices{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(720px,calc(100% - 22px));max-height:62vh;overflow-y:auto;z-index:7;display:none;flex-direction:column;gap:8px;}
+  width:min(580px,calc(100% - 44px));max-height:62vh;overflow-y:auto;z-index:7;display:none;
+  flex-direction:column;gap:0;scrollbar-width:none;padding:16px 0;box-sizing:border-box;
+  background:radial-gradient(78% 96% at 50% 50%,rgba(4,4,7,.82) 0%,rgba(4,4,7,.60) 36%,rgba(4,4,7,.20) 64%,rgba(4,4,7,0) 82%);}
+.mp-gal-choices::-webkit-scrollbar{display:none;}
 .mp-gal-choices.show{display:flex;}
-.mp-gal-choice{width:100%;text-align:left;padding:13px 15px;border-radius:3px;cursor:pointer;font-family:inherit;
-  font-size:14.5px;line-height:1.5;color:var(--k-fg);border:1px solid var(--k-line-2);
-  background:linear-gradient(180deg,rgba(31,24,42,.9),rgba(17,10,21,.92));
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  box-shadow:2px 2px 0 rgba(6,3,7,.5);
-  transition:transform .12s ease,background .15s ease,border-color .15s ease;}
-.mp-gal-choice:hover{background:rgba(244,114,208,.12);border-color:var(--k-accent);transform:translateY(-1px);}
-.mp-gal-choice .gal-choice-idx{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;
-  border-radius:2px;background:rgba(244,114,208,.22);color:var(--k-accent-2);font:600 10px/20px var(--k-font-pixel);
-  margin-right:8px;}
+.mp-gal-choice{position:relative;width:100%;text-align:left;cursor:pointer;font-family:inherit;
+  display:flex;align-items:baseline;gap:15px;box-sizing:border-box;
+  padding:15px 16px 15px 13px;border:0;border-radius:0;
+  background:transparent;
+  color:var(--k-fg);font-size:15.5px;line-height:1.55;letter-spacing:.02em;
+  text-shadow:0 1px 3px rgba(2,2,4,.5);
+  animation:galChoiceIn .46s var(--k-ease) both;animation-delay:calc(var(--i,0) * 70ms);
+  transition:background .18s ease,border-color .18s ease,color .18s ease;}
+/* 分隔线两端渐隐：线条融进画里，而不是划过整张照片 */
+.mp-gal-choice::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,rgba(244,239,231,0) 0%,rgba(244,239,231,.17) 16%,
+    rgba(244,239,231,.17) 84%,rgba(244,239,231,0) 100%);
+  transition:background .18s ease;}
+.mp-gal-choice:first-child::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,rgba(244,239,231,0) 0%,rgba(244,239,231,.17) 16%,
+    rgba(244,239,231,.17) 84%,rgba(244,239,231,0) 100%);}
+@keyframes galChoiceIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.mp-gal-choice:hover,.mp-gal-choice:focus-visible{
+  background:linear-gradient(90deg,rgba(233,203,164,.11) 0%,rgba(233,203,164,.04) 62%,rgba(233,203,164,0) 100%);
+  color:#fffaf2;outline:none;}
+.mp-gal-choice:hover::after,.mp-gal-choice:focus-visible::after{
+  background:linear-gradient(90deg,rgba(233,203,164,0) 0%,rgba(233,203,164,.55) 16%,
+    rgba(233,203,164,.55) 84%,rgba(233,203,164,0) 100%);}
+.mp-gal-choice:focus-visible{box-shadow:inset 0 0 0 1px rgba(233,203,164,.35);}
+.mp-gal-choice .gal-choice-idx{flex:0 0 auto;width:auto;height:auto;line-height:1;
+  background:none;border-radius:0;text-align:left;font:400 9.5px/1 var(--k-font-pixel);
+  letter-spacing:.14em;color:rgba(233,203,164,.55);transform:translateY(-1px);
+  transition:color .18s ease;}
+.mp-gal-choice:hover .gal-choice-idx{color:var(--k-brass-2);}
 
-/* ── 底部工具栏 ───────────────────────────────────────────────────── */
-.mp-gal-toolbar{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateX(-50%) translateY(140%);
-  z-index:8;display:flex;gap:6px;padding:7px 8px;border-radius:4px;
-  background:rgba(17,10,21,.9);border:1px solid var(--k-line);
-  box-shadow:0 12px 30px rgba(6,3,7,.6);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  transition:transform .25s var(--k-ease),opacity .2s ease;opacity:0;
+/* ── 底部工具栏：一条控制带，项与项之间只有发丝线 ─────────────────── */
+.mp-gal-toolbar{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+  transform:translateX(-50%) translateY(150%);z-index:8;
+  display:flex;gap:0;align-items:center;padding:2px 6px;border-radius:2px;
+  background:rgba(8,8,11,.86);border:1px solid var(--k-line);
+  box-shadow:0 20px 48px rgba(4,4,7,.58);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  transition:transform .3s var(--k-ease),opacity .2s ease;opacity:0;
   max-width:calc(100% - 18px);flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none;}
 .mp-gal-toolbar::-webkit-scrollbar{display:none;}
+.mp-gal-toolbar button{border-left:1px solid rgba(244,239,231,.07);border-radius:0;}
+.mp-gal-toolbar button:first-child{border-left:0;}
 .mp-gal-toolbar.show{transform:translateX(-50%) translateY(0);opacity:1;}
 .mp-gal-edge{position:absolute;left:0;right:0;bottom:0;height:34px;z-index:4;}
 .mp-gal-root.hide-ui .mp-gal-top{opacity:0;pointer-events:none;transform:translateY(-12px);}
-.mp-gal-root.hide-ui .mp-gal-dialog{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(30px);}
+.mp-gal-root.hide-ui .mp-gal-dialog{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(26px);}
 .mp-gal-root.hide-ui .mp-gal-edge{height:70px;}
+/* 工具栏弹出时把台词抬起来，别压在控制带上（不支持 :has 就退回原位重叠） */
+.mp-gal-root:not(.hide-ui):has(.mp-gal-toolbar.show) .mp-gal-dialog{
+  transform:translateX(-50%) translateY(-56px);}
 
 /* ── 抽屉（历史 / 存档 / 设置 / 标签） ─────────────────────────────── */
-.mp-gal-sheet-mask{position:absolute;inset:0;z-index:20;background:rgba(10,5,9,.8) !important;display:flex;align-items:center;
-  justify-content:center;padding:16px;box-sizing:border-box;}
-.mp-gal-root .mp-gal-sheet{width:min(560px,100%);max-height:86dvh;overflow-y:auto;
-  background:linear-gradient(180deg,var(--k-ink-3),var(--k-ink-1)) !important;
-  border:1px solid var(--k-line-2) !important;border-radius:4px !important;padding:16px;box-sizing:border-box;
-  box-shadow:0 26px 70px rgba(6,3,7,.72),inset 0 1px 0 rgba(255,190,235,.10) !important;}
-.mp-gal-sheet h3{margin:0 0 12px;font:600 12px/1.4 var(--k-font-pixel);letter-spacing:.6px;color:var(--k-accent-2);
+.mp-gal-sheet-mask{position:absolute;inset:0;z-index:20;background:rgba(4,4,6,.84) !important;
+  display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+.mp-gal-root .mp-gal-sheet{width:min(540px,100%);max-height:86dvh;overflow-y:auto;
+  background:#101014 !important;border:1px solid var(--k-line) !important;border-radius:3px !important;
+  padding:22px 20px;box-sizing:border-box;
+  box-shadow:0 34px 90px rgba(4,4,7,.72) !important;}
+.mp-gal-sheet h3{margin:0 0 16px;font:400 12px/1.4 var(--k-font-serif);letter-spacing:.26em;color:var(--k-brass);
   display:flex;justify-content:space-between;align-items:center;gap:8px;}
-.mp-gal-sheet .gal-sec{border-top:1px solid var(--k-line);padding-top:12px;margin-top:12px;}
+.mp-gal-sheet .gal-sec{border-top:1px solid var(--k-line);padding-top:14px;margin-top:14px;}
 .mp-gal-sheet .gal-sec:first-of-type{border-top:none;padding-top:0;margin-top:0;}
-.mp-gal-sheet .gal-label{font-size:11px;font-weight:600;color:var(--k-fg-2);letter-spacing:.06em;margin-bottom:7px;}
-.mp-gal-sheet .gal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--k-fg-2);}
-.mp-gal-sheet input[type=range]{width:150px;accent-color:var(--k-accent);}
+.mp-gal-sheet .gal-label{font-size:10.5px;font-weight:400;color:rgba(233,203,164,.82);
+  letter-spacing:.2em;margin-bottom:10px;}
+.mp-gal-sheet .gal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;font-size:12.5px;color:var(--k-fg-2);}
+.mp-gal-sheet input[type=range]{width:150px;accent-color:var(--k-brass);}
 .mp-gal-sheet input[type=text],.mp-gal-sheet textarea,.mp-gal-sheet select{width:100%;box-sizing:border-box;
-  background:var(--k-ink-0);border:1px solid var(--k-line);border-radius:3px;color:var(--k-fg);font-size:12.5px;
-  padding:9px 10px;font-family:inherit;outline:none;}
+  background:#0b0b0e;border:1px solid var(--k-line);border-radius:2px;color:var(--k-fg);font-size:12.5px;
+  padding:9px 10px;font-family:inherit;outline:none;transition:border-color .18s ease,box-shadow .18s ease;}
 .mp-gal-sheet input[type=text]:focus,.mp-gal-sheet textarea:focus,.mp-gal-sheet select:focus{
-  border-color:rgba(244,114,208,.55);box-shadow:0 0 0 1px rgba(244,114,208,.22),0 0 0 4px rgba(244,114,208,.07);}
+  border-color:rgba(233,203,164,.55);box-shadow:0 0 0 1px rgba(233,203,164,.20);}
+.mp-gal-sheet button{font-family:inherit;cursor:pointer;min-height:38px;padding:8px 12px;box-sizing:border-box;
+  border:1px solid var(--k-line);border-radius:2px;background:rgba(244,239,231,.03);
+  color:var(--k-fg-2);font:400 11.5px/1.25 var(--k-font-body);letter-spacing:.06em;
+  transition:background .18s ease,border-color .18s ease,color .18s ease;}
+.mp-gal-sheet button:hover{background:rgba(233,203,164,.10);border-color:rgba(233,203,164,.34);color:var(--k-brass-2);}
+.mp-gal-sheet button:focus-visible{outline:1px solid rgba(233,203,164,.7);outline-offset:2px;}
 .mp-gal-sheet .gal-seg{display:flex;flex-wrap:wrap;gap:6px;}
 .mp-gal-sheet .gal-seg button{flex:1 1 auto;min-width:78px;font-size:11px;}
-.mp-gal-sheet .gal-seg button.on{background:rgba(244,114,208,.18);border-color:var(--k-accent);color:var(--k-accent-2);font-weight:600;}
-.mp-gal-sheet .gal-hint{font-size:10.5px;color:var(--k-fg-3);line-height:1.6;margin-top:6px;}
-.mp-gal-sheet .gal-warn{font-size:11px;color:#ffcf8b;line-height:1.6;margin-top:6px;background:rgba(255,207,139,.07);
-  border-left:2px solid rgba(255,207,139,.55);border-radius:2px;padding:8px 10px;}
-.mp-gal-sheet .gal-list{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto;}
-.mp-gal-sheet .gal-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;
-  border-radius:3px;background:var(--k-ink-2);border:1px solid var(--k-line);font-size:12px;color:var(--k-fg);}
+.mp-gal-sheet .gal-seg button.on{background:rgba(233,203,164,.14);border-color:rgba(233,203,164,.55);
+  color:var(--k-brass-2);font-weight:600;}
+.mp-gal-sheet .gal-hint{font-size:10.5px;color:var(--k-fg-3);line-height:1.7;margin-top:8px;}
+.mp-gal-sheet .gal-warn{font-size:11px;color:#ffcf8b;line-height:1.7;margin-top:8px;background:rgba(255,207,139,.06);
+  border-left:1px solid rgba(255,207,139,.55);border-radius:0;padding:9px 11px;}
+.mp-gal-sheet .gal-list{display:flex;flex-direction:column;gap:0;max-height:230px;overflow-y:auto;}
+.mp-gal-sheet .gal-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 2px;
+  border-radius:0;background:none;border:0;border-bottom:1px solid var(--k-line);font-size:12px;color:var(--k-fg);}
 .mp-gal-sheet .gal-item .gal-item-main{flex:1;min-width:0;}
-.mp-gal-sheet .gal-item .gal-item-sub{font-size:10.5px;color:var(--k-fg-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-gal-sheet .gal-item .gal-item-sub{font-size:10.5px;color:var(--k-fg-3);margin-top:3px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
 
 /* ── 空状态 ───────────────────────────────────────────────────────── */
-.mp-gal-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;
-  color:var(--k-fg-2);font-size:12.5px;z-index:3;padding:24px;text-align:center;line-height:1.7;}
-.mp-gal-empty .mp-gal-empty-title{font:600 12px/1.4 var(--k-font-pixel);letter-spacing:.5px;color:var(--k-accent-2);}
-.mp-gal-empty .mp-gal-empty-sub{font-size:11px;color:var(--k-fg-3);}
+.mp-gal-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;
+  color:var(--k-fg-2);font-size:12.5px;z-index:3;padding:24px;text-align:center;line-height:1.8;}
+.mp-gal-empty .mp-gal-empty-title{font:400 15px/1.5 var(--k-font-serif);letter-spacing:.22em;color:var(--k-brass);}
+.mp-gal-empty .mp-gal-empty-sub{font-size:11px;color:var(--k-fg-3);letter-spacing:.06em;}
 
-.mp-gal-root.is-phone .mp-gal-dialog{padding:11px 13px 18px;border-radius:3px;}
-.mp-gal-root.is-phone .mp-gal-text{font-size:calc(var(--gal-fs,17px) - 1px);max-height:34vh;}
+.mp-gal-root.is-phone .mp-gal-dialog{padding:30px 18px 22px;min-height:112px;}
+.mp-gal-root.is-phone .mp-gal-text{font-size:calc(var(--gal-fs,17.5px) - 1px);max-height:36vh;}
+@media (min-width:900px){
+  .mp-gal-top{padding-left:26px;padding-right:26px;}
+  .mp-gal-top-right{margin-left:auto;justify-content:flex-end;}
+  .mp-gal-dialog{width:min(860px,calc(100% - 48px));}
+  .mp-gal-choices{width:min(600px,calc(100% - 80px));}
+}
 @media (max-width:640px){
   .mp-gal-sprite{max-height:72%;max-width:70%;}
-  .mp-gal-top{padding-bottom:14px;}
-  .mp-gal-top button{padding:7px 10px;font-size:10.5px;}
+  .mp-gal-top{padding-left:12px;padding-right:12px;padding-bottom:22px;}
+  .mp-gal-top button,.mp-gal-toolbar button{padding:6px 9px;font-size:10.5px;letter-spacing:.12em;}
+  .mp-gal-top button::after,.mp-gal-toolbar button::after{left:9px;right:9px;}
+  .mp-gal-top .mp-gal-back{font-size:0;letter-spacing:0;gap:0;padding:6px 12px 6px 8px;margin-right:4px;}
+  .mp-gal-top .mp-gal-back::before{width:7px;height:7px;}
+  .mp-gal-top-right{-webkit-mask-image:linear-gradient(90deg,#0c0c0e 0,#0c0c0e calc(100% - 14px),transparent 100%);
+    mask-image:linear-gradient(90deg,#0c0c0e 0,#0c0c0e calc(100% - 14px),transparent 100%);}
+  .mp-gal-choice{padding:14px 14px 14px 12px;font-size:15px;gap:12px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .mp-gal-root.open,.mp-gal-choice{animation:none !important;}
+  .mp-gal-next{animation:none;opacity:.55;}
+  .mp-gal-top button::after,.mp-gal-toolbar button::after{transition:none;}
 }
 `;
   }
@@ -8905,17 +8987,17 @@ function openUpdateConfigDialog(panel) {
       '<div class="mp-gal-cg"><img alt="event cg"></div>' +
       '<div class="mp-gal-empty" id="mp-gal-empty" style="display:none"></div>' +
       '<div class="mp-gal-top">' +
-        '<button type="button" class="mp-gal-back" data-gal-act="exit">← 返回</button>' +
+        '<button type="button" class="mp-gal-back" data-gal-act="exit">返回</button>' +
         '<span class="mp-gal-title">Galgame Mode</span>' +
         '<div class="mp-gal-top-right">' +
-          '<button type="button" data-gal-act="moon">🌕 系统</button>' +
-          '<button type="button" data-gal-act="cg">🖼 CG</button>' +
-          '<button type="button" data-gal-act="input">⌨ 输入</button>' +
-          '<button type="button" data-gal-act="history">📜 历史</button>' +
-          '<button type="button" data-gal-act="saves">💾 存档</button>' +
-          '<button type="button" data-gal-act="tagmap">🏷 标签</button>' +
-          '<button type="button" data-gal-act="settings">⚙ 设置</button>' +
-          '<button type="button" data-gal-act="hide">⛶ 隐藏</button>' +
+          '<button type="button" data-gal-act="moon">系统</button>' +
+          '<button type="button" data-gal-act="cg">CG</button>' +
+          '<button type="button" data-gal-act="input">输入</button>' +
+          '<button type="button" data-gal-act="history">历史</button>' +
+          '<button type="button" data-gal-act="saves">存档</button>' +
+          '<button type="button" data-gal-act="tagmap">标签</button>' +
+          '<button type="button" data-gal-act="settings">设置</button>' +
+          '<button type="button" data-gal-act="hide">隐藏</button>' +
         '</div>' +
       '</div>' +
       '<div class="mp-gal-dialog" id="mp-gal-dialog">' +
@@ -8926,12 +9008,12 @@ function openUpdateConfigDialog(panel) {
       '</div>' +
       '<div class="mp-gal-choices" id="mp-gal-choices"></div>' +
       '<div class="mp-gal-toolbar" id="mp-gal-toolbar">' +
-        '<button type="button" data-gal-act="prev">◀ 上一页</button>' +
-        '<button type="button" data-gal-act="next">下一页 ▶</button>' +
-        '<button type="button" data-gal-act="auto">▶ 自动</button>' +
-        '<button type="button" data-gal-act="skip">⏩ 已读跳过</button>' +
-        '<button type="button" data-gal-act="input">⌨ 自由输入</button>' +
-        '<button type="button" data-gal-act="fullscreen">⛶ 全屏</button>' +
+        '<button type="button" data-gal-act="prev">上一页</button>' +
+        '<button type="button" data-gal-act="next">下一页</button>' +
+        '<button type="button" data-gal-act="auto">自动</button>' +
+        '<button type="button" data-gal-act="skip">已读跳过</button>' +
+        '<button type="button" data-gal-act="input">自由输入</button>' +
+        '<button type="button" data-gal-act="fullscreen">全屏</button>' +
       '</div>' +
       '<div class="mp-gal-edge" id="mp-gal-edge"></div>';
     mainDoc.body.appendChild(root);
@@ -9314,8 +9396,9 @@ function openUpdateConfigDialog(panel) {
       return;
     }
     box.innerHTML = choices.map(function(c, i) {
-      return '<button type="button" class="mp-gal-choice" data-gal-choice="' + i + '">' +
-        '<span class="gal-choice-idx">' + (i + 1) + '</span>' + galEscape(c) + '</button>';
+      const num = ('0' + (i + 1)).slice(-2);
+      return '<button type="button" class="mp-gal-choice" data-gal-choice="' + i + '" style="--i:' + i + '">' +
+        '<span class="gal-choice-idx">' + num + '</span>' + galEscape(c) + '</button>';
     }).join('');
     box.classList.add('show');
     const btns = box.querySelectorAll('[data-gal-choice]');
@@ -9505,9 +9588,12 @@ function openUpdateConfigDialog(panel) {
   function galUpdateToolbarState(root) {
     if (!root) return;
     const auto = root.querySelector('[data-gal-act="auto"]');
-    if (auto) auto.textContent = GAL_RUNTIME.autoPlay ? '⏸ 暂停' : '▶ 自动';
+    if (auto) {
+      auto.textContent = GAL_RUNTIME.autoPlay ? '暂停' : '自动';
+      auto.setAttribute('data-on', GAL_RUNTIME.autoPlay ? '1' : '0');
+    }
     const hide = root.querySelector('[data-gal-act="hide"]');
-    if (hide) hide.textContent = GAL_RUNTIME.hideUI ? '☰ 显示' : '⛶ 隐藏';
+    if (hide) hide.textContent = GAL_RUNTIME.hideUI ? '显示' : '隐藏';
   }
 
   /* ── 事件钩子（由 setupListeners 调用，不重复注册） ─────── */
@@ -9639,10 +9725,10 @@ function openUpdateConfigDialog(panel) {
       '<div class="gal-sec">' +
         '<div class="gal-label">图片模式（四选一，内置与第三方互斥）</div>' +
         seg('imageMode', s.imageMode, [
-          { v: 'builtin', t: '🌙 月相内置' },
-          { v: 'external', t: '🔌 第三方接管' },
-          { v: 'manual', t: '📁 手动素材' },
-          { v: 'off', t: '📝 纯文字' }
+          { v: 'builtin', t: '月相内置' },
+          { v: 'external', t: '第三方接管' },
+          { v: 'manual', t: '手动素材' },
+          { v: 'off', t: '纯文字' }
         ]) +
         '<div class="gal-hint">当前：<b>' + galEscape(img.label) + '</b>｜内置生图入口：' + (img.builtinActive ? '开启' : '已关闭') +
         '｜检测到的第三方生图插件：' + (img.detected.length ? img.detected.map(function(d) { return galEscape(d.label) + (d.enabled ? '' : '（未启用）'); }).join('、') : '无') + '</div>' +
@@ -9652,9 +9738,9 @@ function openUpdateConfigDialog(panel) {
       '<div class="gal-sec">' +
         '<div class="gal-label">记忆模式（三选一，互斥）</div>' +
         seg('memoryMode', s.memoryMode, [
-          { v: 'builtin', t: '🌙 内置记忆' },
-          { v: 'external', t: '🔌 第三方接管' },
-          { v: 'off', t: '🚫 完全关闭' }
+          { v: 'builtin', t: '内置记忆' },
+          { v: 'external', t: '第三方接管' },
+          { v: 'off', t: '完全关闭' }
         ]) +
         '<div class="gal-hint">当前：<b>' + galEscape(mem.label) + '</b>｜回合 ' + mem.turns + ' · 阶段摘要 ' + mem.stages + ' · 长期 ' + mem.longs +
         '｜检测到的记忆插件：' + (mem.plugins.length ? mem.plugins.map(function(p) { return galEscape(p.label) + (p.enabled ? '' : '（未启用）'); }).join('、') : '无') + '</div>' +
@@ -9666,13 +9752,13 @@ function openUpdateConfigDialog(panel) {
         '<div class="gal-label">标签映射</div>' +
         '<div class="gal-hint">当前预设：<b>' + galEscape(tag.presetName) + '</b>｜启用 ' + tag.enabledCount + ' / ' + tag.total + ' 条' +
         (tag.ok ? '｜校验通过' : '｜<span style="color:#f87171">存在 ' + tag.problems.filter(function(p) { return p.level === 'error'; }).length + ' 个问题</span>') + '</div>' +
-        '<button type="button" data-gal-act="tagmap" style="margin-top:8px;width:100%">🏷 打开标签映射编辑器</button>' +
+        '<button type="button" data-gal-act="tagmap" style="margin-top:8px;width:100%">打开标签映射编辑器</button>' +
       '</div>' +
       '<div class="gal-sec">' +
         '<div class="gal-label">素材</div>' +
-        '<button type="button" data-gal-asset="bg" style="width:100%;margin-bottom:6px">🖼 设置背景图（输入网址）</button>' +
-        '<button type="button" data-gal-asset="sprite" style="width:100%;margin-bottom:6px">🧍 设置角色立绘（名字|表情）</button>' +
-        '<button type="button" data-gal-asset="cg" style="width:100%">✨ 设置事件 CG</button>' +
+        '<button type="button" data-gal-asset="bg" style="width:100%;margin-bottom:6px">设置背景图（输入网址）</button>' +
+        '<button type="button" data-gal-asset="sprite" style="width:100%;margin-bottom:6px">设置角色立绘（名字|表情）</button>' +
+        '<button type="button" data-gal-asset="cg" style="width:100%">设置事件 CG</button>' +
         (galGetPendingImages().length ? '<div class="gal-warn" style="margin-top:8px">有 ' + galGetPendingImages().length + ' 张图等着你指定用途：' +
           galGetPendingImages().map(function(p, i) {
             return '<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><img src="' + galEscape(p.url) + '" style="width:42px;height:42px;object-fit:cover;border-radius:6px">' +
@@ -9685,12 +9771,12 @@ function openUpdateConfigDialog(panel) {
         '<div class="gal-label">其他</div>' +
         '<div class="gal-row"><span>显示角色名</span><button type="button" data-gal-set="showSpeaker" data-gal-val="' + (s.showSpeaker !== false ? '0' : '1') + '">' + (s.showSpeaker !== false ? '开' : '关') + '</button></div>' +
         '<div class="gal-row"><span>打字机效果</span><button type="button" data-gal-set="typewriter" data-gal-val="' + (s.typewriter !== false ? '0' : '1') + '">' + (s.typewriter !== false ? '开' : '关') + '</button></div>' +
-        '<button type="button" data-gal-act="fullscreen" style="width:100%;margin-top:6px">⛶ 切换全屏</button>' +
+        '<button type="button" data-gal-act="fullscreen" style="width:100%;margin-top:6px">切换全屏</button>' +
       '</div>';
   }
 
   function galOpenSettingsSheet() {
-    galShowSheet('⚙ Galgame 设置', galSettingsSheetHtml(), function(mask) {
+    galShowSheet('Galgame 设置', galSettingsSheetHtml(), function(mask) {
       const save = function(patch) {
         galSaveSettings(patch);
         const root = galRootEl();
@@ -9778,10 +9864,10 @@ function openUpdateConfigDialog(panel) {
         '<div class="gal-label">当前聊天</div>' +
         '<div class="gal-hint">读档能力：<b>' + galEscape(cap.detail) + '</b></div>' +
         (cap.canRollback ? '' : '<div class="gal-warn">当前酒馆版本没有可用的消息回退接口。读档只能恢复画面与阅读进度，不能把剧情退回到旧楼层。</div>') +
-        '<button type="button" data-gal-save-new="1" style="width:100%;margin-top:10px">💾 新建存档（当前楼层）</button>' +
+        '<button type="button" data-gal-save-new="1" style="width:100%;margin-top:10px">新建存档（当前楼层）</button>' +
       '</div>' +
       '<div class="gal-sec"><div class="gal-label">存档列表（最多 20 个）</div><div class="gal-list">' + listHtml + '</div></div>';
-    galShowSheet('💾 存档 / 读档', body, function(mask) {
+    galShowSheet('存档 / 读档', body, function(mask) {
       const newBtn = mask.querySelector('[data-gal-save-new]');
       if (newBtn) newBtn.addEventListener('click', function() {
         const name = mainWin.prompt('存档名（留空自动命名）', '') || '';
@@ -9819,7 +9905,7 @@ function openUpdateConfigDialog(panel) {
           (pv.needsRollback && pv.canRollback ? '<button type="button" data-gal-do="rollback" style="flex:1;border-color:rgba(248,113,113,.6);color:#fecaca">回退剧情并读档</button>' : '') +
         '</div>' +
       '</div>';
-    galShowSheet('📖 读档确认', body, function(mask) {
+    galShowSheet('读档确认', body, function(mask) {
       const viewBtn = mask.querySelector('[data-gal-do="view"]');
       if (viewBtn) viewBtn.addEventListener('click', async function() {
         const r = galRestoreViewOnly(id);
@@ -9858,7 +9944,7 @@ function openUpdateConfigDialog(panel) {
         '<div class="gal-item-sub">' + galEscape(text) + '</div></div>' +
         '<button type="button" data-gal-jump="' + i + '">回看</button></div>');
     }
-    galShowSheet('📜 历史回看', '<div class="gal-hint" style="margin-bottom:10px">只是回看，不会删除或修改任何消息。</div>' +
+    galShowSheet('历史回看', '<div class="gal-hint" style="margin-bottom:10px">只是回看，不会删除或修改任何消息。</div>' +
       '<div class="gal-list">' + (rows.length ? rows.join('') : '<div class="gal-hint">没有可回看的回复</div>') + '</div>',
       function(mask) {
         mask.querySelectorAll('[data-gal-jump]').forEach(function(btn) {
@@ -9924,9 +10010,9 @@ function openUpdateConfigDialog(panel) {
       '</div>' +
       '<div class="gal-sec">' +
         '<div class="gal-label">校验</div>' + problems +
-        '<button type="button" data-gal-preset="save" style="width:100%;margin-top:10px">💾 保存这个预设</button>' +
+        '<button type="button" data-gal-preset="save" style="width:100%;margin-top:10px">保存这个预设</button>' +
       '</div>';
-    galShowSheet('🏷 标签映射', body, function(mask) {
+    galShowSheet('标签映射', body, function(mask) {
       const collect = function() {
         const out = [];
         mask.querySelectorAll('[data-rule-row]').forEach(function(row) {
