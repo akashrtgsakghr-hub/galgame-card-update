@@ -17,15 +17,25 @@
 ## 仓库结构
 
 ```
-src/*.js                 拆开的源码（42 个片段，按文件名顺序拼成 moon-phase.js）
+src/*.js                 拆开的源码（46 个片段，按文件名顺序拼成 moon-phase.js）
 scripts/build.mjs        拼接 + 语法检查 + 重建导入 JSON（CI 每次 push 都会跑）
+scripts/gen-theme-tex.mjs  从状态卡皮肤里抽出贴图 → src/89a-theme-tex.js
+scripts/embed-docs.mjs     把 docs/*.md 编进脚本（面板「下载文档」用）→ src/89d-beauty-docs.js
+scripts/resplit.mjs      src/ 落后多个版本时，按行级映射把单文件重新切回分片
+docs/                    两份美化制作文档（全局主题 / 状态卡），也是脚本内置文档的源
 pocket/                  掌机（卡带机）子系统：页面源码 + 打包工具 + 内核说明
-moon-phase.js            ↑ 上述两者拼出来的成品，玩家下载 / 自动更新的就是这个
+moon-phase.js            ↑ 上述全部拼出来的成品，玩家下载 / 自动更新的就是这个
 Galgame攻略系统-酒馆助手导入.json   同上，酒馆助手的脚本导入格式
 ```
 
 掌机那套东西单独在 `pocket/` 里维护，改完 `pocket/` 再重新打包进 `src/87-pocket-embed.js`，
 细节见 [`pocket/README.md`](pocket/README.md)。里面那个 WASM 内核是 GPL-3.0，说明也写在那个文件里。
+
+美化这边有两份给玩家的文档：[`docs/panel-theme.md`](docs/panel-theme.md)（全局主题）、
+[`docs/status-theme.md`](docs/status-theme.md)（楼内状态卡）。两份都以「最高指令」十条 UI 铁律开头，
+玩家整份丢给任意 AI、加一句风格描述，就能拿到可直接导入的 JSON。
+**改文档要改 `docs/` 里的 md，然后跑 `node scripts/embed-docs.mjs` 再 build**——
+脚本里的那份是生成的，手改会被下次生成覆盖。
 
 > v4.8.20 **沉浸模式重做版式**：一屏不再有九块方块——顶栏只剩一排字、台词落在柔光上像字幕、
 > 选项是一张两端渐隐的发丝表；旁白用宋体、台词用黑体，整屏叠一层胶片颗粒。

@@ -62,10 +62,14 @@ function extractVersion(code) {
 }
 
 function extractChangelog(code) {
-  const m = code.match(/MOON_FORMULA_CHANGELOG\s*=\s*("(?:\\.|[^"\\])*")/);
+  /* 公告是多段字符串拼起来的（一段一行，方便改）。这里必须把整串拼接都收进来，
+     只抓第一段的话，导入 JSON 的 info 会只剩标题一行——看着像「公告没了」。 */
+  const m = code.match(/MOON_FORMULA_CHANGELOG\s*=\s*((?:"(?:\\.|[^"\\])*"\s*\+?\s*)+);/);
   if (!m) throw new Error('没找到 MOON_FORMULA_CHANGELOG');
+  const parts = m[1].match(/"(?:\\.|[^"\\])*"/g) || [];
+  if (!parts.length) throw new Error('MOON_FORMULA_CHANGELOG 里没有字符串字面量');
   try {
-    return JSON.parse(m[1]);
+    return parts.map((p) => JSON.parse(p)).join('');
   } catch (e) {
     throw new Error('MOON_FORMULA_CHANGELOG 不是合法字符串字面量：' + e.message);
   }

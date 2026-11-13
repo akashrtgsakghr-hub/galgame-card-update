@@ -105,7 +105,7 @@
   function renderLcdCharacterDetails(ch) {
     if (!ch) return '<div class="mp-lcd-empty">NO CHARACTER DATA<br>建立角色档案后显示角色状态</div>';
     const imp = String(ch.重要度 || '主要');
-    const impColor = imp === '主要' ? '#f472d0' : (imp === '次要' ? '#7dd3fc' : '#94a3b8');
+    const impColor = imp === '主要' ? 'var(--k-accent)' : (imp === '次要' ? '#7dd3fc' : '#94a3b8');
     const voice = String(ch.心声 || '').trim();
     const stateQuota = ch._quota || {};
     const voiceSyncStatus = String(stateQuota._心声同步状态 || '尚未检测到本轮同步');
@@ -423,10 +423,10 @@
     const presets = lib.presets || [];
     const rows = presets.map(function(p) {
       const isEn = p.enabled === true;
-      return '<div style="padding:10px;margin-bottom:8px;background:#100a13;border:1px solid ' + (isEn ? '#f472d0' : '#59304d') + ';border-radius:4px;">' +
+      return '<div style="padding:10px;margin-bottom:8px;background:var(--k-sur-0, #100a13);border:1px solid ' + (isEn ? 'var(--k-accent)' : 'var(--k-frame, #59304d)') + ';border-radius:4px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px;">' +
-          '<b style="color:#ffb8eb;font-size:12px;">' + escapeFeatureHtml(p.name || '未命名预设') + '</b>' +
-          '<button type="button" class="moon-cg-preset-toggle" data-id="' + escapeFeatureHtml(p.id) + '" style="padding:3px 9px;font-size:10.5px;cursor:pointer;background:' + (isEn ? '#37102f;border:1px solid #6ee7b7;color:#6ee7b7' : '#1c1020;border:1px solid #a94d8b;color:#e9c3dc') + ';">' + (isEn ? '已启用' : '启用此预设') + '</button>' +
+          '<b style="color:var(--k-accent-2, #ffb8eb);font-size:12px;">' + escapeFeatureHtml(p.name || '未命名预设') + '</b>' +
+          '<button type="button" class="moon-cg-preset-toggle" data-id="' + escapeFeatureHtml(p.id) + '" style="padding:3px 9px;font-size:10.5px;cursor:pointer;background:' + (isEn ? 'var(--k-sur-2, #37102f);border:1px solid #6ee7b7;color:#6ee7b7' : 'var(--k-sur-1, #1c1020);border:1px solid var(--k-fg-3, #a94d8b);color:var(--k-fg-2, #e9c3dc)') + ';">' + (isEn ? '已启用' : '启用此预设') + '</button>' +
         '</div>' +
         '<div style="font-size:10px;color:#a5f3fc;line-height:1.5;word-break:break-all;"><b>画师串：</b>' + escapeFeatureHtml(String(p.artistPrompt || '(无)').slice(0, 110)) + '</div>' +
         '<div style="font-size:10px;color:#cbd5e1;line-height:1.5;word-break:break-all;"><b>正面词：</b>' + escapeFeatureHtml(String(p.positivePrompt || '(无)').slice(0, 110)) + '</div>' +
@@ -438,7 +438,7 @@
       '</div>';
     }).join('');
 
-    const html = '<div style="font-size:11px;color:#f9a8d4;line-height:1.7;margin-bottom:8px;">' +
+    const html = '<div style="font-size:11px;color:var(--k-accent-2, #f9a8d4);line-height:1.7;margin-bottom:8px;">' +
       '可保存多套<b>画师串、正面提示词、负面提示词</b>。启用后，显影 CG 时会自动将画师串与正面/负面提示词拼接到画面描述中。</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
         '<button type="button" id="moon-cg-preset-new" style="flex:1;padding:8px;font-weight:600;cursor:pointer;">＋ 新建画风/画师串预设</button>' +
@@ -507,11 +507,11 @@
       enabled: true
     };
     const html = '<div style="display:flex;flex-direction:column;gap:8px;font-size:11.5px;">' +
-      '<label>预设名称<input id="moon-cgp-name" type="text" value="' + escapeFeatureHtml(item.name) + '" placeholder="例如：清透水彩Gal风 / 赛璐璐厚涂" style="width:100%;box-sizing:border-box;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#fce7f3;"></label>' +
-      '<label>画师串 (Artist / Style Tags)<textarea id="moon-cgp-artist" placeholder="例如：artist:ask_(askzy), ciloranko, anime visual novel style..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#a5f3fc;font-family:monospace;">' + escapeFeatureHtml(item.artistPrompt) + '</textarea></label>' +
-      '<label>正面提示词 (Positive Quality & Composition)<textarea id="moon-cgp-pos" placeholder="masterpiece, best quality, horizontal composition, 16:9..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#fce7f3;font-family:monospace;">' + escapeFeatureHtml(item.positivePrompt) + '</textarea></label>' +
-      '<label>负面提示词 (Negative Prompt / UC)<textarea id="moon-cgp-neg" placeholder="lowres, bad anatomy, bad hands, text, watermark..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid #a94d8b;color:#fca5a5;font-family:monospace;">' + escapeFeatureHtml(item.negativePrompt) + '</textarea></label>' +
-      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:#ffb8eb;"><input type="checkbox" id="moon-cgp-enable"' + (item.enabled !== false ? ' checked' : '') + '> 保存后立即启用此预设</label>' +
+      '<label>预设名称<input id="moon-cgp-name" type="text" value="' + escapeFeatureHtml(item.name) + '" placeholder="例如：清透水彩Gal风 / 赛璐璐厚涂" style="width:100%;box-sizing:border-box;padding:7px;margin-top:3px;background:#09060d;border:1px solid var(--k-fg-3, #a94d8b);color:var(--k-accent-2, #fce7f3);"></label>' +
+      '<label>画师串 (Artist / Style Tags)<textarea id="moon-cgp-artist" placeholder="例如：artist:ask_(askzy), ciloranko, anime visual novel style..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid var(--k-fg-3, #a94d8b);color:#a5f3fc;font-family:monospace;">' + escapeFeatureHtml(item.artistPrompt) + '</textarea></label>' +
+      '<label>正面提示词 (Positive Quality & Composition)<textarea id="moon-cgp-pos" placeholder="masterpiece, best quality, horizontal composition, 16:9..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid var(--k-fg-3, #a94d8b);color:var(--k-accent-2, #fce7f3);font-family:monospace;">' + escapeFeatureHtml(item.positivePrompt) + '</textarea></label>' +
+      '<label>负面提示词 (Negative Prompt / UC)<textarea id="moon-cgp-neg" placeholder="lowres, bad anatomy, bad hands, text, watermark..." style="width:100%;box-sizing:border-box;min-height:54px;padding:7px;margin-top:3px;background:#09060d;border:1px solid var(--k-fg-3, #a94d8b);color:#fca5a5;font-family:monospace;">' + escapeFeatureHtml(item.negativePrompt) + '</textarea></label>' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--k-accent-2, #ffb8eb);"><input type="checkbox" id="moon-cgp-enable"' + (item.enabled !== false ? ' checked' : '') + '> 保存后立即启用此预设</label>' +
     '</div>';
 
     showModalDialogCancelable(existing ? ' 编辑画风预设' : '＋ 新建画风预设', html,
@@ -751,7 +751,7 @@
       };
       list.unshift(item);
       saveGalleryList(list);
-      const html = '<div style="text-align:center;padding:8px 0"><b>成就解锁</b><div style="font-size:15px;color:#f9a8d4;margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊（默认不自动生图，点击下方「查看当前回忆」即可发送生图请求显影 CG）。</div></div>';
+      const html = '<div style="text-align:center;padding:8px 0"><b>成就解锁</b><div style="font-size:15px;color:var(--k-accent-2, #f9a8d4);margin:8px 0">《' + escapeFeatureHtml(item.title) + '》</div><div>' + escapeFeatureHtml(item.desc) + '</div><div style="margin-top:10px;color:#94a3b8">已加入本聊天的回忆画廊（默认不自动生图，点击下方「查看当前回忆」即可发送生图请求显影 CG）。</div></div>';
       showModalDialogCancelable('成就记录', html,
         function() {
           setTimeout(function() { developCGItem(item); }, 150);
@@ -780,7 +780,7 @@
       if (!saveGalleryList(list)) throw new Error('图片已生成，但无法保存回忆索引');
       closeLoadingDialog();
       const previewUrl = /^https?:\/\//i.test(stored.imageUrl) ? stored.imageUrl : generated;
-      showModalDialog('回忆 CG 已显影', '<div id="moon-cg-preview" style="margin:8px 0"></div><div>已归档到当前聊天的回忆画廊。</div>', null, { confirmText: '知道了', onOpen: function(mask) { const image = mainDoc.createElement('img'); image.src = previewUrl; image.alt = item.title; image.style.cssText = 'width:100%;display:block;border:1px solid #693253'; mask.querySelector('#moon-cg-preview').appendChild(image); } });
+      showModalDialog('回忆 CG 已显影', '<div id="moon-cg-preview" style="margin:8px 0"></div><div>已归档到当前聊天的回忆画廊。</div>', null, { confirmText: '知道了', onOpen: function(mask) { const image = mainDoc.createElement('img'); image.src = previewUrl; image.alt = item.title; image.style.cssText = 'width:100%;display:block;border:1px solid var(--k-frame, #693253)'; mask.querySelector('#moon-cg-preview').appendChild(image); } });
     } catch (err) {
       closeLoadingDialog();
       toast('CG 显影失败：' + String(err && err.message || err).slice(0, 180), 'warning');
@@ -809,18 +809,18 @@
     const primaryMeta = IMAGE_PROVIDER_META[imgCfg.primaryProvider] || IMAGE_PROVIDER_META.pollinations;
     const secondaryMeta = imgCfg.secondaryProvider && imgCfg.secondaryProvider !== 'none' ? IMAGE_PROVIDER_META[imgCfg.secondaryProvider] : null;
 
-    const topBarHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:7px;background:#100a13;border:1px solid #693253;">' +
+    const topBarHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:7px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253);">' +
       '<button type="button" id="moon-gal-presets-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">画风预设' + (enabledPreset ? ' (已启用)' : '') + '</button>' +
       '<button type="button" id="moon-gal-imgcfg-btn" style="flex:1;padding:6px;font-size:11px;cursor:pointer;">渠道设定</button>' +
     '</div>' +
-    '<div style="font-size:10px;color:#e9c3dc;margin-bottom:8px;line-height:1.5;">' +
+    '<div style="font-size:10px;color:var(--k-fg-2, #e9c3dc);margin-bottom:8px;line-height:1.5;">' +
       '当前主渠道：<b style="color:#7dd3fc;">' + escapeFeatureHtml(primaryMeta.name) + '</b>' +
       (secondaryMeta ? ' · 次用渠道：<b style="color:#fde047;">' + escapeFeatureHtml(secondaryMeta.name) + '</b>' : ' · 次用渠道：无（失败自动重试 ' + imgCfg.maxRetries + ' 次）') +
-      (enabledPreset ? ' · 画风：<b style="color:#f9a8d4;">' + escapeFeatureHtml(enabledPreset.name) + '</b>' : '') +
+      (enabledPreset ? ' · 画风：<b style="color:var(--k-accent-2, #f9a8d4);">' + escapeFeatureHtml(enabledPreset.name) + '</b>' : '') +
     '</div>';
 
     const rows = list.length ? list.map(function(item) {
-      return '<article style="padding:9px;margin:7px 0;background:#100a13;border:1px solid #693253">' +
+      return '<article style="padding:9px;margin:7px 0;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253)">' +
         '<b>《' + escapeFeatureHtml(item.title || '未命名回忆') + '》</b><div style="font-size:10px;color:#9ca3af">' + escapeFeatureHtml(item.char || '') + (item.isEnding ? ' · 周目结局' : ' · 成就') + ' · ' + new Date(Number(item.createdAt) || Date.now()).toLocaleString() + '</div>' +
         '<div style="margin:5px 0">' + escapeFeatureHtml(item.desc || '') + '</div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap"><button type="button" data-gallery-view="' + escapeFeatureHtml(item.id) + '">查看</button><button type="button" data-gallery-generate="' + escapeFeatureHtml(item.id) + '"' + (!item.prompt ? ' disabled' : '') + '>显影 CG</button><button type="button" data-gallery-download="' + escapeFeatureHtml(item.id) + '"' + (!(item.imageKey || item.imageUrl) ? ' disabled' : '') + '>下载</button><button type="button" data-gallery-delete="' + escapeFeatureHtml(item.id) + '">移除</button></div></article>';
@@ -845,7 +845,7 @@
           const desc = mainDoc.createElement('div'); desc.textContent = String(item.desc || ''); preview.appendChild(desc);
           if (imageUrl) {
             if (imageUrl.indexOf('blob:') === 0) _galleryPreviewObjectUrl = imageUrl;
-            const image = mainDoc.createElement('img'); image.src = imageUrl; image.alt = String(item.title || '回忆 CG'); image.style.cssText = 'width:100%;display:block;margin-top:7px;border:1px solid #693253'; preview.appendChild(image);
+            const image = mainDoc.createElement('img'); image.src = imageUrl; image.alt = String(item.title || '回忆 CG'); image.style.cssText = 'width:100%;display:block;margin-top:7px;border:1px solid var(--k-frame, #693253)'; preview.appendChild(image);
           } else {
             const note = mainDoc.createElement('div'); note.style.color = '#9ca3af'; note.textContent = item.isExpired ? '图片已按保留设置清理，可重新显影。' : '尚未生成 CG。'; preview.appendChild(note);
           }
@@ -896,30 +896,30 @@
     }).join('');
 
     const initCh = workingChannels[currentEditProv] || { apiUrl: '', apiKey: '', model: '' };
-    const html = '<div style="line-height:1.7;margin-bottom:8px;color:#f9a8d4;font-size:11px;">' +
+    const html = '<div style="line-height:1.7;margin-bottom:8px;color:var(--k-accent-2, #f9a8d4);font-size:11px;">' +
       '每个生图渠道均可<b>独立配置并单独保存</b>。当默认主渠道生成失败时，系统会自动重新发起请求（最多重试 <b>5 次</b>）；若配置了次用渠道，主渠道失败后会自动切换至次用渠道继续生成。</div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;">' +
         '<button type="button" id="moon-imgcfg-open-presets" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">管理画师串与正/负面提示词预设库</button>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">' +
-        '<label style="font-size:11px;">默认主渠道<select id="moon-image-primary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#6ee7b7;border:1px solid #a94d8b;">' + primaryOptions + '</select></label>' +
-        '<label style="font-size:11px;">次用备用渠道<select id="moon-image-secondary-provider" style="width:100%;padding:7px;margin-top:3px;background:#100a13;color:#fde047;border:1px solid #a94d8b;">' + secondaryOptions + '</select></label>' +
+        '<label style="font-size:11px;">默认主渠道<select id="moon-image-primary-provider" style="width:100%;padding:7px;margin-top:3px;background:var(--k-sur-0, #100a13);color:#6ee7b7;border:1px solid var(--k-fg-3, #a94d8b);">' + primaryOptions + '</select></label>' +
+        '<label style="font-size:11px;">次用备用渠道<select id="moon-image-secondary-provider" style="width:100%;padding:7px;margin-top:3px;background:var(--k-sur-0, #100a13);color:#fde047;border:1px solid var(--k-fg-3, #a94d8b);">' + secondaryOptions + '</select></label>' +
       '</div>' +
-      '<div style="padding:10px;background:#140b18;border:1px solid #f472d0;border-radius:4px;margin-bottom:8px;">' +
+      '<div style="padding:10px;background:var(--k-sur-0, #140b18);border:1px solid var(--k-accent);border-radius:4px;margin-bottom:8px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;">' +
-          '<select id="moon-image-provider" style="flex:1;padding:7px;background:#09060d;color:#ffb8eb;border:1px solid #f472d0;font-weight:600;">' + editOptions + '</select>' +
+          '<select id="moon-image-provider" style="flex:1;padding:7px;background:#09060d;color:var(--k-accent-2, #ffb8eb);border:1px solid var(--k-accent);font-weight:600;">' + editOptions + '</select>' +
           '<button type="button" id="moon-image-save-channel" style="padding:7px 10px;font-size:11px;cursor:pointer;">单独保存此渠道</button>' +
         '</div>' +
-        '<label style="display:block;margin-top:6px;font-size:11px;">接口地址 (API URL)<input id="moon-image-url" value="' + escapeFeatureHtml(initCh.apiUrl) + '" placeholder="留空则使用该渠道官方默认地址" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
-        '<label style="display:block;margin-top:6px;font-size:11px;">API Key（独立保存在掌机中）<input id="moon-image-key" type="password" value="' + escapeFeatureHtml(initCh.apiKey) + '" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
-        '<label style="display:block;margin-top:6px;font-size:11px;">模型名称 (Model)<input id="moon-image-model" value="' + escapeFeatureHtml(initCh.model) + '" placeholder="例如：nai-diffusion-3 / dall-e-3 / flux" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:#fce7f3;border:1px solid #643052;"></label>' +
+        '<label style="display:block;margin-top:6px;font-size:11px;">接口地址 (API URL)<input id="moon-image-url" value="' + escapeFeatureHtml(initCh.apiUrl) + '" placeholder="留空则使用该渠道官方默认地址" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);"></label>' +
+        '<label style="display:block;margin-top:6px;font-size:11px;">API Key（独立保存在掌机中）<input id="moon-image-key" type="password" value="' + escapeFeatureHtml(initCh.apiKey) + '" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);"></label>' +
+        '<label style="display:block;margin-top:6px;font-size:11px;">模型名称 (Model)<input id="moon-image-model" value="' + escapeFeatureHtml(initCh.model) + '" placeholder="例如：nai-diffusion-3 / dall-e-3 / flux" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#09060d;color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);"></label>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
-        '<label style="font-size:11px;">失败自动重试次数（最多 5 次）<input id="moon-image-retries" type="number" min="1" max="5" value="' + Math.max(1, Math.min(5, Number(config.maxRetries) || 5)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>' +
-        '<label style="font-size:11px;">CG 保留天数（0=永久）<input id="moon-image-retention" type="number" min="0" max="3650" value="' + Math.max(0, Number(settings.galleryRetentionDays) || 0) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>' +
+        '<label style="font-size:11px;">失败自动重试次数（最多 5 次）<input id="moon-image-retries" type="number" min="1" max="5" value="' + Math.max(1, Math.min(5, Number(config.maxRetries) || 5)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:var(--k-sur-0, #100a13);color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);"></label>' +
+        '<label style="font-size:11px;">CG 保留天数（0=永久）<input id="moon-image-retention" type="number" min="0" max="3650" value="' + Math.max(0, Number(settings.galleryRetentionDays) || 0) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:var(--k-sur-0, #100a13);color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);"></label>' +
       '</div>' +
-      '<label style="display:block;margin-top:8px;font-size:11px;">默认负面提示词（未启用画风预设时兜底使用）<textarea id="moon-image-negative" style="width:100%;box-sizing:border-box;min-height:44px;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;">' + escapeFeatureHtml(config.imageNegativePrompt) + '</textarea></label>' +
-      '<label style="display:block;margin-top:8px;font-size:11px;">后日谈目标字数（1500–8000）<input id="moon-epilogue-words" type="number" min="1500" max="8000" step="500" value="' + Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:#100a13;color:#fce7f3;border:1px solid #643052;"></label>';
+      '<label style="display:block;margin-top:8px;font-size:11px;">默认负面提示词（未启用画风预设时兜底使用）<textarea id="moon-image-negative" style="width:100%;box-sizing:border-box;min-height:44px;padding:7px;margin-top:2px;background:var(--k-sur-0, #100a13);color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);">' + escapeFeatureHtml(config.imageNegativePrompt) + '</textarea></label>' +
+      '<label style="display:block;margin-top:8px;font-size:11px;">后日谈目标字数（1500–8000）<input id="moon-epilogue-words" type="number" min="1500" max="8000" step="500" value="' + Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000)) + '" style="width:100%;box-sizing:border-box;padding:7px;margin-top:2px;background:var(--k-sur-0, #100a13);color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-frame, #643052);"></label>';
 
     showModalDialogCancelable('回忆与生图设定', html, function() {
       const mask = mainDoc.getElementById('moon-modal-mask'); if (!mask) return;
@@ -1194,11 +1194,11 @@
     const routeMeta = ENDING_ROUTE_META[eType] || ENDING_ROUTE_META.TE;
     const html = '<div style="text-align:center;padding:8px 0">' +
       '' +
-      '<b style="color:#f9a8d4;font-size:14px;">世界线收束 · 日系 Galgame 终局报幕</b>' +
-      '<div style="margin-top:8px;line-height:1.7;color:#fce7f3;">' +
+      '<b style="color:var(--k-accent-2, #f9a8d4);font-size:14px;">世界线收束 · 日系 Galgame 终局报幕</b>' +
+      '<div style="margin-top:8px;line-height:1.7;color:var(--k-accent-2, #fce7f3);">' +
         (isManual ? '即将为角色《<b>' + escapeFeatureHtml(charName) + '</b>》发起本周目的终局结算。' : '《<b>' + escapeFeatureHtml(charName) + '</b>》达成了终局条件：<b style="color:' + routeMeta.accent + ';">' + escapeFeatureHtml(routeMeta.badge) + '</b>（' + escapeFeatureHtml(eReason) + '）。') +
       '</div>' +
-      '<div style="margin-top:10px;padding:9px 11px;background:#100a13;border:1px solid #f472d0;text-align:left;font-size:11px;line-height:1.7;color:#f9a8d4;">' +
+      '<div style="margin-top:10px;padding:9px 11px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-accent);text-align:left;font-size:11px;line-height:1.7;color:var(--k-accent-2, #f9a8d4);">' +
         '<b>公屏结局报幕流程（内置正则美化）：</b><br>' +
         '1. 点击下方<b>「注入聊天框并自动发送」</b>，系统会将周目结算提示词自动填入酒馆聊天框并发送。<br>' +
         '2. AI 撰写终幕剧情并输出 <code>[GalgameEnding|...]</code> 标签后，<b>脚本内置正则会自动将其替换为日系经典 Galgame 结局报幕（Staff Roll / Fin 演出卡）</b>！<br>' +
@@ -1252,8 +1252,8 @@
     }
     const options = names.map(function(name) { return '<option value="' + escapeFeatureHtml(name) + '">' + escapeFeatureHtml(name) + '</option>'; }).join('');
     showModalDialogCancelable('选择周目结算角色与路线',
-      '<label style="display:block;margin-bottom:8px;">结算角色档案<select id="moon-ending-char-select" style="width:100%;padding:8px;margin-top:4px;background:#100a13;color:#fce7f3;border:1px solid #a94d8b;">' + options + '</select></label>' +
-      '<label style="display:block;">结局报幕路线<select id="moon-ending-route-select" style="width:100%;padding:8px;margin-top:4px;background:#100a13;color:#f9a8d4;border:1px solid #a94d8b;">' + routeOptions + '</select></label>',
+      '<label style="display:block;margin-bottom:8px;">结算角色档案<select id="moon-ending-char-select" style="width:100%;padding:8px;margin-top:4px;background:var(--k-sur-0, #100a13);color:var(--k-accent-2, #fce7f3);border:1px solid var(--k-fg-3, #a94d8b);">' + options + '</select></label>' +
+      '<label style="display:block;">结局报幕路线<select id="moon-ending-route-select" style="width:100%;padding:8px;margin-top:4px;background:var(--k-sur-0, #100a13);color:var(--k-accent-2, #f9a8d4);border:1px solid var(--k-fg-3, #a94d8b);">' + routeOptions + '</select></label>',
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
         const selected = mask && mask.querySelector('#moon-ending-char-select') && mask.querySelector('#moon-ending-char-select').value;
@@ -1293,15 +1293,15 @@
     try {
       const canvas = mainDoc.createElement('canvas'); canvas.width = 1200; canvas.height = 675;
       const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
-      const gradient = ctx.createLinearGradient(0, 0, 1200, 675); gradient.addColorStop(0, '#211020'); gradient.addColorStop(1, '#09070d'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1200, 675);
-      ctx.strokeStyle = '#c94b9f'; ctx.lineWidth = 4; ctx.strokeRect(18, 18, 1164, 639);
-      ctx.fillStyle = '#f9a8d4'; ctx.font = 'bold 30px sans-serif'; ctx.fillText('MOON POCKET · 周目结算', 60, 80);
+      const gradient = ctx.createLinearGradient(0, 0, 1200, 675); gradient.addColorStop(0, 'var(--k-sur-1, #211020)'); gradient.addColorStop(1, '#09070d'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1200, 675);
+      ctx.strokeStyle = 'var(--k-fg-3, #c94b9f)'; ctx.lineWidth = 4; ctx.strokeRect(18, 18, 1164, 639);
+      ctx.fillStyle = 'var(--k-accent-2, #f9a8d4)'; ctx.font = 'bold 30px sans-serif'; ctx.fillText('MOON POCKET · 周目结算', 60, 80);
       ctx.fillStyle = '#f4f1ea'; ctx.font = 'bold 42px sans-serif'; ctx.fillText(String(record.title || '终局').slice(0, 24), 60, 155);
-      ctx.fillStyle = '#e9c3dc'; ctx.font = '22px sans-serif'; ctx.fillText(String(record.endingType || 'TE') + ' · ' + String(record.charName || '角色').slice(0, 30), 60, 205);
-      ctx.fillStyle = '#e5d8e2'; ctx.font = '20px sans-serif';
+      ctx.fillStyle = 'var(--k-fg-2, #e9c3dc)'; ctx.font = '22px sans-serif'; ctx.fillText(String(record.endingType || 'TE') + ' · ' + String(record.charName || '角色').slice(0, 30), 60, 205);
+      ctx.fillStyle = 'var(--k-fg-2, #e5d8e2)'; ctx.font = '20px sans-serif';
       const lines = String(record.summary || '').match(/.{1,38}/g) || [];
       lines.slice(0, 4).forEach(function(line, index) { ctx.fillText(line, 60, 270 + index * 34); });
-      ctx.fillStyle = '#f9a8d4'; ctx.font = '18px sans-serif'; ctx.fillText('E ' + record.E + '  P ' + record.P + '  R ' + record.R + '  I ' + record.I, 60, 440);
+      ctx.fillStyle = 'var(--k-accent-2, #f9a8d4)'; ctx.font = '18px sans-serif'; ctx.fillText('E ' + record.E + '  P ' + record.P + '  R ' + record.R + '  I ' + record.I, 60, 440);
       ctx.fillStyle = '#c4b5c1'; ctx.font = 'italic 22px sans-serif'; ctx.fillText('“' + String(record.monologue || '').slice(0, 38) + '”', 60, 505);
       ctx.fillStyle = '#957f91'; ctx.font = '16px monospace'; ctx.fillText('GALGAME CARD SYSTEM · MEMORY ARCHIVE', 60, 610);
       downloadFileViaBrowser(canvas.toDataURL('image/png'), '周目结算卡_' + String(record.title || '结算').replace(/[\\/:*?"<>|]/g, '_'));
@@ -1331,7 +1331,7 @@
   }
   function openEpilogueReaderDialog(title, text) {
     const safeTitle = escapeFeatureHtml(title);
-    const html = '<div id="moon-epilogue-text" style="max-height:55vh;overflow:auto;padding:12px;background:#100a13;border:1px solid #693253;font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div><div style="margin-top:9px;text-align:right"><button id="moon-export-epilogue">导出 TXT</button></div>';
+    const html = '<div id="moon-epilogue-text" style="max-height:55vh;overflow:auto;padding:12px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253);font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div><div style="margin-top:9px;text-align:right"><button id="moon-export-epilogue">导出 TXT</button></div>';
     showModalDialog('后日谈 · 《' + safeTitle + '》', html, null, { confirmText: '阅读完毕', onOpen: function(mask) {
       mask.querySelector('#moon-export-epilogue').addEventListener('click', function() {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });

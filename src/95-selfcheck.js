@@ -149,10 +149,15 @@
       pocketFold('look', '外观与阅读', '状态卡长什么样、用哪一套纸与光',
         '<div class="mp-set-block"><div class="mp-set-title">楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
-        renderSkinPickerHtml() + '</div>' +
+        renderSkinPickerHtml() +
+        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+        '<button id="moon-status-theme-open" class="mp-safelock-btn on">状态卡主题 / 导入</button></div></div>' +
         '<div class="mp-set-block"><div class="mp-set-title">自制美化</div>' +
-        '<div class="mp-set-desc">描述你想要的样子，让模型生成一套配色与材质；也可以导出成文档，在外面做好再把 JSON 贴回来。</div>' +
-        '<div style="margin-top:8px;"><button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
+        '<div class="mp-set-desc">两条路：让模型生成一套配色与材质；或者拿一份文档去外面做，做好把 JSON 贴回来。' +
+        '现在也收素材（贴图），换的是颜色与材质，不动布局。</div>' +
+        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+        '<button id="moon-theme-open" class="mp-safelock-btn on">主题包 / 导入</button>' +
+        '<button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
         false) +
       pocketFold('ai', 'AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
         pocketRow('让插件用自己的 AI', hasApi ? ('当前模型：' + lcdEscape(apiCfg.model)) : '不用填。不填就用你酒馆里那个 AI',

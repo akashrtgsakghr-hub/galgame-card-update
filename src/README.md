@@ -65,6 +65,10 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `86d-gal-save.js` | 246 | 存档读档：指纹定位、回退能力探测、预检、只恢复画面 / 真回退两种读档 |
 | `86e-gal-ui.js` | 1291 | 沉浸界面：墨樱配色、单行顶栏、分页渲染、选项交互、工具栏、历史 / 存档 / 标签 / 设置面板 |
 | `86f-gal-boot.js` | 63 | 沉浸模式启动：CSS 注入、按 DOM 判断开关、事件挂载（入口在面板里） |
+| `89a-theme-tex.js` | 6 | 主题包用的贴图（从少女心绪皮肤抽出的 6 张实拍，base64）。**由 `scripts/gen-theme-tex.mjs` 生成，不要手改** |
+| `89b-theme-pack.js` | 810 | 全局主题包：`moontheme/1` 的校验 / 应用 / 导入导出 / 内置三套 / 素材与对比度兜底 |
+| `89c-status-theme.js` | 560 | 楼内状态卡主题：`moonstatus/1` 的语义 token → 五套皮肤变量，少女心绪另有表面重绘 |
+| `89d-beauty-docs.js` | 40 | 两份美化文档（base64）。**由 `scripts/embed-docs.mjs` 生成，不要手改** |
 | `87-pocket-embed.js` | 15 | 掌机整页的内嵌副本（一整页 HTML 的 base64）。**由 `moon-pocket/tools/pack-pocket.mjs` 生成，不要手改** | 
 | `87a-pocket-host.js` | 110 | 掌机宿主侧：面板里的占位块、挂到 body 的持久 iframe 容器、坐标跟随、可见性停转、存档回传 chatMetadata |
 
