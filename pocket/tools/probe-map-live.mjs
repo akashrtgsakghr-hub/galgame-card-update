@@ -78,6 +78,11 @@ for (let attempt = 1; attempt <= 8 && !reached; attempt++){
   console.log(`  第 ${attempt} 段（累计 ${rounds} 次按键）· 地图 ${b.pages} 页 · 位置 ${b.page ? b.page.x + ',' + b.page.y : '—'} · ${reached ? '走动了' : '还在过场'}`);
   if (!reached) await page.screenshot({ path: path.join(SHOTS, `map-live-a${attempt}.png`) });
 }
+/* 先退回游戏画面：菜单/卡片开着的时候拼出来的图没有参考价值 */
+for (let i = 0; i < 4; i++) await tap('KeyX');   /* B：退出菜单/卡片 */
+await page.waitForTimeout(700);
+await page.screenshot({ path: path.join(SHOTS, 'map-live-room.png') });
+
 /* ② 真像素平移测试：拿当前这一帧（改版的真实画面）左右挪一格，喂给同一套算法。
       屋子是一屏装得下的，镜头不跟着人滚，所以「走出去」这一步在探针里做不了；
       但「真画面能不能对上真画面」可以在这里验：挪 16px 应该被认出「往右走了一格」。 */
@@ -129,7 +134,35 @@ const painted = await page.evaluate(() => {
 });
 console.log(`小窗里画出来的像素：${painted.lit}/${painted.total}（${painted.pct}%）`);
 
-await page.evaluate(() => { window.MOON_POCKET.map.show(); });
+/* ③ 拿真实画面「走一圈」，好让截图里能看到地图长什么样：
+   把屋子那一帧按格平移喂给同一套状态机（不是真按键，只是把画面往前推） */
+const demo = await page.evaluate(async () => {
+  const src = new Uint8ClampedArray(window.coreImageData.data);
+  const pan = (dx, dy) => {
+    const f = new Uint8ClampedArray(src.length);
+    f.fill(0);
+    for (let y = 0; y < 160; y++){
+      const sy = y + dy; if (sy < 0 || sy >= 160) continue;
+      for (let x = 0; x < 240; x++){
+        const sx = x + dx; if (sx < 0 || sx >= 240) continue;
+        const fi = (y * 240 + x) * 4, si = (sy * 240 + sx) * 4;
+        f[fi] = src[si]; f[fi + 1] = src[si + 1]; f[fi + 2] = src[si + 2]; f[fi + 3] = 255;
+      }
+    }
+    return f;
+  };
+  window.MOON_POCKET.map.reset();
+  window.MOON_POCKET.map.show();
+  const route = [[0,0],[0,-16],[0,-16],[16,0],[16,0],[0,16],[0,16],[-16,0]];
+  let ev = '';
+  for (const [dx, dy] of route){
+    const f = pan(dx, dy);
+    for (let i = 0; i < 22; i++) ev = window.MOON_POCKET.map.feed(f);
+  }
+  return { ev, state: window.MOON_POCKET.map.state() };
+});
+console.log('演示走位（真画面平移）：最后事件 ' + demo.ev + ' · ' + JSON.stringify(demo.state.page));
+await page.waitForTimeout(300);
 await page.waitForTimeout(400);
 await page.screenshot({ path: path.join(SHOTS, 'map-live-screen.png') });
 const panel = await page.$('#map-panel');

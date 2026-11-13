@@ -2550,7 +2550,9 @@ window.MOON_POCKET={
           pastes:p.pastes }:null };
     },
     show:mapShow, hide:mapHide, toggle:mapToggle, reset:mapReset,
-    newPage:function(){ mapInit().newPage(); }
+    newPage:function(){ mapInit().newPage(); },
+    /* 调试用：直接塞一帧 240×160 RGBA（联调脚本拿真画面平移来验走位），返回状态机结果 */
+    feed:function(frame){ return mapFeed(frame); }
   },
   list:function(){return CARTS.map(function(c){return {id:c.id,title:c.title,runtime:c.runtime,license:c.license};});},
   resetAskFlag:function(){LS.removeItem(FLAG_PREFIX+"cheat-asked");}
@@ -2764,6 +2766,9 @@ var MapCore = (function(){
     }
 
     function newPage(){
+      /* 上一页一步都没走过（开场白、过场、菜单那种静止画面）：当它没发生过，
+         不占页数、不留「出口」，免得地图册里全是没用的残页 */
+      if (page && page.moves < 1){ pages.pop(); cur = pages.length - 1; }
       page = blankPage();
       pages.push(page);
       while (pages.length > cap) pages.shift();
@@ -2880,6 +2885,9 @@ if (typeof module === "object" && module.exports) module.exports = MapCore;
 var MAP_TILES = 44;                  /* 一页图纸 44×44 格（704×704 像素） */
 var MAP_SAMPLE_MS = 110;             /* 取帧间隔：约 9 次/秒，够用又不抢帧 */
 var MAP_VIEW_W = 192, MAP_VIEW_H = 144;   /* 小窗画布：12×9 格，1:1 像素 */
+/* 视野往上偏 2 格：底部那条 36px 是 HUD，本来就没拼进图纸，
+   把小窗往上挪一挪，既避开黑边，也正好多看点「前面」 */
+var MAP_VIEW_UP = 2;
 
 var mapTracker = null, mapOpen = false, mapAuto = true, mapFolded = false;
 var mapLastSample = 0, mapBlinks = 0;
@@ -2912,14 +2920,10 @@ function mapSyncSheet(page){
 }
 
 /* ── 取帧 ─────────────────────────────────────────────────────────────── */
-function mapSample(){
-  if (!coreBooted || corePaused || !coreModule || !coreImageData) return;
-  if (!layers.core || layers.core.hidden) return;
-  var src = coreImageData.data;
-  if (!mapFrameCopy) mapFrameCopy = new Uint8ClampedArray(src.length);
-  mapFrameCopy.set(src);
+/* 喂一帧给状态机并刷新界面。正常走 mapSample()，调试/联调用 mapFeed() 直接塞帧。 */
+function mapFeed(frame){
   var tr = mapInit();
-  var ev = tr.sample(mapFrameCopy);
+  var ev = tr.sample(frame);
   if (ev === "commit" || ev === "shift"){
     var pg = tr.page();
     mapSyncSheet(pg);
@@ -2933,6 +2937,16 @@ function mapSample(){
     mapUpdateChrome();
     if (mapOpen) mapRender();
   }
+  return ev;
+}
+
+function mapSample(){
+  if (!coreBooted || corePaused || !coreModule || !coreImageData) return;
+  if (!layers.core || layers.core.hidden) return;
+  var src = coreImageData.data;
+  if (!mapFrameCopy) mapFrameCopy = new Uint8ClampedArray(src.length);
+  mapFrameCopy.set(src);
+  return mapFeed(mapFrameCopy);
 }
 
 /* ── 画：小窗里只显示玩家周围 12×9 格 ─────────────────────────────────── */
@@ -2950,7 +2964,7 @@ function mapRender(){
   }
   var px = page.ox + MapCore.MID_X, py = page.oy + MapCore.MID_Y;
   /* 小窗左上角对应的图纸像素 */
-  var sx = px * T + T / 2 - vw / 2, sy = py * T + T / 2 - vh / 2;
+  var sx = px * T + T / 2 - vw / 2, sy = py * T + T / 2 - vh / 2 - MAP_VIEW_UP * T;
   var cv = mapSheetCanvas(page);
   g.imageSmoothingEnabled = false;
   /* 图纸边缘之外留黑：越界那块裁掉 */
@@ -2979,8 +2993,8 @@ function mapRender(){
   if (page.entry) mark(page.entry, "#8fd08a", "入");
   if (page.exit && !same) mark(page.exit, "#e8b96a", "出");
 
-  /* 你：正中一闪一闪的方块，外圈黑边保证在任何地形上都看得见 */
-  var cx = vw / 2, cy = vh / 2, on = (mapBlinks % 2) === 0;
+  /* 你：一闪一闪的方块，外圈黑边保证在任何地形上都看得见 */
+  var me = toView(px, py), cx = me.x, cy = me.y, on = (mapBlinks % 2) === 0;
   g.fillStyle = "#0a0f08"; g.fillRect(cx - 5, cy - 5, 10, 10);
   g.fillStyle = on ? "#ffffff" : "#ff86c2"; g.fillRect(cx - 3, cy - 3, 6, 6);
   g.fillStyle = "#0a0f08"; g.fillRect(cx - 1, cy - 1, 2, 2);

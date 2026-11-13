@@ -225,12 +225,25 @@ function settle(tr, frame, max = 40) {
   ok('玩家始终留在图纸里（留 8 格余量）', sx >= 8 && sx <= 44 - 8 && sy >= 8 && sy <= 44 - 8, `格 (${sx},${sy})`);
 }
 
+/* ── 5b. 一步没走过的残页不留在册子里 ─────────────────────────────────── */
+{
+  const w1 = makeWorld(31), w2 = makeWorld(37);
+  const tr = MapCore.tracker({ tiles: 44, cap: 3 });
+  for (let i = 0; i < 12; i++) tr.sample(frameAt(w1, 10, 10, 0));   /* 画面静止：只拼，不走 */
+  const stillPages = tr.pages().length;
+  for (let i = 0; i < 8; i++) tr.sample(frameAt(w2, 10, 10, i));    /* 换一张图，同样没走 */
+  ok('一步没走过的页会被丢掉（不占页数）', tr.pages().length === 1 && stillPages === 1,
+    `静止后 ${stillPages} 页 → 换图后 ${tr.pages().length} 页`);
+}
+
 /* ── 6. 页数上限 ───────────────────────────────────────────────────────── */
 {
   const tr = MapCore.tracker({ tiles: 44, cap: 3 });
   for (let k = 0; k < 6; k++) {
     const w = makeWorld(100 + k);
-    for (let i = 0; i < 10; i++) tr.sample(frameAt(w, 10, 10, i));
+    settle(tr, frameAt(w, 10, 10, 0));                    /* 等冷却、拼第一帧 */
+    tr.sample(frameAt(w, 11, 10, 1));                     /* 走两步，这页才算数 */
+    tr.sample(frameAt(w, 12, 10, 2));
     tr.newPage();
   }
   ok('页数超过上限时丢最早的一页', tr.pages().length === 3, `${tr.pages().length} 页`);

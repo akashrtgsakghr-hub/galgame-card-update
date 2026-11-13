@@ -214,7 +214,9 @@ window.MOON_POCKET={
           pastes:p.pastes }:null };
     },
     show:mapShow, hide:mapHide, toggle:mapToggle, reset:mapReset,
-    newPage:function(){ mapInit().newPage(); }
+    newPage:function(){ mapInit().newPage(); },
+    /* 调试用：直接塞一帧 240×160 RGBA（联调脚本拿真画面平移来验走位），返回状态机结果 */
+    feed:function(frame){ return mapFeed(frame); }
   },
   list:function(){return CARTS.map(function(c){return {id:c.id,title:c.title,runtime:c.runtime,license:c.license};});},
   resetAskFlag:function(){LS.removeItem(FLAG_PREFIX+"cheat-asked");}

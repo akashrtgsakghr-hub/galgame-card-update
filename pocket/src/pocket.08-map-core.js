@@ -153,6 +153,9 @@ var MapCore = (function(){
     }
 
     function newPage(){
+      /* 上一页一步都没走过（开场白、过场、菜单那种静止画面）：当它没发生过，
+         不占页数、不留「出口」，免得地图册里全是没用的残页 */
+      if (page && page.moves < 1){ pages.pop(); cur = pages.length - 1; }
       page = blankPage();
       pages.push(page);
       while (pages.length > cap) pages.shift();
