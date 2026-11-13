@@ -274,15 +274,28 @@
       tokens[key] = s;
     });
 
-    /* 四层必须真的分层：明度单调递增、相邻差 1%~5% */
+    /* 四层要真的分层，但**方向不设限**：
+       深色皮 l0 最暗、往 l3 越来越亮；浅色皮 l0 最亮、往 l3 越来越暗。
+       两种都是对的，只检查「一路同一个方向」+「相邻差 1%~5%」。
+       之前这里写死了「必须逐层变亮」，于是所有浅色主题一导入就被判成错的——
+       那不是在守铁律，是在拿暗色偏好当规矩。 */
     var layers = ['l0', 'l1', 'l2', 'l3'];
     var lums = layers.map(function (k) { return themeLum(tokens[k]); });
+    var dir = lums[1] >= lums[0] ? 1 : -1;
+    /* 上限分两种底：暗底 1%~3%（铁律 1 的原话），浅底放到 1%~8%。
+       不是放宽标准，是 sRGB 在亮端把明度差压平了——同样 5% 的 HSL 差，
+       压在深底上是硬邦邦的一条带，压在浅底上只是一层很淡的影。 */
+    var onLight = themeLum(tokens.l2) > 0.45;
+    var maxGap = onLight ? 8 : 5;
     for (var i = 1; i < lums.length; i++) {
-      var gap = (lums[i] - lums[i - 1]) * 100;
-      if (gap <= 0) {
-        warns.push('四层明度不是逐层变亮（' + layers[i - 1] + '→' + layers[i] + ' 差 ' + gap.toFixed(1) + '%），分层会糊在一起');
-      } else if (gap > 5) {
-        warns.push('四层明度差 ' + gap.toFixed(1) + '% 偏大（铁律 1 要求 1%~3%），层级会显得生硬');
+      /* 变量名别叫 raw：那会把函数入参 raw 覆盖掉，后面读 raw.name 全是 undefined。
+         这个坑真踩过——主题名全变成「未命名主题」，一屏看不出是哪行出的错。 */
+      var delta = (lums[i] - lums[i - 1]) * 100;
+      var gap = delta * dir;                     /* 顺着这个方向看，正数才算「继续走」 */
+      if (gap <= 0.05) {
+        warns.push('四层明度方向不一致（' + layers[i - 1] + '→' + layers[i] + ' 差 ' + delta.toFixed(1) + '%），分层会糊在一起');
+      } else if (gap > maxGap) {
+        warns.push('四层明度差 ' + gap.toFixed(1) + '% 偏大（' + (onLight ? '浅底建议 1%~8%' : '铁律 1 要求 1%~3%') + '），层级会显得生硬');
       }
     }
 
@@ -709,7 +722,8 @@
     var html = ''
       + '<div style="font-size:11.5px;color:var(--k-fg-2,#94a3b8);line-height:1.7;margin-bottom:10px">'
       + '换的是<b>颜色与材质</b>：四层底色、三级文字、强调色、发丝线、素材。<b>不动布局与文案</b>。'
-      + '素材内联在 JSON 里，不联网、不外链。</div>'
+      + '素材内联在 JSON 里，不联网、不外链。<br>'
+      + '<b>风格由你定</b>：文档里的示例只是格式演示，别当模板——冷色暖色、深色浅色、要不要材质都随你。</div>'
       + '<div id="mt-list" style="max-height:280px;overflow:auto;padding-right:2px">' + themeListHtml(appliedId()) + '</div>'
       + '<div style="margin-top:12px;border-top:1px solid var(--k-line,rgba(148,163,184,.18));padding-top:10px">'
       + '<div style="font:600 10.5px/1 inherit;letter-spacing:.08em;opacity:.6;margin-bottom:6px">导入主题包</div>'
