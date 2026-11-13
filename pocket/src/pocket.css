@@ -660,3 +660,28 @@ body.is-embed .console{max-width:none;margin:0}
   .guide-lead,.guide-tabs,.guide-body,.guide-foot{padding-left:16px;padding-right:16px}
   .guide-search{margin-left:16px;margin-right:16px}
 }
+
+/* ── 攻略五册的分册条 ─────────────────────────────────────────────
+   两排：上排是「哪一册」，下排是「这册里的哪一段」。上排做大一点、带小字，
+   因为它决定下排的内容；两排都用同一种按钮，不另起一套皮肤。 */
+.guide-vols{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:12px 22px 0}
+.guide-vols button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-width:0;min-height:40px;padding:5px 2px;border:1px solid var(--color-line);background:transparent;
+  cursor:pointer;font:700 11.5px/1.15 var(--font-ui);color:var(--color-muted);
+  transition:color .12s,border-color .12s,background .12s}
+/* 小字一律单行：五个格子加起来才 470px，允许换行就会把格子撑高、底下的章条跟着往下跳 */
+.guide-vols button small{max-width:100%;font:500 8.5px/1.15 var(--font-mono);letter-spacing:0;
+  opacity:.62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.guide-vols button:hover{color:var(--color-text);border-color:var(--color-accent-2)}
+.guide-vols button.on{background:var(--color-accent);border-color:var(--color-accent);color:var(--color-bg)}
+.guide-vols button.on small{opacity:.78}
+.guide-tabs{padding-top:8px}
+/* 搜索结果里的册名小标签 */
+.gd-vol{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid var(--color-accent);
+  font:600 9px/1.4 var(--font-mono);letter-spacing:.06em;color:var(--color-accent-2);vertical-align:1px}
+
+@media (max-width:520px){
+  .guide-vols{padding-left:16px;padding-right:16px;gap:3px}
+  .guide-vols button{font-size:10.5px;min-height:36px}
+  .guide-vols button small{font-size:8px}
+}
