@@ -8,9 +8,10 @@
 ```
 pocket/
 ├─ src/                    ← 真正的源码（改这里）
-│  ├─ shell.html           结构：机身、屏幕、按键、各个屏内图层
-│  ├─ pocket.css           外观：配色令牌、机身、液晶、各图层样式
-│  └─ pocket.js            行为：卡带菜单、存档、核心装载、金手指台
+│  ├─ shell.html           结构：机身、屏幕、按键、各个屏内图层、攻略抽屉
+│  ├─ pocket.css           外观：配色令牌、机身、液晶、各图层与抽屉样式
+│  ├─ pocket.js            行为：卡带菜单、存档、核心装载、金手指台
+│  └─ guide.js             攻略：卡关急救手册的文案与渲染（纯数据，玩家最常提意见的就是这块）
 ├─ index.html              ← 由 src/ 拼出来的整页（工具生成，别手改）
 ├─ tools/
 │  ├─ build-pocket.mjs     src/ → index.html（--check 只校验，--split 反向拆）
@@ -24,7 +25,7 @@ pocket/
 ## 改东西的流程
 
 ```bash
-# 1) 改 src/ 里的文件
+# 1) 改 src/ 里的文件（只是改攻略文案的话，只会动到 guide.js）
 # 2) 拼出整页
 node pocket/tools/build-pocket.mjs
 # 3) 把整页打包进脚本分片（顺带把核心塞进去）

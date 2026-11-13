@@ -34,6 +34,7 @@
       <button type="button" id="mode-arcade" aria-pressed="true">街机模式<small>ARCADE / 模拟器</small></button>
     </div>
     <div class="mode-tools">
+      <button type="button" class="chip-btn" id="guide-btn">？ 攻略</button>
       <button type="button" class="chip-btn" id="cheat-btn" aria-pressed="false">✦ 金手指模式</button>
       <button type="button" class="chip-btn" id="wb-btn">世界书</button>
       <button type="button" class="chip-btn" id="skin-btn">美化自定义</button>
@@ -118,6 +119,7 @@
             <div class="emu-hud">
               <span class="emu-name" id="emu-name">CORE</span>
               <span class="emu-stat"><b id="emu-fps">--</b> FPS</span>
+              <button type="button" class="emu-btn" id="emu-guide">攻略</button>
               <button type="button" class="emu-btn" id="emu-cheat">金手指</button>
               <button type="button" class="emu-btn" id="emu-pause">暂停</button>
               <button type="button" class="emu-btn" id="emu-save">导出存档</button>
@@ -346,6 +348,25 @@ MOON_POCKET.<span class="k">getInjectedWorldInfo</span>(); <span class="s">// �
     <h3>当前皮肤 JSON</h3>
     <pre id="skin-json"></pre>
   </div>
+</aside>
+
+<!-- 攻略抽屉：卡关时按一下 -->
+<aside class="guide-drawer" id="guide-drawer" hidden aria-label="攻略">
+  <div class="guide-head">
+    <div>
+      <span class="tag">WALKTHROUGH / 攻略</span>
+      <h2>卡关急救手册</h2>
+    </div>
+    <button type="button" id="guide-close" aria-label="关闭">×</button>
+  </div>
+  <p class="guide-lead">按徽章进度选一段。骨架按丰缘主干写，改版在这之上改了等级与道具位置，对不上就翻「卡关急救」那四条。</p>
+  <div class="guide-tabs" id="guide-tabs"></div>
+  <label class="guide-search">
+    <i class="mag" aria-hidden="true"></i>
+    <input type="search" id="guide-q" placeholder="搜：冲浪 / 徽章 / 存档 / 修改器" autocomplete="off">
+  </label>
+  <div class="guide-body" id="guide-body"></div>
+  <div class="guide-foot" id="guide-foot">进度记在这台机器里</div>
 </aside>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
