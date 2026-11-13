@@ -49,9 +49,18 @@
       } catch (e) {}
       return lores;
     });
+    // 普通对话不弹街机：generation_started 是酒馆「每次 AI 生成回复」的事件。
+    // 街机只由月相自己发起的长任务打开（见 callOpeningModel / 首次自检）。
     trySubscribe('message_received', function() {
       isWaitingForExtraModel = false;
-      onGenerationEnd();
+      // 终幕 / 后日谈导演指令只作用于玩家发起结算后的那一轮生成。
+      // 旧实现只在成功渲染 [GalgameEnding|...] 时清空，AI 若没输出合规标签，
+      // 这条「最高优先级」指令会一直留在后续每轮 prompt 里，导致持续写结局 / 后日谈。
+      try {
+        callSetPrompt(PROMPT_KEY + '_ending_director', '', 0, 0, false);
+        callSetPrompt(PROMPT_KEY + '_epilogue_director', '', 0, 0, false);
+      } catch (e) {}
+      onGenerationEnd().catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
       // Galgame 沉浸层：只记记忆、接收第三方图片、刷新展示，不碰聊天记录
       try { onGalMessageReceived(galLatestAiIndex()); } catch (e) {}
     });
@@ -79,10 +88,14 @@
       injectGlossaryPrompt();
       // 剧情记忆：三模式互斥，非内置时这里只会把旧注入清空
       try { injectGalMemoryPrompt(); } catch (e) {}
+      // 放在最后注入，防止旧小抄/旧摘要把当前关系事实覆盖掉。
+      try { injectRelationshipFactsPrompt(); } catch (e) {}
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);
     trySubscribe('chat_changed', function() {
+      // 切换聊天时清掉任何残留的等待框（含街机 iframe），避免跨聊天挂在屏幕上。
+      try { closeLoadingDialog(); } catch (e) {}
       anchorData = null; pendingCollapseNotice = false; timeJumpCooldown = 0; isWaitingForExtraModel = false;
       const store = getStorage();
       if (store) { store.removeItem(LAST_TIME_KEY); store.removeItem(LAST_JUMP_FLOOR_KEY); store.removeItem(LAST_GAME_DAY_KEY); }
@@ -94,10 +107,14 @@
       setTimeout(function() { checkAndPromptBackfill(); }, 3800);
       setTimeout(function() { checkAndPromptBioEnable(); }, 4600);
       setTimeout(function() { beautifySylveinaTagsInDom(); }, 1000);
-      setTimeout(function() { autoBootstrapCharacter('chat-open'); }, 1100);
-      setTimeout(function() { applyBackendVariablesFromLatest(); }, 1200);
+      setTimeout(function() {
+        Promise.resolve(autoBootstrapCharacter('chat-open'))
+          .then(function() { return applyBackendVariablesFromLatest(); })
+          .catch(function(e) { try { console.warn('[Doki] 打开聊天后的状态同步失败：', e); } catch (ignore) {} });
+      }, 1100);
       setTimeout(function() { refreshMessageSkins(); }, 1400);
       setTimeout(function() { try { onGalChatChanged(); } catch (e) {} }, 700);
+      setTimeout(function() { try { injectUserBio(); injectGalMemoryPrompt(); injectRelationshipFactsPrompt(); refreshPanel(); } catch (e) {} }, 900);
     });
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 600);
     setTimeout(function() { beautifySylveinaTagsInDom(); }, 2200);

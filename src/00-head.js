@@ -24,8 +24,14 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '4.8.20';
-  const MOON_FORMULA_CHANGELOG = "【v4.8.20 沉浸模式重做版式】\\n1. 🪟 顶栏从「六个小胶囊」变成一排字：没有底色、没有描边，鼠标扫过才有一条铜色发丝线划过去。那些彩色小图标全撤了——它们和画面里的雨夜一点都不搭。\\n2. 📖 台词不再是一块半透明板子：边框、阴影、圆角全部去掉，台词直接落在压暗的画面和一片柔光上，像电影字幕。\\n3. 🖋 旁白用宋、台词用黑：括号里的环境与心理描写是宋体、说话是黑体，像剧本里的舞台指示与对白。旁白也不再用伪斜体——中文的斜体是机器掰弯的，一眼假。\\n4. ⑊ 选项从「两个实心条」变成一张表：序号 01 / 02、上下两根两端渐隐的发丝线、悬停时铜色从左侧擦进来。进场错峰 70ms，一行一行浮上来。\\n5. 🎛 底部工具栏收成一条控制带，项与项之间只有一根竖发丝；工具栏弹出时台词会自动抬起，不压字。\\n6. 🌫 整屏加了一层 5% 的胶片颗粒和一圈暗角，抽屉换成平板底色 + 发丝边。只动沉浸模式的样式与图标，数值规则、存档格式、其他界面一个字节没改。";
+  const MOON_FORMULA_VERSION = '5.1.0';
+  const MOON_FORMULA_CHANGELOG = "【v5.1.0 正名 + 金手指台 + 掌机拆件】\n" +
+  "1. 正名：这插件一直有自己的全名，是我之前图省事一直喊「月相系统」。现在面板抬头、更新提示、导出文档、导入 JSON 的名字全部换成正式全名（抬头用主名 + 副名两行拼完整名称）。旧名只留作兼容别名：脚本改名、世界书指纹、老存档迁移仍然认它，不影响已有存档。\n" +
+  "2. 新增「金手指台」：卡带机跑起来后，屏里多一个「金手指」按钮。上半是一键宏——打开游戏菜单、连打 A（跳开场与对话）、加速 ×1/×2/×4、暂停，全是替你按键，不碰游戏数据。\n" +
+  "3. 下半是代码金手指：CBA（XXXXXXXX YYYY）与 GSA（XXXXXXXXYYYYYYYY）都能粘，核心受理还是拒收会当场写出来。\n" +
+  "4. 加了「金手指体检」：往 EWRAM 尾巴写一串魔法字节，跑一帧再在整个内存里找——找到才算真的写进去了。当前 44vba 这个构建的作弊接口是哑的（代码能解析、返回 0、内存一个字节都不变），所以界面上如实写「开不了」，不装作开了无敌。要真无敌，先点「打开游戏菜单」，你这版改版自带的修改器在 START 菜单第二项。\n" +
+  "5. 掌机那坨代码拆开了：整页拆成 shell / pocket.css / pocket.js 三份，酒馆侧拆成 87-pocket-embed（内嵌页面）与 87a-pocket-host（body 上的持久 iframe 与存档回传）。以后改外观只动 css、改行为只动 js、改嵌法只动 embed，不用再在两千行里翻。\n" +
+  "6. 实测：32 MB 汉化改版装载约 0.1 秒、满 60 FPS；金手指台的体检 / 代码列表 / 倍速三项在 Chromium 里跑通（端到端用例 PASS）。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -34,7 +40,7 @@
   const LEGACY_DEFAULT_UPDATE_URL = 'https://cdn.jsdelivr.net/gh/akashrtgsakghr-hub/galgame-card-update@main/moon-phase.js';
   const LAST_TIME_KEY = 'moon_phase_last_world_time';
   const LAST_JUMP_FLOOR_KEY = 'moon_phase_last_jump_floor';
-  const LAST_GAME_DAY_KEY = 'moon_phase_last_game_day';
+  const LAST_GAME_DAY_KEY = 'moon_phase_last_game_day'; // 旧版全局键，现已迁移为世界存档字段，不再参与结算。
   const FATE_BACKUP_KEY = 'moon_phase_fate_backup';
   const AUTORELOAD_KEY = 'moon_phase_autoreload_pending';
   const BACKFILL_PROMPT_KEY = 'moon_phase_backfill_prompted_chats';
@@ -44,6 +50,7 @@
   const LAST_UPDATE_ANNOUNCEMENT_VERSION_KEY = 'moon_phase_last_update_announcement_version';
   const SELF_CHECK_ARCADE_SEEN_KEY = 'moon_phase_self_check_arcade_seen_v1';
   const ARCADE_CHAT_RECORD_KEY = 'moon_phase_arcade_record_v1';
+  const MOON_POCKET_SAVES_KEY = 'moon_phase_pocket_saves_v1';
   const LEGACY_ARCADE_HIGH_SCORE_KEY = 'moon_phase_arcade_high_score_v1';
   const GALLERY_STORAGE_KEY = 'moon_phase_cg_gallery_v1';
   const ENDING_STORAGE_KEY = 'moon_phase_endings_v1';
@@ -56,8 +63,12 @@
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
   const CUSTOM_AI_CONFIG_KEY = 'moon_phase_custom_ai_config';
   const LOCAL_STATE_KEY = 'moon_phase_local_state';
+  /* 正式名称：面板抬头用主名 + 副名两行拼出完整名称，别处（公告 / 导出 / 自检）直接用全文。 */
   const SYSTEM_UI_NAME = 'Doki♥Doki！我要成为后宫王！～为了全CG全结局全要素收集而向全世界告白的大作战～';
-  const SYSTEM_MENU_NAME = '月相系统';
+  const SYSTEM_MENU_NAME = 'Doki♥Doki！我要成为后宫王！';
+  const SYSTEM_MENU_SUB = '～为了全CG全结局全要素收集而向全世界告白的大作战～';
+  /* 旧名只用于「认出这是个老安装」：脚本改名、世界书指纹、老存档迁移都还要认它。 */
+  const SYSTEM_LEGACY_NAMES = ['月相系统', '🌕 月相系统', 'Galgame攻略系统'];
   const SYSTEM_TAG = 'Sylveina';
 
   const _mb_CFG = {

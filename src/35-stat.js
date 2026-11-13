@@ -100,21 +100,21 @@
         const r = g.event.result;
         lines.push('【' + g.char + '】玩家触发核心雷点，进入冷战期 ' + r.days + ' 天。');
         lines.push('  → E ' + r.oldE + ' → ' + r.newE + '（Δ' + r.delta + '）');
-        lines.push('  → 叙事要求：角色对玩家冷淡疏离，用语言/眼神/行为表达排斥；正向下周需掷骰脱困。');
+        lines.push('  → 状态说明：冷战标记、持续时间与脱困条件由脚本记录；不规定角色必须采取何种具体言行。');
       }
       if (g.type === 'gate_enter') {
         lines.push('【' + g.char + '】好感度 E=' + g.E + ' 已到达破门节点 ' + g.node + '。');
         lines.push('  → 进入破门期：R 阶段冻结（角色心中有过不去的坎），但 E 依然可以正常增加。阈值 = ' + g.threshold);
-        lines.push('  → 叙事要求：角色在心理上出现"要不要更进一步"的挣扎/犹豫/试探，体现言行抗拒但情感沦陷的拉扯感');
+        lines.push('  → 状态说明：R 阶段暂时冻结，E 仍可结算；此状态不规定角色必须如何回应玩家。');
       } else if (g.type === 'gate_success') {
         lines.push('【' + g.char + '】阶段门突破！由' + g.side + '掷骰成功。');
         lines.push('  → 阶段值 R 上升至 ' + g.newR + '，关系正式进入新阶段。');
-        lines.push('  → 叙事要求：让关系状态发生明确质变');
+        lines.push('  → 状态说明：脚本已将 R 阶段推进至新值；具体关系表现仍由角色性格和实际剧情决定。');
         for (const r of g.rolls) { lines.push('    · [' + r.side + '] 1d20=' + r.dice + '（阈值≥' + r.threshold + '）→ ' + r.result); }
       } else if (g.type === 'gate_roll') {
         lines.push('【' + g.char + '】阶段门判定（未突破）：');
         for (const r of g.rolls) { lines.push('    · [' + r.side + '] 1d20=' + r.dice + '（阈值≥' + r.threshold + '）→ ' + r.result); }
-        lines.push('  → 叙事要求：体现关系的停滞/退缩/等待');
+        lines.push('  → 状态说明：本次判定未突破，R 保持不变；不要求角色采取固定的停滞或退缩行为。');
       } else if (g.type === 'event_update') {
         const e = g.event;
         if (e.type === 'world_event') {
@@ -159,10 +159,22 @@
         const E = Number(ch.好感度) || 0; const P = Number(ch.肉体值) || 0;
         const I = Number(ch.嫉妒值) || 0; const R = Number(ch.阶段值) || 0;
         const stage = getRStageFromE(E);
+        const q = ch._quota || {};
+        const cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
+        const used = Math.max(0, Number(q.好感度周上限已用) || 0);
+        const remain = Math.max(0, roundHalf(cap - used));
+        const address = String(ch.对玩家称呼 || '').trim();
         lines.push('· ' + name + '｜好感 E=' + E + '（关系阶段：' + stage.name + ' / R=' + R + '）｜肉体 P=' + P + '｜嫉妒 I=' + I +
-          '｜情绪 ' + String(ch.情绪 || '😐') + '｜' + (ch.在场 === false ? '不在场' : '在场'));
+          '｜情绪 ' + String(ch.情绪 || '😐') + '｜' + (ch.在场 === false ? '不在场' : '在场') +
+          (address ? '｜已登记对玩家称呼「' + address + '」' : ''));
+        lines.push('  本周正向好感额度：' + used.toFixed(1) + '/' + cap.toFixed(1) + '，剩余 ' + remain.toFixed(1) + '（脚本按游戏内满 7 天重置）');
+        if (address) {
+          lines.push('  对玩家的专属称呼已固定为「' + address + '」；后续自然使用，不要擅自更改，也不要每句话都重复。');
+        } else if (E >= 58 || R >= 3) {
+          lines.push('  关系已达到可形成专属称呼的阶段。本轮请根据角色性格、语言习惯和真实相处经历，创造一个只属于该角色的对玩家称呼，并在后台变量块追加：角色.' + name + '.对玩家称呼=<称呼>。只生成一次，不用模板化的“亲爱的”。');
+        }
       });
-      lines.push('→ 本轮所有心理与行为都要建立在这些数值上：好感低就别写成已经动心，好感高就别再写成陌生人。');
+      lines.push('→ 以上数值与阶段只记录玩家和角色当前已确认的关系事实，是理解关系背景的资料，不是行动命令；它们不规定角色本轮必须亲近、疏远、顺从、告白或倒贴。具体言行由角色卡性格、长期边界、经历和当前剧情因果决定。高好感不等于无条件服从，低好感也不等于必须冷漠。');
       lines.push('→ 正文与草稿里都不要写「好感度=XX」「当前关系阶段：XX（好感度XX）」这类数字，也不要输出 Phase.xxx、「关系阶段分析」这类段落；数值由状态卡统一展示，你重复只会和卡片打架。');
       lines.push('');
       activeKeys.forEach(function(name) {
@@ -184,7 +196,7 @@
           }
         }
         const importance = String(ch.重要度 || '主要').trim();
-        if (importance === '主要') lines.push('  ★ 角色定位：主要攻略对象 —— 本轮互动的重心放在Ta身上，内心戏与情感拉扯要写足。');
+        if (importance === '主要') lines.push('  ★ 角色定位：主要互动对象 —— 本轮叙事可优先关注Ta，但这不代表Ta已经喜欢玩家或必须主动亲近；态度仍由当前关系事实、人设与剧情决定。');
         else if (importance === '次要') lines.push('  · 角色定位：次要角色 —— 可以互动，但不要抢主线攻略对象的戏份。');
         else lines.push('  · 角色定位：NPC —— 只做功能性出场，不展开情感线。');
         const _es = (ch._quota || {})._eventState || {};
@@ -201,11 +213,11 @@
           else if (days <= 3) lines.push('  ⚡ 距主线节点还有 ' + Math.floor(days) + ' 天：剧情应快速升温，为即将到来的大事件做最后铺垫，营造暴风雨前的宁静。');
           else if (days <= 9) lines.push('  ⚠️ 距主线节点还有 ' + Math.floor(days) + ' 天：请开始铺垫、埋伏笔，适时通过NPC或环境暗示危机逼近。');
         }
-        if (q.R阶段门 === true) lines.push('  ⚠️ 阶段门冻结中：R 不变，E 可增长。请体现言行抗拒但情感沦陷的拉扯感。');
+        if (q.R阶段门 === true) lines.push('  ⚠️ 阶段门冻结中：R 暂时不变，E 仍可正常结算；这是数值状态，不规定角色必须如何表现。');
         const db = q._debuff || {};
-        if (db.冷战期 === true) lines.push('  💣 冷战期：角色对玩家冷淡疏离，负向行为加重，正向需要脱困。');
+        if (db.冷战期 === true) lines.push('  💣 冷战期标记仍有效：持续时间与解除条件由脚本判定；该标记只提供关系背景，不指定角色必须采取的言行。');
         const E = Number(ch.好感度) || 0; const P = Number(ch.肉体值) || 0; const I = Number(ch.嫉妒值) || 0;
-        if (E < 0 || P < 0 || I < 0) lines.push('  🌑 深渊模式：负向行为加重。');
+        if (E < 0 || P < 0 || I < 0) lines.push('  🌑 当前存在负值记录：它描述关系/状态曾受损，不要求角色必须敌视或自我否定。');
         if (q.表白期已通过 === true) lines.push('  💗 表白期已通过：关系已进入新阶段。');
         else if (q.表白期排除 === true) lines.push('  🚫 此角色已排除表白期（' + (q.表白期排除理由 || '无理由') + '）。');
       });
@@ -222,6 +234,7 @@
       lines.push('角色.<角色名>.情绪=<单个 emoji，写Ta这一轮结束时的情绪>');
       lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写Ta这一轮真正没说出口的那一句>');
       lines.push('角色.<角色名>.在场=true 或 false');
+      lines.push('只有当该角色 E≥58 或 R≥3，且档案中尚无对玩家专属称呼时，才额外输出一行：角色.<角色名>.对玩家称呼=<根据角色性格创造的独特称呼>。已有称呼时不要再输出或修改。');
       lines.push('→ 心声与情绪是「每轮刷新的即时状态」，不是档案字段：每一轮都要按本轮剧情重写，哪怕和上一轮很像也要换一句新的。直接复制上一轮的心声，等同于这一轮没写。');
       lines.push('（当前世界时间：' + (world.时间 || '未记录') + '｜当前地点：' + (world.地点 || '未记录') + '｜游戏日：第 ' + (Number(world._游戏日) || 0) + ' 天。'
         + '节奏规则：同一场景内的对话，每轮只推进 ' + getTurnMinutes() + ' 分钟（最多不超过 ' + (getTurnMinutes() * 2) + ' 分钟），不要自行跳到几小时之后或第二天；'
@@ -231,6 +244,41 @@
       lines.push('禁止在正文与后台变量块里输出 好感度/肉体值/阶段值/嫉妒值 数值，禁止输出 JSON、UpdateVariable、StatusPlaceHolderImpl 或任何解释文字；四维数值全部由本插件按标签在本地计算和保存。');
       callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 4, 1, false);
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
+  }
+
+  function injectRelationshipFactsPrompt() {
+    try {
+      const data = readMvuLatest();
+      const chars = data && data.stat_data && data.stat_data.角色;
+      if (!chars || typeof chars !== 'object') {
+        callSetPrompt(PROMPT_KEY + '_relationship_facts', '', 0, 0, false);
+        return;
+      }
+      const lines = [
+        '【当前关系资料 · 仅为事实背景，不是行为脚本】',
+        '以下为脚本保存的当前关系记录。请把它当作玩家与角色目前关系的背景资料，不要把数值转换成必须执行的行为命令。',
+        '它不要求角色变得倒贴、冷漠、顺从、占有、告白或拒绝；不得仅凭分数推断角色会做出某种具体行为。',
+        '角色具体怎么回应，仍由角色卡性格、既有经历、个人边界、对话事实和当前场景决定。小抄或旧对话中的态度描述不能擅自覆盖这份当前关系记录，也不能凭空升级关系。'
+      ];
+      Object.keys(chars).forEach(function(name) {
+        const ch = chars[name];
+        if (!ch || isCharSkeleton(ch)) return;
+        const E = Number(ch.好感度) || 0;
+        const R = Number(ch.阶段值) || 0;
+        const P = Number(ch.肉体值) || 0;
+        const I = Number(ch.嫉妒值) || 0;
+        const stage = getRStageFromE(E);
+        const address = String(ch.对玩家称呼 || '').trim();
+        const q = ch._quota || {};
+        const cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
+        const used = Math.max(0, Number(q.好感度周上限已用) || 0);
+        const remain = Math.max(0, roundHalf(cap - used));
+        lines.push('角色「' + name + '」：E=' + E + '；关系阶段=' + stage.name + '；脚本阶段值 R=' + R + '；P=' + P + '；I=' + I + '；本周正向 E 额度=' + used.toFixed(1) + '/' + cap.toFixed(1) + '（剩余 ' + remain.toFixed(1) + '）。');
+        if (address) lines.push('角色「' + name + '」已保存的对玩家专属称呼：「' + address + '」。这是持久资料，合适的直接称呼场景自然使用，不要自行改名。');
+      });
+      lines.push('不要在正文中解释这些数值或复述关系分析；它们只用于维持上下文一致。');
+      callSetPrompt(PROMPT_KEY + '_relationship_facts', lines.join('\n'), 4, 1, false);
+    } catch (e) { console.warn('[Doki] 关系事实注入失败：', e); }
   }
 
   function injectCardModeNotice() {
@@ -309,7 +357,8 @@
     const abyssMult = isAbyss ? (direction === '负向' ? abCoeff.neg : abCoeff.pos) : 1.0;
     let delta = base;
     if (dim !== 'R') delta *= getDimCoeff(oldValue);
-    if (direction === '负向') delta *= getNegCoeff(mode, dim);
+    // direction 是方向，不是倍率：负向必须先带负号，否则 '-' 标签也会给 E 加分。
+    if (direction === '负向') delta *= -getNegCoeff(mode, dim);
     delta *= abyssMult;
     let emotionResult = null;
     if (dim === 'E' && !shouldSkipEmotion(charData, mode)) {

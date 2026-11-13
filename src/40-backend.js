@@ -100,7 +100,14 @@
       } else if (field === '心声' || field === '内心话' || field === '独白') {
         const v = _cleanBackendValue(rawValue).slice(0, 300);
         if (!v) continue;
+        if (v === String(ch.心声 || '').trim()) { applied.push(charName + '.心声重复'); continue; }
         ch.心声 = v; applied.push(charName + '.心声');
+      } else if (field === '对玩家称呼' || field === '专属称呼') {
+        // 专属称呼只在首次生成时写入；后续每轮读档注入，避免模型每轮改名。
+        const v = _cleanBackendValue(rawValue).replace(/[。.!！?？]+$/g, '').slice(0, 16);
+        if (!v || String(ch.对玩家称呼 || '').trim()) continue;
+        ch.对玩家称呼 = v;
+        applied.push(charName + '.对玩家称呼');
       } else if (field === '在场') {
         const b = _parseBackendBool(rawValue);
         if (b === null || ch.在场 === b) continue;
@@ -123,7 +130,7 @@
     }
     const f = parts[1];
     if (!f) return 'keep';
-    if (['情绪', '心情', '表情', '心声', '内心话', '独白', '在场', '重要度', '角色定位'].indexOf(f) >= 0) return 'apply';
+    if (['情绪', '心情', '表情', '心声', '内心话', '独白', '在场', '重要度', '角色定位', '对玩家称呼', '专属称呼'].indexOf(f) >= 0) return 'apply';
     if (['好感度', '好感', '肉体值', '肉体', '阶段值', '阶段', '嫉妒值', '嫉妒'].indexOf(f) >= 0) return 'strip';
     return 'keep';
   }
@@ -157,18 +164,126 @@
     out.statData = statData;
     return out;
   }
-  function applyBackendVariablesFromLatest() {
+  async function applyBackendVariablesFromLatest() {
     try {
       const found = getLatestAiMessage();
       if (!found || !found.msg || typeof found.msg.mes !== 'string') return null;
-      const res = ingestBackendVariables(found.msg.mes);
-      if (res.text !== found.msg.mes) found.msg.mes = res.text;
-      if (res.applied.length && res.statData) {
-        try { writeMvuLatest(res.statData); } catch (e) {}
-        try { console.log('[Doki] 后台变量同步：', res.applied.join('｜')); } catch (e) {}
+      const rawMessage = String(found.msg.mes);
+      const floorKey = String(found.idx);
+      const res = ingestBackendVariables(rawMessage);
+      if (res.text !== rawMessage) found.msg.mes = res.text;
+      if (!res.statData || !res.statData.角色) return res;
+
+      // 每条 AI 回复都登记一次同步结果。即使模型漏写心声，状态卡也会明确显示「本轮未收到」，
+      // 不再让玩家误以为脚本没运行、或把上一轮心声误当成刚更新的内容。
+      const voiceReceived = {};
+      const voiceRepeated = {};
+      (res.applied || []).forEach(function(item) {
+        const value = String(item);
+        const repeatSuffix = '.心声重复';
+        const voiceSuffix = '.心声';
+        if (value.slice(-repeatSuffix.length) === repeatSuffix) voiceRepeated[value.slice(0, -repeatSuffix.length)] = true;
+        else if (value.slice(-voiceSuffix.length) === voiceSuffix) voiceReceived[value.slice(0, -voiceSuffix.length)] = true;
+      });
+      let heartbeatChanged = false;
+      Object.keys(res.statData.角色).forEach(function(name) {
+        const ch = res.statData.角色[name];
+        if (!ch || isCharSkeleton(ch) || ch.在场 === false) return;
+        if (!ch._quota || typeof ch._quota !== 'object') ch._quota = {};
+        const q = ch._quota;
+        if (String(q._心声同步楼层 == null ? '' : q._心声同步楼层) === floorKey) return;
+        q._心声同步楼层 = floorKey;
+        q._心声同步状态 = voiceReceived[name] ? '已收到' : (voiceRepeated[name] ? '本轮重复' : '本轮未收到');
+        q._心声同步时间 = Date.now();
+        heartbeatChanged = true;
+      });
+
+      if ((res.applied && res.applied.length) || heartbeatChanged) {
+        const ok = await writeMvuLatest(res.statData);
+        if (ok && res.applied && res.applied.length) {
+          try { console.log('[Doki] 后台变量同步：', res.applied.join('｜')); } catch (e) {}
+        }
+        try { refreshPanel(); } catch (e) {}
       }
       return res;
     } catch (e) { return null; }
   }
 
-  // 剧情里「次日 / 三天后 / 一周后」这类明确的时间流逝，兜底换算成天数
+  // 中文数字转整数，供「半个月 / 三个月 / 一年」等时间跨度解析使用。
+  function parseChineseCount(raw) {
+    const str = String(raw || '').trim();
+    if (!str) return 0;
+    if (/^\d+(?:\.\d+)?$/.test(str)) return Number(str);
+    const digit = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+    if (str === '十') return 10;
+    if (str.indexOf('百') >= 0) {
+      const p = str.split('百');
+      const hundreds = p[0] ? (p[0] === '十' ? 10 : (digit[p[0]] || 0)) : 1;
+      const rest = p[1] || '';
+      return hundreds * 100 + (rest ? parseChineseCount(rest) : 0);
+    }
+    if (str.indexOf('十') >= 0) {
+      const p = str.split('十');
+      const tens = p[0] ? (digit[p[0]] || 0) : 1;
+      const ones = p[1] ? (digit[p[1]] || 0) : 0;
+      return tens * 10 + ones;
+    }
+    if (str.length === 1 && digit[str] !== undefined) return digit[str];
+    let total = 0;
+    for (let i = 0; i < str.length; i++) { if (digit[str[i]] === undefined) return 0; total = total * 10 + digit[str[i]]; }
+    return total;
+  }
+
+  function addCalendarMonths(dateObj, months) {
+    const d = new Date(dateObj.getTime());
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+    return d;
+  }
+
+  // 识别玩家明确要求的时间跨度。玩家输入优先于 AI 自行给出的时间，避免剧情跳一年、后台却只走七天。
+  function parsePlayerTimeJumpTarget(fromDate, playerText) {
+    if (!fromDate || !playerText) return null;
+    const text = String(playerText);
+    const rel = text.match(/(?:大后天|后天|明天|明日|次日|翌日|下周|下个星期|下个月)/);
+    if (rel) {
+      const d = new Date(fromDate.getTime());
+      if (/大后天/.test(rel[0])) d.setDate(d.getDate() + 3);
+      else if (/后天/.test(rel[0])) d.setDate(d.getDate() + 2);
+      else if (/明天|明日|次日|翌日/.test(rel[0])) d.setDate(d.getDate() + 1);
+      else if (/下周|下个星期/.test(rel[0])) d.setDate(d.getDate() + 7);
+      else if (/下个月/.test(rel[0])) return addCalendarMonths(d, 1);
+      return d;
+    }
+    const amountRe = /(半个月|半年|[零〇一二两三四五六七八九十百\d]+年|[零〇一二两三四五六七八九十百\d]+个?月|[零〇一二两三四五六七八九十\d]+个?(?:星期|周)|[零〇一二两三四五六七八九十百\d]+天|[零〇一二两三四五六七八九十百\d]+日)/g;
+    let m;
+    while ((m = amountRe.exec(text)) !== null) {
+      const token = m[1];
+      const before = text.slice(Math.max(0, m.index - 14), m.index);
+      const after = text.slice(m.index + token.length, m.index + token.length + 8);
+      const hasAction = /跳过|快进|推进|度过|经过|过去|过了|又过了|时间.{0,5}(?:到|跳|快进)|直接到|来到|隔了|转眼/.test(before);
+      const hasFuture = /^(?:\s*)(?:之后|以后|后|过去)/.test(after);
+      const isPlanningTalk = /打算|计划|准备|希望|预计|想在|想要/.test(before) && !hasAction;
+      if ((!hasAction && !hasFuture) || isPlanningTalk) continue;
+      let d = new Date(fromDate.getTime());
+      if (token === '半个月') d.setDate(d.getDate() + 15);
+      else if (token === '半年') d = addCalendarMonths(d, 6);
+      else {
+        const unit = /年$/.test(token) ? 'year' : (/月$/.test(token) ? 'month' : (/(?:周|星期)$/.test(token) ? 'week' : 'day'));
+        const numberText = token.replace(/个?(?:星期|周|月|年|天|日)$/, '');
+        const n = parseChineseCount(numberText);
+        if (!(n > 0) || n > 100) continue;
+        if (unit === 'year') d = addCalendarMonths(d, n * 12);
+        else if (unit === 'month') d = addCalendarMonths(d, n);
+        else if (unit === 'week') d.setDate(d.getDate() + n * 7);
+        else d.setDate(d.getDate() + n);
+      }
+      if (d.getTime() > fromDate.getTime()) return d;
+    }
+    return null;
+  }
+
+  // 正文时间转场兜底。这里不再把跨度截断到 7 天；玩家明确跨度由上面的日历算法精确换算。

@@ -1,23 +1,11 @@
   function detectRelativeElapsedDays(mes) {
     if (!mes) return 0;
     const text = String(mes);
-    const head = text.slice(0, 220);
-    const tail = text.slice(-220);
-    const probe = head + '\n' + tail;
-    const cnNum = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10, 半: 0.5 };
-    let days = 0;
-    const mWeek = probe.match(/(?:过了|又过了|转眼)?\s*([一两二三四五六七八九十\d]+)\s*(?:个)?\s*(?:星期|周)\s*(?:后|之后|以后)/);
-    const mMonth = probe.match(/(?:过了|又过了|转眼)?\s*([一两二三四五六七八九十\d半]+)\s*(?:个)?\s*月\s*(?:后|之后|以后)/);
-    const mDay = probe.match(/(?:过了|又过了|转眼)?\s*([一两二三四五六七八九十半\d]+)\s*(?:天|日)\s*(?:后|之后|以后)/);
-    const mHalf = probe.match(/半个月\s*(?:后|之后|以后)/);
+    const probe = text.slice(0, 500) + '\n' + text.slice(-500);
+    const target = parsePlayerTimeJumpTarget(new Date(2000, 0, 1), probe);
+    if (target) return Math.max(1, calendarDayDiff(new Date(2000, 0, 1), target));
     const mNext = probe.match(/(?:^|[\s。！？!?\n])(?:次日|翌日|隔日|隔天|第二天)(?!的)/);
-    if (mMonth) { const n = (cnNum[mMonth[1]] !== undefined ? cnNum[mMonth[1]] : parseFloat(mMonth[1])); if (n > 0) days = Math.round(n * 30); }
-    else if (mWeek) { const n = (cnNum[mWeek[1]] !== undefined ? cnNum[mWeek[1]] : parseFloat(mWeek[1])); if (n > 0) days = Math.round(n * 7); }
-    else if (mHalf) days = 15;
-    else if (mDay) { const n = (cnNum[mDay[1]] !== undefined ? cnNum[mDay[1]] : parseFloat(mDay[1])); if (n > 0) days = Math.round(n); }
-    else if (mNext) days = 1;
-    if (!days || !isFinite(days)) return 0;
-    return Math.max(1, Math.min(7, days));
+    return mNext ? 1 : 0;
   }
 
   function getTurnMinutes() {
@@ -52,6 +40,9 @@
     world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0));
     // 旧版是小数天，统一成整数天，两个字段保持同步
     world._内部流逝天数 = world._游戏日;
+    if (world._上次好感度跳跃结算日 === undefined || world._上次好感度跳跃结算日 === null || !isFinite(Number(world._上次好感度跳跃结算日))) {
+      world._上次好感度跳跃结算日 = world._游戏日;
+    }
     if (world._回合 === undefined || !isFinite(Number(world._回合))) world._回合 = 0;
     world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0));
     if (!world._上次推进时间) world._上次推进时间 = world.时间 || '';
@@ -64,100 +55,59 @@
       if (!world) return out;
       ensureWorldClockFields(world);
       const stateTime = String(world.时间 || '');
-      // 本轮的时间已经由正文/后台变量明确给出（AI 写了「世界.时间=…」或建档时按正文取到起点）：
-      // 就以它为准，不再叠加默认步长。以前这里会再加 10 分钟，导致每轮时间凭空走快。
-      if (world._时钟已由正文确定 === true) {
-        delete world._时钟已由正文确定;
-        const prevStr = String(world._上次推进时间 || stateTime);
-        const prevDate = parseGameTime(prevStr);
-        const curDate = parseGameTime(stateTime);
-        if (!prevDate || !curDate) {
-          out.ok = true; out.from = prevStr; out.to = stateTime;
-          out.source = 'declared'; out.minutes = 0; out.days = 0;
-          world._上次推进时间 = stateTime;
-          return out;
-        }
-        const step = getTurnMinutes();
-        const playerText = getLatestUserMessageText();
-        const narrativeDays = detectRelativeElapsedDays(latestAiText);
-        // 授权来源与默认步长分支同一套判定，避免「正文报时间」成为绕过闸门的后门
-        const granted = TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
-        out.granted = granted;
-
-        let target = curDate;
-        let source = 'declared';
-        let deltaMin = Math.round((curDate.getTime() - prevDate.getTime()) / 60000);
-        if (deltaMin < 0) {
-          // 倒退一律拒绝：正文写了个更早的时间时，时钟留在上一次推进时间，不跟着往回走
-          target = prevDate; deltaMin = 0; source = 'rejected';
-        } else if (deltaMin > step * 3 && !granted) {
-          // 超过单轮步长 3 倍的跨度必须有授权，否则压回一个步长
-          target = new Date(prevDate.getTime() + step * 60000);
-          deltaMin = step; source = 'clamped'; out.clamped = true;
-        }
-        const toStr = formatGameTime(target) || stateTime;
-        const dayDelta = Math.max(0, calendarDayDiff(prevDate, target));
-        world.时间 = toStr;
-        world._上次推进时间 = toStr;
-        if (dayDelta > 0) {
-          world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + dayDelta;
-          world._内部流逝天数 = world._游戏日;
-        }
-        out.ok = true; out.from = prevStr; out.to = toStr;
-        out.minutes = deltaMin; out.days = dayDelta; out.source = source;
-        return out;
-      }
-      // 基准用「上次推进时间」：本轮的 世界.时间 可能已被后台变量摄入提前写掉
       const fromStr = String(world._上次推进时间 || stateTime);
       const fromDate = parseGameTime(fromStr) || parseGameTime(stateTime);
       if (!fromDate) return out;
       out.from = fromStr;
-      const step = getTurnMinutes();
       const playerText = getLatestUserMessageText();
+      const playerTarget = parsePlayerTimeJumpTarget(fromDate, playerText);
       const narrativeDays = detectRelativeElapsedDays(latestAiText);
-      // 授权来源：玩家明说（明天/三天后…），或正文本身写了明确的转场（次日/一周后…）
-      const granted = TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
+      const granted = !!playerTarget || TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
       out.granted = granted;
+      const step = getTurnMinutes();
+      let target = null;
+      let source = '';
 
-      let target = null; let source = '';
-      // ① AI 显式给的时间优先
-      const aiTime = tryExtractWorldTimeFromMessage(latestAiText, fromStr);
-      if (aiTime) { const d = parseGameTime(aiTime); if (d) { target = d; source = 'ai_clock'; } }
-      // ② 世界时间已被别处推进（后台变量摄入 / 手动校正）
+      // ① 玩家明确指定跨度时，以玩家为准，优先级高于 AI 时间标签和后台变量时间。
+      if (playerTarget) { target = playerTarget; source = 'player_jump'; }
+
+      // ② 正文/后台明确声明时间。_时钟已由正文确定 只负责表明本轮时间字段已更新，不代表允许擅自缩短玩家跨度。
+      if (!target && world._时钟已由正文确定 === true) {
+        const cur = parseGameTime(stateTime);
+        if (cur) { target = cur; source = 'declared'; }
+      }
+      if (!target) {
+        const aiTime = tryExtractWorldTimeFromMessage(latestAiText, fromStr);
+        if (aiTime) { const d = parseGameTime(aiTime); if (d) { target = d; source = 'ai_clock'; } }
+      }
       if (!target) {
         const cur = parseGameTime(stateTime);
-        // 只比较「有没有变」，不比较「是不是更大」：_上次推进时间 可能刚被建档逻辑对齐到同一值，
-        // 那样 cur > from 不成立，就会白走一次默认步长。
         if (cur && stateTime !== fromStr) { target = cur; source = 'state_clock'; }
       }
-      // ③ 正文里的相对时间词
-      if (!target) {
-        const relDays = detectRelativeElapsedDays(latestAiText);
-        if (relDays > 0) { const d = new Date(fromDate.getTime()); d.setDate(d.getDate() + relDays); target = d; source = 'narrative_days'; }
+      // ③ 正文相对时间兜底（如「三天后」「一年后」）。
+      if (!target && narrativeDays > 0) {
+        const d = new Date(fromDate.getTime()); d.setDate(d.getDate() + narrativeDays);
+        target = d; source = 'narrative_days';
       }
-      // ④ 默认步长
+      // ④ 默认每轮推进分钟数。
       if (!target) { target = new Date(fromDate.getTime() + step * 60000); source = 'default_step'; }
 
       let deltaMin = Math.round((target.getTime() - fromDate.getTime()) / 60000);
-      let dayDelta = calendarDayDiff(fromDate, target);
-
-      // 跨天闸门：明显的大跨度（超过一轮步长的 3 倍）必须由玩家授权或正文转场放行
-      // 自然的「23:55 + 10 分钟过午夜」不算大跳，照常计入新的一天
-      const isBigJump = deltaMin > step * 3;
-      if (isBigJump && !granted && (source === 'ai_clock' || source === 'state_clock')) {
-        target = new Date(fromDate.getTime() + step * 60000);
-        deltaMin = step;
-        dayDelta = calendarDayDiff(fromDate, target);
-        source = 'clamped';
-        out.clamped = true;
+      if (deltaMin < 0) {
+        // 禁止倒退。若玩家没有要求倒退，拒绝旧时间；若明确要求回档，也不让计时器倒扣。
+        target = fromDate; deltaMin = 0; source = 'rejected';
       }
-      // 倒退一律拒绝
-      if (deltaMin <= 0) return out;
-
-      const toStr = formatGameTime(target);
+      // 只有 AI/后台自己制造的大跨度才受闸门限制；玩家明确指定的跨度绝不截断。
+      if (deltaMin > step * 3 && !granted && (source === 'ai_clock' || source === 'state_clock' || source === 'declared')) {
+        target = new Date(fromDate.getTime() + step * 60000);
+        deltaMin = step; source = 'clamped'; out.clamped = true;
+      }
+      const toStr = formatGameTime(target) || stateTime;
       if (!toStr) return out;
+      const dayDelta = Math.max(0, calendarDayDiff(fromDate, target));
       world.时间 = toStr;
       world._上次推进时间 = toStr;
+      delete world._时钟已由正文确定;
       if (dayDelta > 0) {
         world._游戏日 = Math.max(0, Math.floor(Number(world._游戏日) || 0)) + dayDelta;
         world._内部流逝天数 = world._游戏日;

@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>月相系统 · MOON POCKET / 黑粉掌机 v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/*__POCKET_CSS__*/
+</style>
+</head>
+<body data-mode="arcade" data-cheat="off">
+
+<header class="masthead reveal" data-d="0">
+  <div>
+    <div class="eyebrow">月相系统 · 掌机扩展 / MOON POCKET v4</div>
+    <h1>PINK<em>·</em>POCKET</h1>
+    <p class="subhead">竖版机身，像素外壳，屏幕在上，十字键在左下、A / B 斜排在右下。酒馆模式下按键只操作屏内系统，切街机模式会先装载模拟器再进卡带菜单。</p>
+  </div>
+  <div class="mast-meta">
+    <b>NOIR / PINK</b>
+    <span>DMG LAYOUT · PIXEL SHELL<br>CARTRIDGE READY</span>
+  </div>
+</header>
+
+<div class="mode-bar reveal" data-d="1">
+  <div class="mode-inner">
+    <span class="mode-label">MODE</span>
+    <div class="mode-switch" role="group" aria-label="模式切换">
+      <span class="mode-thumb" aria-hidden="true"></span>
+      <button type="button" id="mode-tavern" aria-pressed="false">酒馆模式<small>TAVERN OS / 内部系统</small></button>
+      <button type="button" id="mode-arcade" aria-pressed="true">街机模式<small>ARCADE / 模拟器</small></button>
+    </div>
+    <div class="mode-tools">
+      <button type="button" class="chip-btn" id="cheat-btn" aria-pressed="false">✦ 金手指模式</button>
+      <button type="button" class="chip-btn" id="wb-btn">世界书</button>
+      <button type="button" class="chip-btn" id="skin-btn">美化自定义</button>
+    </div>
+    <span class="mode-state"><i aria-hidden="true"></i>当前：<b id="mode-name">模拟器</b> · M 切换 / H 回主页</span>
+  </div>
+</div>
+
+<div class="ticker reveal" data-d="1" aria-hidden="true"><div class="ticker-track" id="ticker"></div></div>
+
+<main class="stage">
+  <section class="device-wrap reveal" data-d="2" aria-label="月相黑粉掌机">
+    <div class="console is-on" id="console">
+      <!-- 顶部：卡带口（点一下插卡）+ 电源推钮 -->
+      <div class="cart-deck">
+        <button type="button" class="cart-slot" id="cart-slot" aria-label="卡带槽：插入一张卡带">
+          <span class="cart-notch" aria-hidden="true"></span>
+          <span class="cart-label" id="cart-label">NO CARTRIDGE</span>
+          <span class="cart-hint" id="cart-hint">插入卡带</span>
+        </button>
+        <div class="deck-power">
+          <span class="led pwr" id="led-pwr" aria-hidden="true"></span>
+          <span>BATTERY</span>
+          <button type="button" class="slider" id="power-btn" role="switch" aria-checked="true" aria-label="电源开关"><i></i></button>
+        </div>
+      </div>
+
+      <div class="bezel">
+        <div class="bezel-bar">
+          <span>DOT MATRIX WITH STEREO SOUND</span>
+          <span class="chips">
+            <span id="chip-mode">ARCADE</span>
+            <span id="chip-skin">NOIR / PINK</span>
+            <span id="chip-cheat">CHEAT OFF</span>
+            <span id="chip-wb">WB 0</span>
+          </span>
+        </div>
+        <div class="screen" id="screen">
+          <iframe id="cart-frame" title="模拟器画面" sandbox="allow-scripts"></iframe>
+
+          <!-- 酒馆内部系统：屏内 DOM 实字，清晰不模糊 -->
+          <div class="screen-layer" id="tavern-os" hidden>
+            <div class="sl-bar"><span>月相系统 / TAVERN OS</span><small id="os-clock">内部系统面板 · 按 H 回到这里</small></div>
+            <div class="sl-scroll">
+              <div class="os-grid" id="os-grid">
+                <button type="button" class="os-tile" data-os="moon"><span class="no">01 / SYSTEM</span><b>月相</b><small>时钟与阶段推进</small><span class="stat" id="os-moon">上弦月 · 运行中</span></button>
+                <button type="button" class="os-tile" data-os="chars"><span class="no">02 / SYSTEM</span><b>角色与建档</b><small>人物关系 / 数值</small><span class="stat">复用酒馆建档逻辑</span></button>
+                <button type="button" class="os-tile" data-os="worldbook"><span class="no">03 / SYSTEM</span><b>世界书</b><small>口袋条目 / 词条折叠</small><span class="stat" id="os-wb">0 条 · 点击编辑</span></button>
+                <button type="button" class="os-tile" data-os="timeline"><span class="no">04 / SYSTEM</span><b>时间线</b><small>事件导演 / 回忆</small><span class="stat">最近：雨夜屋檐</span></button>
+                <button type="button" class="os-tile" data-os="galgame"><span class="no">05 / SYSTEM</span><b>沉浸模式</b><small>剧本稿 / 电影字幕</small><span class="stat">v4.8.20 样式</span></button>
+                <button type="button" class="os-tile" data-os="arcade"><span class="no">06 / SYSTEM</span><b>街机模式</b><small>模拟器 / 插卡即玩</small><span class="stat">按 A 进入卡带菜单</span></button>
+              </div>
+              <div class="os-detail" id="os-detail"><b>提示</b> · 这块屏就是酒馆内部系统的显示位。点上面的模块看状态，点「世界书」直接进条目编辑，点「街机模式」切进模拟器。</div>
+              <div class="os-feed" id="os-feed"></div>
+            </div>
+            <div class="os-hint" id="os-hint">↓ 下滑看设置与状态</div>
+            <div class="os-foot">HOME 回此页 · 方向键 / A 操作卡带菜单 · 金手指开启后世界书条目会写进剧情注入位</div>
+          </div>
+
+          <!-- 卡带槽：对玩家只说「插卡 → 能玩」 -->
+          <div class="screen-layer byor-layer" id="byor" hidden>
+            <div class="sl-bar"><span>卡带 / CARTRIDGE</span><small>本机读取 · 不上传</small></div>
+            <div class="sl-scroll">
+              <h4>插一张卡带进去</h4>
+              <p>选一个本机的卡带文件，就在这台机器里跑。系统本身<b>不带任何游戏</b>，也不会替你去下载。</p>
+              <div class="byor-row">
+                <button type="button" id="rom-btn">插入卡带</button>
+                <button type="button" id="demo-core-btn">装载运行核心</button>
+                <button type="button" class="mini" id="home-from-byor">回卡带菜单</button>
+                <input type="file" id="rom-file" accept=".gba,.agb,.bin" hidden>
+              </div>
+              <div class="rom-card" id="rom-card" hidden></div>
+              <p id="rom-result">还没有插卡。支持 1–64 MB 的 GBA 卡带镜像，含 32 MB 汉化改版；文件只在内存里读取。</p>
+              <p class="coreline">运行核心：<b id="core-state">未装载</b></p>
+              <p class="byor-warn">卡带请用你自己合法持有的那份。相关名称与作品归各自权利人，本项目不分发游戏文件。</p>
+            </div>
+          </div>
+
+          <!-- 真实运行层：GBA 画面 240×160（正好 3:2，与屏幕同比，不会被拉伸） -->
+          <div class="screen-layer core-stage" id="core-stage" hidden>
+            <canvas id="core-canvas" width="240" height="160"></canvas>
+            <div class="emu-hud">
+              <span class="emu-name" id="emu-name">CORE</span>
+              <span class="emu-stat"><b id="emu-fps">--</b> FPS</span>
+              <button type="button" class="emu-btn" id="emu-cheat">金手指</button>
+              <button type="button" class="emu-btn" id="emu-pause">暂停</button>
+              <button type="button" class="emu-btn" id="emu-save">导出存档</button>
+              <button type="button" class="emu-btn" id="core-back">← 卡带</button>
+            </div>
+            <div class="emu-tip" id="emu-tip">方向键移动 · A 确认 · B 取消 · START 菜单</div>
+            <div class="emu-veil" id="emu-veil"><b>装载核心…</b><span id="emu-veil-text">正在初始化 WASM</span></div>
+          </div>
+
+          <!-- 金手指台：一键宏 + 代码 + 体检 -->
+          <div class="screen-layer cheat-stage" id="cheat-stage" hidden>
+            <div class="gt-bar"><span>GOLDEN LINK / 金手指</span><button type="button" class="mini" id="gt-back">← 回游戏</button></div>
+            <div class="gt-scroll">
+              <h4>一键</h4>
+              <p class="gt-note">点一下就替你按，不改游戏数据。改版自带的修改器在 <b>START 菜单第二项</b>（条目名是乱码，就是它）——先点「打开游戏菜单」，再按方向键下、A。</p>
+              <div class="gt-grid">
+                <button type="button" data-macro="menu">打开游戏菜单<small>替你按 START</small></button>
+                <button type="button" data-macro="mash">连打 A<small>跳过开场与对话</small></button>
+                <button type="button" data-macro="speed">加速 ×1<small>点一下换一档</small></button>
+                <button type="button" data-macro="pause">暂停 / 继续<small>省电</small></button>
+              </div>
+              <h4>金手指代码</h4>
+              <p class="gt-note" id="gt-engine">正在体检核心…</p>
+              <textarea id="gt-code" spellcheck="false" placeholder="一行一条：CBA 12025BC0 03E7　/　GSA 02025BC0000F423F"></textarea>
+              <div class="gt-row">
+                <button type="button" id="gt-apply">交给游戏</button>
+                <button type="button" class="mini" id="gt-test">再体检一次</button>
+                <button type="button" class="mini" id="gt-clear">清空</button>
+              </div>
+              <ul class="gt-list" id="gt-list"></ul>
+            </div>
+          </div>
+
+          <!-- 切换到街机模式时的装载过程 -->
+          <div class="screen-layer boot-layer" id="boot" hidden>
+            <div class="boot-box">
+              <div class="boot-title">LOADING CORE</div>
+              <div class="boot-bar"><i id="boot-fill"></i></div>
+              <div class="boot-line" id="boot-line">正在装载模拟器组件…</div>
+              <div class="boot-hint" id="boot-hint">MOON EMU · 0 / 4</div>
+            </div>
+          </div>
+
+          <div class="screen-layer" id="screen-msg" hidden style="align-items:center;justify-content:center;text-align:center;padding:24px"></div>
+          <div class="off-veil">— POWER OFF —</div>
+        </div>
+        <div class="bezel-foot">
+          <span class="led cheat" id="led-cheat" aria-hidden="true"></span>
+          <span class="mark">MOON <em>POCKET</em></span>
+          <span class="tagline" id="brand-skin">NOIR / PINK</span>
+        </div>
+      </div>
+
+      <div class="control-deck">
+        <div class="dpad" aria-label="十字方向键">
+          <button type="button" class="up" data-btn="up" aria-label="上">▲</button>
+          <button type="button" class="left" data-btn="left" aria-label="左">◀</button>
+          <button type="button" class="mid" tabindex="-1" aria-hidden="true"></button>
+          <button type="button" class="right" data-btn="right" aria-label="右">▶</button>
+          <button type="button" class="down-k" data-btn="down" aria-label="下">▼</button>
+        </div>
+        <div class="sys-col">
+          <div class="sys-btns">
+            <button type="button" data-btn="select" aria-label="SELECT 键">SELECT</button>
+            <button type="button" data-btn="start" aria-label="START 键">START</button>
+          </div>
+          <button type="button" class="home-btn" id="home-btn" aria-label="HOME 键">HOME</button>
+        </div>
+        <div class="ab" aria-label="A / B 动作键">
+          <button type="button" class="a" data-btn="a" aria-label="A 键">A</button>
+          <button type="button" class="b" data-btn="b" aria-label="B 键">B</button>
+        </div>
+      </div>
+      <div class="speaker" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="device-caption">
+      <span>按键：<b>方向键 / Z·X / Enter / Shift</b> · P 关机 · Esc 回菜单 · H 主页</span>
+      <span><button type="button" id="menu-btn">⌂ 卡带菜单</button> <span id="save-caption">存档：LOCAL</span></span>
+    </div>
+  </section>
+
+  <aside class="rail reveal" data-d="3" aria-label="机器剖面">
+    <div class="rail-row">
+      <span class="idx">LAYER 01 / 机身</span>
+      <h3>竖版机身 · 像素外壳</h3>
+      <p>按 1989 年 DMG-01 的布局摆：屏幕在上，<b>十字键在左下、A / B 斜排在右下</b>，SELECT / START 居中，右下角是扬声器孔。机身走<b>像素风</b>——直角、3px 硬描边、纯色块、零模糊阴影，没有塑料渐变；屏幕是<b>暗橄榄液晶</b>（<code>#555e4b / #10150b</code>，取自面板截图的实测采样，饱和度约 20%），只留极淡点阵和一道斜光。</p>
+    </div>
+    <div class="rail-row">
+      <span class="idx">LAYER 02 / 卡带</span>
+      <h3>插卡就玩</h3>
+      <p>顶部卡带口点一下选文件，屏里就进卡带页。玩家看不到内部术语——<b>导入进来能跑的都叫卡带</b>。三个原创游戏是内置卡带；老游戏用你自己的卡带，核心走 <code>attachCore()</code>。</p>
+    </div>
+    <div class="rail-row">
+      <span class="idx">LAYER 03 / 金手指</span>
+      <h3>存档 → 酒馆世界书</h3>
+      <p>首次开启弹窗询问；确认后调用脚本内接的 <code>callOpeningModel</code> 风格 API 转写，生成 <code>world_info.entries</code> 条目：训练家、同行、配招、道具、羁绊与特殊事件。条目可折叠、可改、可启用、可导出。</p>
+    </div>
+    <div class="rail-row">
+      <span class="idx">LAYER 04 / 美化</span>
+      <h3>moon-skin v1</h3>
+      <p>一套 JSON 定义全部配色，含屏幕液晶色调。内置黑粉默认 + 三个从你的 My Boy 美化 APK <b>抽色</b>的皮肤；图案走本机导入槽，不打包第三方素材。<code>tools/apk-skin-extract.mjs</code> 可继续转更多 APK。</p>
+    </div>
+    <div class="rail-note"><b>关于你上传的目录：</b>ROM 是 32 MB 汉化改版（<code>POKEMON EMER / BPEE</code>），装载器已按真实头部重写，32 MB 也能过。目录里的模拟器是 VBA 的 exe、My Boy / GBA4iOS / Delta 的 APK 与 IPA、以及 <code>44670.org/gba</code> 的网页版——前三种是编译好的程序，<b>没有能在网页里直接搬的 JS 源码</b>；那个网页版是 <code>vba-next-wasm</code>（VBA-Next 编译成 WASM，GPL），要用就按它的许可证接进来，正好走 <code>attachCore()</code>。</div>
+    <div class="rail-tools">
+      <button type="button" id="import-btn">＋ 加游戏位</button>
+      <button type="button" id="sample-btn">↓ 示例游戏位</button>
+      <button type="button" id="wb-open-rail">✎ 世界书编辑</button>
+    </div>
+    <input type="file" id="cart-file" accept=".json,application/json" hidden>
+  </aside>
+</main>
+
+<section class="tavern-view" id="tavern-view" aria-label="酒馆模式说明">
+  <div class="tavern-panel">
+    <span class="tag">MODE / TAVERN OS</span>
+    <p>酒馆模式下，宽屏显示月相、角色建档、世界书、时间线、沉浸模式与街机入口；拨到街机模式，屏幕直接切成模拟器启动菜单。切换不会中断正在运行的游戏与存档。</p>
+  </div>
+</section>
+
+<section class="spec reveal" data-d="4" aria-labelledby="spec-h">
+  <div class="section-head"><h2 id="spec-h">接入规范 <small>接进 4.8.22 的入口 / 世界书与美化格式</small></h2></div>
+  <div class="spec-grid">
+    <div class="spec-cell">
+      <h3>① 世界书 = 酒馆 world_info.entries</h3>
+      <p>条目字段直接复用酒馆格式（<code>key / keysecondary / comment / content / disable / constant / order / position</code> 等），导出即可被酒馆世界书导入。存档键按聊天隔离。</p>
+<pre><span class="s">// 月相脚本侧：把内接的模型 API 绑进来</span>
+MOON_POCKET.<span class="k">bindNarrator</span>((sys,user)=&gt;callOpeningModel(<span class="s">"main"</span>,sys,user));
+MOON_POCKET.<span class="k">enableCheat</span>(true);  <span class="s">// 首次弹窗 → 转写 → 编辑页</span>
+MOON_POCKET.<span class="k">attachBridge</span>({ name:<span class="s">"mGBA"</span>,
+  readSnapshot: async()=&gt;readPartyAndBagFromRAM() });
+MOON_POCKET.<span class="k">getInjectedWorldInfo</span>(); <span class="s">// 启用条目 → 剧情注入</span></pre>
+      <p style="margin-top:12px">存档桥支持三种来源：模拟器核心的 <code>readSnapshot()</code>、<code>moon-savelog</code> 游戏日志 JSON、以及原始 <code>.sav</code>（做扇区与校验读取，明细仍需核心或日志）。</p>
+    </div>
+    <div class="spec-cell">
+      <h3>② moon-skin v1 / 美化格式</h3>
+      <p>一份 JSON 定义全部令牌；<code>assets</code> 可放本机图案的 data URI，只在玩家自己机器里，不随宿主分发。</p>
+<pre>{ <span class="k">"format"</span>:<span class="s">"moon-skin"</span>, <span class="k">"version"</span>:1,
+  <span class="k">"id"</span>:<span class="s">"moon.noir-pink"</span>, <span class="k">"name"</span>:<span class="s">"黑粉 · 默认"</span>,
+  <span class="k">"tokens"</span>:{ <span class="k">"bg"</span>:<span class="s">"#100b11"</span>, <span class="k">"surface2"</span>:<span class="s">"#2a1a2a"</span>,
+    <span class="k">"accent"</span>:<span class="s">"#ff86c2"</span>, <span class="k">"lcd"</span>:<span class="s">"#555e4b"</span>,
+    <span class="k">"ink"</span>:<span class="s">"#10150b"</span> <span class="s">/* …共 12 项 */</span> },
+  <span class="k">"scanline"</span>:0.035, <span class="k">"radius"</span>:18, <span class="k">"assets"</span>:{} }</pre>
+      <p style="margin-top:12px">协议沿用 v2：宿主 → 页面 <code>boot / input / pause</code>，页面 → 宿主 <code>ready / launch / save / score</code>；沙箱 iframe 不变，等待框仍只在月相自己发起的长任务里弹。</p>
+    </div>
+  </div>
+</section>
+
+<footer class="legal reveal" data-d="4">
+  <p><b>本页实际包含什么。</b> 三个原创像素小游戏（自有代码与程序化绘制，可按 CC0 使用）、一个本机 ROM 头部与 SHA-1 校验流程、一套可插拔核心接口、一套世界书转写与编辑逻辑、一套皮肤格式。<b>不含</b> ROM、模拟器核心、任天堂图像 / 音乐 / 文本，也未使用「宝可梦」作为产品标识。要玩老游戏：自己从合法持有的卡带 dump 出文件 → 插进顶部卡带口 → 接上开源核心。</p>
+  <p><b>关于「古老 / 非商业」。</b> 绿宝石 2004 年首发，著作权仍在保护期。中国著作权法第 24 条合理使用限于个人学习、研究、欣赏；把游戏文件打包进发布物或向公众提供属第 53 条的侵权行为，是否营利不是侵权认定标准。玩家自己 dump 自己玩、写模拟器、做美化配色都不越线；被追责的一直是分发 ROM 的站点与打包第三方素材的发布物。</p>
+</footer>
+
+<!-- 首次开启金手指：询问是否转写世界书 -->
+<div class="overlay" id="cheat-overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="cheat-title">
+    <span class="tag">GOLDEN LINK / 金手指模式</span>
+    <h2 id="cheat-title">把存档里的宝可梦写成世界书？</h2>
+    <p>开启后，酒馆侧会通过存档桥读取训练家、同行宝可梦、等级与配招、携带道具、羁绊和特殊事件，调用脚本内接的转写 API 生成酒馆世界书条目。数据只存在本系统内部，可随时修改、停用或导出。</p>
+    <div class="src" id="cheat-src">数据源：内置示例存档（原创）</div>
+    <div class="row">
+      <button type="button" class="primary" id="cheat-yes">是，转成世界书</button>
+      <button type="button" id="cheat-no">先不用</button>
+    </div>
+    <small>只在第一次开启时询问。之后点顶栏「世界书」或屏内对应模块即可直接进编辑页。</small>
+  </div>
+</div>
+
+<!-- 世界书编辑页 -->
+<div class="overlay" id="wb-overlay" hidden>
+  <section class="wb-panel" role="dialog" aria-modal="true" aria-labelledby="wb-title">
+    <header class="wb-head">
+      <div><span class="tag">WORLD INFO / 世界书</span><h2 id="wb-title">口袋世界书 · 条目编辑</h2></div>
+      <div class="wb-actions">
+        <button type="button" id="wb-rebuild">重新转写</button>
+        <button type="button" id="wb-import-btn">导入</button>
+        <button type="button" id="wb-export-btn">导出</button>
+        <button type="button" class="primary" id="wb-save-btn">保存</button>
+        <button type="button" id="wb-close" aria-label="关闭">×</button>
+      </div>
+      <input type="file" id="wb-file" accept=".json,application/json" hidden>
+    </header>
+    <div class="wb-meta">来源 <b id="wb-source">—</b> · 条目 <b id="wb-count">0</b> · 已启用 <b id="wb-enabled">0</b> · 存档键 <span id="wb-key">—</span></div>
+    <div class="wb-body">
+      <div class="wb-list" id="wb-list"></div>
+      <aside class="wb-preview">
+        <h3>剧情调用预览</h3>
+        <p>启用的条目按酒馆 world_info 的注入方式进入提示词。下面是当前会送进剧情的内容。</p>
+        <pre id="wb-inject">（还没有启用的条目）</pre>
+      </aside>
+    </div>
+    <footer class="wb-foot">
+      <label><input type="checkbox" id="wb-enable-all"> 全部启用</label>
+      <span>点标题可收起 / 展开条目 · 关键词用逗号分隔 · 保存后剧情里即可调用</span>
+    </footer>
+  </section>
+</div>
+
+<!-- 美化抽屉 -->
+<aside class="skin-drawer" id="skin-drawer" hidden aria-label="美化自定义">
+  <div class="skin-head">
+    <div><span class="tag" style="font:600 10px/1.4 var(--font-mono);letter-spacing:.3em;color:var(--color-accent)">MOON-SKIN v1</span><h2>美化自定义</h2></div>
+    <button type="button" id="skin-close" aria-label="关闭">×</button>
+  </div>
+  <div class="skin-sec">
+    <h3>内置皮肤</h3>
+    <div id="skin-presets"></div>
+  </div>
+  <div class="skin-sec">
+    <h3>导入 / 导出</h3>
+    <div class="skin-row">
+      <button type="button" id="skin-import-btn">导入 .moonskin.json</button>
+      <button type="button" id="skin-export-btn">导出当前皮肤</button>
+      <button type="button" id="skin-art-btn">导入本机图案</button>
+      <button type="button" id="skin-reset">恢复黑粉默认</button>
+      <input type="file" id="skin-file" accept=".json,.moonskin.json,application/json" hidden>
+      <input type="file" id="skin-art-file" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+    <p class="skin-note">导入只在本机读取。图案会作为 data URI 存在当前皮肤里，不上传、不随宿主分发；把你的 My Boy 美化 APK 转成皮肤文件用 <code>tools/apk-skin-extract.mjs</code>。</p>
+  </div>
+  <div class="skin-sec">
+    <h3>屏幕扫描线</h3>
+    <div class="skin-row"><label>强度 <input type="range" id="skin-scan" min="0" max="20" step="1" value="4"><span id="skin-scan-val">0.04</span></label></div>
+  </div>
+  <div class="skin-sec">
+    <h3>当前皮肤 JSON</h3>
+    <pre id="skin-json"></pre>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/*__POCKET_JS__*/
+</script>
+</body>
+</html>
+

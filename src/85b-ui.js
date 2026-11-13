@@ -993,6 +993,18 @@
   #moon-phase-panel .mp-mode-btn { min-height: 58px !important; }
 }
 
+/* 玩家身份芯片：把「玩家自定义昵称」与「角色生成的专属称呼」分成两条独立信息。 */
+#moon-phase-panel .mp-lcd-identity-chip {
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  margin-top:6px; padding:6px 9px; min-width:0;
+  border:1px solid rgba(244,114,208,.16); border-left:2px solid rgba(244,114,208,.62);
+  background:linear-gradient(90deg,rgba(244,114,208,.075),rgba(20,12,24,.42));
+  color:var(--k-fg-2); font-size:10.5px; line-height:1.5;
+}
+#moon-phase-panel .mp-lcd-identity-chip b { color:var(--k-fg); font-weight:600; text-align:right; overflow-wrap:anywhere; }
+#moon-phase-panel .mp-lcd-character-name { border-left-color:rgba(233,203,164,.72); background:linear-gradient(90deg,rgba(233,203,164,.07),rgba(20,12,24,.42)); }
+#moon-phase-panel .mp-lcd-character-name b { color:#f0d8bd; }
+
 @media (prefers-reduced-motion: reduce) {
   #moon-phase-panel .mp-fold-body,
   #moon-modal-mask .mp-faq-body,

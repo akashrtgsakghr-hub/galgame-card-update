@@ -26,6 +26,8 @@
         }
       }
       const currentTime = world.时间 || '';
+      // 时钟已经推进，先处理到期周期，再结算本轮好感度，避免跨周后仍吃旧周额度。
+      const countdownActions = checkAllCountdowns(statData);
 
       const changedChars = [];
       const stageChangedChars = [];
@@ -160,7 +162,7 @@
           }
         } catch (e) {}
         try {
-          const ending = isEndingTriggerCondition(name, ch, latestAiText);
+          const ending = isEndingTriggerCondition(name, ch, latestAiText, latestAi ? latestAi.idx : -1);
           if (ending.triggered) endingRequests.push({ charName: name, charData: ch, ending: ending });
         } catch (e) {}
       }
@@ -173,8 +175,13 @@
       achievementRequests.forEach(function(request) {
         if (markAchievementTrigger(request.key)) triggerAchievementUnlock(request.charName, request.eventType, request.reason, request.key).catch(function(e) { try { console.warn('[Doki] 成就记录失败：', e); } catch (ignore) {} });
       });
+      // 结局只能由玩家在面板主动发起「周目结算」。
+      // 旧实现在这里无条件弹「终局报幕确认」窗（窗里就写着后日谈按钮），
+      // 完全绕过了 armEndingFlow 闸门，开局第 1、2 楼也会弹。现在只给一次不打断的提示。
       endingRequests.forEach(function(request) {
-        if (markEndingPrompted(request.charName, request.ending.type)) setTimeout(function() { promptEndingDialog(request.charName, request.charData, request.ending, false); }, 250);
+        if (markEndingPrompted(request.charName, request.ending.type)) {
+          try { toast('《' + request.charName + '》已达成终局条件，可在系统面板发起「周目结算」', 'info'); } catch (e) {}
+        }
       });
       if (gateLogs.length) { try { injectGateNotice(gateLogs); } catch (e) {} }
       if (eventLogs.length) { try { injectGateNotice(eventLogs.map(function(x) { return { type: 'event_update', char: x.char, event: x.event }; })); } catch (e) {} }
@@ -199,7 +206,8 @@
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}
-    } catch (e) { try { console.warn('[Doki] 计算流程异常：', e); } catch (e2) {} }
+      return { countdownActions: countdownActions };
+    } catch (e) { try { console.warn('[Doki] 计算流程异常：', e); } catch (e2) {} return null; }
   }
 
   function processEventSystem(charName, ch, currentTimeStr, worldStat, worldbookEntries) {

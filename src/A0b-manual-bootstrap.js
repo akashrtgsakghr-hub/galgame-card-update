@@ -50,7 +50,7 @@
     try { const sr = await callOpeningModel('main', SUM_SYS, SUM_USER); summary = (typeof sr === 'string') ? sr : String((sr && (sr.content || sr.text)) || ''); } catch (e) { summary = ''; }
     try { if (typeof applyBootstrapSummary === "function") applyBootstrapSummary(summary); } catch (e) {}
     const JUDGE_SYS = '你是关系数值的裁判。先写理由，再给数字。只输出 JSON 数组。';
-    const JUDGE_USER = '下面是这段关系的资料摘要：\n' + (summary || '(无摘要)') + '\n\n请为这些角色分别判断「他对玩家」的好感度（0-100）和肉体值（0-100）：' + list + '\n要求：理由必须用到人物设定、时间、地点三者；给到 90 以上必须指出已经发生的具体事件，否则往回调。\n只输出 JSON 数组：[{"名字":"","好感度":0,"肉体值":0,"推断理由":""}]';
+    const JUDGE_USER = '下面是这段关系的资料摘要：\n' + (summary || '(无摘要)') + '\n\n请为这些角色分别判断「他对玩家」的初始好感度（-100至100）和肉体值（0-100）：' + list + '\n【证据尺度】没有明确相处史、信任事实或共同经历时按陌生人处理，E通常为0~10；反复且具体的正向互动才可给10~30；30以上必须列明已经发生的共同经历；60以上必须有长期亲密关系事实；90以上必须有充分且持续的关系证据。不可仅因玩家人设有吸引力、角色可能喜欢某种类型或故事是恋爱向，就推断角色已经动心。负向经历应允许负值。理由必须引用人物设定、时间、地点和具体事实，不足的部分明确写证据不足。\n只输出 JSON 数组：[{"名字":"","好感度":0,"肉体值":0,"推断理由":""}]';
     let raw = '';
     try { const jr = await callOpeningModel('main', JUDGE_SYS, JUDGE_USER); raw = (typeof jr === 'string') ? jr : String((jr && (jr.content || jr.text)) || ''); } catch (e) { raw = ''; }
     let arr = null;

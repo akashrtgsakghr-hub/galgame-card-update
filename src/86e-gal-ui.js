@@ -762,6 +762,8 @@
   function galChoose(idx) {
     const text = (GAL_RUNTIME.choices || [])[idx];
     if (!text) return;
+    // 无论发送模式还是填入模式，点击这一刻都算玩家已作出选择；写入当前聊天存档。
+    try { galRecordPlayerChoice(text, GAL_RUNTIME.floor); } catch (e) { console.warn('[月相] 玩家选择记忆写入失败：', e); }
     const s = galGetSettings();
     if (s.choiceMode === 'fill') {
       if (galFillNativeInput(text)) toast('已填入输入框，确认后发送', 'info');
@@ -1027,13 +1029,13 @@
         '<div class="gal-row" style="margin-top:8px"><span>每轮最多接收图片</span><input type="range" min="1" max="4" value="' + s.maxImagesPerTurn + '" data-gal-range="maxImagesPerTurn"></div>' +
       '</div>' +
       '<div class="gal-sec">' +
-        '<div class="gal-label">记忆模式（三选一，互斥）</div>' +
+        '<div class="gal-label">剧情记忆核心（三选一）</div>' +
         seg('memoryMode', s.memoryMode, [
-          { v: 'builtin', t: '内置记忆' },
-          { v: 'external', t: '第三方接管' },
-          { v: 'off', t: '完全关闭' }
+          { v: 'builtin', t: '月相记忆' },
+          { v: 'external', t: '外部记忆' },
+          { v: 'off', t: '关闭记忆' }
         ]) +
-        '<div class="gal-hint">当前：<b>' + galEscape(mem.label) + '</b>｜回合 ' + mem.turns + ' · 阶段摘要 ' + mem.stages + ' · 长期 ' + mem.longs +
+        '<div class="gal-hint">当前：<b>' + galEscape(mem.label) + '</b>｜剧情回合 ' + mem.turns + ' · 阶段纪要 ' + mem.stages + ' · 长期档案 ' + mem.longs + ' · 玩家选择 ' + (galGetMemory().choices || []).length +
         '｜检测到的记忆插件：' + (mem.plugins.length ? mem.plugins.map(function(p) { return galEscape(p.label) + (p.enabled ? '' : '（未启用）'); }).join('、') : '无') + '</div>' +
         (mem.warning ? '<div class="gal-warn">' + galEscape(mem.warning) + '</div>' : '') +
         '<div class="gal-row" style="margin-top:8px"><span>阶段摘要间隔（回合）</span><input type="range" min="2" max="8" value="' + s.memoryStageEvery + '" data-gal-range="memoryStageEvery"></div>' +

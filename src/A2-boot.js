@@ -80,6 +80,8 @@
   function closePanel() {
     const panel = mainDoc.getElementById('moon-phase-panel');
     if (panel && panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
+    /* 关面板必须把掌机一起停掉：它的核心占着一个 rAF 循环，留着会一直烧 CPU */
+    if (panel && panel._pocketStop) { try { panel._pocketStop(); } catch (e) {} panel._pocketStop = null; }
     const m = mainDoc.getElementById('moon-phase-mask');
     if (m) m.classList.remove('open');
   }
@@ -237,15 +239,10 @@
     await sleep(1200);
     closeFirstBootDialog();
     _firstBootRunning = false;
-    safeReloadOnce('firstboot');
+    if (getSettings().autoReload !== false) safeReloadOnce('firstboot');
+    else toast('首次初始化完成。自动刷新已关闭，请手动刷新一次使初始化结果完整生效。', 'info');
   }
 
-
-function tryAutoReloadOnce() {
-  /* 局部脚本首次挂载 / 局部→全局切换时刷新一次。
-     闸门在 safeReloadOnce 里：标记写不进去就不刷，避免「一直刷酒馆」。 */
-  safeReloadOnce('mount');
-}
 
 /* =========================================================
  * 启动
@@ -272,17 +269,16 @@ try {
   _isFirstBoot = (ls.getItem(FIRST_RUN_KEY) !== '1');
 } catch (e) { _isFirstBoot = true; }
 
-if (_needAutoReload) {
-  // 版本更新后延迟刷新（同样走一次性闸门，版本号写不进去也不会循环刷）
+if (_needAutoReload && !_isFirstBoot && getSettings().autoReload !== false) {
+  // 版本更新后最多刷新一次；普通挂载不再追加第二次刷新。
   setTimeout(function() { safeReloadOnce('version'); }, 900);
 } else if (_isFirstBoot) {
   // 首次导入检测流程：同样先挂载魔棒菜单，避免初始化中断后按钮彻底丢失
   setTimeout(injectMenuEntry, 300);
   setTimeout(function() { runFirstBootSequence(); }, 1200);
 } else {
-  // 常规启动
-  tryAutoReloadOnce(); // 局部脚本首次挂载 / 局部→全局切换时刷新一次
-
+  // 常规启动不强制刷新页面。此前 mount 闸门每个新页面会话都会触发一次，
+  // 首次导入/版本更新完成后的下一次加载又会命中不同闸门，造成连续两次刷新。
   setTimeout(function() { checkAndPromptMigrate(); }, 2500);
   setTimeout(function() { checkAndPromptBackfill(); }, 4200);
   setTimeout(function() { checkAndPromptBioEnable(); }, 5200);

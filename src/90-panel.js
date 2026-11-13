@@ -107,6 +107,13 @@
     const imp = String(ch.重要度 || '主要');
     const impColor = imp === '主要' ? '#f472d0' : (imp === '次要' ? '#7dd3fc' : '#94a3b8');
     const voice = String(ch.心声 || '').trim();
+    const stateQuota = ch._quota || {};
+    const voiceSyncStatus = String(stateQuota._心声同步状态 || '尚未检测到本轮同步');
+    const voiceStatusHtml = '<div style="margin:3px 0 6px;font-size:10px;color:' + (voiceSyncStatus === '已收到' ? '#6ee7b7' : ((voiceSyncStatus === '本轮未收到' || voiceSyncStatus === '本轮重复') ? '#fbbf24' : '#94a3b8')) + ';">本轮心声同步：' + lcdEscape(voiceSyncStatus) + (voiceSyncStatus === '本轮重复' ? '（模型重复了上一轮，未更新）' : '') + '</div>';
+    const playerAddress = String(ch.对玩家称呼 || '').trim();
+    const chatPlayerNickname = getChatPlayerIdentity().nickname;
+    const playerAddressHtml = (chatPlayerNickname ? '<div class="mp-lcd-identity-chip mp-lcd-player-name">本聊天玩家昵称 <b>' + lcdEscape(chatPlayerNickname) + '</b></div>' : '') +
+      (playerAddress ? '<div class="mp-lcd-identity-chip mp-lcd-character-name">Ta 对你的专属称呼 <b>' + lcdEscape(playerAddress) + '</b></div>' : '');
     /* 周额度：这是「同一天里好感为什么会忽然不动」的唯一答案，
        以前只在日志里写着，界面上完全看不到，玩家只能猜脚本是不是坏了。 */
     let quotaHtml = '';
@@ -129,8 +136,9 @@
       '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:600;">' + lcdEscape(imp) + '</span>' +
       '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +
       '<div class="mp-lcd-mood-row">' + renderLcdMood(ch.情绪) + '<span>心情 / ' + moodLabel(ch.情绪) + '</span></div>' +
-      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small><div>' +
-        (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">这一轮还没收到心声——等下一次 AI 回复，或看看 AI 有没有写「角色.名字.心声=」那一行</span>') +
+      playerAddressHtml +
+      '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small>' + voiceStatusHtml + '<div>' +
+        (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">还没有收到心声内容——检查本轮是否输出「角色.名字.心声=」后台行</span>') +
       '</div></div>' + quotaHtml + '</div>';
   }
 
@@ -992,13 +1000,32 @@
       }
     });
   }
-  function isEndingTriggerCondition(charName, ch, recentText) {
+  function isEndingTriggerCondition(charName, ch, recentText, floorIdx) {
     const E = Number(ch && ch.好感度) || 0, R = Number(ch && ch.阶段值) || 0, I = Number(ch && ch.嫉妒值) || 0;
     const quota = ch && ch._quota || {}, special = String(quota.对用户特殊状态 || '');
-    const textPool = String(recentText || '') + ' ' + String(ch && ch.心声 || '');
-    if (/(你|user|玩家)(已|彻底|已经)?(死了|停止了呼吸|失去心跳|永远闭上|咽下了最后一口气|倒在血泊中|牺牲了|殒命|离世)/i.test(textPool) || /(?:user已死|玩家死亡)/i.test(special)) return { triggered: true, type: 'UserDeathEnd', reason: '玩家在此刻迎来了生命的终点' };
+    // 只看本轮 AI 正文。ch.心声 是持久字段，一旦写入过「他死了」之类内容就会每轮命中，
+    // 这是开局反复弹结局的主因之一。
+    const textPool = String(recentText || '');
+    const floor = Number(floorIdx);
+    // 开局保护：前 3 楼往往还在读开场白 / 角色背景，其中的「死亡」多半是设定或比喻。
+    // 手动周目结算不传 floorIdx，不受此限制。
+    if (isFinite(floor) && floor >= 0 && floor < 3) return { triggered: false };
+    // 否定 / 假设 / 回忆 / 比喻语境：避免「差点死了」「我以为他死了」「传说他牺牲了」误触发。
+    const HEDGE_RE = /(差点|险些|几乎|以为|仿佛|像是|好像|如同|犹如|如果|要是|倘若|假如|曾经|传说|回忆|梦里|玩笑|比喻|并没有|没有|未曾|疑似|可能|也许|或许|听说|据说|别|不要|不愿)/;
+    function confirmed(re) {
+      const m = re.exec(textPool);
+      if (!m) return false;
+      const from = Math.max(0, m.index - 18), to = Math.min(textPool.length, m.index + m[0].length + 12);
+      return !HEDGE_RE.test(textPool.slice(from, to));
+    }
     const escapedName = String(charName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if ((new RegExp('(' + (escapedName || '角色') + '|他|Ta)(已|彻底|已经)?(死了|停止了呼吸|自尽|牺牲|殒命|断气|永远离开)', 'i').test(textPool)) || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
+    // 主语只认角色名本身：旧正则把「他 / Ta」也算进去，正文里任何一句「他牺牲了」都会误判。
+    let charDeathHit = false;
+    if (escapedName) {
+      charDeathHit = confirmed(new RegExp('(?:' + escapedName + ')(已|彻底|已经)?(死了|停止了呼吸|自尽|牺牲|殒命|断气|永远离开)', 'i'));
+    }
+    if (confirmed(/(你|user|玩家)(已|彻底|已经)?(死了|停止了呼吸|失去心跳|永远闭上|咽下了最后一口气|倒在血泊中|牺牲了|殒命|离世)/i) || /(?:user已死|玩家死亡)/i.test(special)) return { triggered: true, type: 'UserDeathEnd', reason: '玩家在此刻迎来了生命的终点' };
+    if (charDeathHit || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
     if (E >= 100 && R >= 5) return { triggered: true, type: 'HE', reason: '情感羁绊达到圆满境界' };
     if (E <= -80 && R <= -4) return { triggered: true, type: 'BE', reason: '关系跌入无法挽回的仇视深渊' };
     if (special.indexOf('囚禁') >= 0 || (I >= 90 && !getSafetyLock())) return { triggered: true, type: 'CageEnd', reason: '关系进入囚禁终局条件' };

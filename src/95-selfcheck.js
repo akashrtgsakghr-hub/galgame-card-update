@@ -1,5 +1,5 @@
   function renderArcadeGameScreen() {
-    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">MOON POCKET ARCADE </div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><canvas id="moon-arcade-canvas" width="320" height="94" aria-label="离线像素小游戏，按空格、方向上键或点击屏幕跳跃"></canvas><div class="mp-arcade-state" id="moon-arcade-state">PRESS SPACE / TAP TO JUMP</div><div class="mp-arcade-foot">空格 / ↑ / 触屏跳跃 · 用顶部切换返回系统面板</div></div>';
+    return '<div class="mp-arcade-box"><div class="mp-arcade-brand">MOON POCKET ARCADE </div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><iframe id="moon-arcade-frame" class="mp-arcade-frame" title="离线像素小游戏" sandbox="allow-scripts"></iframe><div class="mp-arcade-session-stats" id="moon-arcade-session-stats"></div><div class="mp-arcade-state" id="moon-arcade-state">空格 / ↑ / 点击游戏画面跳跃</div><div class="mp-arcade-foot">本地离线运行 · 成绩按当前聊天保存</div></div>';
   }
 
   /* 难度四档。四处都会用到（面板、街机、设置组），所以抽成一个函数，
@@ -37,15 +37,29 @@
   }
 
   function renderPanel(panel) {
+    /* 卡带机模式下整个屏就是一个 sandbox iframe，里面跑着有状态的模拟器。
+       面板的定时刷新（refreshPanel）如果照常重绘，会先 _pocketStop() 把 iframe 拆掉，
+       玩家正在玩的这一局就没了。这个模式下界面全部由 iframe 自己渲染，
+       面板侧没有需要刷新的内容，所以直接跳过。 */
+    if (panel.dataset.displayMode === 'pocket' && panel._pocketStop
+        && mainDoc.getElementById('moon-pocket-host')) return;
+
+    /* 这些按钮不一定存在：切到街机 / 卡带机时液晶屏内容整块不渲染。
+       以前这里直接 querySelector(...).addEventListener 会抛 null，导致后面的绑定全断。 */
+    const bindClick = function(sel, fn) { const el = panel.querySelector(sel); if (el) el.addEventListener('click', fn); return el; };
     if (panel._lcdArcadeStop) { try { panel._lcdArcadeStop(); } catch (e) {} panel._lcdArcadeStop = null; }
+    if (panel._pocketStop) { try { panel._pocketStop(); } catch (e) {} panel._pocketStop = null; }
     if (panel._lcdStateTimer) { clearInterval(panel._lcdStateTimer); panel._lcdStateTimer = null; }
     const mode = getCurrentMode();
-    const displayMode = panel.dataset.displayMode === 'arcade' ? 'arcade' : 'system';
+    const rawDisplay = panel.dataset.displayMode;
+    const displayMode = (rawDisplay === 'arcade' || rawDisplay === 'pocket') ? rawDisplay : 'system';
     const isArcadeMode = displayMode === 'arcade';
+    const isPocketMode = displayMode === 'pocket';
     const selectedLevel = isArcadeMode ? (panel.dataset.arcadeDifficulty || 'normal') : mode;
     const activeMenuKey = panel.dataset.activeMenuKey || '';
     panel.dataset.displayMode = displayMode;
     panel.classList.toggle('mp-display-arcade', isArcadeMode);
+    panel.classList.toggle('mp-display-pocket', isPocketMode);
     const antisl = getAntiSL();
     const anchorLocked = !!loadAnchor();
     const extraSetting = getExtraModelMode();
@@ -164,15 +178,16 @@
       /* 头部：品牌名固定一行（长卡名收成副标题），版本号独立成块，不再把标题挤成三行 */
       '<div class="mp-head"><button type="button" class="mp-title-group mp-update-hitbox" id="moon-version-badge" aria-label="检查更新" title="点击这里检查更新">' +
       '<span class="mp-title-orb">' + currentMeta.glyph + '</span>' +
-      '<span class="mp-brand"><span class="mp-title">月相系统</span>' +
-      '<span class="mp-brand-sub">' + SYSTEM_UI_NAME + '</span></span></button>' +
+      '<span class="mp-brand"><span class="mp-title">' + SYSTEM_MENU_NAME + '</span>' +
+      '<span class="mp-brand-sub">' + SYSTEM_MENU_SUB + '</span></span></button>' +
       '<span class="mp-badge" style="cursor:pointer;' + (_cachedUpdateInfo ? 'border-color:rgba(244,114,208,.6);color:#ffb3e8;' : '') + '">v' + MOON_FORMULA_VERSION + (_cachedUpdateInfo ? ' · 有新版' : '') + '</span>' +
       '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
       guideHtml +
       '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
       '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button></div>' +
-      '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : '') + '">' + (isArcadeMode ? renderArcadeGameScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn)) + '</div>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button>' +
+      '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机</button></div>' +
+      '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : (isPocketMode ? ' mp-pocket-card' : '')) + '">' + (isArcadeMode ? renderArcadeGameScreen() : (isPocketMode ? renderPocketScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn))) + '</div>' +
       (isArcadeMode
         ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
         : '') +
@@ -181,11 +196,11 @@
       (enabledUserBio ? '<div class="mp-card"><div class="mp-card-title">玩家档案已生效<small>YOU</small></div><div class="mp-set-desc">' + String(enabledUserBio.userName || '(未命名)').replace(/</g, '&lt;') + '</div></div>' : '') +
       '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
       '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
-      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">' + uiIco('play') + '</span><span><b>开始游戏</b><small>第一次玩先来这里建档案；也能重摇骰子、搬旧存档</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>角色与存档</b><small>改数值、换攻略对象、看结局和回忆</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>冒险日志</b><small>可选功能：给这个世界排一张大事表</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统检修</b><small>数字不对、点不动、报错了，来这里查一次</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>系统选项</b><small>换状态卡外观、填 AI 钥匙、检查更新</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">' + uiIco('play') + '</span><span><b>新游戏 / 继续旅程</b><small>建立人物档案、调整难度，或接续已有进度</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>人物图鉴与存档</b><small>管理角色关系、玩家身份、结局与回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>世界编年史</b><small>查看与编辑世界事件、日期和未来节点</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统诊断室</b><small>检查数据、标签解析与插件冲突</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>游戏设置</b><small>调整界面、记忆、图像与运行参数</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">' + uiIco('gamepad') + '</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
       '</div><div class="mp-menu-controls"><span>不知道点哪，回最上面看那条粉色提示</span></div>' +
       '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
@@ -236,9 +251,11 @@
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
         '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
         '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
-      pocketFold('chr-you', '关于「你」', '让 AI 记住你是谁、什么脾气',
-        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>写一份我的设定</span><small>把你写清楚，Ta回话才不会跑偏</small></button>' +
-        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>已存的我的设定</span><small>挑一份让它生效</small></button></div>', true) +
+      pocketFold('chr-you', '玩家身份档案', '每个聊天单独保存昵称与玩家设定，互不串档',
+        '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-player-nickname"><span>设置本聊天昵称</span><small>当前：' + lcdEscape(getChatPlayerIdentity().nickname || '跟随酒馆用户名') + '</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>生成玩家档案</span><small>整理当前玩家人设，形成可复用的小传</small></button>' +
+        '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>选择本聊天的玩家档案</span><small>只影响当前聊天；其他聊天保留自己的选择</small></button></div>' +
+        '<div style="font-size:10px;color:var(--mp-fg-3);margin-top:7px;">玩家昵称与玩家小抄均按聊天存档，不再使用全局启用状态。</div>', true) +
       pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
         '<button class="mp-btn" id="moon-phase-ending"><span>结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
@@ -326,8 +343,8 @@
         if (act === 'tour') { openTutorialDialog(panel); }
       });
     });
-    panel.querySelector('#moon-phase-close').addEventListener('click', closePanel);
-    panel.querySelector('#moon-phase-tutorial').addEventListener('click', function() { openTutorialDialog(panel); });
+    bindClick('#moon-phase-close', closePanel);
+    bindClick('#moon-phase-tutorial', function() { openTutorialDialog(panel); });
     const tutBtn2 = panel.querySelector('#moon-phase-tutorial-btn');
     if (tutBtn2) tutBtn2.addEventListener('click', function() { openTutorialDialog(panel); });
     const quickStartBtn = panel.querySelector('#moon-quick-start');
@@ -335,17 +352,27 @@
     const headerApiBtn = panel.querySelector('#moon-header-api-btn');
     if (headerApiBtn) headerApiBtn.addEventListener('click', function() { openCustomAIConfigDialog(panel); });
 
-    panel.querySelectorAll('[data-display-mode]').forEach(function(button) {
-      button.addEventListener('click', function() {
-        const nextMode = button.getAttribute('data-display-mode') === 'arcade' ? 'arcade' : 'system';
+    /* 页签改用事件委托绑在面板上：renderPanel 会整体重写 innerHTML，
+       绑在按钮上的监听会随节点一起被丢掉，表现为「切过一次页签后页签就点不动了」。 */
+    if (panel.dataset.modeTabsBound !== '1') {
+      panel.dataset.modeTabsBound = '1';
+      panel.addEventListener('click', function(event) {
+        const button = event.target && event.target.closest ? event.target.closest('button[data-display-mode]') : null;
+        if (!button || !panel.contains(button)) return;
+        const raw = button.getAttribute('data-display-mode');
+        const nextMode = (raw === 'arcade' || raw === 'pocket') ? raw : 'system';
         if (nextMode === panel.dataset.displayMode) return;
         panel.dataset.displayMode = nextMode;
         renderPanel(panel);
       });
-    });
+    }
     if (isArcadeMode) {
       const lcdCard = panel.querySelector('.mp-lcd-card');
       if (lcdCard) panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true, difficulty: selectedLevel });
+    }
+    if (isPocketMode) {
+      const pocketCard = panel.querySelector('.mp-pocket-card');
+      if (pocketCard) panel._pocketStop = mountPocket(pocketCard);
     }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');
@@ -366,7 +393,7 @@
         });
       });
     });
-    panel.querySelector('#moon-menu-back').addEventListener('click', function() {
+    bindClick('#moon-menu-back', function() {
       panel.dataset.activeMenuKey = '';
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
@@ -404,7 +431,7 @@ if (_badgeEl) {
   });
 }
 
-panel.querySelector('#moon-phase-update').addEventListener('click', function() {
+bindClick('#moon-phase-update', function() {
   if (_cachedUpdateInfo) { showUpdateAvailableDialog(_cachedUpdateInfo); return; }
   const cfg = getUpdateConfig();
   if (!cfg.url) openUpdateConfigDialog(panel);
@@ -435,15 +462,15 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
         if (view) view.innerHTML = renderLcdCharacterDetails(character);
       });
     }
-    panel.querySelector('#moon-phase-antisl').addEventListener('click', function() {
+    bindClick('#moon-phase-antisl', function() {
       if (loadAnchor()) { toast('世界线已锚定 · 只能通过开启新对话解除', 'warning'); return; }
       const s2 = getSettings(); s2.antisl = !(s2.antisl === true); saveSettings(s2); refreshPanel();
     });
-    panel.querySelector('#moon-phase-extramodel').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
-    panel.querySelector('#moon-phase-cardmode').addEventListener('click', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
-    panel.querySelector('#moon-phase-safetylock').addEventListener('click', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
-    panel.querySelector('#moon-phase-autobootstrap').addEventListener('click', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
-    panel.querySelector('#moon-phase-firstmeet').addEventListener('click', function() {
+    bindClick('#moon-phase-extramodel', function() { openCustomAIConfigDialog(panel); });
+    bindClick('#moon-phase-cardmode', function() { const s2 = getSettings(); s2.cardMode = (s2.cardMode === 'multi') ? 'single' : 'multi'; saveSettings(s2); refreshPanel(); });
+    bindClick('#moon-phase-safetylock', function() { const s2 = getSettings(); s2.safetyLock = !getSafetyLock(); saveSettings(s2); refreshPanel(); });
+    bindClick('#moon-phase-autobootstrap', function() { const s2 = getSettings(); s2.autoBootstrap = (s2.autoBootstrap === false); saveSettings(s2); if (s2.autoBootstrap) { setTimeout(function() { autoBootstrapCharacter('first-reply'); }, 120); } refreshPanel(); });
+    bindClick('#moon-phase-firstmeet', function() {
       const s2 = getSettings();
       s2.firstMeetMode = (s2.firstMeetMode === 'dice') ? 'hybrid' : 'dice';
       saveSettings(s2);
@@ -470,35 +497,41 @@ panel.querySelector('#moon-phase-update').addEventListener('click', function() {
         });
       }
     })();
-    panel.querySelector('#moon-phase-pacing').addEventListener('click', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
-    panel.querySelector('#moon-phase-fanfic').addEventListener('click', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
-    panel.querySelector('#moon-phase-countdown').addEventListener('click', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
-    panel.querySelector('#moon-phase-selfcheck').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
-    panel.querySelector('#moon-phase-simtest').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
-    panel.querySelector('#moon-phase-conflict').addEventListener('click', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
-    panel.querySelector('#moon-phase-reroll').addEventListener('click', function() { openRerollDialog(panel); });
-    panel.querySelector('#moon-phase-pack-migrate').addEventListener('click', function() { startMigrationPack(panel); });
-    panel.querySelector('#moon-phase-bio').addEventListener('click', function() { openAuditionMainDialog(panel); });
+    bindClick('#moon-phase-pacing', function() { const s2 = getSettings(); const cur = getEventPacing(); const next = cur === 'Adi' ? 'And' : (cur === 'And' ? 'All' : 'Adi'); s2.eventPacing = next; saveSettings(s2); refreshPanel(); });
+    bindClick('#moon-phase-fanfic', function() { const cur = getFanficEnhance(); setFanficEnhance(!cur); refreshPanel(); });
+    bindClick('#moon-phase-countdown', function() { const actions = checkAllCountdowns(); const statusEl = panel.querySelector('#moon-phase-status'); if (actions.length === 0) statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 巡检完成：暂无到期周期节点。</span>'; else { let html = '<b style="color:#fde047">捕捉到 ' + actions.length + ' 个到期节点：</b><br>'; actions.forEach(function(a) { html += '<span style="color:#93c5fd">[' + a.type + ']</span> ' + a.char + '<br>'; }); statusEl.innerHTML = html; } });
+    bindClick('#moon-phase-selfcheck', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#f472d0">运行自检...</span>'; const html = await runSelfCheckWithArcade(); statusEl.innerHTML = '<span style="color:#f9a8d4">✔ 自检完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 自检报告', html); });
+    bindClick('#moon-phase-simtest', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">运行测试...</span>'; const html = await runSimulationTest(); statusEl.innerHTML = '<span style="color:#6ee7b7">✔ 测试完成。</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 测试结果', html); });
+    bindClick('#moon-phase-conflict', async function() { const statusEl = panel.querySelector('#moon-phase-status'); statusEl.innerHTML = '<span style="color:#93c5fd">扫描冲突...</span>'; const result = await runConflictScan(); statusEl.innerHTML = result.hasConflict ? '<span style="color:#fbbf24">⚠ 发现冲突</span>' : '<span style="color:#6ee7b7">✔ 未发现冲突</span>'; showResultDialog(SYSTEM_UI_NAME + ' · 冲突扫描', result.html); });
+    bindClick('#moon-phase-reroll', function() { openRerollDialog(panel); });
+    bindClick('#moon-phase-pack-migrate', function() { startMigrationPack(panel); });
+    bindClick('#moon-phase-bio', function() { openAuditionMainDialog(panel); });
     const rosterBtn = panel.querySelector('#moon-phase-roster');
     if (rosterBtn) rosterBtn.addEventListener('click', function() { openCharacterRosterDialog(panel); });
-    panel.querySelector('#moon-phase-bio-lib').addEventListener('click', function() { openBioLibraryDialog(panel); });
-    panel.querySelector('#moon-phase-user-bio').addEventListener('click', function() { openUserAuditionMainDialog(panel); });
-    panel.querySelector('#moon-phase-user-bio-lib').addEventListener('click', function() { openUserBioLibraryDialog(panel); });
-    panel.querySelector('#moon-phase-gallery').addEventListener('click', function() { openMemoryGalleryDialog(); });
-    panel.querySelector('#moon-phase-ending').addEventListener('click', function() { manualTriggerEnding(panel); });
-    panel.querySelector('#moon-phase-prompt-edit').addEventListener('click', function() { openPromptEditor(panel); });
-    panel.querySelector('#moon-phase-custom-ai').addEventListener('click', function() { openCustomAIConfigDialog(panel); });
-    panel.querySelector('#moon-phase-image-settings').addEventListener('click', function() { openImageGenerationSettingsDialog(panel); });
-    panel.querySelector('#moon-phase-faq').addEventListener('click', openFaqDialog);
-    panel.querySelector('#moon-phase-adapt').addEventListener('click', function() { openUnifiedAdaptDialog(panel); });
-    panel.querySelector('#moon-phase-ai-detect').addEventListener('click', function() { openAiConflictDialog(panel); });
-    panel.querySelector('#moon-token-refresh').addEventListener('click', function() { refreshTokenCard(panel); });
+    bindClick('#moon-phase-bio-lib', function() { openBioLibraryDialog(panel); });
+    bindClick('#moon-phase-user-bio', function() { openUserAuditionMainDialog(panel); });
+    bindClick('#moon-phase-user-bio-lib', function() { openUserBioLibraryDialog(panel); });
+    bindClick('#moon-phase-player-nickname', function() {
+      const current = getChatPlayerIdentity().nickname;
+      showModalDialogCancelable('设置本聊天的玩家昵称', '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:8px;">这个昵称只保存在当前聊天。使用同一张角色卡开新聊天时，可以设置另一套玩家身份。</div><input id="moon-chat-player-nickname-input" type="text" maxlength="32" value="' + lcdEscape(current) + '" placeholder="留空则跟随酒馆用户名" style="width:100%;box-sizing:border-box;padding:10px;background:#100b14;color:#f8eaf3;border:1px solid #74415f;border-radius:4px;">',
+        function() { const mask = mainDoc.getElementById('moon-modal-mask'); const input = mask && mask.querySelector('#moon-chat-player-nickname-input'); if (!input) return; if (saveChatPlayerIdentity({ nickname: input.value })) { try { injectUserBio(); } catch (e) {} toast('本聊天昵称已保存', 'success'); try { mask.remove(); } catch (e) {} refreshPanel(); } },
+        function() {}, { confirmText: '保存昵称', cancelText: '取消', onOpen: function(mask) { const input = mask.querySelector('#moon-chat-player-nickname-input'); if (input) input.focus(); } });
+    });
+    bindClick('#moon-phase-gallery', function() { openMemoryGalleryDialog(); });
+    bindClick('#moon-phase-ending', function() { manualTriggerEnding(panel); });
+    bindClick('#moon-phase-prompt-edit', function() { openPromptEditor(panel); });
+    bindClick('#moon-phase-custom-ai', function() { openCustomAIConfigDialog(panel); });
+    bindClick('#moon-phase-image-settings', function() { openImageGenerationSettingsDialog(panel); });
+    bindClick('#moon-phase-faq', openFaqDialog);
+    bindClick('#moon-phase-adapt', function() { openUnifiedAdaptDialog(panel); });
+    bindClick('#moon-phase-ai-detect', function() { openAiConflictDialog(panel); });
+    bindClick('#moon-token-refresh', function() { refreshTokenCard(panel); });
     setTimeout(function() { try { refreshTokenCard(panel); } catch (e) {} }, 120);
-    panel.querySelector('#moon-phase-scan-timeline').addEventListener('click', function() { openScanTimelineDialog(panel); });
-    panel.querySelector('#moon-phase-tl-gen').addEventListener('click', function() { openTimelineGeneratorDialog(panel); });
-    if (panel.querySelector('#moon-phase-tl-list')) panel.querySelector('#moon-phase-tl-list').addEventListener('click', function() { openTimelineManagerDialog(panel); });
-    panel.querySelector('#moon-phase-manual-tl').addEventListener('click', function() { openManualTimelineInputDialog(panel); });
-    panel.querySelector('#moon-phase-tl-tag').addEventListener('click', function() { openTimelineTagDialog(panel); });
+    bindClick('#moon-phase-scan-timeline', function() { openScanTimelineDialog(panel); });
+    bindClick('#moon-phase-tl-gen', function() { openTimelineGeneratorDialog(panel); });
+    if (panel.querySelector('#moon-phase-tl-list')) bindClick('#moon-phase-tl-list', function() { openTimelineManagerDialog(panel); });
+    bindClick('#moon-phase-manual-tl', function() { openManualTimelineInputDialog(panel); });
+    bindClick('#moon-phase-tl-tag', function() { openTimelineTagDialog(panel); });
   }
   /* ───────────────────────────────────────────────────────── */
   async function runSelfCheck() {
@@ -674,6 +707,26 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
       else lines.push('✖ 重大事件计算失败');
     } catch (e) { lines.push('✖ 公式仿真异常：' + (e.message || e)); }
 
+    lines.push('<div class="mp-log-subhead">【测试4A】负向好感必须扣分，且不占正向周额度</div>');
+    try {
+      const mockNegative = { 好感度: 20, 肉体值: 0, 阶段值: 1, 嫉妒值: 0, _quota: { 好感度周上限已用: 1.0 } };
+      const negativeRoll = { 事件类型: '日常', 方向: '负向', 主维度: 'E', 基础值: 2.0 };
+      const negativeResult = computeCharDelta(mockNegative, negativeRoll, 'hell');
+      const quotaUnchanged = Number(mockNegative._quota.好感度周上限已用) === 1.0;
+      if (negativeResult && negativeResult.delta < 0 && quotaUnchanged) lines.push('✔ 负向标签确实扣减 E，且没有消耗正向周额度');
+      else lines.push('✖ 负向结算异常：Δ=' + (negativeResult && negativeResult.delta) + '，周额度未变=' + quotaUnchanged);
+    } catch (e) { lines.push('✖ 负向结算测试异常：' + (e.message || e)); }
+
+    lines.push('<div class="mp-log-subhead">【测试4B】周上限必须压住超额正向加分</div>');
+    try {
+      const mockQuota = { 好感度: 20, 肉体值: 0, 阶段值: 1, 嫉妒值: 0, _quota: { 好感度周上限已用: 2.5 } };
+      const positiveRoll = { 事件类型: '重大', 方向: '正向', 主维度: 'E', 基础值: 8.0 };
+      const quotaResult = computeCharDelta(mockQuota, positiveRoll, 'hell');
+      const withinCap = quotaResult && quotaResult.delta === 0.5 && Number(mockQuota._quota.好感度周上限已用) === 3.0;
+      if (withinCap) lines.push('✔ 地狱难度周额度剩余 0.5 时，实际只入账 0.5');
+      else lines.push('✖ 周上限异常：实际 Δ=' + (quotaResult && quotaResult.delta) + '，已用=' + (mockQuota._quota && mockQuota._quota.好感度周上限已用));
+    } catch (e) { lines.push('✖ 周上限测试异常：' + (e.message || e)); }
+
     lines.push('<div class="mp-log-subhead">【测试5】阶段门仿真</div>');
     try {
       const mockCh = { 好感度: 19, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, _quota: { R阶段门: false }, _lastRoll: {} };
@@ -722,16 +775,19 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
     try {
       const mockStat = {
         世界: { 时间: '2000年01月01日 · 星期六 · 00:00', 地点: '教室', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' },
-        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '', 心声: '……', 在场: true, 重要度: '主要' } }
+        角色: { '长谷川茗': { 好感度: 10, 肉体值: 0, 阶段值: 0, 嫉妒值: 0, 情绪: '', 心声: '……', 在场: true, 重要度: '主要', 对玩家称呼: '' } }
       };
-      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=\n角色.长谷川茗.心声=今天真开心。\n世界.时间=2000年01月02日 · 星期日 · 21:30';
+      const mockMes = 'Ta笑了笑。\n[Sylveina|L|+|1.5]\ns\n角色.长谷川茗.情绪=\n角色.长谷川茗.心声=今天真开心。\n角色.长谷川茗.对玩家称呼=小月\n世界.时间=2000年01月02日 · 星期日 · 21:30';
       const res = ingestBackendVariables(mockMes, mockStat);
       const okTime = String(mockStat.世界.时间).indexOf('01月02日') >= 0;
       const okVoice = String(mockStat.角色['长谷川茗'].心声).indexOf('开心') >= 0;
       const okEmoji = String(mockStat.角色['长谷川茗'].情绪) === '';
-      const okStrip = String(res.text).indexOf('角色.长谷川茗.心声') < 0 && String(res.text).indexOf('世界.时间') < 0;
-      if (okTime && okVoice && okEmoji && okStrip) lines.push('✔ 时间 / 心声 / 情绪 均被写入，且已从正文清理');
-      else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 清理' + okStrip);
+      const okNick = String(mockStat.角色['长谷川茗'].对玩家称呼) === '小月';
+      const repeatRes = ingestBackendVariables('角色.长谷川茗.心声=今天真开心。', mockStat);
+      const okRepeat = (repeatRes.applied || []).indexOf('长谷川茗.心声重复') >= 0;
+      const okStrip = String(res.text).indexOf('角色.长谷川茗.心声') < 0 && String(res.text).indexOf('角色.长谷川茗.对玩家称呼') < 0 && String(res.text).indexOf('世界.时间') < 0;
+      if (okTime && okVoice && okEmoji && okNick && okRepeat && okStrip) lines.push('✔ 时间 / 心声 / 情绪 / 专属称呼均被写入；重复心声可识别，后台行已从正文清理');
+      else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 昵称' + okNick + ' 重复识别' + okRepeat + ' 清理' + okStrip);
     } catch (e) { lines.push('✖ 后台变量摄入异常：' + (e.message || e)); }
 
     lines.push('<div class="mp-log-subhead">【测试10】多人卡标签隔离</div>');
@@ -1131,7 +1187,8 @@ const stateKey = getChatStateKey();
           if (!d || !d.stat_data || !d.stat_data.角色 || !d.stat_data.角色[pendingResult.name]) { toast('写入失败：找不到角色', 'warning'); return; }
           const target = d.stat_data.角色[pendingResult.name];
           target[pendingResult.fieldName] = pendingResult.newValue;
-          if (target._quota && pendingResult.newWeeklyUsed !== undefined) {
+          if (pendingResult.newWeeklyUsed !== undefined) {
+            if (!target._quota || typeof target._quota !== 'object') target._quota = {};
             target._quota.好感度周上限已用 = pendingResult.newWeeklyUsed;
           }
           if (pendingResult.lastRoll) {

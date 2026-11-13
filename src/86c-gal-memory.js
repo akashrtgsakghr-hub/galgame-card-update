@@ -17,7 +17,19 @@
   let _galMemoryBrokenToastAt = 0;
 
   function galDefaultMemory() {
-    return { version: 1, turns: [], stages: [], long: [], updatedAt: 0, builtinSince: Date.now() };
+    return { version: 2, turns: [], stages: [], long: [], choices: [], updatedAt: 0, builtinSince: Date.now() };
+  }
+  function galRecordPlayerChoice(choiceText, floorIdx) {
+    const text = String(choiceText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    if (!text) return false;
+    const mem = galGetMemory();
+    const last = mem.choices.length ? mem.choices[mem.choices.length - 1] : null;
+    if (last && last.text === text && Number(last.floor) === Number(floorIdx)) return true;
+    mem.choices.push({ text: text, floor: Number.isFinite(Number(floorIdx)) ? Number(floorIdx) : -1, at: Date.now() });
+    if (mem.choices.length > 40) mem.choices = mem.choices.slice(-40);
+    galSaveMemory(mem);
+    try { injectGalMemoryPrompt(); } catch (e) {}
+    return true;
   }
   function galGetMemory() {
     const raw = readChatFeatureValue(GAL_MEMORY_KEY, null);
@@ -25,6 +37,7 @@
     if (!Array.isArray(mem.turns)) mem.turns = [];
     if (!Array.isArray(mem.stages)) mem.stages = [];
     if (!Array.isArray(mem.long)) mem.long = [];
+    if (!Array.isArray(mem.choices)) mem.choices = [];
     return mem;
   }
   function galSaveMemory(mem) {
@@ -34,6 +47,8 @@
     if (next.turns.length > 60) next.turns = next.turns.slice(-60);
     if (next.stages.length > 30) next.stages = next.stages.slice(-30);
     if (next.long.length > 20) next.long = next.long.slice(-20);
+    if (!Array.isArray(next.choices)) next.choices = [];
+    if (next.choices.length > 40) next.choices = next.choices.slice(-40);
     writeChatFeatureValue(GAL_MEMORY_KEY, next);
     return next;
   }
@@ -156,7 +171,7 @@
     const s = galGetSettings();
     if (s.memoryInject === false) return '';
     const mem = galGetMemory();
-    if (!mem.turns.length && !mem.stages.length && !mem.long.length) return '';
+    if (!mem.turns.length && !mem.stages.length && !mem.long.length && !(mem.choices && mem.choices.length)) return '';
 
     const parts = [];
     // ① 当前场景 / 未完成事件
@@ -187,17 +202,21 @@
     if (charBits.length) sceneBits.push('当前情绪：' + charBits.slice(0, 4).join('；'));
     if (sceneBits.length) parts.push('【当前场景与状态】\n· ' + sceneBits.join('\n· '));
 
-    // ② 最近三回合
+    // ② 玩家明确选择过的选项：这是已发生的玩家决策，不得改写成 AI 替玩家作出的决定。
+    const choices = (mem.choices || []).slice(-12);
+    if (choices.length) parts.push('【玩家选择记录 · 已确认】\n' + choices.map(function(c) { return '· ' + c.text; }).join('\n') + '\n这些是玩家亲自点选的行动/回答。后续剧情应承认其结果，不得擅自替换、否认或重复询问已经明确作出的选择。');
+
+    // ③ 最近三回合
     const recent = mem.turns.slice(-3);
     if (recent.length) {
       parts.push('【最近三回合】\n' + recent.map(function(t) { return '· ' + t.text; }).join('\n'));
     }
-    // ③ 阶段摘要（取最近 3 条）
+    // ④ 阶段摘要（取最近 3 条）
     const stages = mem.stages.slice(-3);
     if (stages.length) {
       parts.push('【阶段摘要】\n' + stages.map(function(stage) { return '· ' + stage.text; }).join('\n'));
     }
-    // ④ 长期记忆（取最近 2 条）
+    // ⑤ 长期记忆（取最近 2 条）
     const longs = mem.long.slice(-2);
     if (longs.length) {
       parts.push('【长期剧情记忆】\n' + longs.map(function(l) { return '· ' + l.text; }).join('\n'));

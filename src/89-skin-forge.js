@@ -66,7 +66,7 @@
   }
 
   function forgeDocText(o, desc) {
-    return ['# 月相系统 · 自制美化文档', '',
+    return ['# ' + SYSTEM_MENU_NAME + ' · 自制美化文档', '',
       '- 皮肤名：' + (o.name || '(未命名)'),
       '- 玩家描述：' + (desc || ''),
       '- 生成时间：' + new Date().toLocaleString(), '',
@@ -81,7 +81,7 @@
       '## 生成用的提示词', FENCE, buildPrompt(desc).system, '', buildPrompt(desc).user, FENCE, '',
       '## 额外 CSS', FENCE + 'css', sanitizeCss(o.css || ''), FENCE, '',
       '## 怎么用',
-      '1. 在月相系统 → 外观与阅读 → 自制美化，把这段 JSON 存下来；',
+      '1. 在' + SYSTEM_MENU_NAME + ' → 外观与阅读 → 自制美化，把这段 JSON 存下来；',
       '2. 或把上面的 CSS 手动放进酒馆的自定义 CSS 里；',
       '3. 想继续改，把这份文档丢给任意模型，让它按同一份 schema 再调。'
     ].join('\n');

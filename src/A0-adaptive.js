@@ -126,7 +126,7 @@
     const now = String(worldTime || '2000年01月01日 · 星期六 · 00:00');
     const stage = getRStageFromE(0);
     return {
-      语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+      语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '', 对玩家称呼: '',
       好感度: 0, 肉体值: 0, 阶段值: stage.r, 嫉妒值: 0,
       情绪: '😐', 心声: '……', 在场: true, 重要度: '主要',
       _invidia: { 重力等级: '', 骰子判定阈值: 0, 每日衰减基数: 0, 大失败反噬值: 0, 主动互动阈值: 30 },
@@ -371,7 +371,7 @@
   }
 
   function openAdaptiveResultDialog(charName, provider, initial) {
-    const initE = Number(initial.好感度) || 0; const initP = Number(initial.肉体值) || 0;
+    const initE = Math.max(-100, Math.min(100, Number(initial.好感度) || 0)); const initP = Number(initial.肉体值) || 0;
     const initI = Number(initial.嫉妒值) || 0; const initEmoji = String(initial.情绪 || '😐');
     const initVoice = String(initial.心声 || '……'); const initReason = String(initial.推断理由 || '');
     const initStage = getRStageFromE(initE);
@@ -384,7 +384,7 @@
     showModalDialogCancelable('🌅 自适应开局 · 确认', html,
       function() {
         const mask = mainDoc.getElementById('moon-modal-mask');
-        const finalE = Number(mask.querySelector('#moon-open-e').value) || 0; const finalP = Number(mask.querySelector('#moon-open-p').value) || 0;
+        const finalE = Math.max(-100, Math.min(100, Number(mask.querySelector('#moon-open-e').value) || 0)); const finalP = Number(mask.querySelector('#moon-open-p').value) || 0;
         const finalStage = getRStageFromE(finalE); try { mask.remove(); } catch (e) {}
         applyAdaptiveOpening(charName, { e: finalE, p: finalP, r: finalStage.r, i: initI, emoji: initEmoji, voice: initVoice });
       },
@@ -445,7 +445,7 @@ async function applyAdaptiveOpening(charName, values) {
     const name = charName || '主角';
     if (!statData.角色[name]) {
       statData.角色[name] = {
-        语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+        语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '', 对玩家称呼: '',
         好感度: values.e || 0, 肉体值: values.p || 0, 阶段值: values.r || 0, 嫉妒值: values.i || 0,
         情绪: values.emoji || '😐', 心声: values.voice || '……',
         在场: true, 重要度: values.importance || '主要',
@@ -631,7 +631,7 @@ async function applyAdaptiveOpening(charName, values) {
         if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
       } else {
         statData.角色[name] = {
-          语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '',
+          语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '', 对玩家称呼: '',
           好感度: item.好感度, 肉体值: item.肉体值, 阶段值: item.阶段值, 嫉妒值: item.嫉妒值,
           情绪: item.情绪, 心声: item.心声, 在场: true, 重要度: item.重要度 || '主要',
           _invidia: { 重力等级: '', 骰子判定阈值: 0, 每日衰减基数: 0, 大失败反噬值: 0, 主动互动阈值: 30 },

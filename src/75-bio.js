@@ -1,4 +1,18 @@
   function onMessageDeletedOrSwiped() {
+    // swipe/删除后，酒馆可能在同一个楼层索引写入新回复；清掉旧同步楼层标记，让新版本重新摄入。
+    try {
+      const state = readMvuLatest();
+      const chars = state && state.stat_data && state.stat_data.角色;
+      let dirty = false;
+      if (chars && typeof chars === 'object') Object.keys(chars).forEach(function(name) {
+        const ch = chars[name]; const q = ch && ch._quota;
+        if (!q || q._心声同步楼层 === undefined) return;
+        delete q._心声同步楼层;
+        q._心声同步状态 = '等待本轮回复';
+        dirty = true;
+      });
+      if (dirty) writeMvuLatest(state.stat_data).then(function() { try { refreshPanel(); } catch (e) {} });
+    } catch (e) {}
     // Galgame 层：清掉越界分页进度并刷新展示（不改聊天记录）
     setTimeout(function() { try { onGalMessageMutated(); } catch (e) {} }, 120);
     setTimeout(function() {
@@ -18,19 +32,38 @@
     try { mainWin.localStorage.setItem(USER_BIO_LIBRARY_KEY, JSON.stringify(lib)); return true; } catch (e) { return false; }
   }
   function genUserBioId() { return 'ubio_' + Date.now() + '_' + Math.floor(Math.random() * 100000); }
+  /* 玩家身份是聊天存档，不是角色卡属性。同一张卡的不同聊天可选择不同玩家小抄与昵称。 */
+  const CHAT_PLAYER_IDENTITY_KEY = 'moon_chat_player_identity_v1';
+  function getChatPlayerIdentity() {
+    const raw = readChatFeatureValue(CHAT_PLAYER_IDENTITY_KEY, null);
+    const p = raw && typeof raw === 'object' ? raw : {};
+    return { bioId: String(p.bioId || ''), nickname: String(p.nickname || '').trim().slice(0, 32), bioChoiceSet: p.bioChoiceSet === true };
+  }
+  function saveChatPlayerIdentity(patch) {
+    const next = Object.assign({}, getChatPlayerIdentity(), patch || {});
+    if (patch && Object.prototype.hasOwnProperty.call(patch, 'bioId')) next.bioChoiceSet = true;
+    next.nickname = String(next.nickname || '').trim().slice(0, 32);
+    const ok = writeChatFeatureValue(CHAT_PLAYER_IDENTITY_KEY, next);
+    if (!ok) toast('当前聊天身份保存失败，请检查酒馆存档/浏览器存储权限', 'warning');
+    return ok;
+  }
   function getEnabledUserBio() {
     try {
       const lib = getUserBioLibrary();
-      const enabled = Object.values(lib.userBios || {}).filter(function(b) { return b && b.enabled === true && b.versions && b.versions.current && b.versions.current.content; });
-      if (enabled.length === 0) return null;
-      enabled.sort(function(a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
-      return enabled[0];
+      const identity = getChatPlayerIdentity();
+      if (identity.bioId && lib.userBios[identity.bioId] && lib.userBios[identity.bioId].versions && lib.userBios[identity.bioId].versions.current && lib.userBios[identity.bioId].versions.current.content) return lib.userBios[identity.bioId];
+      // 旧版本迁移：只把旧的全局启用项复制为当前聊天的选择，不再继续全局联动。
+      const legacy = Object.values(lib.userBios || {}).filter(function(b) { return b && b.enabled === true && b.versions && b.versions.current && b.versions.current.content; });
+      legacy.sort(function(a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+      if (!identity.bioChoiceSet && !identity.bioId && legacy.length) { saveChatPlayerIdentity({ bioId: legacy[0].id }); return legacy[0]; }
+      return null;
     } catch (e) { return null; }
   }
   function collectCurrentPlayerPersona() {
     const ctx = getSTCtx();
+    const identity = getChatPlayerIdentity();
     let name = ''; let persona = '';
-    try { name = (ctx && (ctx.name1 || ctx.name)) || ''; } catch (e) {}
+    try { name = identity.nickname || (ctx && (ctx.name1 || ctx.name)) || ''; } catch (e) {}
     function _pickString(v) { if (!v) return ''; if (typeof v === 'string') return v; if (typeof v === 'object') return String(v.description || v.persona || v.value || ''); return ''; }
     try {
       if (ctx) {
@@ -50,21 +83,28 @@
   function injectUserBio() {
     try {
       const bio = getEnabledUserBio();
-      if (!bio || !bio.versions || !bio.versions.current) { callSetPrompt(USER_BIO_PROMPT_KEY, '', 0, 0, false); return null; }
-      const content = String(bio.versions.current.content || '').trim();
-      if (!content) { callSetPrompt(USER_BIO_PROMPT_KEY, '', 0, 0, false); return null; }
+      const identity = getChatPlayerIdentity();
+      const content = bio && bio.versions && bio.versions.current ? String(bio.versions.current.content || '').trim() : '';
+      if (!content && !identity.nickname) { callSetPrompt(USER_BIO_PROMPT_KEY, '', 0, 0, false); return null; }
       const lines = [];
       lines.push('═══════════════════════════════════');
-      lines.push('👤【最高优先级 · 玩家角色演出覆盖】');
-      lines.push('本卡已启用「玩家角色小抄」。{{user}} 的演绎请完全以下方小抄为准。');
-      lines.push('忽略 SillyTavern Persona 面板中的 {{user}} 设定（如有）。');
-      lines.push('如遇任何冲突，一律以本小抄为准。');
-      lines.push('（注：本轮剧情中其他设定（角色卡、世界书、预设等）不受本小抄影响，照常生效。）');
-      lines.push(''); lines.push(content); lines.push('═══════════════════════════════════');
+      lines.push('👤【本聊天玩家身份档案】');
+      if (identity.nickname) lines.push('玩家在本聊天使用的昵称：' + identity.nickname + '。称呼玩家时优先使用此名；此昵称仅属于当前聊天，不得带入同角色卡的其他聊天。');
+      if (content) {
+        lines.push('当前聊天已选中「玩家角色小抄」。{{user}} 的演绎以本聊天选中的小抄为准。');
+        lines.push('忽略 SillyTavern Persona 面板中的 {{user}} 设定（如有）。');
+        lines.push('如遇任何冲突，一律以本聊天小抄为准。');
+        lines.push('（注：角色卡、世界书、预设等其他设定照常生效。）');
+        lines.push(''); lines.push(content);
+      } else {
+        lines.push('当前聊天未启用玩家小抄；不要凭空补充玩家身份、外貌、经历或性格。');
+      }
+      lines.push('═══════════════════════════════════');
       callSetPrompt(USER_BIO_PROMPT_KEY, lines.join('\n'), 4, 1, false);
       return bio;
-    } catch (e) { console.warn('[Doki] 玩家小抄注入失败：', e); return null; }
+    } catch (e) { console.warn('[Doki] 玩家身份提示注入失败：', e); return null; }
   }
+
   /* ───────────────────────────────────────────────────────── */
   function hasBioForCurrentCard() {
     try {
@@ -171,10 +211,10 @@
       if (charNames.length === 0) { callSetPrompt(PROMPT_KEY + '_bio', '', 0, 0, false); return { count: 0, charNames: [] }; }
       const lines = [];
       lines.push('═══════════════════════════════════');
-      lines.push('📖【最高优先级 · 角色演出覆盖】');
-      lines.push('本卡已启用「角色小抄」。以下角色的演绎请完全以小抄为准。');
-      lines.push('忽略角色卡描述、性格、场景、世界观条目里关于这些角色的所有原设定。');
-      lines.push('如遇任何冲突，一律以小抄为准，不得参考原设定。');
+      lines.push('📖【角色小抄 · 人物补充资料】');
+      lines.push('本卡已启用「角色小抄」。以下内容用于补充角色的核心性格、说话声线、长期习惯和已确认经历。');
+      lines.push('不要把小抄中旧的对玩家态度描述当作当前关系数值；当前关系事实以本轮月相状态提示为准。');
+      lines.push('小抄不得覆盖当前关系记录，也不得据此自动推断角色必须亲近、顺从、冷淡或告白。');
       lines.push('');
       charNames.forEach(function(n) { const content = String(byChar[n].versions.current.content || '').trim(); lines.push('【' + n + '】'); lines.push(content); lines.push(''); });
       lines.push('═══════════════════════════════════');
@@ -397,15 +437,17 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
         null, { confirmText: '关闭' });
       return;
     }
+    const activeBio = getEnabledUserBio();
+    const activeBioId = activeBio ? activeBio.id : '';
     userBios.sort(function(a, b) {
-      if ((b.enabled ? 1 : 0) !== (a.enabled ? 1 : 0)) return (b.enabled ? 1 : 0) - (a.enabled ? 1 : 0);
+      if ((b.id === activeBioId ? 1 : 0) !== (a.id === activeBioId ? 1 : 0)) return (b.id === activeBioId ? 1 : 0) - (a.id === activeBioId ? 1 : 0);
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
     const rows = userBios.map(function(b) {
       const current = b.versions && b.versions.current ? b.versions.current.content : '';
       const preview = String(current).substring(0, 80);
       const wordCount = String(current).length;
-      const enabled = b.enabled === true;
+      const enabled = b.id === activeBioId;
       const timeAgo = (function() { const diff = Date.now() - (b.updatedAt || b.createdAt || 0); const days = Math.floor(diff / 86400000); if (days >= 1) return days + '天前'; const hours = Math.floor(diff / 3600000); if (hours >= 1) return hours + '小时前'; return '刚刚'; })();
       return '<div class="moon-ubio-card" data-id="' + b.id + '" style="margin-bottom:10px;background:#171a22;border:1px solid ' + (enabled ? 'rgba(110,231,183,0.4)' : 'rgba(148,163,184,0.15)') + ';border-radius:10px;overflow:hidden;">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.08);">' +
@@ -419,21 +461,31 @@ mask.querySelectorAll('.moon-bio-view-btn').forEach(function(btn) {
         '<button class="moon-ubio-edit-btn" data-id="' + b.id + '" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(168,85,247,0.4);background:#2a1040;color:#c084fc;font-size:10.5px;cursor:pointer;font-family:inherit;">✏️ 编辑</button>' +
         '<button class="moon-ubio-del-btn" data-id="' + b.id + '" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(239,68,68,0.4);background:#2a0a10;color:#fca5a5;font-size:10.5px;cursor:pointer;font-family:inherit;">🗑 删除</button></div></div>';
     }).join('');
-    const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">同时间只允许启用 1 份玩家小抄。启用新小抄会自动停用旧的。</div>' +
+    const html = '<div style="font-size:11px;color:#cbd5e1;line-height:1.7;margin-bottom:10px;">这里选择的是<strong>当前聊天</strong>的玩家身份。切换到同一角色卡的其他聊天，不会改变那边的选择；选择「不使用」即可清除此聊天的小抄。</div>' +
+      '<button type="button" class="moon-ubio-clear" style="width:100%;padding:8px;margin-bottom:8px;border:1px solid rgba(244,114,208,.35);background:#21101f;color:#f5c6e8;border-radius:6px;">本聊天不使用玩家小抄</button>' +
       '<div style="max-height:56dvh;overflow-y:auto;padding-right:4px;">' + rows + '</div>';
     showModalDialog('👤 玩家小抄库', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
+        const clearBioBtn = mask.querySelector('.moon-ubio-clear');
+        if (clearBioBtn) clearBioBtn.addEventListener('click', function() {
+          saveChatPlayerIdentity({ bioId: '' });
+          try { injectUserBio(); } catch (e) {}
+          toast('已清除当前聊天的玩家小抄选择', 'success');
+          try { mask.remove(); } catch (e) {}
+          setTimeout(function() { openUserBioLibraryDialog(panel); }, 180);
+        });
         mask.querySelectorAll('.moon-ubio-toggle').forEach(function(tg) {
           tg.addEventListener('click', function() {
             const id = tg.getAttribute('data-id'); const lib2 = getUserBioLibrary(); const target = lib2.userBios[id];
             if (!target) return;
-            const enable = target.enabled !== true;
-            if (enable) { Object.values(lib2.userBios || {}).forEach(function(x) { if (x) { x.enabled = false; x.updatedAt = Date.now(); } }); target.enabled = true; target.updatedAt = Date.now(); }
-            else { target.enabled = false; target.updatedAt = Date.now(); }
-            saveUserBioLibrary(lib2); toast(enable ? '已启用' : '已停用', 'success');
+            const enable = id !== getChatPlayerIdentity().bioId;
+            const saved = saveChatPlayerIdentity({ bioId: enable ? id : '' });
+            if (!saved) return;
+            try { injectUserBio(); } catch (e) {}
+            toast(enable ? '已记住：本聊天使用这份玩家设定' : '本聊天已停用这份玩家设定', 'success');
             try { mask.remove(); } catch (e) {}
-            setTimeout(function() { openUserBioLibraryDialog(panel); }, 300);
+            setTimeout(function() { openUserBioLibraryDialog(panel); }, 180);
           });
         });
         mask.querySelectorAll('.moon-ubio-view-btn').forEach(function(btn) {
@@ -1133,7 +1185,7 @@ async function tryApplyUpdateViaTavernHelper(code) {
     try { if (!runtimeScriptName && typeof scope.getScriptName === 'function') runtimeScriptName = String(scope.getScriptName() || ''); } catch (e) {}
   });
   const scriptIds = [runtimeScriptId, fixedScriptId].filter(function(id, index, all) { return id && all.indexOf(id) === index; });
-  const scriptNames = [runtimeScriptName, 'Galgame攻略系统', '月相系统', '🌕 月相系统'].filter(function(name, index, all) { return name && all.indexOf(name) === index; });
+  const scriptNames = [runtimeScriptName, SYSTEM_UI_NAME, SYSTEM_MENU_NAME].concat(SYSTEM_LEGACY_NAMES).filter(function(name, index, all) { return name && all.indexOf(name) === index; });
   const listScripts = function(nodes, out) {
     (nodes || []).forEach(function(node) {
       if (!node || typeof node !== 'object') return;

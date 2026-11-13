@@ -41,10 +41,18 @@
       '@font-face{font-family:"MP Fusion Pixel";src:url("https://fontpixel.com/downloads/fusion-pixel-monospaced-zh-Hans-12px-square.woff2") format("woff2");font-style:normal;font-weight:400;font-display:swap;}' +
       '#moon-phase-panel{background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0,rgba(255,255,255,.012) 1px,transparent 1px,transparent 4px),linear-gradient(180deg,#160b18 0%,#09060d 100%) !important;border:2px solid #f472d0 !important;border-radius:4px !important;padding:16px !important;font-family:"Courier New",monospace !important;box-shadow:0 0 0 3px #2a1029,0 0 28px rgba(244,114,208,.26) !important;image-rendering:pixelated;}' +
       '#moon-phase-panel .mp-head{border-bottom:2px dashed rgba(244,114,208,.45) !important;}' +
-      '#moon-phase-panel .mp-display-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:10px 0;padding:4px;background:#0b080d;border:1px solid #59304d;box-shadow:inset 0 0 0 1px rgba(244,114,208,.04);}' +
+      '#moon-phase-panel .mp-display-mode-switch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin:10px 0;padding:4px;background:#0b080d;border:1px solid #59304d;box-shadow:inset 0 0 0 1px rgba(244,114,208,.04);}' +
       '#moon-phase-panel .mp-display-mode-switch button{min-height:37px;padding:7px 9px;border:1px solid #42253a;background:#160e18;color:#b7a2b4;font:600 12px/1.4 "MP Fusion Pixel","Zpix","Fusion Pixel 10px Monospaced SC","PixelMplus12","Courier New",monospace;letter-spacing:.3px;cursor:pointer;}' +
       '#moon-phase-panel .mp-display-mode-switch button.active{border-color:#f472d0;background:#35142e;color:#ffd3ef;box-shadow:inset 0 0 0 1px rgba(255,190,232,.12),2px 2px 0 #35152f;}' +
       '#moon-phase-panel.mp-display-arcade .mp-system-content{display:none !important;}' +
+      '#moon-phase-panel.mp-display-pocket .mp-system-content,#moon-phase-panel.mp-display-pocket .mp-mode-select-card{display:none !important;}' +
+      '#moon-phase-panel .mp-pocket-card{padding:5px !important;background:#0d0910 !important;border-color:#3a2a36 !important;}' +
+      '#moon-phase-panel .mp-pocket-slot{display:block;width:100%;height:min(76vh,620px);background:#0d0910;' +
+        'border:1px solid #3a2a36;overflow:hidden;}' +
+      /* 面板自己也有 overflow-y:auto，如果 iframe 又按内容撑到很高，手机上就会「先滚面板再滚掌机」。
+         这里把 iframe 高度锁在 76vh，超出部分交给掌机内部滚动（它已关闭整页滚动）。 */
+      '#moon-phase-panel .mp-pocket-card{overflow:hidden;}' +
+      '#moon-phase-panel .mp-pocket-hint{padding:12px;font-size:11px;line-height:1.7;color:#c9a3b8;}' +
       '#moon-phase-panel.mp-display-arcade .mp-mode-select-card{margin-bottom:0;}' +
       '#moon-phase-panel .mp-title{color:#ffb8eb !important;text-shadow:2px 2px #5a164d;letter-spacing:.5px !important;font-size:12px !important;}' +
       '#moon-phase-panel .mp-title-orb{filter:drop-shadow(0 0 5px #f472d0);}' +
@@ -150,12 +158,13 @@
       '.mp-arcade-hud{display:flex;justify-content:space-between;font-size:12px;color:#18271a;margin:0 auto 5px;max-width:320px;}' +
       '.mp-arcade-hud b{color:#f0ffdb;font-weight:600;margin-left:4px;text-shadow:0 0 5px rgba(200,230,171,.24);}' +
       '.mp-arcade-record-time{margin:-1px auto 5px;color:#18271a;font-size:8px;letter-spacing:.4px;}' +
-      '#moon-arcade-canvas{display:block;width:min(320px,100%);height:auto;margin:0 auto;border:2px solid #64775e;background:#17241b;box-shadow:inset 0 0 12px rgba(8,16,10,.5);image-rendering:pixelated;touch-action:manipulation;}' +
+      '.mp-arcade-session-stats{margin:5px auto 0;color:#263a28;font-size:9px;letter-spacing:.2px;}' +
+      '.mp-arcade-frame{display:block;width:min(100%,520px);height:164px;margin:0 auto;border:2px solid #64775e;background:#7d896f;image-rendering:pixelated;touch-action:manipulation;}' +
       '.mp-arcade-state{min-height:18px;margin-top:8px;color:#18271a;font-size:12px;letter-spacing:.5px;}' +
       '.mp-arcade-foot{margin-top:6px;color:#18271a;font-size:12px;line-height:1.5;}' +
       '.mp-arcade-exit{margin-top:8px;padding:5px 10px;background:#27352a;border:1px solid #71866b;color:#dce9cc;font:10px "Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 #101812;}' +
       '.mp-arcade-brand,.mp-arcade-title,.mp-arcade-hud,.mp-arcade-hud b,.mp-arcade-state,.mp-arcade-foot{color:#18271a !important;text-shadow:none !important;}' +
-      '#moon-arcade-canvas{border-color:#182019 !important;background:#7d896f !important;box-shadow:none !important;}' +
+      '.mp-arcade-frame{border-color:#182019 !important;background:#7d896f !important;box-shadow:none !important;}' +
       '.mp-arcade-exit{background:#7d896f !important;border-color:#182019 !important;color:#182019 !important;}' +
       '.mp-lcd-game{padding:8px !important;}' +
       '.mp-lcd-game .mp-arcade-box{width:100%;padding:9px 7px 8px;border-width:2px;outline:2px solid #101912;}' +

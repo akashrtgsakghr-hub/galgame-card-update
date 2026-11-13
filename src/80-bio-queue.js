@@ -67,7 +67,7 @@
   }
   async function _mb_rewriteForR(charName, oldBio, newR, newRStageName, wordLimit, chatHistory) {
     const provider = getAdaptModelPref();
-    const sysPrompt = ['你是一位剧组选角导演。这个角色与玩家的关系阶段刚刚发生了推进。', '请根据新的阶段，重写这位角色的灵魂小传。', '', '【新的关系阶段】R=' + newR + '（' + (newRStageName || '') + '）', '', '【重写要求】', '1. 保留【底色】部分的角色核心性格（可以微调措辞，但本质不变）', '2. 重点改写【对玩家的态度】部分，体现新的关系阶段', '3. 【行为锚点】和【台词声线】相应调整', '4. 总字数不超过 ' + wordLimit + ' 字', '5. 只输出小传内容，不要任何前言后记、不要 markdown、不要复述角色卡', '', '【格式】保留原来的四块结构：[core personality] / [attitude toward player] / [behavioral triggers] / [three voice sample lines]'].join('\n');
+    const sysPrompt = ['你是一位剧组选角导演。这个角色的脚本关系阶段记录刚刚发生变化。', '请维护灵魂小传中的人物理解，但不要把数值阶段转换成行为命令。', '', '【当前阶段记录】R=' + newR + '（' + (newRStageName || '') + '）', '', '【重写要求】', '1. 保留【底色】中的核心性格、价值观、边界与说话声线，不得为了阶段变化改变人格。', '2. 不因 R 数值自动改写角色对玩家的亲密程度、主动性、服从度、占有欲或告白倾向。', '3. 若最近剧情确实出现新的关系事实，只能补充已经发生的事实；没有发生的内容不得推断或编造。', '4. 总字数不超过 ' + wordLimit + ' 字', '5. 只输出小传内容，不要任何前言后记、不要 markdown、不要复述角色卡', '', '【格式】保留原来的四块结构：[core personality] / [attitude toward player] / [behavioral triggers] / [three voice sample lines]'].join('\n');
     const userPrompt = '【角色名】' + charName + '\n\n【当前小传】\n' + oldBio + (chatHistory ? '\n\n【最近剧情参考】\n' + chatHistory : '') + '\n\n请输出重写后的小传。';
     const reply = await callOpeningModel(provider, sysPrompt, userPrompt);
     let text = String(reply || '').trim();

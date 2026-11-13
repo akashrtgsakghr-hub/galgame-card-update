@@ -65,6 +65,8 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `86d-gal-save.js` | 246 | 存档读档：指纹定位、回退能力探测、预检、只恢复画面 / 真回退两种读档 |
 | `86e-gal-ui.js` | 1291 | 沉浸界面：墨樱配色、单行顶栏、分页渲染、选项交互、工具栏、历史 / 存档 / 标签 / 设置面板 |
 | `86f-gal-boot.js` | 63 | 沉浸模式启动：CSS 注入、按 DOM 判断开关、事件挂载（入口在面板里） |
+| `87-pocket-embed.js` | 15 | 掌机整页的内嵌副本（一整页 HTML 的 base64）。**由 `moon-pocket/tools/pack-pocket.mjs` 生成，不要手改** | 
+| `87a-pocket-host.js` | 110 | 掌机宿主侧：面板里的占位块、挂到 body 的持久 iframe 容器、坐标跟随、可见性停转、存档回传 chatMetadata |
 
 文件名前缀只是排序用的编号，`A*` 排在 `9*` 后面。
 

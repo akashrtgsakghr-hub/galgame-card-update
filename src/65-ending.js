@@ -104,6 +104,17 @@
     _endingFlowArmedAt = 0;
     return ok;
   }
+  // 只查询、不消费：parseGalgameEndingPayload 会先 consume 掉 arm，
+  // 之后渲染报幕卡时仍需知道「这次结算是不是玩家发起的」。
+  function isEndingFlowArmed() {
+    return _endingFlowArmedAt > 0 && (Date.now() - _endingFlowArmedAt) < ENDING_FLOW_ARM_TTL;
+  }
+  // 归档闸门保证 records 里只会有玩家发起周目结算后写进来的记录，
+  // 所以「arm 有效」或「图鉴非空」都等价于玩家已经点过周目结算。
+  function hasPlayerInitiatedEnding() {
+    if (isEndingFlowArmed()) return true;
+    try { return (getEndingArchive().records || []).length > 0; } catch (e) { return false; }
+  }
 
   function ensureEndingRecordArchived(record) {
     if (!record || !record.id) return;
@@ -140,6 +151,13 @@
 
   function renderGalgameEndingCurtainHtml(record) {
     const meta = ENDING_ROUTE_META[record.endingType] || ENDING_ROUTE_META.CustomEnd;
+    // 后日谈入口只在本聊天确实由玩家发起过「周目结算」之后出现。
+    // AI 自发冒出来的 [GalgameEnding|...] 仍照常渲染成报幕卡（老存档回放需要），
+    // 但不再主动询问「要不要看后日谈」。
+    const canEpilogue = hasPlayerInitiatedEnding();
+    const epilogueBtnHtml = canEpilogue
+      ? '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 查看后日谈 (5000~8000字番外)</button>'
+      : '';
     const playerInfo = collectCurrentPlayerPersona();
     const playerName = (playerInfo && playerInfo.name && playerInfo.name !== '(未命名玩家)') ? playerInfo.name : 'PLAYER / 观测者';
     const stageName = getRStageFromE(record.E).name;
@@ -212,6 +230,7 @@
           '「 ' + escapeFeatureHtml(record.monologue) + ' 」<span style="color:' + meta.accent + ';margin-left:6px;font-style:normal;">▼</span>' +
         '</div>' +
       '</div>' +
+      (canEpilogue ?
       '<!-- 终幕后日谈互动询问栏（内置正则交互：是否查看后日谈，点击自动填入聊天框并发送） -->' +
       '<div style="margin:0 16px 12px;padding:11px 14px;background:linear-gradient(90deg,rgba(14,32,52,0.94),rgba(34,13,40,0.94));border:1px dashed #7dd3fc;border-left:3px solid #7dd3fc;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:inset 0 0 14px rgba(125,211,252,0.14);">' +
         '<div style="flex:1;min-width:200px;font-size:11.5px;line-height:1.65;color:#e0f2fe;">' +
@@ -219,11 +238,12 @@
           '<div style="font-size:10.5px;color:#cbd5e1;">点下方按钮将自动填充提示词至聊天输入框并发送，让 AI 在当前对话内以《' + escapeFeatureHtml(record.charName) + '》视角继续创作一篇 <b>5000～8000字</b> 的结局后完整番外</div>' +
         '</div>' +
         '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:8px 14px;border:1px solid #7dd3fc;background:linear-gradient(180deg,#163c5e,#0c2136);color:#f0f9ff;font:600 11.5px monospace;cursor:pointer;box-shadow:2px 2px 0 #060d17;white-space:nowrap;">✨ 查看后日谈（自动填入发送）</button>' +
-      '</div>' +
+      '</div>'
+        : '<div style="margin:0 16px 12px;padding:10px 14px;border:1px solid rgba(125,211,252,.25);background:rgba(12,22,34,.6);font-size:10.5px;line-height:1.7;color:#9fb6c8;">📖 AFTER STORY · 后日谈尚未解锁。请先在系统面板发起「周目结算」，完成终幕报幕后再查看番外。</div>') +
       '<!-- 报幕互动操作台（显影结局CG / 查看后日谈 / 导出结算卡 / 回忆画廊） -->' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 12px;">' +
         '<button type="button" data-mp-ending-action="cg" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #f472d0;background:#381230;color:#ffe4f7;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">🖼️ 显影结局 CG (横构图)</button>' +
-        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 查看后日谈 (5000~8000字番外)</button>' +
+        epilogueBtnHtml +
         '<button type="button" data-mp-ending-action="share" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:105px;padding:7px 8px;border:1px solid #fde047;background:#2d2110;color:#fef08a;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📸 导出结算卡</button>' +
         '<button type="button" data-mp-ending-action="gallery" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:7px 10px;border:1px solid #a855f7;background:#211132;color:#f3e8ff;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">🏆 画廊</button>' +
       '</div>' +
@@ -277,6 +297,8 @@
         };
         developCGItem(galItem);
       } else if (action === 'epilogue') {
+        // 旧楼层里已经渲染好的卡片仍可能被点到，这里再兜一道闸门。
+        if (!hasPlayerInitiatedEnding()) { toast('请先在系统面板发起「周目结算」，再查看后日谈', 'warning'); return; }
         injectAndSendEpiloguePromptToChatbox(record);
       } else if (action === 'epilogue_modal') {
         startEpilogueGenerationEngine(record.charName, record);
@@ -468,24 +490,31 @@
     scheduleSkinRefresh({ onlyLast: true });
   }
 
-  function onGenerationEnd() {
+  async function onGenerationEnd() {
     callSetPrompt(PROMPT_KEY + '_gate', '', 0, 0, false);
     if (timeJumpCooldown > 0) timeJumpCooldown--;
     injectSafetyLockStatus();
     injectFanficEnhanceNotice();
     // ⓪ 对面已经回过话、但还没有档案 → 先立一份 0 值档案
     //    （必须先于 ①：否则后台变量和后面的掷骰都找不到角色，整轮被跳过）
-    try { autoBootstrapCharacter('first-reply'); } catch (e) {}
-    // ① 先把 AI 写的后台变量（世界时间 / 情绪 / 心声 / 在场）吃进本地状态
-    try { applyBackendVariablesFromLatest(); } catch (e) {}
+    try { await autoBootstrapCharacter('first-reply'); } catch (e) {}
+    // ① 等建档落盘后再摄入本轮后台变量，避免新角色的旧快照覆盖刚收到的心声。
+    try { await applyBackendVariablesFromLatest(); } catch (e) {}
     sanitizeSylveinaRegexTail();
     beautifySylveinaTagsInDom();
-    const jumpInfo = checkTimeJump();
-    if (jumpInfo) { injectTimeJump(jumpInfo); }
-    else { callSetPrompt(PROMPT_KEY + '_jump', '', 0, 0, false); const actions = checkAllCountdowns(); injectCountdownActions(actions); }
-    injectEventPrompt();
+    // ② 先完成本轮时钟推进与常规关系结算，再检查倒计时/周周期，最后掷时间跳跃好感骰。
+    // 这样长时间跳跃会先完整换算成游戏日，倒计时与周额度不会晚一轮，也不会吃旧额度。
     setTimeout(function() {
-      Promise.resolve(runMoonCalculation()).finally(function() {
+      Promise.resolve(runMoonCalculation()).then(async function(calcResult) {
+        const countdownActions = calcResult && Array.isArray(calcResult.countdownActions) ? calcResult.countdownActions : checkAllCountdowns();
+        const jumpInfo = await checkTimeJump();
+        if (jumpInfo) { injectTimeJump(jumpInfo); }
+        else { callSetPrompt(PROMPT_KEY + '_jump', '', 0, 0, false); }
+        injectCountdownActions(countdownActions);
+        injectEventPrompt();
+      }).catch(function(e) {
+        try { console.warn('[Doki] 时间/关系结算流程异常：', e); } catch (ignore) {}
+      }).finally(function() {
         sanitizeSylveinaRegexTail();
         beautifySylveinaTagsInDom();
       });
