@@ -55,6 +55,9 @@ Galgame攻略系统-酒馆助手导入.json   同上，酒馆助手的脚本导�
 **改文档要改 `docs/` 里的 md，然后跑 `node scripts/embed-docs.mjs` 再 build**——
 脚本里的那份是生成的，手改会被下次生成覆盖。
 
+掌机里那张**手绘小地图**的做法与边界写在 [`docs/pocket-automap.md`](docs/pocket-automap.md)：
+不读内存、靠画面拼接（核心没有 RAM 出口），以及它做不到的三件事。
+
 另有一份 [`docs/travel-items-design.md`](docs/travel-items-design.md)：给这一版补「秘传替代道具 + 永久不遇敌」
 的设计稿（命名、台词、规则、技术边界）。它**不是**玩家文档，也不在脚本里，是留档与交接用的。
 

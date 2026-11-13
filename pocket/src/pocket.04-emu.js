@@ -116,10 +116,12 @@ var GBA_CORE = {
       if (veilText) veilText.textContent = "正在把卡带内容交给核心（" + (buf.length/1048576).toFixed(0) + " MB）";
       var romPtr = M._emuGetSymbol(1);
       M.HEAPU8.set(buf, romPtr);
-      var ret = M._emuLoadROM(buf.length);
+      var ret =       M._emuLoadROM(buf.length);
       M._emuResetCpu();
       coreBooted = true;
       coreStart();
+      /* 换一张卡带就是换一张地图册：旧页留着没意义 */
+      if (typeof mapReset === "function") mapReset();
       if (veil) veil.hidden = true;
       $("#core-state").textContent = "44vba / GPL-3.0 · 运行中";
       return ret;

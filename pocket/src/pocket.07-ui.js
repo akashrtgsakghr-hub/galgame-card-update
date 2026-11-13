@@ -203,6 +203,19 @@ window.MOON_POCKET={
   getSkin:function(){return JSON.parse(JSON.stringify(skinObj));},
   getMode:function(){return mode;},
   getRom:function(){return lastRom?Object.assign({},lastRom):null;},
+  /* 小地图：状态 / 开关 / 手动翻页。位置是画面拼出来的，不是读内存读来的 */
+  map:{
+    state:function(){
+      var tr=mapTracker, p=tr&&tr.page();
+      return { open:mapOpen, auto:mapAuto, pages:tr?tr.pages().length:0, cur:tr?tr.index():-1,
+        page:p?{ x:p.ox+MapCore.MID_X, y:p.oy+MapCore.MID_Y,
+          entry:p.entry?{x:p.entry.x,y:p.entry.y}:null,
+          exit:p.exit?{x:p.exit.x,y:p.exit.y}:null,
+          pastes:p.pastes }:null };
+    },
+    show:mapShow, hide:mapHide, toggle:mapToggle, reset:mapReset,
+    newPage:function(){ mapInit().newPage(); }
+  },
   list:function(){return CARTS.map(function(c){return {id:c.id,title:c.title,runtime:c.runtime,license:c.license};});},
   resetAskFlag:function(){LS.removeItem(FLAG_PREFIX+"cheat-asked");}
 };

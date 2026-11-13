@@ -9,6 +9,7 @@
 //   pocket.02-pages.css     规范区、弹层、世界书、美化抽屉、响应式、嵌入模式
 //   pocket.03-cheat.css     金手指台
 //   pocket.04-guide.css     攻略抽屉与分册条
+//   pocket.05-map.css       小地图窗与妈妈的便条
 //   pocket.00-base.js       工具函数、LS 存储
 //   pocket.01-skin.js       皮肤引擎（配色派生、预设）
 //   pocket.02-screen.js     屏内游戏位、卡带目录、屏内导航
@@ -17,6 +18,8 @@
 //   pocket.05-worldbook.js  世界书生成与编辑
 //   pocket.06-cheat.js      金手指台
 //   pocket.07-ui.js         美化抽屉、电源按键、游戏位导入、对外 API、开机
+//   pocket.08-map-core.js   小地图算法与状态机（纯像素，不碰 DOM，可在 node 里跑回归）
+//   pocket.09-map-ui.js     小地图取帧、绘制、交互
 //   guide.00-index.js       攻略分册索引（空数组）
 //   guide.01..05-*.js       攻略五册的文案（纯数据，改句子只动这里）
 //   guide.06-ui.js          攻略的渲染与交互
@@ -26,6 +29,8 @@
 //   node tools/build-pocket.mjs           # 由 src/ 拼出 index.html
 //   node tools/build-pocket.mjs --check   # 只校验 src/ 与 index.html 是否同步
 //   node tools/build-pocket.mjs --stats   # 看各片行数
+//   node tools/verify-map.mjs             # 小地图回归（合成帧，22 条）
+//   node tools/probe-map-live.mjs         # 小地图真卡带联调（要本机 ROM）
 //
 // 没有 --split 了：反向拆要靠人工判断边界，容易切错。要改就改 src/，index.html 是产物。
 import fs from 'node:fs';

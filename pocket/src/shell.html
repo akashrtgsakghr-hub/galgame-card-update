@@ -120,6 +120,7 @@
               <span class="emu-name" id="emu-name">CORE</span>
               <span class="emu-stat"><b id="emu-fps">--</b> FPS</span>
               <button type="button" class="emu-btn" id="emu-guide">攻略</button>
+              <button type="button" class="emu-btn" id="emu-map" aria-pressed="false" title="左上角那张手绘图：你走过的地方会自己画出来">地图</button>
               <button type="button" class="emu-btn" id="emu-refresh" title="用完便利道具点一下：替你开一次背包再退出来">刷新</button>
               <button type="button" class="emu-btn" id="emu-cheat">金手指</button>
               <button type="button" class="emu-btn" id="emu-pause">暂停</button>
@@ -128,6 +129,28 @@
             </div>
             <div class="emu-tip" id="emu-tip">方向键移动 · A 确认 · B 取消 · START 菜单</div>
             <div class="emu-veil" id="emu-veil"><b>装载核心…</b><span id="emu-veil-text">正在初始化 WASM</span></div>
+
+            <!-- 小地图：左上角那扇窗。不是游戏里的道具，是掌机自己照着画面描的 -->
+            <div class="map-panel" id="map-panel" hidden aria-label="小地图">
+              <div class="mp-head">
+                <span id="mp-title">手绘地图</span>
+                <button type="button" id="mp-again" title="换一张白纸，从脚下重新画">↺</button>
+                <button type="button" id="mp-fold" title="收起 / 展开" aria-label="收起地图">–</button>
+              </div>
+              <canvas id="mp-canvas" width="192" height="144"></canvas>
+              <div class="mp-foot">
+                <span class="mp-k you">■</span>你
+                <span class="mp-k in">入</span>入口
+                <span class="mp-k out">出</span>出口
+              </div>
+            </div>
+
+            <div class="map-note" id="mp-note" hidden>
+              <b>妈妈塞进包里的东西</b>
+              <p>鞋给你换了新的。路我不认得，就照旧册子描了一张空的——你走过的地方，它会自己一格格画出来。进林子、钻洞窟、绕迷宫，翻页就是新的一张。</p>
+              <label class="mp-chk"><input type="checkbox" id="mp-auto" checked> 进新地图时自动翻开</label>
+              <button type="button" id="mp-note-ok">收下</button>
+            </div>
           </div>
 
           <!-- 金手指台：一键宏 + 代码 + 体检 -->

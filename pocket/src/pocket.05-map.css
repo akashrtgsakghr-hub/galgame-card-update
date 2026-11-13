@@ -1,0 +1,52 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⑤ 小地图：屏内左上角那扇窗 + 妈妈那张便条
+   ─ 配色只用液晶那几层暗橄榄，不引入纯黑；边框靠 1px 高光/暗边分层，不用 2px 黑框。
+   ─ 画布用 image-rendering:pixelated，缩放时保持像素块，不糊。
+   ═══════════════════════════════════════════════════════════════════════════ */
+.map-panel{position:absolute;left:5px;top:26px;z-index:4;width:30%;max-width:150px;min-width:92px;
+  background:#0c1209;border:1px solid rgba(207,216,195,.42);
+  box-shadow:0 0 0 1px rgba(5,8,4,.6),2px 3px 0 rgba(5,8,4,.35),inset 0 0 0 1px rgba(255,255,255,.05);
+  font:600 8px/1.2 var(--font-mono);color:#cfd8c3;letter-spacing:.04em;user-select:none}
+.map-panel[hidden]{display:none}
+.mp-head{display:flex;align-items:center;gap:2px;padding:2px 3px;background:#161d12;
+  border-bottom:1px solid rgba(207,216,195,.18)}
+#mp-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:7.5px;color:#d8e0cc}
+.mp-head button{flex:none;width:14px;height:12px;padding:0;border:1px solid rgba(207,216,195,.28);
+  background:#0c1209;color:#aebda1;font:700 9px/1 var(--font-mono);cursor:pointer}
+.mp-head button:hover{border-color:var(--color-accent);color:var(--color-accent)}
+/* .core-stage canvas 那条规则会把屏内所有 canvas 都绝对定位铺满，这里按 id 抢回来 */
+#mp-canvas{position:static;inset:auto;display:block;width:100%;height:auto;
+  image-rendering:pixelated;image-rendering:crisp-edges;background:#0a0f08}
+.map-panel.is-shut #mp-canvas,.map-panel.is-shut .mp-foot{display:none}
+.mp-foot{display:flex;align-items:center;gap:3px;padding:2px 4px;background:#161d12;
+  border-top:1px solid rgba(207,216,195,.18);font-size:6.5px;color:#9fae93}
+.mp-k{font:700 6.5px/1 var(--font-mono);padding:1px 2px;color:#0a0f08}
+.mp-k.you{background:#ffffff;color:#0a0f08}
+.mp-k.in{background:#8fd08a}
+.mp-k.out{background:#e8b96a}
+/* 空图（还没走几步）时，脚下那格提示「走两步就出来了」 */
+.map-panel.is-empty #mp-canvas{opacity:.92}
+
+/* 妈妈的便条：一次性，读完记在本地，不再打扰 */
+.map-note{position:absolute;left:8%;right:8%;top:14%;z-index:5;
+  background:#101610;border:1px solid rgba(207,216,195,.4);
+  box-shadow:0 0 0 1px rgba(5,8,4,.55),4px 5px 0 rgba(5,8,4,.4);
+  padding:8px 9px;color:#d8e0cc;font:500 9.5px/1.6 var(--font-ui)}
+.map-note[hidden]{display:none}
+.map-note b{display:block;font:700 9px/1.2 var(--font-mono);letter-spacing:.08em;color:var(--color-accent);
+  margin-bottom:4px}
+.map-note p{margin:0 0 6px}
+.mp-chk{display:flex;align-items:center;gap:5px;font:500 8.5px/1.2 var(--font-ui);color:#aebda1;
+  margin-bottom:6px}
+.mp-chk input{accent-color:var(--color-accent);width:11px;height:11px}
+#mp-note-ok{width:100%;padding:4px 0;border:1px solid rgba(207,216,195,.4);background:#1b2416;
+  color:#d8e0cc;font:700 8.5px/1 var(--font-mono);letter-spacing:.1em;cursor:pointer}
+#mp-note-ok:hover{border-color:var(--color-accent);color:var(--color-accent)}
+
+/* 窄屏：小窗再收一点，别挡视野 */
+@media (max-width:720px){
+  .map-panel{width:34%;min-width:84px;left:4px;top:24px}
+  #mp-title{font-size:7px}
+  .map-note{left:5%;right:5%;top:10%;font-size:9px}
+}

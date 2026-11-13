@@ -1,6 +1,6 @@
 // 把 moon-pocket/index.html + 模拟器核心（44vba）打包进月相脚本的 <MOON_POCKET_EMBED> 区段。
 // 幂等：重复跑只替换两个标记之间的内容。
-// 用法：node tools/pack-pocket.mjs ../src/87-pocket-embed.js
+// 用法：node tools/pack-pocket.mjs ../月相系统-v5.0.0.js
 //
 // 为什么把核心也嵌进去：嵌进酒馆后掌机跑在 srcdoc 的 sandbox iframe 里，那是 opaque origin，
 // 没有相对路径、也没有同源来源，读不到 core/44gba.js。所以核心必须以字符串形式随页面下发。
@@ -16,8 +16,9 @@ const ROOT = path.resolve(HERE, '..');
 const POCKET = path.join(ROOT, 'index.html');
 const CORE_JS = path.join(ROOT, 'core', '44gba.js');
 const CORE_WASM = path.join(ROOT, 'core', '44gba.wasm');
-/* 默认目标：仓库里那个「内嵌页面」分片。打完要重跑 scripts/build.mjs。 */
-const TARGET = process.argv[2] || path.resolve(ROOT, '..', 'src', '87-pocket-embed.js');
+/* 默认写回插件的掌机分片（带 <MOON_POCKET_EMBED> 标记的那个文件）。
+   以前默认指向根目录一个 v5.0.0 的旧产物，跑一次就把那个旧文件改花了。 */
+const TARGET = process.argv[2] || path.resolve(ROOT, '..', 'repo-cache', 'src', '87-pocket-embed.js');
 
 const OPEN = '// <MOON_POCKET_EMBED>';
 const CLOSE = '// </MOON_POCKET_EMBED>';
