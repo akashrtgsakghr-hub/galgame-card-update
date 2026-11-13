@@ -14,6 +14,24 @@
 
 `moon-phase.js` 是自动更新使用的完整脚本，玩家下载到的就是它。
 
+## 两个版本
+
+一套源码出两个包，靠构建参数区分，不再各维护一份：
+
+```bash
+node scripts/build.mjs                  # 改版（全量）：moon-phase.js
+node scripts/build.mjs --flavor=base     # 原版：moon-phase.base.js
+```
+
+| | 原版（base） | 改版（full） |
+| --- | --- | --- |
+| 攻略、状态卡、皮肤、剧本系统 | ✅ | ✅ |
+| 掌机（卡带机 / 模拟器 / 金手指 / 刷新） | ❌ | ✅ |
+| 主题包与状态卡主题、美化文档 | ❌ | ✅ |
+
+原版剔掉的分片写在 `scripts/build.mjs` 的 `BASE_SKIP` 里。面板对缺件做了 `typeof` 守卫：
+没有掌机分片就不出「卡带」页签、不挂 iframe，也不会白屏。
+
 ## 仓库结构
 
 ```

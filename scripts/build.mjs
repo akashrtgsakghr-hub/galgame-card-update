@@ -18,8 +18,26 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const SRC_DIR = path.join(ROOT, 'src');
-const OUT_SCRIPT = path.join(ROOT, 'moon-phase.js');
-const OUT_JSON = path.join(ROOT, 'Galgame攻略系统-酒馆助手导入.json');
+/**
+ * 两个版本，一套源码：
+ *   full（默认，= 我们说的「改版」）：全部功能，含掌机（卡带机 / 模拟器 / 金手指）、主题包、美化文档
+ *   base（= 我们说的「原版」）：只有攻略与状态卡那套本体，不含掌机与主题包
+ *
+ * 用法：node scripts/build.mjs --flavor=base
+ * 产物分开命名，互不覆盖：改版写 moon-phase.js，原版写 moon-phase.base.js。
+ */
+const FLAVOR = (/--flavor=(\w+)/.exec(process.argv.join(' ')) || [])[1] || 'full';
+if (FLAVOR !== 'full' && FLAVOR !== 'base') throw new Error('未知的 --flavor：' + FLAVOR);
+
+/* 原版要剔掉的分片：掌机内嵌页、掌机宿主、主题贴图 / 主题包 / 状态卡主题 / 美化文档。
+   其它分片（含 88-skin、89-skin-forge 这些老的皮肤功能）原版都留着。 */
+const BASE_SKIP = [/^87-pocket-embed\.js$/, /^87a-pocket-host\.js$/, /^89a-theme-tex\.js$/,
+  /^89b-theme-pack\.js$/, /^89c-status-theme\.js$/, /^89d-beauty-docs\.js$/];
+
+const OUT_SCRIPT = path.join(ROOT, FLAVOR === 'base' ? 'moon-phase.base.js' : 'moon-phase.js');
+const OUT_JSON = path.join(ROOT, FLAVOR === 'base'
+  ? 'DokiDoki-原版-酒馆助手导入.json'
+  : 'Galgame攻略系统-酒馆助手导入.json');
 
 const CHECK_ONLY = process.argv.includes('--check');
 
@@ -29,7 +47,8 @@ function sha(text) {
 
 /** 按文件名顺序拼接 src/；片段写入时补过一个换行，这里只裁掉那一个 */
 function concatSrc() {
-  const files = fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.js')).sort();
+  let files = fs.readdirSync(SRC_DIR).filter((f) => f.endsWith('.js')).sort();
+  if (FLAVOR === 'base') files = files.filter((f) => !BASE_SKIP.some((re) => re.test(f)));
   if (!files.length) throw new Error('src/ 下没有找到任何 .js 片段');
   const parts = files.map((f) => {
     // 即使 checkout 成了 CRLF（Windows 误配 core.autocrlf），也先归一成 LF 再拼，
@@ -134,7 +153,7 @@ function main() {
   const back = JSON.parse(fs.readFileSync(OUT_JSON, 'utf8'));
   if (back.content !== text) throw new Error('回读校验失败：导入 JSON 的 content 与拼接结果不一致');
   if (back.info !== info) throw new Error('回读校验失败：导入 JSON 的 info 与脚本公告不一致');
-  console.log('✅ 已写入 moon-phase.js 与导入 JSON，回读校验一致');
+  console.log('✅ 已写入 ' + path.basename(OUT_SCRIPT) + ' 与导入 JSON，回读校验一致');
 }
 
 main();

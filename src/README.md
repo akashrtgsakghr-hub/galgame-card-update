@@ -97,3 +97,13 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 文件名只要在 `00`～`A2` 之间、以 `.js` 结尾，就会按字典序插到对应位置。
 **注意**：新文件会改变拼接结果，属于真实代码变更。若只是想拆得更细，请同步更新
 本表；若切点不对导致语法错误，`build.mjs` 的 `node --check` 会直接失败，不会推出坏包。
+
+## 原版 / 改版
+
+`scripts/build.mjs --flavor=base` 会跳过 `BASE_SKIP` 里那几个分片，出「原版」：
+
+- `87-pocket-embed.js`（掌机整页 base64）
+- `87a-pocket-host.js`（掌机宿主与存档回传）
+- `89a-theme-tex.js` / `89b-theme-pack.js` / `89c-status-theme.js` / `89d-beauty-docs.js`
+
+其它分片两边共用。面板里对这几块的引用都有 `typeof` 守卫，缺了就不出页签、不挂 iframe。

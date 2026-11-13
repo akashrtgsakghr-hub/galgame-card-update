@@ -54,7 +54,9 @@
     const rawDisplay = panel.dataset.displayMode;
     const displayMode = (rawDisplay === 'arcade' || rawDisplay === 'pocket') ? rawDisplay : 'system';
     const isArcadeMode = displayMode === 'arcade';
-    const isPocketMode = displayMode === 'pocket';
+    /* 原版构建里没有掌机分片，mountPocket 根本不存在——用 typeof 判一下，
+       不然存档里记着 pocket 模式的玩家一开面板就是一片空白。 */
+    const isPocketMode = displayMode === 'pocket' && typeof mountPocket === 'function';
     const selectedLevel = isArcadeMode ? (panel.dataset.arcadeDifficulty || 'normal') : mode;
     const activeMenuKey = panel.dataset.activeMenuKey || '';
     panel.dataset.displayMode = displayMode;
@@ -150,13 +152,18 @@
         '<div class="mp-set-block"><div class="mp-set-title">楼内状态卡</div>' +
         '<div class="mp-set-desc" id="moon-phase-skin-desc">' + lcdEscape(getSkinHint()) + '</div>' +
         renderSkinPickerHtml() +
-        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
-        '<button id="moon-status-theme-open" class="mp-safelock-btn on">状态卡主题 / 导入</button></div></div>' +
+        ((typeof normalizeTheme === 'function')
+          ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+            '<button id="moon-status-theme-open" class="mp-safelock-btn on">状态卡主题 / 导入</button></div>'
+          : '') +
+        '</div>' +
         '<div class="mp-set-block"><div class="mp-set-title">自制美化</div>' +
         '<div class="mp-set-desc">两条路：让模型生成一套配色与材质；或者拿一份文档去外面做，做好把 JSON 贴回来。' +
         '现在也收素材（贴图），换的是颜色与材质，不动布局。</div>' +
         '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
-        '<button id="moon-theme-open" class="mp-safelock-btn on">主题包 / 导入</button>' +
+        ((typeof normalizeTheme === 'function')
+          ? '<button id="moon-theme-open" class="mp-safelock-btn on">主题包 / 导入</button>'
+          : '') +
         '<button id="moon-forge-open" class="mp-safelock-btn on">自制美化 / 导出文档</button></div></div>',
         false) +
       pocketFold('ai', 'AI 怎么演', '只有想换模型、或觉得Ta说话不像，才需要动',
@@ -191,7 +198,7 @@
       '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
       '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板</button>' +
       '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button>' +
-      '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机</button></div>' +
+      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机</button></div>' : '') +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : (isPocketMode ? ' mp-pocket-card' : '')) + '">' + (isArcadeMode ? renderArcadeGameScreen() : (isPocketMode ? renderPocketScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn))) + '</div>' +
       (isArcadeMode
         ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
@@ -377,7 +384,7 @@
     }
     if (isPocketMode) {
       const pocketCard = panel.querySelector('.mp-pocket-card');
-      if (pocketCard) panel._pocketStop = mountPocket(pocketCard);
+      if (pocketCard && typeof mountPocket === 'function') panel._pocketStop = mountPocket(pocketCard);
     }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');

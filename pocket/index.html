@@ -561,6 +561,7 @@ body.is-embed .stage{padding:8px 8px 4px}
 body.is-embed .stage{display:block;max-width:none;padding:10px 10px 6px;gap:0}
 body.is-embed .device-wrap{max-width:none}
 body.is-embed .console{max-width:none;margin:0}
+
 /* ═══ 金手指台 / GOLDEN LINK ═══════════════════════════════════════════
    一块屏内抽屉：上半是一键宏（替你按键），下半是代码金手指（交给核心）。
    配色跟掌机其他层一致：近黑底 + 发丝边 + 一点铜。 */
@@ -806,6 +807,7 @@ body.is-embed .console{max-width:none;margin:0}
               <span class="emu-name" id="emu-name">CORE</span>
               <span class="emu-stat"><b id="emu-fps">--</b> FPS</span>
               <button type="button" class="emu-btn" id="emu-guide">攻略</button>
+              <button type="button" class="emu-btn" id="emu-refresh" title="用完便利道具点一下：替你开一次背包再退出来">刷新</button>
               <button type="button" class="emu-btn" id="emu-cheat">金手指</button>
               <button type="button" class="emu-btn" id="emu-pause">暂停</button>
               <button type="button" class="emu-btn" id="emu-save">导出存档</button>
@@ -2226,7 +2228,32 @@ $(".gt-grid").addEventListener("click", function(e){
   cheatMacro(b.dataset.macro, b);
 });
 /* 掌机开机时顺手体检一次：不打扰玩家，只把结论放在面板上 */
-window.POCKET_CHEAT = { push:cheatPush, test:cheatSelfTest, codes:function(){ return cheatCodes.slice(); },
+/* ── 刷新背包：这版便利道具的通病 ─────────────────────────────────────────
+   闪光灯、隐身衣、城镇魔毯这类东西，点完要「切一次背包或队伍再切回来」才生效，
+   官方说明里就写着这句。那是游戏本体里的实现，插件改不了它；
+   能做的只有替玩家按那几下：START（开菜单）→ A（进背包）→ B（退背包）→ B（关菜单）。
+
+   有两点得说清：
+   - 这是「替你按键」，不是「修好了游戏」。按完还是得靠游戏自己重新算一遍。
+   - 万一菜单光标不在背包上（上次停在哪就停在哪），会开成别的页；多按的 B 会退回来，
+     不会保存、不会改档。 */
+function pocketRefreshBag(){
+  if(!coreModule || !coreBooted){ toast("先插一张卡带", true); return; }
+  if(corePaused){ toast("先点「继续」再刷新", true); return; }
+  var seq = [["start",150], ["a",150], ["b",150], ["b",200]], i = 0;
+  toast("替你开一次背包再退出来…");
+  (function step(){
+    if(i >= seq.length){ toast("刷完了 · 道具这会儿应该生效了"); return; }
+    cheatHold(KEY_BIT[seq[i][0]], 80);
+    var wait = seq[i][1];
+    i++;
+    setTimeout(step, wait);
+  })();
+}
+var refreshBtn = $("#emu-refresh");
+if(refreshBtn) refreshBtn.addEventListener("click", pocketRefreshBag);
+
+window.POCKET_CHEAT = { refresh:pocketRefreshBag, push:cheatPush, test:cheatSelfTest, codes:function(){ return cheatCodes.slice(); },
   engine:function(){ return cheatEngine; }, speed:function(){ return cheatSpeed; } };
 
 /* ── 美化抽屉 ─────────────────────────────────────────────────────────── */
@@ -2491,23 +2518,21 @@ if(EMBED){
   post({type:"moon-pocket:ready"});
 }
 
-/* ═══ 攻略数据 / GUIDE ══════════════════════════════════════════════════════
-   五册：主线 / 道具 / 精灵 / 进化 / 急救。
+/* ═══ 攻略 · 分册索引 ═══════════════════════════════════════════════════════
+   文案按册拆开：想改哪一册只动那一个文件，不用在一千行里翻。
+   拼装顺序由 tools/build-pocket.mjs 按文件名排序决定，改完记得 node tools/build-pocket.mjs。
 
-   写这份东西的取舍：
-   - 说人话。不写「可获得」「前往」，写「能拿」「往那边走」。玩家是来救急的，
-     不是来读公文的。
-   - 只写「走不过去的那一步」和「找不到的那一件」。城镇里有几家店这种，游戏里
-     自己会看，写进来只会让人滚得更久。
-   - 主线按丰缘的骨架写（八枚徽章 + 联盟）。改版改的是等级、精灵、道具位置，
-     所以等级只给区间并标「原版参考」，不给死数字。
-   - 道具、精灵这两册的数据来自这版自带的三份说明文档（同一套体系）。位置这种事
-     改版之间会挪，对不上就以游戏里为准——翻「急救」那册。
-   - 不确定的地方宁可说「把每间屋子都问一遍」，也不编一个具体 NPC 当答案。
-   ══════════════════════════════════════════════════════════════════════════════ */
+   guide.00-index.js   ← 这个文件：空数组，后面几册往里面 push
+   guide.01-main.js      主线：八枚徽章 + 联盟
+   guide.02-item.js      道具：在哪拿、干什么用
+   guide.03-mon.js       精灵：去哪抓、谁白送
+   guide.04-evo.js       进化：两条路、几只特殊的、坑
+   guide.05-help.js      急救：卡关四条、这台机器
+   guide.06-ui.js        渲染与交互（搜索、换册、跳段、持久化）
+   ═══════════════════════════════════════════════════════════════════════════ */
+var GUIDE_VOLS = [];
 
-var GUIDE_VOLS = [
-  {
+GUIDE_VOLS.push(  {
     id: 'main', name: '主线', hint: '八枚徽章',
     entries: [
       {
@@ -2696,9 +2721,9 @@ var GUIDE_VOLS = [
         ]
       }
     ]
-  },
+  });
 
-  {
+GUIDE_VOLS.push(  {
     id: 'item', name: '道具', hint: '在哪拿',
     entries: [
       {
@@ -2831,15 +2856,16 @@ var GUIDE_VOLS = [
           ] },
           { h: '怎么用', list: [
             '点一下，选地点，传过去。',
-            '点完没反应？切一次背包或者队伍，再切回来——这版便利道具都这毛病。',
+            '点完没反应？点屏上的「刷新」——它替你开一次背包再退出来，等于手动切那一遍。',
+            '（这版便利道具都这毛病：点完要切一次背包或队伍才生效。那是游戏本体的写法，插件改不了它，只能替你按。）',
             '只能传去「去过」的地方，没去过的镇子不在列表里。'
           ] }
         ]
       }
     ]
-  },
+  });
 
-  {
+GUIDE_VOLS.push(  {
     id: 'mon', name: '精灵', hint: '去哪抓',
     entries: [
       {
@@ -2983,9 +3009,9 @@ var GUIDE_VOLS = [
         ]
       }
     ]
-  },
+  });
 
-  {
+GUIDE_VOLS.push(  {
     id: 'evo', name: '进化', hint: '怎么变',
     entries: [
       {
@@ -3061,9 +3087,9 @@ var GUIDE_VOLS = [
         ]
       }
     ]
-  },
+  });
 
-  {
+GUIDE_VOLS.push(  {
     id: 'help', name: '急救', hint: '卡住了',
     entries: [
       {
@@ -3121,8 +3147,7 @@ var GUIDE_VOLS = [
         ]
       }
     ]
-  }
-];
+  });
 
 var GUIDE_KEY = 'moon-pocket-guide-v1';
 var guideState = { vol: 'main', id: 'b0' };
@@ -3324,6 +3349,7 @@ window.POCKET_GUIDE = {
   current: function(){ return guideState.id; },
   currentVol: function(){ return guideState.vol; }
 };
+
 </script>
 </body>
 </html>

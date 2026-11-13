@@ -1,0 +1,97 @@
+/* ═══ 攻略抽屉 / WALKTHROUGH ══════════════════════════════════════════════
+   一块能读的纸：比屏内那层大得多，所以字号敢放到 12.5px。
+   底色不另起一套，压在 --color-surface 上抬 2% 明度分层——暗色靠分层，不靠黑框。 */
+.guide-drawer{position:fixed;right:0;top:0;bottom:0;z-index:96;display:flex;flex-direction:column;
+  width:min(100%,470px);background:var(--color-surface);border-left:1px solid var(--color-accent);
+  box-shadow:var(--shadow-3)}
+.guide-drawer[hidden]{display:none}
+.guide-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:20px 22px 12px;border-bottom:1px solid var(--color-line)}
+.guide-head .tag{font:600 10px/1.4 var(--font-mono);letter-spacing:.3em;color:var(--color-accent)}
+.guide-head h2{margin:8px 0 0;font:700 21px/1.25 var(--font-display);letter-spacing:.02em}
+.guide-head button{min-height:40px;min-width:40px;border:1px solid var(--color-line);
+  background:transparent;color:var(--color-text);font:700 16px/1 var(--font-mono);cursor:pointer}
+.guide-head button:hover{border-color:var(--color-accent);color:var(--color-accent)}
+.guide-lead{margin:0;padding:12px 22px 0;font:400 11.5px/1.8 var(--font-ui);
+  color:var(--color-muted);text-wrap:pretty}
+
+/* 进度条：一行 chip，多了就换行——横着滚会把最后两个藏起来，反而找不到 */
+.guide-tabs{display:flex;flex-wrap:wrap;gap:5px;padding:12px 22px 10px}
+.guide-tabs button{min-height:26px;padding:4px 9px;border:1px solid var(--color-line);
+  background:transparent;color:var(--color-muted);font:600 10.5px/1 var(--font-mono);
+  letter-spacing:.06em;cursor:pointer;transition:color .12s,border-color .12s,background .12s}
+.guide-tabs button:hover{color:var(--color-text);border-color:var(--color-accent-2)}
+.guide-tabs button.on{background:var(--color-accent);border-color:var(--color-accent);color:var(--color-bg)}
+
+.guide-search{display:flex;align-items:center;gap:7px;margin:0 22px 10px;padding:0 9px;
+  border:1px solid var(--color-line);background:color-mix(in srgb,var(--color-text) 4%,transparent);
+  transition:border-color .16s,box-shadow .16s}
+/* 放大镜用画的，不用字符：等宽字体里没有 ⌕ 这类字形，落到系统字体上会变成怪符号 */
+.guide-search .mag{position:relative;flex:none;width:10px;height:10px;border:1.5px solid var(--color-muted);border-radius:50%}
+.guide-search .mag::after{content:"";position:absolute;right:-3px;bottom:-2px;width:5px;height:1.5px;
+  background:var(--color-muted);transform:rotate(45deg)}
+.guide-search input{flex:1;min-width:0;height:32px;border:0;background:transparent;outline:0;
+  color:var(--color-text);font:400 11.5px/1 var(--font-ui)}
+.guide-search input::placeholder{color:color-mix(in srgb,var(--color-muted) 80%,transparent)}
+/* 聚焦不描边，改双环阴影（加深），避免焦点跳一下把布局顶开 */
+.guide-search:focus-within{border-color:transparent;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--color-accent) 62%,transparent),
+             0 0 0 3px color-mix(in srgb,var(--color-accent) 20%,transparent)}
+
+.guide-body{flex:1;min-height:0;overflow:auto;padding:4px 22px 20px;overscroll-behavior:contain}
+.gd-entry h3{margin:6px 0 5px;font:700 16px/1.35 var(--font-display);letter-spacing:.01em}
+.gd-lv{margin:0 0 9px;font:600 10px/1.5 var(--font-mono);letter-spacing:.08em;
+  color:var(--color-accent-2);font-variant-numeric:tabular-nums}
+.gd-goal{margin:0 0 14px;padding:9px 11px;border-left:2px solid var(--color-accent);
+  background:color-mix(in srgb,var(--color-accent) 7%,transparent);
+  font:400 12px/1.75 var(--font-ui);color:var(--color-text);text-wrap:pretty}
+.gd-block{margin:0 0 15px}
+.gd-block h4{margin:0 0 6px;font:700 10.5px/1 var(--font-mono);letter-spacing:.2em;
+  color:var(--color-accent);text-transform:uppercase}
+.gd-block ul{margin:0;padding:0;list-style:none}
+.gd-block li{position:relative;margin:0 0 7px;padding-left:13px;
+  font:400 12px/1.78 var(--font-ui);color:color-mix(in srgb,var(--color-text) 88%,var(--color-muted));
+  text-wrap:pretty}
+.gd-block li::before{content:"";position:absolute;left:2px;top:.72em;width:4px;height:4px;
+  background:var(--color-accent);opacity:.72}
+.gd-hint{margin:8px 0 10px;font:500 11px/1.6 var(--font-ui);color:var(--color-muted)}
+.gd-hit{display:block;width:100%;margin:0 0 7px;padding:9px 11px;text-align:left;
+  border:1px solid var(--color-line);background:transparent;cursor:pointer}
+.gd-hit:hover{border-color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 6%,transparent)}
+.gd-hit b{display:block;font:700 12px/1.5 var(--font-ui);color:var(--color-text)}
+.gd-hit span{display:block;margin-top:3px;font:400 11px/1.65 var(--font-ui);
+  color:var(--color-muted);text-wrap:pretty}
+.guide-foot{padding:9px 22px;border-top:1px solid var(--color-line);
+  font:500 10px/1.5 var(--font-mono);letter-spacing:.06em;color:color-mix(in srgb,var(--color-muted) 86%,transparent)}
+
+@media (max-width:520px){
+  .guide-drawer{width:100%}
+  .guide-head{padding:16px 16px 10px}
+  .guide-lead,.guide-tabs,.guide-body,.guide-foot{padding-left:16px;padding-right:16px}
+  .guide-search{margin-left:16px;margin-right:16px}
+}
+
+/* ── 攻略五册的分册条 ─────────────────────────────────────────────
+   两排：上排是「哪一册」，下排是「这册里的哪一段」。上排做大一点、带小字，
+   因为它决定下排的内容；两排都用同一种按钮，不另起一套皮肤。 */
+.guide-vols{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:12px 22px 0}
+.guide-vols button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-width:0;min-height:40px;padding:5px 2px;border:1px solid var(--color-line);background:transparent;
+  cursor:pointer;font:700 11.5px/1.15 var(--font-ui);color:var(--color-muted);
+  transition:color .12s,border-color .12s,background .12s}
+/* 小字一律单行：五个格子加起来才 470px，允许换行就会把格子撑高、底下的章条跟着往下跳 */
+.guide-vols button small{max-width:100%;font:500 8.5px/1.15 var(--font-mono);letter-spacing:0;
+  opacity:.62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.guide-vols button:hover{color:var(--color-text);border-color:var(--color-accent-2)}
+.guide-vols button.on{background:var(--color-accent);border-color:var(--color-accent);color:var(--color-bg)}
+.guide-vols button.on small{opacity:.78}
+.guide-tabs{padding-top:8px}
+/* 搜索结果里的册名小标签 */
+.gd-vol{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid var(--color-accent);
+  font:600 9px/1.4 var(--font-mono);letter-spacing:.06em;color:var(--color-accent-2);vertical-align:1px}
+
+@media (max-width:520px){
+  .guide-vols{padding-left:16px;padding-right:16px;gap:3px}
+  .guide-vols button{font-size:10.5px;min-height:36px}
+  .guide-vols button small{font-size:8px}
+}
