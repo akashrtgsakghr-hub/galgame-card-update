@@ -500,6 +500,28 @@
     try { await autoBootstrapCharacter('first-reply'); } catch (e) {}
     // ① 等建档落盘后再摄入本轮后台变量，避免新角色的旧快照覆盖刚收到的心声。
     try { await applyBackendVariablesFromLatest(); } catch (e) {}
+    /* 攻略模式：四件事都放在标签清洗之前 —— 先处理正文，再动标签。
+       ① 任务板「[板]标题|说明|奖励|回合|进度」：收进待接取池，然后把这一整行删掉
+          （玩家不该看见它，否则像在读后台日志）；
+       ② 后台行「系统.任务=完成 / +1」：解析后从正文里删掉，并推进任务；
+       ③ 正文里出现系统词：整句删掉（两边同一个正则，谁泄露都清）；
+       ④ 走到婚礼那一段：问一句要不要记成纪念日。 */
+    try {
+      const _found = getLatestAiMessage();
+      if (_found && _found.msg && typeof _found.msg.mes === 'string') {
+        const _board = reverseParseBoardLine(_found.msg.mes);
+        /* 只要命中了 [板] 行就替换：哪怕内容是「无」，那行也不该留在正文里 */
+        if (_board.hit > 0) _found.msg.mes = _board.text;
+        const _parsed = reverseParseTaskLine(_found.msg.mes);
+        if (_parsed.hits > 0) {
+          reverseApplyTaskLine(_parsed);
+          _found.msg.mes = _parsed.text;
+        }
+        const _r = sanitizeReverseLeak(_found.msg.mes);
+        if (_r.hit > 0) _found.msg.mes = _r.text;
+        reverseCheckMarriage(_found.msg.mes);
+      }
+    } catch (e) {}
     sanitizeSylveinaRegexTail();
     beautifySylveinaTagsInDom();
     // ② 先完成本轮时钟推进与常规关系结算，再检查倒计时/周周期，最后掷时间跳跃好感骰。

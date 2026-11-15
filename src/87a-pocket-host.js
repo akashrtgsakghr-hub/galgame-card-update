@@ -81,6 +81,114 @@
       } catch (e) {}
     };
 
+    /* ── 卡带来源：两条，都不联网 ───────────────────────────────────
+       ① 本机缓存（IndexedDB）：玩家手动插过一次卡，就把那 32MB 记住，之后每次打开直接点卡槽即玩；
+       ② 脚本自带（只有「内置卡带」变体有 __POCKET_ROM_CHUNKS）。
+       缓存只能放宿主这一层：掌机跑在 sandbox="allow-scripts" 的 srcdoc iframe 里，
+       那是 opaque origin，localStorage / IndexedDB 全都不可用。 */
+    const ROM_DB = 'moon-pocket-rom';
+    const ROM_KEY = 'bt999';
+    const ROM_META_KEY = 'bt999-meta'; // 只存 {size, at}，报告卡槽状态时不必把 32MB 读出来
+    const romDb = () => new Promise((ok, bad) => {
+      try {
+        const req = indexedDB.open(ROM_DB, 1);
+        req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains('rom')) db.createObjectStore('rom'); };
+        req.onsuccess = () => ok(req.result);
+        req.onerror = () => bad(req.error);
+      } catch (e) { bad(e); }
+    });
+    const romGet = (key) => romDb().then((db) => new Promise((ok, bad) => {
+      const g = db.transaction('rom', 'readonly').objectStore('rom').get(key);
+      g.onsuccess = () => ok(g.result || null);
+      g.onerror = () => bad(g.error);
+    })).catch(() => null);
+    const romPut = async (key, val) => {
+      try {
+        const db = await romDb();
+        await new Promise((ok, bad) => {
+          const tx = db.transaction('rom', 'readwrite');
+          tx.objectStore('rom').put(val, key);
+          tx.oncomplete = () => ok(true);
+          tx.onerror = () => bad(tx.error);
+        });
+        return true;
+      } catch (e) { return false; }
+    };
+
+    let romState = 0; // 0 未解 / 1 解码中 / 2 已送出
+    const tell = (msg) => { try { if (frame) frame.contentWindow.postMessage(msg, '*'); } catch (e) {} };
+
+    const romSource = function () {
+      try {
+        if (typeof __POCKET_ROM_CHUNKS !== 'undefined' && __POCKET_ROM_CHUNKS && __POCKET_ROM_CHUNKS.length) return { chunks: __POCKET_ROM_CHUNKS };
+      } catch (e) {}
+      return null;
+    };
+
+    /* 流式解压：1MB 一段喂给 DecompressionStream，喂完立刻把这段丢掉，
+       永不出现「21MB base64 + 16MB gz + 32MB 成品」同时在场。 */
+    const decodeEmbedded = async function (parts) {
+      const ds = new DecompressionStream('gzip');
+      const w = ds.writable.getWriter();
+      const done = new Response(ds.readable).arrayBuffer();
+      for (let k = 0; k < parts.length; k++) {
+        const bin = atob(parts[k]);
+        const u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        parts[k] = '';
+        await w.write(u8);
+      }
+      await w.close();
+      const raw = new Uint8Array(await done);
+      try { __POCKET_ROM_CHUNKS.length = 0; } catch (e) {}
+      return raw.buffer;
+    };
+
+    const deliverRom = function () {
+      if (romState || !frame) return;
+      romState = 1;
+      (async () => {
+        try {
+          /* ① 先找本机缓存 —— 玩家选过一次就再也不用手动插卡 */
+          let buf = await romGet(ROM_KEY);
+          if (buf && buf.byteLength) {
+            frame.contentWindow.postMessage({ type: 'moon-host:rom', buf: buf }, '*', [buf]);
+            romState = 2;
+            return;
+          }
+          /* ② 再看脚本里是不是自带了卡带 */
+          const src = romSource();
+          if (!src) { romState = 0; tell({ type: 'moon-host:rom-none' }); return; }
+          buf = await decodeEmbedded(src.chunks);
+          frame.contentWindow.postMessage({ type: 'moon-host:rom', buf: buf }, '*', [buf]);
+          romState = 2;
+        } catch (e) {
+          romState = 0;
+          tell({ type: 'moon-host:rom-error', message: String((e && e.message) || e) });
+          try { console.warn('[moon-pocket] 卡带准备失败：', e); } catch (_) {}
+        }
+      })();
+    };
+
+    /* 报告卡槽状态：有缓存 / 自带卡带多大。只读 meta，不把 32MB 读出来。 */
+    const announceRom = async function () {
+      if (!frame) return;
+      let size = 0, cached = false;
+      const meta = await romGet(ROM_META_KEY);
+      if (meta && meta.size) { size = meta.size; cached = true; }
+      if (!size) { try { size = (typeof POCKET_ROM_SIZE !== 'undefined' && POCKET_ROM_SIZE) || 0; } catch (e) { size = 0; } }
+      if (!size) return;
+      tell({ type: 'moon-host:rom-meta', size: size, cached: cached });
+    };
+
+    /* 掌机把玩家选中的卡带推上来：存进本机，下次打开就不用再选 */
+    const rememberRom = async function (buf, size) {
+      if (!buf || !buf.byteLength) return;
+      const ok = await romPut(ROM_KEY, buf);
+      if (ok) await romPut(ROM_META_KEY, { size: size || buf.byteLength, at: Date.now() });
+      tell({ type: 'moon-host:rom-cached', ok: ok });
+    };
+
     const onMessage = (event) => {
       if (stopped || !frame || event.source !== frame.contentWindow || !event.data) return;
       const d = event.data;
@@ -94,7 +202,12 @@
           }
         } catch (e) {}
         if (hint && hint.parentNode) hint.parentNode.removeChild(hint);
+        announceRom();
         sync();
+      } else if (d.type === 'moon-pocket:want-rom') {
+        deliverRom();
+      } else if (d.type === 'moon-pocket:rom-picked') {
+        rememberRom(d.buf, d.size);
       } else if (d.type === 'moon-pocket:height') {
         // 高度由占位块决定，这里只当作「内容变化了，重新对齐」的信号
         sync();

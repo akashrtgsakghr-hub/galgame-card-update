@@ -199,6 +199,12 @@
           toast('数值更新：' + msg, 'info');
         } catch (e) {}
       }
+      /* 攻略模式：五条挂点，全部包在 try 里 —— 这一段坏掉不许影响主结算。 */
+      try { reverseSyncRolePoints(changedChars); } catch (e) {}
+      try { if (stageChangedChars.length) reverseGrantGateTickets(stageChangedChars); } catch (e) {}
+      try { reverseMaybeRefreshShelves(false); } catch (e) {}
+      try { reverseCheckAchievements(statData); } catch (e) {}
+      try { reverseTickTasks(statData, changedChars); } catch (e) {}
       if (weeklyBlockedChars.length) {
         try {
           const cap = Number((MOON_FORMULA_PARAMS.weeklyCap[mode] || MOON_FORMULA_PARAMS.weeklyCap.normal)).toFixed(1);

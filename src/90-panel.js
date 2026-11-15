@@ -171,7 +171,8 @@
         ctx.chatMetadata[key] = value;
         saved = true;
         if (typeof ctx.saveMetadata === 'function') {
-          const result = ctx.saveMetadata();
+          /* 走合并队列：一回合里多次 feature 写入只落盘一次 */
+          const result = queueMetadataSave(ctx);
           if (result && typeof result.catch === 'function') result.catch(function() {});
         }
       }

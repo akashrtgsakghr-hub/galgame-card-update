@@ -277,7 +277,9 @@ if (_needAutoReload && !_isFirstBoot && getSettings().autoReload !== false) {
 } else if (_isFirstBoot) {
   // 首次导入检测流程：同样先挂载魔棒菜单，避免初始化中断后按钮彻底丢失
   setTimeout(injectMenuEntry, 300);
+  setTimeout(function() { try { reverseHudSync(); } catch (e) {} }, 1600);
   setTimeout(function() { runFirstBootSequence(); }, 1200);
+  setTimeout(function() { try { warmMoonPanelOffscreen(); } catch (e) {} }, 3400);
 } else {
   // 常规启动不强制刷新页面。此前 mount 闸门每个新页面会话都会触发一次，
   // 首次导入/版本更新完成后的下一次加载又会命中不同闸门，造成连续两次刷新。
@@ -289,6 +291,12 @@ if (_needAutoReload && !_isFirstBoot && getSettings().autoReload !== false) {
     injectMenuEntry();
     toast(SYSTEM_UI_NAME + ' 已加载', 'success');
   }, 800);
+  /* 攻略模式挂件：开着就把那个球挂上（这是酒馆页面里的一个 fixed 小挂件，
+     不开就不存在；关掉开关会连球带浮层一起从 DOM 删掉）。 */
+  setTimeout(function() { try { reverseHudSync(); } catch (e) {} }, 1600);
+  /* 面板预热：等菜单挂好、开场提示出来之后再排队，玩家这会儿通常在读开场，
+     不会因为一次后台布局而觉得卡。 */
+  setTimeout(function() { try { warmMoonPanelOffscreen(); } catch (e) {} }, 2600);
   setTimeout(function() { showUpdateAnnouncementOnce(); }, 1500);
   setTimeout(injectMenuEntry, 3000);
   setTimeout(injectMenuEntry, 8000);

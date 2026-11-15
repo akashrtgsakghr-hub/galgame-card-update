@@ -36,6 +36,56 @@
       'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[name] || '') + '</svg>';
   }
 
+  /* ── 面板预热 ────────────────────────────────────────────────────────
+     面板第一次进 DOM 时，浏览器要为 700 多个节点做一次样式编译 + 字体测量。
+     实测（4 倍 CPU 降速 ≈ 中端手机）：这一下是 0.6~0.8 秒的硬卡，
+     而它和玩家「点开面板」这个动作是绑死的 —— 所以每次第一次打开都要卡一次。
+     做法：脚本挂载完、玩家还在看开场的那几秒，先拿一个离屏幽灵面板把这次
+     编译做掉。真正打开时只剩节点匹配，实测 0.76s → 0.03s。
+     放 requestIdleCallback 里，浏览器忙就先不做，绝不跟首屏抢主线程。 */
+  let _moonPanelWarmState = 0; // 0 未做 / 1 排队中 / 2 已做
+  function warmMoonPanelOffscreen() {
+    if (_moonPanelWarmState) return;
+    _moonPanelWarmState = 1;
+    const run = function() {
+      _moonPanelWarmState = 2;
+      try {
+        if (!mainDoc || !mainDoc.body) return;
+        /* 面板已经开着了，或者玩家就是在这几秒里点开的：那就不用预热了 */
+        if (mainDoc.getElementById('moon-phase-panel')) return;
+        const ghost = mainDoc.createElement('div');
+        ghost.id = 'moon-phase-panel';
+        ghost.setAttribute('aria-hidden', 'true');
+        /* 离屏但必须参与布局：display:none 或 detached 都不会编译样式 */
+        ghost.style.cssText = 'position:fixed;left:-99999px;top:0;width:360px;height:640px;'
+          + 'visibility:hidden;pointer-events:none;z-index:-1;contain:layout style;';
+        mainDoc.body.appendChild(ghost);
+        try { renderPanel(ghost); } catch (e) {}
+        void ghost.offsetHeight;
+        /* renderPanel 会挂一个 2.5 秒的 LCD 刷新定时器，预热完必须收掉 */
+        if (ghost._lcdStateTimer) { clearInterval(ghost._lcdStateTimer); ghost._lcdStateTimer = null; }
+        ghost.remove();
+      } catch (e) {}
+    };
+    /* 玩家正在输入框里打字时别抢主线程 —— 这次布局要几百毫秒，
+       打断输入比晚点预热难受得多。隔 2 秒再看一眼。 */
+    const deferIfTyping = function(attempt) {
+      try {
+        const ae = mainDoc && mainDoc.activeElement;
+        const tag = ae && ae.tagName ? String(ae.tagName).toUpperCase() : '';
+        if ((tag === 'TEXTAREA' || tag === 'INPUT') && attempt < 6) {
+          setTimeout(function() { deferIfTyping(attempt + 1); }, 2000);
+          return;
+        }
+      } catch (e) {}
+      try {
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 6000 });
+        else setTimeout(run, 600);
+      } catch (e) { setTimeout(run, 600); }
+    };
+    deferIfTyping(0);
+  }
+
   function renderPanel(panel) {
     /* 卡带机模式下整个屏就是一个 sandbox iframe，里面跑着有状态的模拟器。
        面板的定时刷新（refreshPanel）如果照常重绘，会先 _pocketStop() 把 iframe 拆掉，
@@ -191,6 +241,7 @@
         pocketRow('锁死这段剧情', (antisl || anchorLocked) ? '已经开了：Ta一旦心凉就锁死，只能开新对话重来' : '关着。打开后Ta心凉就回不了头，删楼重摇都没用',
           '<button class="mp-antisl ' + ((antisl || anchorLocked) ? 'on' : '') + '" id="moon-phase-antisl">' + (anchorLocked ? '已锁死' : (antisl ? '开' : '关')) + '</button>'),
         false) +
+      renderReverseBlockHtml() +
       '<div class="mp-fate ' + (fateActive ? 'active' : 'idle') + '">' +
       '<span class="mp-fate-dot" style="background:' + (fateActive ? '#ff8ab2' : '#7fd8a8') + ';"></span>' +
       '<span>' + (fateActive ? '已经锁死了，只能开新对话' : '还没锁，随时能反悔') + '</span></div></div>';
@@ -354,6 +405,8 @@
     }, 2500);
     bindLcdPageControls(panel);
     try { bindPocketFolds(panel); } catch (e) {}
+    /* 攻略模式那一块的开关 / 买 / 用 / 签到 / 抽奖，统一走事件委托，重绘后不用重绑 */
+    try { bindReverseBlockEvents(panel); } catch (e) {}
     /* 引导条：按钮动作和它写的那句话必须对得上，所以动作也集中在一处判断 */
     panel.querySelectorAll('[data-guide-act]').forEach(function(btn) {
       btn.addEventListener('click', function() {

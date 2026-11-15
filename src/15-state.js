@@ -83,6 +83,26 @@
     return data || { stat_data: { 世界: { 时间: '2000年01月01日 · 星期六 · 00:00', _内部流逝天数: 0, _上次推进时间: '2000年01月01日 · 星期六 · 00:00' }, 角色: {} } };
   }
 
+  /* ── 写盘合并 ────────────────────────────────────────────────────────
+     一轮结算里可能连续写好几次（变量快照、攻略模式两本账、锚点、卡带存档…），
+     每次都给酒馆一次 saveMetadata，等于把整份 metadata 全量落盘好几遍。
+     桌面上感觉不到，手机上就是持续的 I/O 抖动。
+     做法：同一轮微任务里只保留最后一次 —— 数据都写进去了，落盘次数压到 1 次。
+     语义没变：调用方 await 的仍然是「已经存好」这件事。 */
+  let _metaSaveQueued = null;
+  function queueMetadataSave(ctx) {
+    if (_metaSaveQueued) return _metaSaveQueued;
+    const target = ctx;
+    _metaSaveQueued = Promise.resolve().then(function() {
+      _metaSaveQueued = null;
+      try {
+        if (target && typeof target.saveMetadata === 'function') return target.saveMetadata();
+      } catch (e) {}
+      return null;
+    });
+    return _metaSaveQueued;
+  }
+
   async function saveLocalState(newStatData, opts) {
     opts = opts || {};
     const showLoading = opts.showLoading === true;
@@ -99,7 +119,7 @@
       const ctx = getSTCtx();
       if (ctx && ctx.chatMetadata) {
         ctx.chatMetadata[key] = payload;
-        if (typeof ctx.saveMetadata === 'function') await ctx.saveMetadata();
+        if (typeof ctx.saveMetadata === 'function') await queueMetadataSave(ctx);
       }
       if (showLoading) await new Promise(function(r) { setTimeout(r, 350); });
       lastWriteError = '';

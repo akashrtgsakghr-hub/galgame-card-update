@@ -88,6 +88,8 @@
       try { resetRoundInjectedText(); } catch (e) {}
       injectCardModeNotice();
       injectEventPrompt();
+      /* 攻略模式：角色侧那份「只存在于她心里」的提示。玩家侧永远不进 prompt。 */
+      try { injectReversePrompt(); } catch (e) {}
       injectFanficEnhanceNotice();
       injectEnabledBios();
       injectUserBio();

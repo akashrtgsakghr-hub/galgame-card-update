@@ -141,6 +141,9 @@
       lastPlayedAt: now,
       history: [{ score: nextScore, playedAt: now }].concat(current.history).slice(0, 20)
     };
+    /* 攻略模式：街机累计得分按 50:1 换玩家积分。放在写档之前，
+       这样即使写入失败，这一局的积分也不会白打。 */
+    try { reverseSyncArcadePoints(Number(record.score) || 0); } catch (e) {}
     return writeArcadeRecord(record);
   }
   function formatArcadeRecordTime(timestamp, score) {
