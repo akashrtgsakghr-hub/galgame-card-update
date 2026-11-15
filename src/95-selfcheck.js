@@ -944,6 +944,40 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
       else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 昵称' + okNick + ' 重复识别' + okRepeat + ' 清理' + okStrip);
     } catch (e) { lines.push('✖ 后台变量摄入异常：' + (e.message || e)); }
 
+    /* 【测试9B】提示词到底有没有进酒馆。
+       玩家报「AI 不写心声标签」时，第一件要分清的事是「没注入」还是「注入了模型没照做」——
+       这两件的修法完全相反，以前只能靠猜。 */
+    lines.push('<div class="mp-log-subhead">【测试9B】提示词注入（酒馆里现在有什么）</div>');
+    try {
+      /* 酒馆把扩展提示词放在 window.extension_prompts；部分版本只在 context 上暴露，
+         两个都试，别因为读错地方就误报「没注入」。 */
+      let ep = null;
+      try { ep = mainWin && mainWin.extension_prompts; } catch (e) {}
+      if (!ep) { try { const c = getSTCtx(); ep = c && c.extensionPrompts; } catch (e) {} }
+      if (!ep) {
+        lines.push('（这个酒馆版本里读不到 extension_prompts，跳过）');
+      } else {
+        const probe = [
+          [PROMPT_KEY + '_core_rules', '核心规则'],
+          [PROMPT_KEY + '_event', '状态与标签格式'],
+          [PROMPT_KEY + '_voice', '心声提醒']
+        ];
+        const missing = [];
+        const sizes = [];
+        probe.forEach(function(pair) {
+          const raw = ep[pair[0]];
+          const val = raw && typeof raw === 'object' ? String(raw.value || '') : String(raw || '');
+          if (!val.trim()) missing.push(pair[1]);
+          else sizes.push(pair[1] + ' ' + val.length + ' 字');
+        });
+        if (missing.length) {
+          lines.push('✖ 没进酒馆：' + missing.join('、') + '。先确认这一轮真的发过对话；仍然缺就是被别的插件或提示词管理器挤掉了。');
+        } else {
+          lines.push('✔ 三条都在：' + sizes.join('｜'));
+        }
+      }
+    } catch (e) { lines.push('（注入检查跳过：' + String((e && e.message) || e) + '）'); }
+
     lines.push('<div class="mp-log-subhead">【测试10】多人卡标签隔离</div>');
     try {
       const mockChars = {

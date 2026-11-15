@@ -24,14 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.15.1';
-  const MOON_FORMULA_CHANGELOG = "【v5.15.1 攻略模式：她也有一个不能说出口的系统】\n" +
-    "（5.15 第二版 · 从 v5.15.0 升级）\n" +
-    "1. 🎭 双版本攻略系统：角色版与玩家版两套账本、两套货架、两套背包，互相不可见；正文出现系统词会被自动清洗。\n" +
-    "2. 🛒 积分商城：角色侧靠好感增长攒分、玩家侧靠街机/成就/签到攒分，货架每 3 个游戏日刷一次，稀有度抽签。\n" +
-    "3. 📜 她的秘密任务：系统给她派活，几回合内没做到会扣分并留下状态，做到了才有奖励。\n" +
-    "4. 🎁 道具与状态：买来的东西不直接改好感，只变成她身上的「状态」，让 AI 自己在剧情里用出来。\n" +
-    "5. 🎰 签到与大转盘：每日签到、连签奖励、阶段突破送转盘券，抽出积分/道具/宝石；另有图鉴、限时活动、纪念日。";
+  const MOON_FORMULA_VERSION = '5.15.2';
+  const MOON_FORMULA_CHANGELOG = "【v5.15.2 正文干净了，心声不再断句】\n" +
+    "（5.15 第二版 · 从 v5.15.1 升级）\n" +
+    "1. 🧹 正文里那些标签和徽章全部清掉了：好感度看状态栏就够，正文只留故事。升级后旧消息里的徽章也会一并消失。\n" +
+    "2. 🎙 心声每轮都会刷：标签走双通道注入（状态块里也写了格式，回复完就提前注一次），不再只靠最末尾那一条——有些酒馆版本会把最末尾那条折叠掉。\n" +
+    "3. 🩹 心声里带括号（「他居然记得（那次礼堂）的事」）不再被截断成半句。\n" +
+    "4. 🩺 系统自检新增【测试9B】：直接看核心规则 / 状态格式 / 心声提醒有没有真的进酒馆，各多少字。\n" +
+    "5. 🕒 同一楼层重复触发，时钟不会再偷偷多走 10 分钟。\n" +
+    "6. 🎭 攻略模式、签到、掌机整包、沉浸模式照旧。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -871,8 +872,15 @@
      而漏写时脚本没有任何东西可抓（状态卡只能显示「本轮未收到」）。
      这个标签每轮由脚本注入在 prompt 最下面一行强制要求，短、固定、只有一个语义，
      模型照抄的概率明显高于一整块后台变量。
-     两种写法都收：谁后到用谁；标签会被从正文里删掉，玩家看不到。 */
-  const VOICE_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(\uff08]\s*心声\s*[|\uff5c]([^|\uff5c\]\u3015\u3011\uff3d)\uff09\r\n]+)[|\uff5c]([^\]\u3015\u3011\uff3d)\uff09\r\n]*)[\]\u3015\u3011\uff3d)\uff09]?/gi;
+     两种写法都收：谁后到用谁；标签会被从正文里删掉，玩家看不到。
+
+     内容段只排除右方括号类（] 〕 】 ］）和换行，**不再排除圆括号**：
+     内心话里带括号太常见了（「他居然记得（那次礼堂）的事」），
+     以前把 ）和 ) 也列进排除集，正则会在括号处提前收尾 ——
+     心声被截成半句，剩下的「的事。]」还留在正文里给玩家看。
+     结尾的闭合符改成必需：漏写 ] 时宁可把整行原样留着（看得出是模型没写完），
+     也不要让它一路吃到下一段正文。 */
+  const VOICE_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(\uff08]\s*心声\s*[|\uff5c]([^|\uff5c\]\u3015\u3011\uff3d)\uff09\r\n]+)[|\uff5c]([^\]\u3015\u3011\uff3d\r\n]*)[\]\u3015\u3011\uff3d)\uff09]/gi;
 
   function extractVoiceTags(mes) {
     const out = [];
@@ -1662,6 +1670,11 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('角色.<角色名>.在场=true 或 false');
       lines.push('只有当该角色 E≥58 或 R≥3，且档案中尚无对玩家专属称呼时，才额外输出一行：角色.<角色名>.对玩家称呼=<根据角色性格创造的独特称呼>。已有称呼时不要再输出或修改。');
       lines.push('→ 心声与情绪是「每轮刷新的即时状态」，不是档案字段：每一轮都要按本轮剧情重写，哪怕和上一轮很像也要换一句新的。直接复制上一轮的心声，等同于这一轮没写。');
+      /* 这里再写一遍 [心声|…] 的短格式：后面那条 depth 0 的独立提醒是最显眼的一条，
+         但它挂在最末尾，部分酒馆 / 提示词管理器版本会把 depth 0 的注入丢掉或折叠。
+         写进这一块（depth 1、和状态同一条）等于留了条备用通道 ——
+         两条内容一致，谁到了都能让模型看见。 */
+      lines.push('写完正文后，再给每个出场角色单独补一行心声标签（脚本靠它更新状态卡，漏一行算本轮没写完）：[心声|角色名|一句此刻的内心话，20字以内]');
       lines.push('（当前世界时间：' + (world.时间 || '未记录') + '｜当前地点：' + (world.地点 || '未记录') + '｜游戏日：第 ' + (Number(world._游戏日) || 0) + ' 天。'
         + '节奏规则：同一场景内的对话，每轮只推进 ' + getTurnMinutes() + ' 分钟（最多不超过 ' + (getTurnMinutes() * 2) + ' 分钟），不要自行跳到几小时之后或第二天；'
         + '只有玩家明确要求（第二天 / 三天后 / 睡一觉 / 跳过）或剧情确实需要转场时，才写出跨时段或跨天的新时间。'
@@ -2415,6 +2428,26 @@ async function _collectAllWorldbooks(includeDisabled) {
     return formatGameTime(newDate);
   }
 
+  /* 时钟指纹用的文本：把脚本自己会删掉的东西先抠干净。
+
+     为什么要这一步 —— 同一楼层 message_received 可能触发两次（再来一次 / 手滑）。
+     以前指纹直接哈希原文，可原文在处理过程中会被清洗（标签、s 占位、
+     后台变量行全被删），于是第二次算出来的指纹不同，被当成新楼层，
+     时钟又走 10 分钟、回合又 +1。玩家看到的就是「刷新一下时间就变了」。
+     只要两次拿到的都是「清洗后等价」的文本，指纹就稳定。 */
+  function normalizeClockSigText(text) {
+    let t = String(text || '');
+    try { t = t.replace(SYLVEINA_TAG_GLOBAL_RE, ''); } catch (e) {}
+    try { t = t.replace(VOICE_TAG_GLOBAL_RE, ''); } catch (e) {}
+    /* 反向模式的任务板行 */
+    t = t.replace(/(?:^|\r?\n)[ \t]*\[板\][^\r\n]*/gi, '');
+    /* 后台变量行 / MVU 块 / 状态占位 */
+    t = t.replace(/(?:^|\r?\n)\s*(?:角色\.[^\r\n=]+=[^\r\n]*|世界\.时间=[^\r\n]*|<UpdateVariable>[\s\S]*?<\/UpdateVariable>|<StatusPlaceHolderImpl\s*\/>)/gi, '');
+    /* 单独一行的 s（sanitize 补的占位，也会被删） */
+    t = t.replace(/(?:^|\r?\n)[ \t]*s[ \t]*(?=\r?\n|$)/gi, '');
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
   async function runMoonCalculation() {
     try {
       const data = readMvuLatest();
@@ -2432,7 +2465,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       // 否则玩家一句话都没说，时间已经走了 10 分钟、回合数也先跳了 1。
       if (activeCharNames.length === 0) return;
       ensureWorldClockFields(world);
-      const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : 't:' + String(world.时间 || '');
+      const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(normalizeClockSigText(latestAiText)) : 't:' + String(world.时间 || '');
       // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
       if (world._lastClockSig !== clockSig) {
         world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0)) + 1;
@@ -2636,7 +2669,9 @@ async function _collectAllWorldbooks(includeDisabled) {
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}
-      return { countdownActions: countdownActions };
+      /* 把这一轮实际生效的增量交回去：正文里那个数值徽章要按它改写，
+         否则玩家看到「▲ +3」、状态卡只涨 1.5，第一反应就是脚本坏了。 */
+      return { countdownActions: countdownActions, changedChars: changedChars, weeklyBlockedChars: weeklyBlockedChars };
     } catch (e) { try { console.warn('[Doki] 计算流程异常：', e); } catch (e2) {} return null; }
   }
 
@@ -2961,7 +2996,13 @@ async function _collectAllWorldbooks(includeDisabled) {
         callSetPrompt(PROMPT_KEY + '_ending_director', '', 0, 0, false);
         callSetPrompt(PROMPT_KEY + '_epilogue_director', '', 0, 0, false);
       } catch (e) {}
-      onGenerationEnd().catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
+      onGenerationEnd().then(function() {
+        /* 回复处理完（变量已落盘）就立刻把下一轮要用的心声提醒写进去。
+           为什么不在 chat_completion_prompt_ready 里只注一次：那个事件在部分酒馆 /
+           酒馆助手版本里是「prompt 已经拼好」才触发，这时候改 extension_prompts
+           对本次请求已经晚了；提前一轮注入不依赖那个时序。 */
+        try { injectVoiceTagReminder(); } catch (e) {}
+      }).catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
       // Galgame 沉浸层：只记记忆、接收第三方图片、刷新展示，不碰聊天记录
       try { onGalMessageReceived(galLatestAiIndex()); } catch (e) {}
       /* 掌机：这一轮 AI 回完了——响一声，让掌机把这一局存下来。
@@ -3077,6 +3118,46 @@ async function _collectAllWorldbooks(includeDisabled) {
         found.msg.mes = mes.replace(/\n{3,}/g, '\n\n');
       }
       return changed;
+    } catch (e) { return false; }
+  }
+
+  /* 结算完成之后，把正文里的数值标签整个删掉。
+
+     标签 [Sylveina|角色|L|+|1.5] 是给脚本算账用的中间格式。
+     玩家的「最终好感度」在状态栏里已经有了，正文再来一个徽章是重复，
+     还会把注意力从剧情上拽走。所以算完就删，正文只留故事。
+
+     按行判断：整行只有标签（或标签 + 那个 s 占位符）→ 连行一起删；
+     混在句子中间 → 只抠掉标签本身，句子保留。 */
+  function stripSylveinaTagsFromMessage() {
+    try {
+      const found = getLatestAiMessage();
+      if (!found || !found.msg || typeof found.msg.mes !== 'string') return false;
+      const src = found.msg.mes;
+      if (!/Sylveina/i.test(src)) return false;
+      const tagRe = /[\[\u3014\u3010\uff3b]\s*Sylveina\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
+      const lines = src.split(/\r?\n/);
+      const kept = [];
+      let hit = 0;
+      let prevWasTag = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!/Sylveina/i.test(line)) {
+          /* 紧跟在标签行后面那个单独的 s 是占位符，玩家不该看见，一并带走 */
+          if (prevWasTag && /^\s*s\s*$/i.test(line)) { prevWasTag = false; continue; }
+          kept.push(line);
+          prevWasTag = false;
+          continue;
+        }
+        const rest = line.replace(tagRe, function() { hit++; return ''; });
+        /* 抠完只剩空白或一个 s → 这一行本来只为标签存在 */
+        if (/^\s*s?\s*$/i.test(rest)) { prevWasTag = true; continue; }
+        kept.push(rest.replace(/[ \t]{2,}/g, ' ').replace(/^[ \t]+|[ \t]+$/g, ''));
+        prevWasTag = true;
+      }
+      if (!hit) return false;
+      found.msg.mes = kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+      return true;
     } catch (e) { return false; }
   }
 
@@ -3572,29 +3653,27 @@ async function _collectAllWorldbooks(includeDisabled) {
     try {
       const nodes = mainDoc.querySelectorAll('.mes .mes_text');
       if (!nodes || !nodes.length) return;
-      const levelNames = { L: '日常波动', M: '关键转折', H: '重大羁绊' };
       for (let i = Math.max(0, nodes.length - 6); i < nodes.length; i++) {
         const el = nodes[i];
         if (!el || !el.innerHTML) continue;
+        /* 上一版把标签渲染成徽章，升级后历史消息里还留着；顺手清掉。 */
+        try {
+          const legacy = el.querySelectorAll('.mp-sylveina-badge');
+          for (let k = 0; k < legacy.length; k++) {
+            if (legacy[k].parentNode) legacy[k].parentNode.removeChild(legacy[k]);
+          }
+        } catch (e) {}
         if (!/Sylveina/i.test(el.textContent || '')) continue;
         const rawHtml = el.innerHTML;
         const domTagRe = /[\[\u3014\u3010\uff3b(（]\s*Sylveina\s*[|｜]([^\]\u3015\u3011\uff3d)）<\r\n]+)[\]\u3015\u3011\uff3d)）](?:\s*(?:<br\s*\/?>|\r?\n|<\/p>\s*<p>)?\s*s(?=\s*(?:<\/p>|$)))?/gi;
-        const replaced = rawHtml.replace(domTagRe, function(full, body) {
-          const parsed = parseSylveinaBody(body, full);
-          if (!parsed) return full;
-          const isPos = parsed.sign !== '-';
-          const accent = isPos ? '#f472d0' : '#38bdf8';
-          const bg = isPos ? 'rgba(244,114,208,0.12)' : 'rgba(56,189,248,0.12)';
-          const levelLabel = levelNames[parsed.level] || parsed.eventType || '命运波动';
-          const namePrefix = parsed.charName ? (escapeFeatureHtml(parsed.charName) + ' · ') : '';
-          return '<div class="mp-sylveina-badge" style="display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:4px 11px;border-radius:4px;border:1px solid ' + accent + ';background:' + bg + ';color:#fce7f3;font:600 11.5px \"MP Fusion Pixel\",\"Courier New\",monospace;box-shadow:2px 2px 0 rgba(20,10,24,0.65);">' +
-            '<span>🌙 ' + namePrefix + levelLabel + ' [' + parsed.level + ']</span>' +
-            '<span style="color:' + accent + ';">' + (isPos ? '▲ +' : '▼ -') + parsed.baseValue + '</span>' +
-            '</div>';
-        });
-        if (replaced !== rawHtml) {
-          el.innerHTML = replaced;
-        }
+        /* 标签只给脚本算账用，玩家不需要看第二遍：
+           最终好感度在状态栏里已经有了，正文再挂一个徽章是重复。
+           所以这里直接删干净，连它后面那个 s 占位符一起。 */
+        const stripped = rawHtml.replace(domTagRe, '');
+        if (stripped === rawHtml) continue;
+        el.innerHTML = stripped
+          .replace(/<p>\s*<\/p>/gi, '')
+          .replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br>');
       }
     } catch (e) {}
     beautifyGalgameEndingInDom();
@@ -3638,7 +3717,9 @@ async function _collectAllWorldbooks(includeDisabled) {
     // ② 先完成本轮时钟推进与常规关系结算，再检查倒计时/周周期，最后掷时间跳跃好感骰。
     // 这样长时间跳跃会先完整换算成游戏日，倒计时与周额度不会晚一轮，也不会吃旧额度。
     setTimeout(function() {
+      let _calcOut = null;
       Promise.resolve(runMoonCalculation()).then(async function(calcResult) {
+        _calcOut = calcResult;
         const countdownActions = calcResult && Array.isArray(calcResult.countdownActions) ? calcResult.countdownActions : checkAllCountdowns();
         const jumpInfo = await checkTimeJump();
         if (jumpInfo) { injectTimeJump(jumpInfo); }
@@ -3649,6 +3730,9 @@ async function _collectAllWorldbooks(includeDisabled) {
         try { console.warn('[Doki] 时间/关系结算流程异常：', e); } catch (ignore) {}
       }).finally(function() {
         sanitizeSylveinaRegexTail();
+        /* 结算已经拿到数据了，现在把标签从正文里彻底删掉 ——
+           状态栏里有最终好感度，正文不需要再挂第二遍。 */
+        try { if (_calcOut) stripSylveinaTagsFromMessage(); } catch (e) {}
         beautifySylveinaTagsInDom();
       });
     }, 600);
@@ -21801,6 +21885,40 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
       if (okTime && okVoice && okEmoji && okNick && okRepeat && okStrip) lines.push('✔ 时间 / 心声 / 情绪 / 专属称呼均被写入；重复心声可识别，后台行已从正文清理');
       else lines.push('✖ 后台变量摄入不完整：时间' + okTime + ' 心声' + okVoice + ' 情绪' + okEmoji + ' 昵称' + okNick + ' 重复识别' + okRepeat + ' 清理' + okStrip);
     } catch (e) { lines.push('✖ 后台变量摄入异常：' + (e.message || e)); }
+
+    /* 【测试9B】提示词到底有没有进酒馆。
+       玩家报「AI 不写心声标签」时，第一件要分清的事是「没注入」还是「注入了模型没照做」——
+       这两件的修法完全相反，以前只能靠猜。 */
+    lines.push('<div class="mp-log-subhead">【测试9B】提示词注入（酒馆里现在有什么）</div>');
+    try {
+      /* 酒馆把扩展提示词放在 window.extension_prompts；部分版本只在 context 上暴露，
+         两个都试，别因为读错地方就误报「没注入」。 */
+      let ep = null;
+      try { ep = mainWin && mainWin.extension_prompts; } catch (e) {}
+      if (!ep) { try { const c = getSTCtx(); ep = c && c.extensionPrompts; } catch (e) {} }
+      if (!ep) {
+        lines.push('（这个酒馆版本里读不到 extension_prompts，跳过）');
+      } else {
+        const probe = [
+          [PROMPT_KEY + '_core_rules', '核心规则'],
+          [PROMPT_KEY + '_event', '状态与标签格式'],
+          [PROMPT_KEY + '_voice', '心声提醒']
+        ];
+        const missing = [];
+        const sizes = [];
+        probe.forEach(function(pair) {
+          const raw = ep[pair[0]];
+          const val = raw && typeof raw === 'object' ? String(raw.value || '') : String(raw || '');
+          if (!val.trim()) missing.push(pair[1]);
+          else sizes.push(pair[1] + ' ' + val.length + ' 字');
+        });
+        if (missing.length) {
+          lines.push('✖ 没进酒馆：' + missing.join('、') + '。先确认这一轮真的发过对话；仍然缺就是被别的插件或提示词管理器挤掉了。');
+        } else {
+          lines.push('✔ 三条都在：' + sizes.join('｜'));
+        }
+      }
+    } catch (e) { lines.push('（注入检查跳过：' + String((e && e.message) || e) + '）'); }
 
     lines.push('<div class="mp-log-subhead">【测试10】多人卡标签隔离</div>');
     try {

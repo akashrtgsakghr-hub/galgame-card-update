@@ -461,29 +461,27 @@
     try {
       const nodes = mainDoc.querySelectorAll('.mes .mes_text');
       if (!nodes || !nodes.length) return;
-      const levelNames = { L: '日常波动', M: '关键转折', H: '重大羁绊' };
       for (let i = Math.max(0, nodes.length - 6); i < nodes.length; i++) {
         const el = nodes[i];
         if (!el || !el.innerHTML) continue;
+        /* 上一版把标签渲染成徽章，升级后历史消息里还留着；顺手清掉。 */
+        try {
+          const legacy = el.querySelectorAll('.mp-sylveina-badge');
+          for (let k = 0; k < legacy.length; k++) {
+            if (legacy[k].parentNode) legacy[k].parentNode.removeChild(legacy[k]);
+          }
+        } catch (e) {}
         if (!/Sylveina/i.test(el.textContent || '')) continue;
         const rawHtml = el.innerHTML;
         const domTagRe = /[\[\u3014\u3010\uff3b(（]\s*Sylveina\s*[|｜]([^\]\u3015\u3011\uff3d)）<\r\n]+)[\]\u3015\u3011\uff3d)）](?:\s*(?:<br\s*\/?>|\r?\n|<\/p>\s*<p>)?\s*s(?=\s*(?:<\/p>|$)))?/gi;
-        const replaced = rawHtml.replace(domTagRe, function(full, body) {
-          const parsed = parseSylveinaBody(body, full);
-          if (!parsed) return full;
-          const isPos = parsed.sign !== '-';
-          const accent = isPos ? '#f472d0' : '#38bdf8';
-          const bg = isPos ? 'rgba(244,114,208,0.12)' : 'rgba(56,189,248,0.12)';
-          const levelLabel = levelNames[parsed.level] || parsed.eventType || '命运波动';
-          const namePrefix = parsed.charName ? (escapeFeatureHtml(parsed.charName) + ' · ') : '';
-          return '<div class="mp-sylveina-badge" style="display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:4px 11px;border-radius:4px;border:1px solid ' + accent + ';background:' + bg + ';color:#fce7f3;font:600 11.5px \"MP Fusion Pixel\",\"Courier New\",monospace;box-shadow:2px 2px 0 rgba(20,10,24,0.65);">' +
-            '<span>🌙 ' + namePrefix + levelLabel + ' [' + parsed.level + ']</span>' +
-            '<span style="color:' + accent + ';">' + (isPos ? '▲ +' : '▼ -') + parsed.baseValue + '</span>' +
-            '</div>';
-        });
-        if (replaced !== rawHtml) {
-          el.innerHTML = replaced;
-        }
+        /* 标签只给脚本算账用，玩家不需要看第二遍：
+           最终好感度在状态栏里已经有了，正文再挂一个徽章是重复。
+           所以这里直接删干净，连它后面那个 s 占位符一起。 */
+        const stripped = rawHtml.replace(domTagRe, '');
+        if (stripped === rawHtml) continue;
+        el.innerHTML = stripped
+          .replace(/<p>\s*<\/p>/gi, '')
+          .replace(/(?:<br\s*\/?>\s*){2,}/gi, '<br>');
       }
     } catch (e) {}
     beautifyGalgameEndingInDom();
@@ -527,7 +525,9 @@
     // ② 先完成本轮时钟推进与常规关系结算，再检查倒计时/周周期，最后掷时间跳跃好感骰。
     // 这样长时间跳跃会先完整换算成游戏日，倒计时与周额度不会晚一轮，也不会吃旧额度。
     setTimeout(function() {
+      let _calcOut = null;
       Promise.resolve(runMoonCalculation()).then(async function(calcResult) {
+        _calcOut = calcResult;
         const countdownActions = calcResult && Array.isArray(calcResult.countdownActions) ? calcResult.countdownActions : checkAllCountdowns();
         const jumpInfo = await checkTimeJump();
         if (jumpInfo) { injectTimeJump(jumpInfo); }
@@ -538,6 +538,9 @@
         try { console.warn('[Doki] 时间/关系结算流程异常：', e); } catch (ignore) {}
       }).finally(function() {
         sanitizeSylveinaRegexTail();
+        /* 结算已经拿到数据了，现在把标签从正文里彻底删掉 ——
+           状态栏里有最终好感度，正文不需要再挂第二遍。 */
+        try { if (_calcOut) stripSylveinaTagsFromMessage(); } catch (e) {}
         beautifySylveinaTagsInDom();
       });
     }, 600);

@@ -60,7 +60,13 @@
         callSetPrompt(PROMPT_KEY + '_ending_director', '', 0, 0, false);
         callSetPrompt(PROMPT_KEY + '_epilogue_director', '', 0, 0, false);
       } catch (e) {}
-      onGenerationEnd().catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
+      onGenerationEnd().then(function() {
+        /* 回复处理完（变量已落盘）就立刻把下一轮要用的心声提醒写进去。
+           为什么不在 chat_completion_prompt_ready 里只注一次：那个事件在部分酒馆 /
+           酒馆助手版本里是「prompt 已经拼好」才触发，这时候改 extension_prompts
+           对本次请求已经晚了；提前一轮注入不依赖那个时序。 */
+        try { injectVoiceTagReminder(); } catch (e) {}
+      }).catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
       // Galgame 沉浸层：只记记忆、接收第三方图片、刷新展示，不碰聊天记录
       try { onGalMessageReceived(galLatestAiIndex()); } catch (e) {}
       /* 掌机：这一轮 AI 回完了——响一声，让掌机把这一局存下来。
@@ -176,6 +182,46 @@
         found.msg.mes = mes.replace(/\n{3,}/g, '\n\n');
       }
       return changed;
+    } catch (e) { return false; }
+  }
+
+  /* 结算完成之后，把正文里的数值标签整个删掉。
+
+     标签 [Sylveina|角色|L|+|1.5] 是给脚本算账用的中间格式。
+     玩家的「最终好感度」在状态栏里已经有了，正文再来一个徽章是重复，
+     还会把注意力从剧情上拽走。所以算完就删，正文只留故事。
+
+     按行判断：整行只有标签（或标签 + 那个 s 占位符）→ 连行一起删；
+     混在句子中间 → 只抠掉标签本身，句子保留。 */
+  function stripSylveinaTagsFromMessage() {
+    try {
+      const found = getLatestAiMessage();
+      if (!found || !found.msg || typeof found.msg.mes !== 'string') return false;
+      const src = found.msg.mes;
+      if (!/Sylveina/i.test(src)) return false;
+      const tagRe = /[\[\u3014\u3010\uff3b]\s*Sylveina\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
+      const lines = src.split(/\r?\n/);
+      const kept = [];
+      let hit = 0;
+      let prevWasTag = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!/Sylveina/i.test(line)) {
+          /* 紧跟在标签行后面那个单独的 s 是占位符，玩家不该看见，一并带走 */
+          if (prevWasTag && /^\s*s\s*$/i.test(line)) { prevWasTag = false; continue; }
+          kept.push(line);
+          prevWasTag = false;
+          continue;
+        }
+        const rest = line.replace(tagRe, function() { hit++; return ''; });
+        /* 抠完只剩空白或一个 s → 这一行本来只为标签存在 */
+        if (/^\s*s?\s*$/i.test(rest)) { prevWasTag = true; continue; }
+        kept.push(rest.replace(/[ \t]{2,}/g, ' ').replace(/^[ \t]+|[ \t]+$/g, ''));
+        prevWasTag = true;
+      }
+      if (!hit) return false;
+      found.msg.mes = kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+      return true;
     } catch (e) { return false; }
   }
 

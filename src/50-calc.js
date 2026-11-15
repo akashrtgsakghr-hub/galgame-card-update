@@ -1,3 +1,23 @@
+  /* 时钟指纹用的文本：把脚本自己会删掉的东西先抠干净。
+
+     为什么要这一步 —— 同一楼层 message_received 可能触发两次（再来一次 / 手滑）。
+     以前指纹直接哈希原文，可原文在处理过程中会被清洗（标签、s 占位、
+     后台变量行全被删），于是第二次算出来的指纹不同，被当成新楼层，
+     时钟又走 10 分钟、回合又 +1。玩家看到的就是「刷新一下时间就变了」。
+     只要两次拿到的都是「清洗后等价」的文本，指纹就稳定。 */
+  function normalizeClockSigText(text) {
+    let t = String(text || '');
+    try { t = t.replace(SYLVEINA_TAG_GLOBAL_RE, ''); } catch (e) {}
+    try { t = t.replace(VOICE_TAG_GLOBAL_RE, ''); } catch (e) {}
+    /* 反向模式的任务板行 */
+    t = t.replace(/(?:^|\r?\n)[ \t]*\[板\][^\r\n]*/gi, '');
+    /* 后台变量行 / MVU 块 / 状态占位 */
+    t = t.replace(/(?:^|\r?\n)\s*(?:角色\.[^\r\n=]+=[^\r\n]*|世界\.时间=[^\r\n]*|<UpdateVariable>[\s\S]*?<\/UpdateVariable>|<StatusPlaceHolderImpl\s*\/>)/gi, '');
+    /* 单独一行的 s（sanitize 补的占位，也会被删） */
+    t = t.replace(/(?:^|\r?\n)[ \t]*s[ \t]*(?=\r?\n|$)/gi, '');
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
   async function runMoonCalculation() {
     try {
       const data = readMvuLatest();
@@ -15,7 +35,7 @@
       // 否则玩家一句话都没说，时间已经走了 10 分钟、回合数也先跳了 1。
       if (activeCharNames.length === 0) return;
       ensureWorldClockFields(world);
-      const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : 't:' + String(world.时间 || '');
+      const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(normalizeClockSigText(latestAiText)) : 't:' + String(world.时间 || '');
       // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
       if (world._lastClockSig !== clockSig) {
         world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0)) + 1;
@@ -219,7 +239,9 @@
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}
-      return { countdownActions: countdownActions };
+      /* 把这一轮实际生效的增量交回去：正文里那个数值徽章要按它改写，
+         否则玩家看到「▲ +3」、状态卡只涨 1.5，第一反应就是脚本坏了。 */
+      return { countdownActions: countdownActions, changedChars: changedChars, weeklyBlockedChars: weeklyBlockedChars };
     } catch (e) { try { console.warn('[Doki] 计算流程异常：', e); } catch (e2) {} return null; }
   }
 
