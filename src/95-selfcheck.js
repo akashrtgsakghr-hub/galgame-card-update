@@ -94,6 +94,17 @@
     if (panel.dataset.displayMode === 'pocket' && panel._pocketStop
         && mainDoc.getElementById('moon-pocket-host')) return;
 
+    /* 下面要整块重写 innerHTML。先把「焦点原本停在哪个页签」记下来，
+       收尾时按同一个 key 找回去（见函数末尾）。 */
+    let _focusKey = null;
+    try {
+      const ae = mainDoc.activeElement;
+      if (ae && panel.contains(ae) && ae.getAttribute) {
+        if (ae.getAttribute('data-display-mode')) _focusKey = 'mode:' + ae.getAttribute('data-display-mode');
+        else if (ae.getAttribute('data-menu-open')) _focusKey = 'menu:' + ae.getAttribute('data-menu-open');
+      }
+    } catch (e) {}
+
     /* 这些按钮不一定存在：切到街机 / 卡带机时液晶屏内容整块不渲染。
        以前这里直接 querySelector(...).addEventListener 会抛 null，导致后面的绑定全断。 */
     const bindClick = function(sel, fn) { const el = panel.querySelector(sel); if (el) el.addEventListener('click', fn); return el; };
@@ -257,9 +268,11 @@
       /* 翻页条紧贴标题栏：三页（系统面板 / 街机 / 卡带机）都从这一行翻，
          下面的内容随页走。以前它被引导条压在中间，手机上要滑一下才看得见。 */
       '<div class="mp-display-mode-switch" role="tablist" aria-label="翻页：系统面板 / 街机 / 卡带机">' +
-      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板<small>01</small></button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏<small>02</small></button>' +
-      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机<small>03</small></button>' : '') +
+      /* tabindex 只给当前页签 0：三个都是 0 的话要 Tab 三下才过得去，
+         标准 tablist 是「Tab 一次进来，方向键在里面走」。 */
+      '<button type="button" role="tab" tabindex="' + (!isArcadeMode ? '0' : '-1') + '" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板<small>01</small></button>' +
+      '<button type="button" role="tab" tabindex="' + (isArcadeMode ? '0' : '-1') + '" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏<small>02</small></button>' +
+      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" tabindex="' + (isPocketMode ? '0' : '-1') + '" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机<small>03</small></button>' : '') +
       '</div>' +
       /* 引导条跟着「系统面板」这一页走；街机 / 卡带机页不显示，那两页不是给它用的 */
       guideHtml +
@@ -309,11 +322,11 @@
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">角色</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">日志</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">检修</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">选项</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'adventure' ? '0' : '-1') + '" data-menu-open="adventure">▶ 开始</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'characters' ? '0' : '-1') + '" data-menu-open="characters">角色</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'timeline' ? '0' : '-1') + '" data-menu-open="timeline">日志</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'system' ? '0' : '-1') + '" data-menu-open="system">检修</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'settings' ? '0' : '-1') + '" data-menu-open="settings">选项</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
@@ -449,6 +462,34 @@
         try { panel.scrollTop = 0; } catch (e) {}
       });
     }
+    /* 页签的方向键：标准 tablist 的手感是「进一次 Tab 到当前页签，
+       之后左右键在页签之间走」。以前三个页签要 Tab 三下才过得去，
+       子页签五个要 Tab 五下，键盘用户基本没法用。 */
+    if (panel.dataset.tabKeysBound !== '1') {
+      panel.dataset.tabKeysBound = '1';
+      panel.addEventListener('keydown', function(event) {
+        const key = event.key;
+        if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return;
+        const btn = event.target && event.target.closest
+          ? event.target.closest('.mp-display-mode-switch button, .mp-subpage-switch button') : null;
+        if (!btn || !panel.contains(btn)) return;
+        const wrap = btn.parentElement;
+        if (!wrap) return;
+        const items = Array.prototype.slice.call(wrap.querySelectorAll('button')).filter(function(b) { return !b.disabled; });
+        const i = items.indexOf(btn);
+        if (i < 0 || items.length < 2) return;
+        event.preventDefault();
+        let next = i;
+        if (key === 'Home') next = 0;
+        else if (key === 'End') next = items.length - 1;
+        else if (key === 'ArrowLeft') next = (i - 1 + items.length) % items.length;
+        else next = (i + 1) % items.length;
+        /* 先移焦点再点：主翻页条点下去会整块重绘，renderPanel 收尾时按
+           activeElement 找回同一个页签 —— 顺序反了就找回上一个。 */
+        try { items[next].focus({ preventScroll: true }); } catch (e) {}
+        try { items[next].click(); } catch (e) {}
+      });
+    }
     if (isArcadeMode) {
       const lcdCard = panel.querySelector('.mp-lcd-card');
       if (lcdCard) panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true, difficulty: selectedLevel });
@@ -470,17 +511,33 @@
         const title = panel.querySelector('#moon-menu-page-title');
         if (title) title.textContent = menuTitles[key] || '功能';
         panel.querySelectorAll('.mp-subpage-tab').forEach(function(t) {
-          t.classList.toggle('active', t.getAttribute('data-menu-open') === key);
+          const on = t.getAttribute('data-menu-open') === key;
+          t.classList.toggle('active', on);
+          /* 这一行是给键盘用的：主菜单卡点进来之后，子页签组才「进入」，
+             tabindex 不同步的话，整组永远停在 -1，Tab 进不去。 */
+          t.setAttribute('tabindex', on ? '0' : '-1');
         });
         panel.querySelectorAll('.mp-menu-subpage').forEach(function(page) {
           page.style.display = page.getAttribute('data-menu-page') === key ? 'block' : 'none';
         });
+        /* 主菜单那块整块藏起来了，焦点原本停在上面的那张卡上——不挪走就等于
+           焦点掉到 body，键盘用户会以为「点了没反应」。挪到这一页的第一个子页签。 */
+        try {
+          const act = panel.querySelector('.mp-subpage-tab.active');
+          if (act) act.focus({ preventScroll: true });
+        } catch (e) {}
       });
     });
     bindClick('#moon-menu-back', function() {
+      const backKey = panel.dataset.activeMenuKey || '';
       panel.dataset.activeMenuKey = '';
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
+      /* 返回后焦点回原来那张卡，同样是为了不让焦点掉到 body */
+      try {
+        const homeCard = panel.querySelector('.mp-menu-card[data-menu-open="' + backKey + '"]') || panel.querySelector('.mp-menu-card');
+        if (homeCard) homeCard.focus({ preventScroll: true });
+      } catch (e) {}
     });
     const galEntryBtn = panel.querySelector('[data-gal-open]');
     if (galEntryBtn) galEntryBtn.addEventListener('click', function() {
@@ -616,6 +673,19 @@ bindClick('#moon-phase-update', function() {
     if (panel.querySelector('#moon-phase-tl-list')) bindClick('#moon-phase-tl-list', function() { openTimelineManagerDialog(panel); });
     bindClick('#moon-phase-manual-tl', function() { openManualTimelineInputDialog(panel); });
     bindClick('#moon-phase-tl-tag', function() { openTimelineTagDialog(panel); });
+
+    /* 这里是 renderPanel 的收尾：整块 innerHTML 刚重建完，焦点八成掉回 body 了。
+       如果重建前焦点在某个页签上，按同一个 key 找回来 —— 键盘 / 读屏用户
+       切一次页签就要从头 Tab 一遍，是这版最扎人的一个细节。 */
+    if (_focusKey) {
+      try {
+        const sel = _focusKey.indexOf('mode:') === 0
+          ? '.mp-display-mode-switch button[data-display-mode="' + _focusKey.slice(5) + '"]'
+          : '.mp-subpage-switch button[data-menu-open="' + _focusKey.slice(5) + '"]';
+        const back = panel.querySelector(sel);
+        if (back) back.focus({ preventScroll: true });
+      } catch (e) {}
+    }
   }
   /* ───────────────────────────────────────────────────────── */
   async function runSelfCheck() {

@@ -6651,6 +6651,8 @@ function openUpdateConfigDialog(panel) {
     0 0 0 1px rgba(var(--k-accent-rgb), .10) !important;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--k-accent-rgb), .28) transparent;
+  /* 面板滚到头之后别再带着整个聊天页一起滚（手机上最常见的手指误操作） */
+  overscroll-behavior: contain;
 }
 #moon-phase-panel::-webkit-scrollbar { width: 6px; }
 #moon-phase-panel::-webkit-scrollbar-thumb { background: rgba(var(--k-accent-rgb), .26); border-radius: 3px; }
@@ -6996,6 +6998,17 @@ function openUpdateConfigDialog(panel) {
   border-color: var(--k-line-2) !important;
   background: linear-gradient(180deg, var(--k-sur-3, #2a2033) 0%, #171021 100%) !important;
   transform: translate(-1px, -1px);
+}
+/* hover 是浮起 1px，按下就沉 1px 并把那块硬阴影收掉 —— 像素机身的物理感
+   全靠这 1px，不换颜色也不加圆角，风格不动。 */
+#moon-phase-panel .mp-menu-card:active {
+  transform: translate(1px, 1px);
+  box-shadow: none !important;
+  border-color: var(--k-accent) !important;
+}
+/* 页签 / 难度钮 / 掌机键位同理，只给位移，不动底色 */
+#moon-phase-panel :is(.mp-subpage-tab, .mp-display-mode-switch button, .mp-mode-btn, .mp-round-btn, .mp-dpad-btn):active {
+  transform: translate(1px, 1px);
 }
 #moon-phase-panel .mp-menu-card[data-primary="1"] {
   border-color: var(--k-line-2) !important;
@@ -7425,8 +7438,25 @@ function openUpdateConfigDialog(panel) {
   box-shadow:
     0 0 0 2px var(--k-accent),
     0 0 0 9999px rgba(var(--k-shadow-rgb), .78);
-  transition: color 160ms var(--k-ease), background-color 160ms var(--k-ease), border-color 160ms var(--k-ease), transform 160ms var(--k-ease);
+  /* 一步到下步之间让光框滑过去，而不是瞬间跳到另一处、让人有一瞬间没找到焦点 */
+  transition:
+    left 220ms var(--k-ease),
+    top 220ms var(--k-ease),
+    width 220ms var(--k-ease),
+    height 220ms var(--k-ease),
+    box-shadow 160ms var(--k-ease);
   pointer-events: none;
+}
+/* 首次定位不准带动画（否则会从左上角滑进来） */
+.mp-tour-spot.no-anim { transition: none !important; }
+/* 读屏播报区：视觉上不存在，但不能用 display:none / visibility:hidden —— 那样读屏也读不到 */
+.mp-tour-live {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .mp-tour-card {
   position: fixed;
@@ -7436,7 +7466,10 @@ function openUpdateConfigDialog(panel) {
   width: min(340px, calc(100vw - 24px));
   box-sizing: border-box;
   max-height: 58vh;
+  /* dvh：手机地址栏收起时用 vh 会算高，卡片下半截被放出屏幕 */
+  max-height: min(58dvh, 440px);
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 13px 13px 12px;
   font-family: var(--k-font-body);
   border: 1px solid var(--k-line-2);
@@ -7444,6 +7477,13 @@ function openUpdateConfigDialog(panel) {
   background: linear-gradient(180deg, var(--k-sur-2, #221328), var(--k-sur-0, #120b17));
   box-shadow: 0 14px 34px rgba(var(--k-shadow-rgb), .8), inset 0 1px 0 rgba(var(--k-accent-rgb, 255,190,235), .10);
   pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 180ms var(--k-ease), transform 180ms var(--k-ease);
+}
+/* 进场的「从下面顶上来」：写进 @starting-style 就是纯 CSS，
+   老浏览器不认识这条规则会整块忽略，卡片照常直接出现，不会白屏。 */
+@starting-style {
+  .mp-tour-card { opacity: 0; transform: translateY(6px); }
 }
 .mp-tour-step {
   display: flex;
@@ -7475,6 +7515,11 @@ function openUpdateConfigDialog(panel) {
 }
 .mp-tour-nav.primary { border-color: var(--k-accent); background: rgba(var(--k-accent-rgb), .16); color: var(--k-accent-2); }
 .mp-tour-nav[disabled] { opacity: .4; cursor: default; }
+.mp-tour-nav:active { transform: translate(1px, 1px); box-shadow: none; }
+/* 系统开了「减少动态效果」就把滑动关掉：光框直接落位，卡片直接出现 */
+@media (prefers-reduced-motion: reduce) {
+  .mp-tour-spot, .mp-tour-card { transition: none !important; }
+}
 
 /* ── 答疑 ─────────────────────────────────────────────────────────────── */
 #moon-faq-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -22982,6 +23027,17 @@ function reverseHudSync() {
     if (panel.dataset.displayMode === 'pocket' && panel._pocketStop
         && mainDoc.getElementById('moon-pocket-host')) return;
 
+    /* 下面要整块重写 innerHTML。先把「焦点原本停在哪个页签」记下来，
+       收尾时按同一个 key 找回去（见函数末尾）。 */
+    let _focusKey = null;
+    try {
+      const ae = mainDoc.activeElement;
+      if (ae && panel.contains(ae) && ae.getAttribute) {
+        if (ae.getAttribute('data-display-mode')) _focusKey = 'mode:' + ae.getAttribute('data-display-mode');
+        else if (ae.getAttribute('data-menu-open')) _focusKey = 'menu:' + ae.getAttribute('data-menu-open');
+      }
+    } catch (e) {}
+
     /* 这些按钮不一定存在：切到街机 / 卡带机时液晶屏内容整块不渲染。
        以前这里直接 querySelector(...).addEventListener 会抛 null，导致后面的绑定全断。 */
     const bindClick = function(sel, fn) { const el = panel.querySelector(sel); if (el) el.addEventListener('click', fn); return el; };
@@ -23145,9 +23201,11 @@ function reverseHudSync() {
       /* 翻页条紧贴标题栏：三页（系统面板 / 街机 / 卡带机）都从这一行翻，
          下面的内容随页走。以前它被引导条压在中间，手机上要滑一下才看得见。 */
       '<div class="mp-display-mode-switch" role="tablist" aria-label="翻页：系统面板 / 街机 / 卡带机">' +
-      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板<small>01</small></button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏<small>02</small></button>' +
-      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机<small>03</small></button>' : '') +
+      /* tabindex 只给当前页签 0：三个都是 0 的话要 Tab 三下才过得去，
+         标准 tablist 是「Tab 一次进来，方向键在里面走」。 */
+      '<button type="button" role="tab" tabindex="' + (!isArcadeMode ? '0' : '-1') + '" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板<small>01</small></button>' +
+      '<button type="button" role="tab" tabindex="' + (isArcadeMode ? '0' : '-1') + '" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏<small>02</small></button>' +
+      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" tabindex="' + (isPocketMode ? '0' : '-1') + '" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机<small>03</small></button>' : '') +
       '</div>' +
       /* 引导条跟着「系统面板」这一页走；街机 / 卡带机页不显示，那两页不是给它用的 */
       guideHtml +
@@ -23197,11 +23255,11 @@ function reverseHudSync() {
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
       '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" data-menu-open="adventure">▶ 开始</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" data-menu-open="characters">角色</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" data-menu-open="timeline">日志</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" data-menu-open="system">检修</button>' +
-        '<button type="button" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" data-menu-open="settings">选项</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'adventure' ? '0' : '-1') + '" data-menu-open="adventure">▶ 开始</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'characters' ? '0' : '-1') + '" data-menu-open="characters">角色</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'timeline' ? '0' : '-1') + '" data-menu-open="timeline">日志</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'system' ? '0' : '-1') + '" data-menu-open="system">检修</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'settings' ? '0' : '-1') + '" data-menu-open="settings">选项</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
@@ -23337,6 +23395,34 @@ function reverseHudSync() {
         try { panel.scrollTop = 0; } catch (e) {}
       });
     }
+    /* 页签的方向键：标准 tablist 的手感是「进一次 Tab 到当前页签，
+       之后左右键在页签之间走」。以前三个页签要 Tab 三下才过得去，
+       子页签五个要 Tab 五下，键盘用户基本没法用。 */
+    if (panel.dataset.tabKeysBound !== '1') {
+      panel.dataset.tabKeysBound = '1';
+      panel.addEventListener('keydown', function(event) {
+        const key = event.key;
+        if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return;
+        const btn = event.target && event.target.closest
+          ? event.target.closest('.mp-display-mode-switch button, .mp-subpage-switch button') : null;
+        if (!btn || !panel.contains(btn)) return;
+        const wrap = btn.parentElement;
+        if (!wrap) return;
+        const items = Array.prototype.slice.call(wrap.querySelectorAll('button')).filter(function(b) { return !b.disabled; });
+        const i = items.indexOf(btn);
+        if (i < 0 || items.length < 2) return;
+        event.preventDefault();
+        let next = i;
+        if (key === 'Home') next = 0;
+        else if (key === 'End') next = items.length - 1;
+        else if (key === 'ArrowLeft') next = (i - 1 + items.length) % items.length;
+        else next = (i + 1) % items.length;
+        /* 先移焦点再点：主翻页条点下去会整块重绘，renderPanel 收尾时按
+           activeElement 找回同一个页签 —— 顺序反了就找回上一个。 */
+        try { items[next].focus({ preventScroll: true }); } catch (e) {}
+        try { items[next].click(); } catch (e) {}
+      });
+    }
     if (isArcadeMode) {
       const lcdCard = panel.querySelector('.mp-lcd-card');
       if (lcdCard) panel._lcdArcadeStop = mountArcadeRunner(lcdCard, { standalone: true, difficulty: selectedLevel });
@@ -23358,17 +23444,33 @@ function reverseHudSync() {
         const title = panel.querySelector('#moon-menu-page-title');
         if (title) title.textContent = menuTitles[key] || '功能';
         panel.querySelectorAll('.mp-subpage-tab').forEach(function(t) {
-          t.classList.toggle('active', t.getAttribute('data-menu-open') === key);
+          const on = t.getAttribute('data-menu-open') === key;
+          t.classList.toggle('active', on);
+          /* 这一行是给键盘用的：主菜单卡点进来之后，子页签组才「进入」，
+             tabindex 不同步的话，整组永远停在 -1，Tab 进不去。 */
+          t.setAttribute('tabindex', on ? '0' : '-1');
         });
         panel.querySelectorAll('.mp-menu-subpage').forEach(function(page) {
           page.style.display = page.getAttribute('data-menu-page') === key ? 'block' : 'none';
         });
+        /* 主菜单那块整块藏起来了，焦点原本停在上面的那张卡上——不挪走就等于
+           焦点掉到 body，键盘用户会以为「点了没反应」。挪到这一页的第一个子页签。 */
+        try {
+          const act = panel.querySelector('.mp-subpage-tab.active');
+          if (act) act.focus({ preventScroll: true });
+        } catch (e) {}
       });
     });
     bindClick('#moon-menu-back', function() {
+      const backKey = panel.dataset.activeMenuKey || '';
       panel.dataset.activeMenuKey = '';
       menuPage.style.display = 'none';
       menuHome.style.display = 'block';
+      /* 返回后焦点回原来那张卡，同样是为了不让焦点掉到 body */
+      try {
+        const homeCard = panel.querySelector('.mp-menu-card[data-menu-open="' + backKey + '"]') || panel.querySelector('.mp-menu-card');
+        if (homeCard) homeCard.focus({ preventScroll: true });
+      } catch (e) {}
     });
     const galEntryBtn = panel.querySelector('[data-gal-open]');
     if (galEntryBtn) galEntryBtn.addEventListener('click', function() {
@@ -23504,6 +23606,19 @@ bindClick('#moon-phase-update', function() {
     if (panel.querySelector('#moon-phase-tl-list')) bindClick('#moon-phase-tl-list', function() { openTimelineManagerDialog(panel); });
     bindClick('#moon-phase-manual-tl', function() { openManualTimelineInputDialog(panel); });
     bindClick('#moon-phase-tl-tag', function() { openTimelineTagDialog(panel); });
+
+    /* 这里是 renderPanel 的收尾：整块 innerHTML 刚重建完，焦点八成掉回 body 了。
+       如果重建前焦点在某个页签上，按同一个 key 找回来 —— 键盘 / 读屏用户
+       切一次页签就要从头 Tab 一遍，是这版最扎人的一个细节。 */
+    if (_focusKey) {
+      try {
+        const sel = _focusKey.indexOf('mode:') === 0
+          ? '.mp-display-mode-switch button[data-display-mode="' + _focusKey.slice(5) + '"]'
+          : '.mp-subpage-switch button[data-menu-open="' + _focusKey.slice(5) + '"]';
+        const back = panel.querySelector(sel);
+        if (back) back.focus({ preventScroll: true });
+      } catch (e) {}
+    }
   }
   /* ───────────────────────────────────────────────────────── */
   async function runSelfCheck() {
@@ -24354,7 +24469,7 @@ const stateKey = getChatStateKey();
       {
         sel: '[data-menu-open="adventure"]',
         title: '其余功能都在下面这几个格子里',
-        text: '改数值、换攻略对象，进<b>角色与存档</b>；点不动、数字不对，进<b>系统检修</b>。这些不点也照样能玩。'
+        text: '改数值、换攻略对象，进<b>角色与存档</b>；点不动、数字不对，进<b>系统检修</b>。<b>每日签到</b>和攻略模式开关在<b>游戏设置</b>里。这些不点也照样能玩。'
       },
       {
         sel: '[data-gal-open]',
@@ -24375,12 +24490,35 @@ const stateKey = getChatStateKey();
     _tourState = null;
     try { st.layer.remove(); } catch (e) {}
     try { mainWin.removeEventListener('resize', st.reposition); } catch (e) {}
+    try { if (mainWin.visualViewport) mainWin.visualViewport.removeEventListener('resize', st.reposition); } catch (e) {}
+    try { if (st.resizeObs) st.resizeObs.disconnect(); } catch (e) {}
     try { panelOf(st) && panelOf(st).removeEventListener('scroll', st.reposition); } catch (e) {}
     try { mainDoc.removeEventListener('keydown', st.onKey, true); } catch (e) {}
+    /* 关闭后把焦点送回打开引导的那个按钮。不回的话焦点掉回 body，
+       键盘 / 读屏用户要从页面开头重新 Tab 一遍才找得回来。 */
+    try {
+      const back = st.prevFocus;
+      if (back && typeof back.focus === 'function' && back.isConnected !== false) back.focus({ preventScroll: true });
+    } catch (e) {}
     if (markSeen) {
       try { const s = getSettings(); if (!s.introSeen) { s.introSeen = true; saveSettings(s); } } catch (e) {}
     }
   }
+
+  /* 卡片里能被 Tab 到的元素。卡片是 innerHTML 每次重建的，所以每次现查。 */
+  function tourFocusables(card) {
+    if (!card) return [];
+    let list = [];
+    try {
+      list = Array.prototype.slice.call(card.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ));
+    } catch (e) { return []; }
+    /* 不用 offsetWidth 判断可见性：卡片刚插进 DOM、动画还没跑时宽度也是 0，
+       真机上会在那一瞬间算出「没有可聚焦元素」；这里只排除 disabled 与 hidden。 */
+    return list.filter(function(el) { return !el.disabled && !el.hidden; });
+  }
+
 
   function panelOf(st) { return st && st.panel; }
 
@@ -24396,11 +24534,23 @@ const stateKey = getChatStateKey();
     const layer = mainDoc.createElement('div');
     layer.className = 'mp-tour-layer';
     layer.setAttribute('role', 'dialog');
-    layer.setAttribute('aria-label', '新手引导');
+    /* 标题在卡片里每次重建，用 aria-labelledby 指过去；写死 aria-label 会和屏幕上
+       实际那一句脱节（改文案时容易忘）。 */
+    layer.setAttribute('aria-labelledby', 'mp-tour-title');
     const spot = mainDoc.createElement('div');
     spot.className = 'mp-tour-spot';
     const card = mainDoc.createElement('div');
     card.className = 'mp-tour-card';
+    card.setAttribute('tabindex', '-1');
+    /* 读屏播报区：卡片内容整块 innerHTML 重建、焦点又不在内容上，
+       不复述一遍的话，翻到第 2 步之后读屏用户听不到任何变化。 */
+    const live = mainDoc.createElement('div');
+    live.className = 'mp-tour-live';
+    live.setAttribute('aria-live', 'polite');
+    live.setAttribute('aria-atomic', 'true');
+    /* live 挂在 layer 上、不挂在 card 上：card 每步都整体重写 innerHTML，
+       挂在里面会被一起清掉，播报就只剩第一步。 */
+    layer.appendChild(live);
     layer.appendChild(spot);
     layer.appendChild(card);
     /* 挂到 body：面板本身是滚动容器，放在里面会被裁掉，
@@ -24412,22 +24562,52 @@ const stateKey = getChatStateKey();
       layer: layer,
       spot: spot,
       card: card,
+      live: live,
       steps: steps,
       index: 0,
+      prevFocus: mainDoc.activeElement,
+      placed: false,
+      resizeObs: null,
       reposition: function() { positionTour(st); },
       onKey: function(e) {
-        if (e.key === 'Escape') { e.preventDefault(); closeTour(true); }
-        else if (e.key === 'ArrowRight') { e.preventDefault(); stepTour(st, 1); }
-        else if (e.key === 'ArrowLeft') { e.preventDefault(); stepTour(st, -1); }
+        if (e.key === 'Escape') { e.preventDefault(); closeTour(true); return; }
+        if (e.key === 'ArrowRight') { e.preventDefault(); stepTour(st, 1); return; }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); stepTour(st, -1); return; }
+        /* Tab 只在这个卡片里循环。不拦的话焦点会窜到遮罩下面的面板按钮上，
+           人眼看着聚光灯、焦点却在别处，读屏也是同样的错位。 */
+        if (e.key === 'Tab') {
+          const f = tourFocusables(card);
+          if (!f.length) { e.preventDefault(); return; }
+          const first = f[0], last = f[f.length - 1];
+          const cur = mainDoc.activeElement;
+          if (e.shiftKey) {
+            if (cur === first || !card.contains(cur) || cur === card) { e.preventDefault(); try { last.focus(); } catch (err) {} }
+          } else if (cur === last || !card.contains(cur) || cur === card) {
+            e.preventDefault();
+            try { first.focus(); } catch (err) {}
+          }
+        }
       }
     };
     _tourState = st;
 
     try { mainWin.addEventListener('resize', st.reposition); } catch (e) {}
+    /* 手机上底部地址栏收起 / 软键盘弹出走的是 visualViewport，不触发 window.resize */
+    try { if (mainWin.visualViewport) mainWin.visualViewport.addEventListener('resize', st.reposition); } catch (e) {}
     try { panel.addEventListener('scroll', st.reposition, { passive: true }); } catch (e) {}
     try { mainDoc.addEventListener('keydown', st.onKey, true); } catch (e) {}
+    /* 折叠块展开、提示条换了文案都会让面板长高，聚光灯框得跟着挪。
+       以前只在 260ms 后补量一次，量完再变就永远错位。 */
+    try {
+      if (typeof ResizeObserver === 'function') {
+        st.resizeObs = new ResizeObserver(function() { positionTour(st); });
+        st.resizeObs.observe(panel);
+      }
+    } catch (e) {}
 
     renderTourStep(st, 0);
+    /* 焦点立刻送进卡片：不然键盘用户还停在面板上，读屏也不知道开了个对话框。 */
+    try { card.focus({ preventScroll: true }); } catch (e) {}
   }
 
   function stepTour(st, dir) {
@@ -24445,7 +24625,7 @@ const stateKey = getChatStateKey();
     st.card.innerHTML =
       '<div class="mp-tour-step">新手引导 · 第 ' + (st.index + 1) + ' / ' + st.steps.length + ' 步' +
         '<span class="mp-tour-dots" aria-hidden="true">' + dots + '</span></div>' +
-      '<div class="mp-tour-title">' + step.title + '</div>' +
+      '<div class="mp-tour-title" id="mp-tour-title">' + step.title + '</div>' +
       '<div class="mp-tour-text">' + step.text + '</div>' +
       '<div class="mp-tour-foot">' +
         '<button type="button" class="mp-tour-skip" data-tour="skip">跳过，我知道了</button>' +
@@ -24457,22 +24637,34 @@ const stateKey = getChatStateKey();
     st.card.querySelector('[data-tour="prev"]').addEventListener('click', function() { stepTour(st, -1); });
     st.card.querySelector('[data-tour="next"]').addEventListener('click', function() { stepTour(st, 1); });
 
+    if (st.live) st.live.textContent = '第 ' + (st.index + 1) + ' 步，共 ' + st.steps.length + ' 步：' + step.title;
+
     /* 把目标滚到面板中间，量完再画框 —— 先量后滚会得到旧坐标 */
     try {
       const target = st.panel.querySelector(step.sel);
       if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', inline: 'nearest' });
     } catch (e) {}
     requestAnimationFrame(function() { positionTour(st); });
-    setTimeout(function() { if (_tourState === st) positionTour(st); }, 260);
   }
 
   function positionTour(st) {
     if (!_tourState || _tourState !== st) return;
+    /* 第一次定位必须瞬移：带着过渡会看到光框从左上角滑到目标上。
+       定完位再放开过渡，之后每步之间就是平滑挪过去。 */
+    if (!st.placed) {
+      st.placed = true;
+      try { st.spot.classList.add('no-anim'); } catch (e) {}
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { try { st.spot.classList.remove('no-anim'); } catch (e) {} });
+      });
+    }
     const step = st.steps[st.index];
     const target = st.panel.querySelector(step.sel);
     const panelRect = st.panel.getBoundingClientRect();
-    const vw = mainWin.innerWidth || 375;
-    const vh = mainWin.innerHeight || 667;
+    /* 手机地址栏收起 / 键盘弹出时，只有 visualViewport 是准的 */
+    const vv = mainWin.visualViewport;
+    const vw = (vv && vv.width) || mainWin.innerWidth || 375;
+    const vh = (vv && vv.height) || mainWin.innerHeight || 667;
 
     /* 卡片宽度先算死：不能让「左 10 右 10」在窄容器里算出负数宽度 */
     const cardW = Math.max(240, Math.min(340, vw - 24));

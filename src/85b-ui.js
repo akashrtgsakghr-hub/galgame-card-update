@@ -104,6 +104,8 @@
     0 0 0 1px rgba(var(--k-accent-rgb), .10) !important;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--k-accent-rgb), .28) transparent;
+  /* 面板滚到头之后别再带着整个聊天页一起滚（手机上最常见的手指误操作） */
+  overscroll-behavior: contain;
 }
 #moon-phase-panel::-webkit-scrollbar { width: 6px; }
 #moon-phase-panel::-webkit-scrollbar-thumb { background: rgba(var(--k-accent-rgb), .26); border-radius: 3px; }
@@ -449,6 +451,17 @@
   border-color: var(--k-line-2) !important;
   background: linear-gradient(180deg, var(--k-sur-3, #2a2033) 0%, #171021 100%) !important;
   transform: translate(-1px, -1px);
+}
+/* hover 是浮起 1px，按下就沉 1px 并把那块硬阴影收掉 —— 像素机身的物理感
+   全靠这 1px，不换颜色也不加圆角，风格不动。 */
+#moon-phase-panel .mp-menu-card:active {
+  transform: translate(1px, 1px);
+  box-shadow: none !important;
+  border-color: var(--k-accent) !important;
+}
+/* 页签 / 难度钮 / 掌机键位同理，只给位移，不动底色 */
+#moon-phase-panel :is(.mp-subpage-tab, .mp-display-mode-switch button, .mp-mode-btn, .mp-round-btn, .mp-dpad-btn):active {
+  transform: translate(1px, 1px);
 }
 #moon-phase-panel .mp-menu-card[data-primary="1"] {
   border-color: var(--k-line-2) !important;
@@ -878,8 +891,25 @@
   box-shadow:
     0 0 0 2px var(--k-accent),
     0 0 0 9999px rgba(var(--k-shadow-rgb), .78);
-  transition: color 160ms var(--k-ease), background-color 160ms var(--k-ease), border-color 160ms var(--k-ease), transform 160ms var(--k-ease);
+  /* 一步到下步之间让光框滑过去，而不是瞬间跳到另一处、让人有一瞬间没找到焦点 */
+  transition:
+    left 220ms var(--k-ease),
+    top 220ms var(--k-ease),
+    width 220ms var(--k-ease),
+    height 220ms var(--k-ease),
+    box-shadow 160ms var(--k-ease);
   pointer-events: none;
+}
+/* 首次定位不准带动画（否则会从左上角滑进来） */
+.mp-tour-spot.no-anim { transition: none !important; }
+/* 读屏播报区：视觉上不存在，但不能用 display:none / visibility:hidden —— 那样读屏也读不到 */
+.mp-tour-live {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .mp-tour-card {
   position: fixed;
@@ -889,7 +919,10 @@
   width: min(340px, calc(100vw - 24px));
   box-sizing: border-box;
   max-height: 58vh;
+  /* dvh：手机地址栏收起时用 vh 会算高，卡片下半截被放出屏幕 */
+  max-height: min(58dvh, 440px);
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 13px 13px 12px;
   font-family: var(--k-font-body);
   border: 1px solid var(--k-line-2);
@@ -897,6 +930,13 @@
   background: linear-gradient(180deg, var(--k-sur-2, #221328), var(--k-sur-0, #120b17));
   box-shadow: 0 14px 34px rgba(var(--k-shadow-rgb), .8), inset 0 1px 0 rgba(var(--k-accent-rgb, 255,190,235), .10);
   pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 180ms var(--k-ease), transform 180ms var(--k-ease);
+}
+/* 进场的「从下面顶上来」：写进 @starting-style 就是纯 CSS，
+   老浏览器不认识这条规则会整块忽略，卡片照常直接出现，不会白屏。 */
+@starting-style {
+  .mp-tour-card { opacity: 0; transform: translateY(6px); }
 }
 .mp-tour-step {
   display: flex;
@@ -928,6 +968,11 @@
 }
 .mp-tour-nav.primary { border-color: var(--k-accent); background: rgba(var(--k-accent-rgb), .16); color: var(--k-accent-2); }
 .mp-tour-nav[disabled] { opacity: .4; cursor: default; }
+.mp-tour-nav:active { transform: translate(1px, 1px); box-shadow: none; }
+/* 系统开了「减少动态效果」就把滑动关掉：光框直接落位，卡片直接出现 */
+@media (prefers-reduced-motion: reduce) {
+  .mp-tour-spot, .mp-tour-card { transition: none !important; }
+}
 
 /* ── 答疑 ─────────────────────────────────────────────────────────────── */
 #moon-faq-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
