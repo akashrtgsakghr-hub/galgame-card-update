@@ -7,3 +7,15 @@ Thumbs.db
 .vscode/
 .idea/
 node_modules/
+
+# 内置卡带产物：24MB，只做本地分发，永远不进更新通道
+*.rom.js
+*内置卡带*
+deliver/
+
+# 测试版产物：验证通过前只在本地发文件，不进 main
+*-test.js
+*测试*.json
+
+# 脚本名是「月相系统」的残留包，玩家误导入会建出第二个同名脚本、正文注入两遍
+Galgame攻略系统.json
