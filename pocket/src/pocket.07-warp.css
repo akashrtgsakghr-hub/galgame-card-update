@@ -1,0 +1,34 @@
+/* 瞬间移动：工具条上的按钮 + 缺条件时的说明卡 + 代跑时的压暗层
+   配色沿用掌机那套 LCD 墨绿；「念力」用偏紫的冷色区分，但同样不用纯黑纯白。 */
+#nv-warp{background:rgba(150,122,214,.2);border-color:rgba(150,122,214,.5);color:#e3dbff;
+  max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#nv-warp:hover{background:rgba(150,122,214,.3)}
+#nv-warp.is-locked{background:rgba(210,226,196,.08);border-color:rgba(210,226,196,.24);color:#9fae94}
+#nv-warp.is-running{background:rgba(150,122,214,.34);border-color:rgba(198,168,255,.7);color:#f2ecff}
+
+.tp-lock{position:absolute;left:8px;right:8px;top:8px;z-index:4;padding:7px 8px;
+  background:rgba(14,19,12,.97);border:1px solid rgba(150,122,214,.45);
+  box-shadow:0 6px 18px rgba(6,9,5,.55);color:#d7e0cb;font:600 9px/1.55 var(--font-mono)}
+.tp-lock[hidden]{display:none}
+.tp-lock>b{display:block;margin-bottom:4px;color:#e3dbff;font-size:10px;letter-spacing:.05em}
+.tp-lock p{margin:0 0 4px;text-wrap:pretty}
+.tp-lock p:last-child{margin-bottom:0}
+.tp-lock-row{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.tp-lock-row button{height:19px;padding:0 7px;border:1px solid rgba(210,226,196,.3);
+  background:rgba(210,226,196,.12);color:var(--color-lcd);
+  font:700 9px/1 var(--font-mono);cursor:pointer}
+.tp-lock-row button:hover{background:rgba(210,226,196,.22)}
+#tp-lock-manual{border-color:rgba(150,122,214,.5);background:rgba(150,122,214,.18);color:#e3dbff}
+
+/* 代跑时把屏幕压暗一点：一秒钟掠过几十格，不压暗会看花眼 */
+.tp-veil{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;
+  background:radial-gradient(circle at 50% 46%,rgba(28,22,44,.72),rgba(10,14,8,.93));
+  animation:tp-in .18s ease-out both}
+.tp-veil[hidden]{display:none}
+.tp-veil b{font:700 13px/1 var(--font-mono);color:#e3dbff;letter-spacing:.14em;
+  text-shadow:0 0 12px rgba(150,122,214,.65)}
+.tp-veil span{font:600 9px/1.5 var(--font-mono);color:#c2cdb6;text-align:center;padding:0 12px;
+  text-wrap:pretty}
+@keyframes tp-in{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.tp-veil{animation:none}}

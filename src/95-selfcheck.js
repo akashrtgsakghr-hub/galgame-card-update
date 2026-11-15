@@ -83,6 +83,15 @@
        以前这里是一张「第一次玩？照着做两步」的卡 + 上面六张菜单卡 + 一块 LCD，
        信息全在，但没人告诉新手从哪下手；现在按存档状态算一句话。 */
     const rosterNames = Object.keys(_panelChars).filter(function(n) { return !isCharSkeleton(_panelChars[n]); });
+    /* 谁已经够格结算，面板上必须看得见。
+       结局提示只在聊天里 toast 一次，玩家一滑就过去了，之后没有任何痕迹 ——
+       这里按同一套判据（好感 100 或阶段 5）算一遍，给菜单卡和「结算这一局」挂角标。
+       手动结算不传楼层，所以不受「前 3 楼不判」的限制。 */
+    const endingReadyNames = rosterNames.filter(function(n) {
+      try { return isEndingTriggerCondition(n, _panelChars[n], '', -1).triggered; } catch (e) { return false; }
+    });
+    const endingReady = endingReadyNames.length > 0;
+    const endingDot = '<i class="mp-ready-dot" aria-label="可以进行周目结算">可结算</i>';
     const guide = !hasRoster
       ? {
           ok: false,
@@ -194,12 +203,17 @@
       '<span class="mp-brand-sub">' + SYSTEM_MENU_SUB + '</span></span></button>' +
       '<span class="mp-badge" style="cursor:pointer;' + (_cachedUpdateInfo ? 'border-color:rgba(244,114,208,.6);color:#ffb3e8;' : '') + '">v' + MOON_FORMULA_VERSION + (_cachedUpdateInfo ? ' · 有新版' : '') + '</span>' +
       '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
+      /* 翻页条紧贴标题栏：三页（系统面板 / 街机 / 卡带机）都从这一行翻，
+         下面的内容随页走。以前它被引导条压在中间，手机上要滑一下才看得见。 */
+      '<div class="mp-display-mode-switch" role="tablist" aria-label="翻页：系统面板 / 街机 / 卡带机">' +
+      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板<small>01</small></button>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏<small>02</small></button>' +
+      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机<small>03</small></button>' : '') +
+      '</div>' +
+      /* 引导条跟着「系统面板」这一页走；街机 / 卡带机页不显示，那两页不是给它用的 */
       guideHtml +
-      '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
-      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button>' +
-      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机</button></div>' : '') +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : (isPocketMode ? ' mp-pocket-card' : '')) + '">' + (isArcadeMode ? renderArcadeGameScreen() : (isPocketMode ? renderPocketScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn))) + '</div>' +
+      (isPocketMode && typeof renderPocketTools === 'function' ? renderPocketTools() : '') +
       (isArcadeMode
         ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
         : '') +
@@ -209,7 +223,7 @@
       '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
       '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
       '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">' + uiIco('play') + '</span><span><b>新游戏 / 继续旅程</b><small>建立人物档案、调整难度，或接续已有进度</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>人物图鉴与存档</b><small>管理角色关系、玩家身份、结局与回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>人物图鉴与存档' + (endingReady ? endingDot : '') + '</b><small>管理角色关系、玩家身份、结局与回忆</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>世界编年史</b><small>查看与编辑世界事件、日期和未来节点</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统诊断室</b><small>检查数据、标签解析与插件冲突</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>游戏设置</b><small>调整界面、记忆、图像与运行参数</small></span><i>›</i></button>' +
@@ -268,9 +282,11 @@
         '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>生成玩家档案</span><small>整理当前玩家人设，形成可复用的小传</small></button>' +
         '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>选择本聊天的玩家档案</span><small>只影响当前聊天；其他聊天保留自己的选择</small></button></div>' +
         '<div style="font-size:10px;color:var(--mp-fg-3);margin-top:7px;">玩家昵称与玩家小抄均按聊天存档，不再使用全局启用状态。</div>', true) +
-      pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
+      pocketFold('chr-end', '回忆与结局' + (endingReady ? endingDot : ''), '想看攒下来的图和这一局的收尾',
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
-        '<button class="mp-btn" id="moon-phase-ending"><span>结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
+        '<button class="mp-btn' + (endingReady ? ' mp-btn-highlight mp-ending-ready' : '') + '" id="moon-phase-ending"><span>结算这一局</span><small>' +
+        (endingReady ? '现在就可以：' + lcdEscape(endingReadyNames.join('、')) + ' 已经够了' : '生成结局卡和一篇番外') +
+        '</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志（可选）</div>' +
       pocketFold('tl-list', '世界大事表', '不写也能正常玩；写了 AI 会有主线目标',
@@ -376,6 +392,8 @@
         if (nextMode === panel.dataset.displayMode) return;
         panel.dataset.displayMode = nextMode;
         renderPanel(panel);
+        /* 翻页就该从页首开始看：不归零的话，从系统面板底下翻到卡带机会落在半截。 */
+        try { panel.scrollTop = 0; } catch (e) {}
       });
     }
     if (isArcadeMode) {
@@ -385,6 +403,7 @@
     if (isPocketMode) {
       const pocketCard = panel.querySelector('.mp-pocket-card');
       if (pocketCard && typeof mountPocket === 'function') panel._pocketStop = mountPocket(pocketCard);
+      if (typeof pocketBindTools === 'function') pocketBindTools(panel);
     }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');

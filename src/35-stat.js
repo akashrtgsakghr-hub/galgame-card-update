@@ -246,6 +246,101 @@
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
   }
 
+  /* 每轮一条「心声提醒」，注入位置在 prompt 最下面（position 4 / depth 0）。
+
+     为什么单独一条：上面那一大坨规则里其实已经写了「每轮都要重写心声」，
+     但它埋在中间，模型写到后面就疲劳了，经常整轮不写 —— 状态卡只能显示「本轮未收到」。
+     把同样的要求压成一行、放到最后，模型照做的概率明显更高（这一行的位置比措辞更管用）。
+
+     只留「角色名 + 格式 + 一个例子」，不重复讲道理：这一段每轮都在最显眼的位置，
+     写长了反而把正文挤掉。 */
+  function injectVoiceTagReminder() {
+    try {
+      const data = loadLocalState();
+      const chars = (data && data.stat_data && data.stat_data.角色) || {};
+      const names = Object.keys(chars).filter(function(n) {
+        const ch = chars[n];
+        return ch && !isCharSkeleton(ch) && ch.在场 !== false;
+      }).slice(0, 3);
+      if (!names.length) { callSetPrompt(PROMPT_KEY + '_voice', '', 0, 0, false); return; }
+      const lines = [];
+      lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
+      lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
+      lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
+      lines.push('这行由系统收走，不会出现在玩家看到的正文里；不要写解释、不要写在上面的正文中间。');
+      callSetPrompt(PROMPT_KEY + '_voice', lines.join('\n'), 4, 0, false);
+    } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
+  }
+
+  /* ── 掌机金手指转写出来的世界书 ────────────────────────────────────────
+     链路：掌机读存档 → 金手指把同行 / 配招 / 道具 / 羁绊写成 world_info 条目
+     → 掌机写自己的 localStorage → 宿主（87a）把整包塞进 chatMetadata
+     → 这里读出来拼成一段，每轮挂在 prompt 上。
+
+     以前这本只活在掌机里：玩家在屏内看得到条目，AI 一个字都收不到。
+     那就不叫「写进剧情」，只是给人看的一份清单。 */
+  const POCKET_WB_BUDGET = 6000;   // 整段上限，超了就按条目顺序截断
+  const POCKET_WB_ENTRY_CAP = 900; // 单条正文上限，避免一个条目把预算吃光
+
+  function readPocketWorldBook() {
+    let bag = null;
+    try {
+      const ctx = getSTCtx();
+      bag = (ctx && ctx.chatMetadata && ctx.chatMetadata[MOON_POCKET_SAVES_KEY]) || null;
+    } catch (e) { bag = null; }
+    if (!bag || typeof bag !== 'object') return null;
+
+    let entries = [];
+    Object.keys(bag).forEach(function (k) {
+      if (k.indexOf('moon-pocket:worldbook:') !== 0) return;
+      let arr = null;
+      try { arr = JSON.parse(bag[k]); } catch (e) { return; }
+      if (!Array.isArray(arr) || !arr.length) return;
+      /* 掌机的存档键按它自己的 chatId 分；宿主这一侧只认「哪一条最全」，
+         不去猜它用的是哪个 id —— 玩家换过聊天也不至于突然读不到。 */
+      if (arr.length > entries.length) entries = arr;
+    });
+    if (!entries.length) return null;
+
+    let name = '';
+    const rawName = bag['moon-pocket:flag:wb-name'];
+    if (rawName != null) {
+      try { name = String(JSON.parse(rawName)); } catch (e) { name = String(rawName); }
+    }
+    return { name: name || '后宫王神宠秘籍', entries: entries };
+  }
+
+  function injectPocketWorldBook() {
+    try {
+      const book = readPocketWorldBook();
+      const live = book ? book.entries.filter(function (e) {
+        return e && !e.disable && String(e.content || '').trim();
+      }).sort(function (a, b) { return (Number(a.order) || 100) - (Number(b.order) || 100); }) : [];
+      if (!live.length) { callSetPrompt(PROMPT_KEY + '_pocket_wb', '', 0, 0, false); return; }
+
+      const head = [
+        '【' + book.name + ' · 玩家存档实测资料】',
+        '以下是玩家在卡带里实际打出来的存档，已整理成条。写战斗、养成、收服、交换时按这里的资料为准：',
+        '· 不得替换或增减玩家队伍成员；已列出的精灵，招式只能从它的配招里取。',
+        '· 未列出的精灵、路人训练家可以正常出现，不要因为这份表就认为世界上只有这几只。',
+      ].join('\n');
+
+      const parts = [];
+      let used = head.length;
+      for (let i = 0; i < live.length; i++) {
+        const title = String(live[i].comment || live[i].key && live[i].key[0] || '条目').trim();
+        let body = String(live[i].content || '').trim();
+        if (body.length > POCKET_WB_ENTRY_CAP) body = body.slice(0, POCKET_WB_ENTRY_CAP) + '…';
+        const chunk = '▸ ' + title + '\n' + body;
+        if (used + chunk.length + 2 > POCKET_WB_BUDGET) break;
+        parts.push(chunk);
+        used += chunk.length + 2;
+      }
+      if (!parts.length) { callSetPrompt(PROMPT_KEY + '_pocket_wb', '', 0, 0, false); return; }
+      callSetPrompt(PROMPT_KEY + '_pocket_wb', head + '\n\n' + parts.join('\n\n'), 4, 1, false);
+    } catch (e) { console.warn('[Doki] 神宠秘籍注入失败：', e); }
+  }
+
   function injectRelationshipFactsPrompt() {
     try {
       const data = readMvuLatest();

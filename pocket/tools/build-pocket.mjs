@@ -10,6 +10,8 @@
 //   pocket.03-cheat.css     金手指台
 //   pocket.04-guide.css     攻略抽屉与分册条
 //   pocket.05-map.css       小地图窗与妈妈的便条
+//   pocket.06-nav.css       导航放大层：整张地区图 + 红线 + 目的地
+//   pocket.07-warp.css      瞬间移动：工具条按钮、缺条件说明卡、代跑压暗层
 //   pocket.00-base.js       工具函数、LS 存储
 //   pocket.01-skin.js       皮肤引擎（配色派生、预设）
 //   pocket.02-screen.js     屏内游戏位、卡带目录、屏内导航
@@ -20,6 +22,11 @@
 //   pocket.07-ui.js         美化抽屉、电源按键、游戏位导入、对外 API、开机
 //   pocket.08-map-core.js   小地图算法与状态机（纯像素，不碰 DOM，可在 node 里跑回归）
 //   pocket.09-map-ui.js     小地图取帧、绘制、交互
+//   pocket.10-save.js       存档区快照：压缩 / 落盘 / 开机回填 / 与宿主的自动存档协议
+//   pocket.11-rom-atlas.js  卡带图集：地图 / 通行性 / 地形 / 传送点 / 相邻图（纯函数）
+//   pocket.12-nav-core.js   寻路内核：A* + 跨图骨架（纯函数）
+//   pocket.13-nav-view.js   导航界面：认图、放大、红线、一键走过去
+//   pocket.14-teleport.js   瞬间移动：从存档读队伍判定解锁 + 按帧代跑状态机
 //   guide.00-index.js       攻略分册索引（空数组）
 //   guide.01..05-*.js       攻略五册的文案（纯数据，改句子只动这里）
 //   guide.06-ui.js          攻略的渲染与交互
@@ -31,6 +38,12 @@
 //   node tools/build-pocket.mjs --stats   # 看各片行数
 //   node tools/verify-map.mjs             # 小地图回归（合成帧，22 条）
 //   node tools/probe-map-live.mjs         # 小地图真卡带联调（要本机 ROM）
+//   node tools/verify-save.mjs            # 存档快照回归（合成 136KB，18 条）
+//   node tools/probe-save-live.mjs        # 存档真卡带联调：存 → 重载 → 能不能接上
+//   node tools/verify-nav.mjs             # 导航回归：图集 / 代价 / A* / 跨图（21 条）
+//   node tools/verify-nav-id.mjs          # 认图回归：认得出、认不准就认错率为零（15 条）
+//   node tools/verify-teleport.mjs        # 瞬间移动回归：存档解析 / 24 种排列 / 代跑（22 条）
+//   node tools/probe-teleport-live.mjs    # 瞬间移动真机联调：按帧推进 + 写进存档看解锁
 //
 // 没有 --split 了：反向拆要靠人工判断边界，容易切错。要改就改 src/，index.html 是产物。
 import fs from 'node:fs';

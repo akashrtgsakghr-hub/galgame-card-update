@@ -67,6 +67,29 @@
     };
   }
 
+  /* 心声标签：[心声|角色名|一句内心话]
+     为什么要单独造一个标签：模型对「角色.X.心声=…」这种后台变量行经常漏写，
+     而漏写时脚本没有任何东西可抓（状态卡只能显示「本轮未收到」）。
+     这个标签每轮由脚本注入在 prompt 最下面一行强制要求，短、固定、只有一个语义，
+     模型照抄的概率明显高于一整块后台变量。
+     两种写法都收：谁后到用谁；标签会被从正文里删掉，玩家看不到。 */
+  const VOICE_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(\uff08]\s*心声\s*[|\uff5c]([^|\uff5c\]\u3015\u3011\uff3d)\uff09\r\n]+)[|\uff5c]([^\]\u3015\u3011\uff3d)\uff09\r\n]*)[\]\u3015\u3011\uff3d)\uff09]?/gi;
+
+  function extractVoiceTags(mes) {
+    const out = [];
+    if (!mes) return out;
+    const text = String(mes);
+    const re = new RegExp(VOICE_TAG_GLOBAL_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const name = String(m[1] || '').trim();
+      const value = String(m[2] || '').trim();
+      if (!name || !value) continue;
+      out.push({ name: name, text: value, fullMatch: m[0], index: m.index, end: re.lastIndex });
+    }
+    return out;
+  }
+
   function extractAllSylveinaTags(mes) {
     const out = [];
     if (!mes) return out;

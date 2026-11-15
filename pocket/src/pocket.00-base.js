@@ -5,11 +5,21 @@
 var $ = function(s){return document.querySelector(s);};
 var $$ = function(s){return Array.prototype.slice.call(document.querySelectorAll(s));};
 var frame = $("#cart-frame"), consoleEl = $("#console");
-var layers = { os:$("#tavern-os"), byor:$("#byor"), core:$("#core-stage"), cheat:$("#cheat-stage"), msg:$("#screen-msg"), boot:$("#boot") };
+/* 屏幕只有一页：卡带。没有「酒馆内部系统」那一层——这台机器只管插卡、选卡、跑卡带，
+   酒馆侧的月相 / 角色 / 世界书 / 时间线留在酒馆面板里，别在掌机上再摆一遍。 */
+var layers = { byor:$("#byor"), core:$("#core-stage"), cheat:$("#cheat-stage"), msg:$("#screen-msg"), boot:$("#boot") };
 var activeId = null, powered = true, mode = "arcade", core = null, bridge = null, narrator = null;
 var lastRom = null, lastSnapshot = null, frameLive = false, toastTimer = null;
 var chatId = "local", wbEntries = [], cheatOn = false;
 var SAVE_PREFIX = "moon-pocket:demo:", WB_PREFIX = "moon-pocket:worldbook:", FLAG_PREFIX = "moon-pocket:flag:";
+/* 金手指转写出来的那本世界书叫什么。导出 JSON、编辑页抬头、酒馆侧注入的标题都是这一份；
+   名字本身也要落盘（FLAG_PREFIX+"wb-name"），宿主那一层才不需要认识这里的常量。 */
+var WB_NAME = "后宫王神宠秘籍";
+/* 卡带槽里那一张的名字（只有这一张）。卡带盒封面、插卡页、机身槽位、模拟器抬头都吃这一份，
+   改名字只改这里。封面放不下全名，拆三行写：01 主名 / 02 副名 / 03 版本。 */
+var CART_TITLE = "BT999变态宝可梦：后宫王内部特供_v9.99魔改汉化版";
+var CART_SHORT = "BT999 变态宝可梦";
+var CART_LINE = ["BT999 变态宝可梦", "后宫王内部特供", "v9.99 魔改汉化版"];
 
 function toast(text, warn){
   var t=$("#toast");t.textContent=text;t.className="toast show"+(warn?" warn":"");

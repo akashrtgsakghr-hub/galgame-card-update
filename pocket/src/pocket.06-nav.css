@@ -1,0 +1,30 @@
+/* 导航放大层：整张地区图铺满屏幕，红线 + 目的地 + 一键寻路
+   配色跟掌机其余部分一致：不用纯黑，边框走 LCD 墨色 */
+.nav-view{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;
+  background:rgba(8,12,7,.965);backdrop-filter:blur(2px)}
+.nav-view[hidden]{display:none}
+.nv-head{display:flex;align-items:center;gap:8px;height:24px;padding:0 6px;flex:0 0 auto;
+  border-bottom:1px solid rgba(210,226,196,.16);font:700 10px/1 var(--font-mono);
+  color:var(--color-lcd);letter-spacing:.04em}
+.nv-head b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.nv-head button{width:22px;height:18px;padding:0;border:1px solid rgba(210,226,196,.3);
+  background:rgba(210,226,196,.1);color:var(--color-lcd);font:700 12px/1 var(--font-mono);cursor:pointer}
+.nv-head button:hover{background:rgba(210,226,196,.2)}
+.nv-stage{position:relative;flex:1 1 auto;margin:5px 6px;min-height:0;
+  border:1px solid rgba(210,226,196,.18);background:#0b1109;overflow:hidden}
+.nv-hint{position:absolute;left:5px;bottom:5px;z-index:2;padding:2px 5px;
+  background:rgba(10,15,8,.72);color:#cfd9c4;font:600 9px/1.4 var(--font-mono);
+  border-left:2px solid #e8263f;pointer-events:none}
+.nv-bar{display:flex;gap:5px;padding:0 6px 6px;flex:0 0 auto}
+.nv-bar select{flex:1;min-width:0;height:22px;padding:0 4px;
+  border:1px solid rgba(210,226,196,.28);background:#111a0f;color:var(--color-lcd);
+  font:600 10px/1 var(--font-ui)}
+.nv-bar button{height:22px;padding:0 8px;border:1px solid rgba(210,226,196,.3);
+  background:rgba(210,226,196,.12);color:var(--color-lcd);font:700 10px/1 var(--font-mono);cursor:pointer}
+.nv-bar button:hover{background:rgba(210,226,196,.22)}
+#nv-go{background:rgba(232,38,63,.22);border-color:rgba(232,38,63,.55);color:#ffd7de}
+#nv-go:hover{background:rgba(232,38,63,.34)}
+/* 放大层里的画布不要被「屏幕内 canvas 一律铺满」那条规则带歪 */
+#nv-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;
+  image-rendering:pixelated;image-rendering:crisp-edges;background:#0b1109}

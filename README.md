@@ -58,6 +58,15 @@ Galgame攻略系统-酒馆助手导入.json   同上，酒馆助手的脚本导�
 掌机里那张**手绘小地图**的做法与边界写在 [`docs/pocket-automap.md`](docs/pocket-automap.md)：
 不读内存、靠画面拼接（核心没有 RAM 出口），以及它做不到的三件事。
 
+掌机的**瞬间移动**（带一只会「瞬间移动」的念力系才开锁、为什么不是改坐标）写在
+[`docs/pocket-teleport.md`](docs/pocket-teleport.md)：队伍是从卡带存档里读出来的，代跑按帧不按毫秒。
+
+掌机的**导航**（点开整张地区图、红线、一键走过去）写在 [`docs/pocket-nav.md`](docs/pocket-nav.md)：
+地图 / 通行性 / 地形 / 门与边界全部从卡带现读，认图靠画面比对，认不准就直说。
+
+掌机的**存档**怎么从「一关就没」变成「跟着这条聊天走」写在 [`docs/pocket-save.md`](docs/pocket-save.md)：
+三层触发、压缩实测（139264 → 491 字节）、开机顺序、`postMessage` 协议，以及 AI 回复完那一声怎么响。
+
 另有一份 [`docs/travel-items-design.md`](docs/travel-items-design.md)：给这一版补「秘传替代道具 + 永久不遇敌」
 的设计稿（命名、台词、规则、技术边界）。它**不是**玩家文档，也不在脚本里，是留档与交接用的。
 

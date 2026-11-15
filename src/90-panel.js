@@ -1026,7 +1026,10 @@
     }
     if (confirmed(/(你|user|玩家)(已|彻底|已经)?(死了|停止了呼吸|失去心跳|永远闭上|咽下了最后一口气|倒在血泊中|牺牲了|殒命|离世)/i) || /(?:user已死|玩家死亡)/i.test(special)) return { triggered: true, type: 'UserDeathEnd', reason: '玩家在此刻迎来了生命的终点' };
     if (charDeathHit || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
-    if (E >= 100 && R >= 5) return { triggered: true, type: 'HE', reason: '情感羁绊达到圆满境界' };
+    /* 圆满有两条路，任一条走到头都算：
+         ① 好感满 100；② 关系走到第 5 阶段（告白 / 恋人）。
+       以前这里是「且」——E 满但 R 卡在 4 的人会一直等下去，永远等不到提示。 */
+    if (E >= 100 || R >= 5) return { triggered: true, type: 'HE', reason: E >= 100 ? '好感达到圆满（100）' : '关系推进到第 5 阶段' };
     if (E <= -80 && R <= -4) return { triggered: true, type: 'BE', reason: '关系跌入无法挽回的仇视深渊' };
     if (special.indexOf('囚禁') >= 0 || (I >= 90 && !getSafetyLock())) return { triggered: true, type: 'CageEnd', reason: '关系进入囚禁终局条件' };
     return { triggered: false };

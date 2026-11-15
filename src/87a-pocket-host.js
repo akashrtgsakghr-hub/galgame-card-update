@@ -20,6 +20,10 @@
     const html = pocketEmbedHtml();
     if (!html) { if (hint) hint.textContent = '掌机资源未打包：先运行 moon-pocket/tools/pack-pocket.mjs'; return null; }
 
+    /* 趁这次点击把 AudioContext 建起来：等 AI 回复完再建，浏览器会按「没有手势」
+       把它挂在 suspended，提示音响不出来。 */
+    try { if (typeof pocketChimePrime === 'function') pocketChimePrime(); } catch (e) {}
+
     let stopped = false;
     let host = mainDoc.getElementById('moon-pocket-host');
     let frame = null;
@@ -83,6 +87,12 @@
       if (d.type === 'moon-pocket:ready') {
         const saves = readSaves();
         if (saves) { try { frame.contentWindow.postMessage({ type: 'moon-host:restore', data: saves }, '*'); } catch (e) {} }
+        /* 提示音开不开，以酒馆这一层记的为准；掌机的开关点一下就同步过去 */
+        try {
+          if (typeof pocketChimeGet === 'function') {
+            frame.contentWindow.postMessage({ type: 'moon-host:chime-state', on: pocketChimeGet() }, '*');
+          }
+        } catch (e) {}
         if (hint && hint.parentNode) hint.parentNode.removeChild(hint);
         sync();
       } else if (d.type === 'moon-pocket:height') {
@@ -92,7 +102,26 @@
         let blob = d.data || {};
         let json = '';
         try { json = JSON.stringify(blob); } catch (e) { return; }
-        if (json.length > 262144) { try { console.warn('[月相] 掌机存档超过 256KB，本次不写入聊天存档'); } catch (e) {} return; }
+        if (json.length > 262144) {
+          /* 整包超过 256KB（金手指代码、世界书草稿攒多了）：先保住存档，其余这轮不写。
+             宁可丢一份草稿，也不能把玩家这一局的进度丢了。 */
+          const keep = {};
+          Object.keys(blob).forEach(function (k) {
+            if (k.indexOf('moon-pocket:cart-save:') === 0) keep[k] = blob[k];
+          });
+          const prev = readSaves() || {};
+          Object.keys(prev).forEach(function (k) {
+            if (!(k in keep) && k.indexOf('moon-pocket:cart-save:') === 0) keep[k] = prev[k];
+          });
+          const keepJson = JSON.stringify(keep);
+          if (keepJson.length > 2 && keepJson.length <= 262144) {
+            flushSaves(keep);
+            try { console.warn('[月相] 掌机整包超过 256KB，本轮只写了存档（' + Math.round(keepJson.length / 1024) + 'KB）'); } catch (e) {}
+          } else {
+            try { console.warn('[月相] 掌机存档超过 256KB，本次不写入聊天存档'); } catch (e) {}
+          }
+          return;
+        }
         flushSaves(blob);
       }
     };
@@ -100,10 +129,131 @@
 
     return function () {
       stopped = true;
+      try { if (typeof pocketPlayingOff === 'function') pocketPlayingOff(); } catch (e) {}
       try { mainWin.removeEventListener('message', onMessage); } catch (e) {}
       try { mainWin.removeEventListener('resize', onResize, true); } catch (e) {}
       try { mainDoc.removeEventListener('scroll', onResize, true); } catch (e) {}
       try { if (host && host.parentNode) host.parentNode.removeChild(host); } catch (e) {}
       try { if (frame) frame.removeAttribute('srcdoc'); } catch (e) {}
     };
+  }
+
+  /* ── 卡带机页下面那条「金手指 / 神宠秘籍」──────────────────────────────
+     玩家不该为了把存档里的精灵写进剧情，先进卡带机翻菜单找金手指。
+     这一条是酒馆侧的入口：开关、立刻转写、看这本书现在有几条在生效。
+
+     状态从 chatMetadata 里的掌机存档包读——掌机把世界书写进自己的
+     localStorage，宿主在 persist 通道里整包抄进聊天存档，所以这里
+     只是「读现状」，不另存一份，两边不会打架。 */
+  const POCKET_WB_NAME_FALLBACK = '后宫王神宠秘籍';
+
+  function pocketWbInfo() {
+    const out = { name: POCKET_WB_NAME_FALLBACK, total: 0, on: 0 };
+    let bag = null;
+    try {
+      const c = getSTCtx();
+      bag = (c && c.chatMetadata && c.chatMetadata[MOON_POCKET_SAVES_KEY]) || null;
+    } catch (e) { bag = null; }
+    if (!bag || typeof bag !== 'object') return out;
+    let best = null;
+    Object.keys(bag).forEach(function (k) {
+      if (k.indexOf('moon-pocket:worldbook:') !== 0) return;
+      let arr = null;
+      try { arr = JSON.parse(bag[k]); } catch (e) { return; }
+      if (!Array.isArray(arr) || !arr.length) return;
+      if (!best || arr.length > best.length) best = arr;
+    });
+    if (!best) return out;
+    out.total = best.length;
+    out.on = best.filter(function (e) { return e && !e.disable; }).length;
+    const raw = bag['moon-pocket:flag:wb-name'];
+    if (raw != null) {
+      let n = '';
+      try { n = String(JSON.parse(raw)); } catch (e) { n = String(raw); }
+      if (n.trim()) out.name = n.trim();
+    }
+    return out;
+  }
+
+  function pocketPost(msg) {
+    const f = pocketFrame();
+    if (!f) return false;
+    try { f.contentWindow.postMessage(msg, '*'); return true; } catch (e) { return false; }
+  }
+
+  function pocketCheat(on) {
+    /* 掌机的 iframe 只在「卡带机」这一页挂着。没挂就等于没开机，
+       说清楚该点哪儿，别让按钮点了没反应。 */
+    if (!pocketPost({ type: 'moon-host:cheat', on: !!on })) {
+      if (on) { try { toast('先开一次「卡带机」，金手指要在掌机里读存档', 'warning'); } catch (e) {} }
+      return false;
+    }
+    return true;
+  }
+
+  function renderPocketTools() {
+    const st = pocketWbInfo();
+    const on = st.on > 0;
+    return '<div class="mp-card mp-pocket-tools" id="moon-pocket-tools">' +
+      '<div class="mp-card-title">金手指 · 神宠秘籍<small>GOLDEN LINK</small></div>' +
+      '<div class="mp-set-desc">把卡带里这一档的精灵、配招、道具、羁绊整理成世界书，随每轮请求注入剧情。不需要进卡带机翻菜单。</div>' +
+      '<div class="mp-grid">' +
+      '<button type="button" class="mp-btn' + (on ? ' mp-btn-highlight' : '') + '" id="moon-pocket-cheat" aria-pressed="' + on + '">' +
+      '<span id="moon-pocket-cheat-label">' + (on ? '金手指已开启' : '开启金手指') + '</span>' +
+      '<small id="moon-pocket-cheat-note">' + (on ? '再点一次就停写，已生成的条目保留' : '读一次存档，生成《' + st.name + '》') + '</small></button>' +
+      '<button type="button" class="mp-btn" id="moon-pocket-wb-rebuild"><span>重新转写</span><small>进度变了、换了队员就再扫一次</small></button>' +
+      '</div>' +
+      '<div class="mp-set-desc" id="moon-pocket-wb-state">《' + st.name + '》 · ' + st.total + ' 条 · 启用 ' + st.on + ' 条' +
+      (st.total ? ' · 每轮自动注入' : ' · 还没生成') + '</div>' +
+      '</div>';
+  }
+
+  /* 转写要一秒多（读存档 → 建条目 → 落盘 → 宿主抄进聊天存档），
+     这段时间不重绘面板（重绘会把正在跑的卡带机拆掉），只按节奏改文案。 */
+  function pocketRefreshTools(panel) {
+    const st = pocketWbInfo();
+    const btn = panel.querySelector('#moon-pocket-cheat');
+    const label = panel.querySelector('#moon-pocket-cheat-label');
+    const note = panel.querySelector('#moon-pocket-cheat-note');
+    const state = panel.querySelector('#moon-pocket-wb-state');
+    const on = st.on > 0;
+    if (btn) { btn.setAttribute('aria-pressed', String(on)); btn.classList.toggle('mp-btn-highlight', on); }
+    if (label) label.textContent = on ? '金手指已开启' : '开启金手指';
+    if (note) note.textContent = on ? '再点一次就停写，已生成的条目保留' : '读一次存档，生成《' + st.name + '》';
+    if (state) state.textContent = '《' + st.name + '》 · ' + st.total + ' 条 · 启用 ' + st.on + ' 条' + (st.total ? ' · 每轮自动注入' : ' · 还没生成');
+    return st;
+  }
+
+  function pocketBindTools(panel) {
+    const cheat = panel.querySelector('#moon-pocket-cheat');
+    if (cheat) {
+      cheat.addEventListener('click', function () {
+        const want = cheat.getAttribute('aria-pressed') !== 'true';
+        if (!pocketCheat(want)) return;
+        let left = 6;
+        const tick = function () {
+          if (!mainDoc.body.contains(panel)) return;
+          pocketRefreshTools(panel);
+          if (--left > 0) mainWin.setTimeout(tick, 400);
+        };
+        mainWin.setTimeout(tick, 400);
+      });
+    }
+    const rebuild = panel.querySelector('#moon-pocket-wb-rebuild');
+    if (rebuild) {
+      rebuild.addEventListener('click', function () {
+        if (!pocketPost({ type: 'moon-host:wb-rebuild' })) {
+          try { toast('先开一次「卡带机」，转写要在掌机里读存档', 'warning'); } catch (e) {}
+          return;
+        }
+        try { toast('正在按当前存档重新转写《' + pocketWbInfo().name + '》…', 'info'); } catch (e) {}
+        let left = 8;
+        const tick = function () {
+          if (!mainDoc.body.contains(panel)) return;
+          pocketRefreshTools(panel);
+          if (--left > 0) mainWin.setTimeout(tick, 500);
+        };
+        mainWin.setTimeout(tick, 500);
+      });
+    }
   }

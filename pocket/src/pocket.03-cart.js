@@ -4,12 +4,13 @@ function renderCartSlot(){
   if(!slot||!label)return;
   if(lastRom){
     slot.classList.add("loaded");
-    label.textContent=(String(lastRom.title||"").replace(/\.+$/,"").trim())||lastRom.name||"CARTRIDGE";
+    /* 槽里只有这一张卡带，槽位就写它的名字；真实头部标题在插卡页那张 ROM 卡里 */
+    label.textContent=(typeof CART_SHORT!=="undefined"?CART_SHORT:lastRom.title)||"CARTRIDGE";
     hint.textContent=lastRom.sizeMB+" MB";
   }else{
     slot.classList.remove("loaded");
     label.textContent="NO CARTRIDGE";
-    hint.textContent="插入卡带";
+    hint.textContent="插入 BT999";
   }
 }
 $("#cart-slot").addEventListener("click",function(){

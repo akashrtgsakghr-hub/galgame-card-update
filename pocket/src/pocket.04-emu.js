@@ -8,7 +8,11 @@ var CORE_JS_URL = "core/44gba.js", CORE_WASM_URL = "core/44gba.wasm";
 var cheatSpeed=1;
 var coreModule=null, corePromise=null, coreCtx=null, coreImageData=null,
     coreFbView=null, coreSavView=null, coreRaf=0, coreKeys=0, corePaused=false,
-    coreFrames=0, coreFpsT=0, coreFps=0, coreBooted=false;
+    coreFrames=0, coreFpsT=0, coreFps=0, coreBooted=false,
+    /* coreClock 是「一共跑过多少帧」的单调计数（coreFrames 每 500ms 清零，只用来算 fps）。
+       代按方向键要按帧算，不按毫秒算：倍速一变，毫秒就不准了。
+       coreManual 为真时 rAF 循环让位，由 GBA_CORE.step() 自己按帧推进。 */
+    coreClock=0, coreManual=false;
 
 /* 按键位序与核心一致：a,b,select,start,right,left,up,down,r,l */
 var KEY_BIT = { a:0, b:1, select:2, start:3, right:4, left:5, up:6, down:7, r:8, l:9 };
@@ -89,9 +93,12 @@ function loadCore(){
 function coreTick(ts){
   coreRaf = requestAnimationFrame(coreTick);
   if (!coreModule || !coreBooted || corePaused) return;
+  /* 有人在按帧推进（瞬间移动）：这里让位，免得两边同时喂帧、时间对不上 */
+  if (coreManual) return;
   /* 倍速：一帧 rAF 里多跑几帧核心。金手指台的「加速」就是改这个数，
      不改游戏本身，也不影响存档。 */
   try{ for (var _f = 0; _f < cheatSpeed; _f++) coreModule._emuRunFrame(coreKeys); }catch(e){ return; }
+  coreClock += cheatSpeed;
   coreCtx.putImageData(coreImageData, 0, 0);
   coreFrames++;
   if (!coreFpsT) coreFpsT = ts;
@@ -110,21 +117,37 @@ var GBA_CORE = {
     var veil = $("#emu-veil"), veilText = $("#emu-veil-text");
     if (veil){ veil.hidden = false; veil.firstElementChild.textContent = "装载核心…"; }
     if (veilText) veilText.textContent = "正在初始化 WASM 核心";
-    $("#emu-name").textContent = meta && meta.title ? meta.title : "GBA";
+    /* 抬头写卡带名（槽里就那一张），真头部标题留给插卡页与 tooltip */
+    var shown = (typeof CART_SHORT !== "undefined" && CART_SHORT) ? CART_SHORT
+      : (meta && meta.title ? meta.title : "GBA");
+    $("#emu-name").textContent = shown;
+    if (meta && meta.title) $("#emu-name").title = "卡带头部：" + meta.title + (meta.code ? " / " + meta.code : "");
     coreBooted = false; corePaused = false; coreKeys = 0;
     return loadCore().then(function(M){
       if (veilText) veilText.textContent = "正在把卡带内容交给核心（" + (buf.length/1048576).toFixed(0) + " MB）";
       var romPtr = M._emuGetSymbol(1);
       M.HEAPU8.set(buf, romPtr);
       var ret =       M._emuLoadROM(buf.length);
-      M._emuResetCpu();
-      coreBooted = true;
-      coreStart();
-      /* 换一张卡带就是换一张地图册：旧页留着没意义 */
-      if (typeof mapReset === "function") mapReset();
-      if (veil) veil.hidden = true;
-      $("#core-state").textContent = "44vba / GPL-3.0 · 运行中";
-      return ret;
+      /* 顺序不能调：_emuLoadROM 会清空存档区，所以先把这张卡带的存档写回去，
+         再 _emuResetCpu——复位之后游戏是从「卡带里有存档」的状态开机的。 */
+      return Promise.resolve(typeof savRestoreToCore === "function" ? savRestoreToCore() : false)
+        .catch(function(){ return false; })
+        .then(function(restored){
+          M._emuResetCpu();
+          coreBooted = true;
+          coreStart();
+          /* 换一张卡带就是换一张地图册：旧页留着没意义 */
+          if (typeof mapReset === "function") mapReset();
+          if (typeof savWatchStart === "function") savWatchStart();
+          if (veil) veil.hidden = true;
+          $("#core-state").textContent = "44vba / GPL-3.0 · 运行中";
+          if (restored) toast("已接上这张卡带的存档 · 游戏里选「继续」");
+          if (typeof savUpdateCaption === "function") savUpdateCaption();
+          /* 告诉宿主「真的在玩了」：AI 回复完成后要不要响一声、要不要自动存档，看这个 */
+          try{ parent.postMessage({ type: "moon-pocket:playing",
+            code: (lastRom && lastRom.code) || "", title: (lastRom && lastRom.title) || "" }, "*"); }catch(e){}
+          return ret;
+        });
     }).catch(function(err){
       coreBooted = false;
       if (veil){ veil.hidden = false; veil.firstElementChild.textContent = "核心装载失败"; }
@@ -137,6 +160,18 @@ var GBA_CORE = {
     var bit = KEY_BIT[btn]; if (bit === undefined) return;
     if (down) coreKeys |= (1 << bit); else coreKeys &= ~(1 << bit);
   },
+  clock: function(){ return coreClock; },
+  /* 手动按帧推进：跑完 n 帧核心、把最后一帧贴回屏幕（不贴的话画面停在旧帧）。
+     瞬间移动要「按住方向键正好 16 帧 = 走一格」，靠毫秒计时在倍速下会飘，
+     所以这里直接一帧一帧地喂。调用方负责成对地 manual(true)/manual(false)。 */
+  step: function(n){
+    if (!coreModule || !coreBooted) return 0;
+    try{ for (var i = 0; i < n; i++) coreModule._emuRunFrame(coreKeys); }catch(e){ return 0; }
+    coreClock += n;
+    try{ coreCtx.putImageData(coreImageData, 0, 0); }catch(e){}
+    return n;
+  },
+  manual: function(on){ coreManual = !!on; },
   pause: function(v){ corePaused = !!v; },
   saveState: function(){ return coreSavView ? Array.from(coreSavView) : null; },
   loadState: function(arr){

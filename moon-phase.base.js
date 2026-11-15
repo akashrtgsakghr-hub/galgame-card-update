@@ -24,17 +24,14 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.7.1';
-  const MOON_FORMULA_CHANGELOG = "【v5.7.1 小地图 · 妈妈那张手绘图】\n" +
-  "1. 屏里左上角多了一扇「手绘地图」窗：开局是空的，你走过的地方它自己一格格画出来，中间那个一闪一闪的方块就是你。\n" +
-  "2. 位置不是读内存读来的。核心只导出 4 个内存符号（ROM / 存档 / 帧缓冲 / 金手指），没有 RAM 出口；就算从 wasm 堆里认出工作内存，坐标与地图编号的偏移每个改版都要重新标定。所以改成看画面：站住时镜头正好落在 16px 格线上，把每一帧按格对齐拼进一张大图，靠像素差判断「对上了 / 换地图了」。\n" +
-  "3. 进新地图（森林、洞窟、楼梯下面、解谜层）自动翻页；上一页最后落脚的地方标「出口」，进来的地方标「入口」。标题栏 – 收起、↺ 换一张白纸；「地图」按钮开关，也可以设成不自动翻开。\n" +
-  "4. 剧情上它是妈妈塞鞋时顺手给的那张；机制上它是掌机这一层照着画面描的——卡带里的道具表、名字表、发放脚本都没有源码，真道具塞不进去，所以不假装是游戏内道具。第一次翻开有她的一张便条，读完记在本机。\n" +
-  "5. 拆件：算法与状态机 pocket.08-map-core.js（纯像素函数 + 状态机，不碰 DOM），取帧与绘制 pocket.09-map-ui.js，样式 pocket.05-map.css。回归 node tools/verify-map.mjs 22/22（合成帧，含走位、翻页、贴边挪图、对话框与 HUD 判据），真卡带联调 node tools/probe-map-live.mjs（真像素平移验证）。\n" +
-  "6. 两个坑写进注释：改版底部常驻的深色 HUD 不能当成对话框（判据加了「亮不亮」，否则一张图都画不出来）；玩家立绘那块要挖洞，否则小人会被烙进地图。\n" +
-  "7. 攻略「这台机器」册加了一节：小地图怎么用，以及它做不到的三件事——不是官方全图、单屏房间点位会偏、画面被对话框挡住时不画。\n" +
-  "8. 收尾三处：一步没走过的残页（开场白、过场、菜单）不再占页数，地图册里只留真走过的；小窗视野往上偏两格，避开底部那条没拼进去的 HUD，顺便多看一眼前面；对外多了个 map.feed() 调试入口，联调脚本拿真画面平移就能验走位。\n" +
-  "9. 回归 23/23（多了「残页不作数」一条），掌机 68/68、攻略 31/31、面板合并 19/19（F5d / S6b 是 5.0.0 起就有的存量失败，与本次无关）。";
+  const MOON_FORMULA_VERSION = '5.15.0';
+  const MOON_FORMULA_CHANGELOG =     "【v5.15.0 神宠秘籍：卡带里的精灵真的进剧情了】\n" +
+    "1. 以前那条链路是断的：掌机金手指会把存档里的同行 / 配招 / 道具 / 羁绊写成世界书条目，玩家在屏内看得到、也能导出 JSON，但宿主抄进聊天存档之后就没人再读它——AI 一个字都收不到。现在每轮请求都会把这本世界书注入提示词（position 4 / depth 1），写战斗、养成、收服时按玩家的真实存档来。\n" +
+    "2. 世界书默认就叫《后宫王神宠秘籍》：编辑页抬头、导出的 JSON 书名、文件名、酒馆侧注入的标题都用这一个名字，导入酒馆时不用再起名。\n" +
+    "3. 金手指搬到酒馆这一侧：「卡带机」页下面多了一条工具带，直接点「开启金手指」就会读一次存档并生成秘籍，不用先进掌机翻菜单找那个按钮；旁边「重新转写」用于换了队员、推了进度之后再扫一次。工具带上写着现在有几条、几条在生效。\n" +
+    "4. 注入的内容带约束：不得替换或增减玩家队伍成员，已列出的精灵招式只能从它的配招里取；没列出的精灵和路人训练家照常出现。整段上限 6000 字、单条 900 字，条目多了按顺序截断，不会把正文挤没。\n" +
+    "5. 停用的条目不注入；关掉金手指（条目全停用）时这一轮就把注入清空，不留上一轮的秘籍。存档里的世界书坏了也只跳过，不报错。\n" +
+    "6. 测试：新增 moon/test/pocket-wb.test.mjs（9 条），node test/run-all.mjs 全绿（23 个文件）。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -66,8 +63,13 @@
   const USER_BIO_PROMPT_KEY = 'moon_phase_user_bio_injected';
   const CUSTOM_AI_CONFIG_KEY = 'moon_phase_custom_ai_config';
   const LOCAL_STATE_KEY = 'moon_phase_local_state';
-  /* 正式名称：面板抬头用主名 + 副名两行拼出完整名称，别处（公告 / 导出 / 自检）直接用全文。 */
-  const SYSTEM_UI_NAME = 'Doki♥Doki！我要成为后宫王！～为了全CG全结局全要素收集而向全世界告白的大作战～';
+  /* 三个名字，各管一处，别混：
+       SYSTEM_UI_NAME   酒馆魔棒菜单 / 开机提示 / 自检标题 —— 玩家天天见的那行，用短名「月相系统」，
+                        一长串「Doki♥Doki！…大作战～」塞进菜单会被挤成两行还截断。
+       SYSTEM_MENU_NAME 面板抬头第一行（大字）
+       SYSTEM_MENU_SUB  面板抬头第二行（副标题）
+     长名只活在系统面板里，就是这个分工。 */
+  const SYSTEM_UI_NAME = '月相系统';
   const SYSTEM_MENU_NAME = 'Doki♥Doki！我要成为后宫王！';
   const SYSTEM_MENU_SUB = '～为了全CG全结局全要素收集而向全世界告白的大作战～';
   /* 旧名只用于「认出这是个老安装」：脚本改名、世界书指纹、老存档迁移都还要认它。 */
@@ -842,6 +844,29 @@
       canonicalTag: canonicalTag,
       canonicalSimpleTag: canonicalSimpleTag
     };
+  }
+
+  /* 心声标签：[心声|角色名|一句内心话]
+     为什么要单独造一个标签：模型对「角色.X.心声=…」这种后台变量行经常漏写，
+     而漏写时脚本没有任何东西可抓（状态卡只能显示「本轮未收到」）。
+     这个标签每轮由脚本注入在 prompt 最下面一行强制要求，短、固定、只有一个语义，
+     模型照抄的概率明显高于一整块后台变量。
+     两种写法都收：谁后到用谁；标签会被从正文里删掉，玩家看不到。 */
+  const VOICE_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(\uff08]\s*心声\s*[|\uff5c]([^|\uff5c\]\u3015\u3011\uff3d)\uff09\r\n]+)[|\uff5c]([^\]\u3015\u3011\uff3d)\uff09\r\n]*)[\]\u3015\u3011\uff3d)\uff09]?/gi;
+
+  function extractVoiceTags(mes) {
+    const out = [];
+    if (!mes) return out;
+    const text = String(mes);
+    const re = new RegExp(VOICE_TAG_GLOBAL_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const name = String(m[1] || '').trim();
+      const value = String(m[2] || '').trim();
+      if (!name || !value) continue;
+      out.push({ name: name, text: value, fullMatch: m[0], index: m.index, end: re.lastIndex });
+    }
+    return out;
   }
 
   function extractAllSylveinaTags(mes) {
@@ -1624,6 +1649,101 @@ async function _collectAllWorldbooks(includeDisabled) {
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
   }
 
+  /* 每轮一条「心声提醒」，注入位置在 prompt 最下面（position 4 / depth 0）。
+
+     为什么单独一条：上面那一大坨规则里其实已经写了「每轮都要重写心声」，
+     但它埋在中间，模型写到后面就疲劳了，经常整轮不写 —— 状态卡只能显示「本轮未收到」。
+     把同样的要求压成一行、放到最后，模型照做的概率明显更高（这一行的位置比措辞更管用）。
+
+     只留「角色名 + 格式 + 一个例子」，不重复讲道理：这一段每轮都在最显眼的位置，
+     写长了反而把正文挤掉。 */
+  function injectVoiceTagReminder() {
+    try {
+      const data = loadLocalState();
+      const chars = (data && data.stat_data && data.stat_data.角色) || {};
+      const names = Object.keys(chars).filter(function(n) {
+        const ch = chars[n];
+        return ch && !isCharSkeleton(ch) && ch.在场 !== false;
+      }).slice(0, 3);
+      if (!names.length) { callSetPrompt(PROMPT_KEY + '_voice', '', 0, 0, false); return; }
+      const lines = [];
+      lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
+      lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
+      lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
+      lines.push('这行由系统收走，不会出现在玩家看到的正文里；不要写解释、不要写在上面的正文中间。');
+      callSetPrompt(PROMPT_KEY + '_voice', lines.join('\n'), 4, 0, false);
+    } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
+  }
+
+  /* ── 掌机金手指转写出来的世界书 ────────────────────────────────────────
+     链路：掌机读存档 → 金手指把同行 / 配招 / 道具 / 羁绊写成 world_info 条目
+     → 掌机写自己的 localStorage → 宿主（87a）把整包塞进 chatMetadata
+     → 这里读出来拼成一段，每轮挂在 prompt 上。
+
+     以前这本只活在掌机里：玩家在屏内看得到条目，AI 一个字都收不到。
+     那就不叫「写进剧情」，只是给人看的一份清单。 */
+  const POCKET_WB_BUDGET = 6000;   // 整段上限，超了就按条目顺序截断
+  const POCKET_WB_ENTRY_CAP = 900; // 单条正文上限，避免一个条目把预算吃光
+
+  function readPocketWorldBook() {
+    let bag = null;
+    try {
+      const ctx = getSTCtx();
+      bag = (ctx && ctx.chatMetadata && ctx.chatMetadata[MOON_POCKET_SAVES_KEY]) || null;
+    } catch (e) { bag = null; }
+    if (!bag || typeof bag !== 'object') return null;
+
+    let entries = [];
+    Object.keys(bag).forEach(function (k) {
+      if (k.indexOf('moon-pocket:worldbook:') !== 0) return;
+      let arr = null;
+      try { arr = JSON.parse(bag[k]); } catch (e) { return; }
+      if (!Array.isArray(arr) || !arr.length) return;
+      /* 掌机的存档键按它自己的 chatId 分；宿主这一侧只认「哪一条最全」，
+         不去猜它用的是哪个 id —— 玩家换过聊天也不至于突然读不到。 */
+      if (arr.length > entries.length) entries = arr;
+    });
+    if (!entries.length) return null;
+
+    let name = '';
+    const rawName = bag['moon-pocket:flag:wb-name'];
+    if (rawName != null) {
+      try { name = String(JSON.parse(rawName)); } catch (e) { name = String(rawName); }
+    }
+    return { name: name || '后宫王神宠秘籍', entries: entries };
+  }
+
+  function injectPocketWorldBook() {
+    try {
+      const book = readPocketWorldBook();
+      const live = book ? book.entries.filter(function (e) {
+        return e && !e.disable && String(e.content || '').trim();
+      }).sort(function (a, b) { return (Number(a.order) || 100) - (Number(b.order) || 100); }) : [];
+      if (!live.length) { callSetPrompt(PROMPT_KEY + '_pocket_wb', '', 0, 0, false); return; }
+
+      const head = [
+        '【' + book.name + ' · 玩家存档实测资料】',
+        '以下是玩家在卡带里实际打出来的存档，已整理成条。写战斗、养成、收服、交换时按这里的资料为准：',
+        '· 不得替换或增减玩家队伍成员；已列出的精灵，招式只能从它的配招里取。',
+        '· 未列出的精灵、路人训练家可以正常出现，不要因为这份表就认为世界上只有这几只。',
+      ].join('\n');
+
+      const parts = [];
+      let used = head.length;
+      for (let i = 0; i < live.length; i++) {
+        const title = String(live[i].comment || live[i].key && live[i].key[0] || '条目').trim();
+        let body = String(live[i].content || '').trim();
+        if (body.length > POCKET_WB_ENTRY_CAP) body = body.slice(0, POCKET_WB_ENTRY_CAP) + '…';
+        const chunk = '▸ ' + title + '\n' + body;
+        if (used + chunk.length + 2 > POCKET_WB_BUDGET) break;
+        parts.push(chunk);
+        used += chunk.length + 2;
+      }
+      if (!parts.length) { callSetPrompt(PROMPT_KEY + '_pocket_wb', '', 0, 0, false); return; }
+      callSetPrompt(PROMPT_KEY + '_pocket_wb', head + '\n\n' + parts.join('\n\n'), 4, 1, false);
+    } catch (e) { console.warn('[Doki] 神宠秘籍注入失败：', e); }
+  }
+
   function injectRelationshipFactsPrompt() {
     try {
       const data = readMvuLatest();
@@ -1988,6 +2108,21 @@ async function _collectAllWorldbooks(includeDisabled) {
       });
     }
     _applyBackendVarLines(text, statData, out.applied);
+    // [心声|角色名|内容]：先收进角色档，再从正文里删掉（玩家不该看到标签本身）。
+    // 名字对不上任何角色时原样留着 —— 宁可让玩家看到一行怪东西，也别吞掉可能是伏笔的内容。
+    // 和「角色.X.心声=…」共用同一套「已收到 / 本轮重复」登记，状态卡不用另做一套。
+    try {
+      text = text.replace(new RegExp(VOICE_TAG_GLOBAL_RE.source, 'gi'), function(full, name, value) {
+        const nm = String(name == null ? '' : name).trim();
+        const v = String(value == null ? '' : value).trim();
+        const ch = statData.角色 && statData.角色[nm];
+        if (!ch || !v) return full;
+        const prev = String(ch.心声 == null ? '' : ch.心声);
+        ch.心声 = v;
+        out.applied.push(nm + (prev === v ? '.心声重复' : '.心声'));
+        return '';
+      });
+    } catch (e) {}
     const cleaned = text.replace(new RegExp(BACKEND_VAR_LINE_RE.source, 'gm'), function(line) {
       return _isOwnedBackendLine(line) ? '' : line;
     }).replace(/\n{3,}/g, '\n\n');
@@ -2170,7 +2305,7 @@ async function _collectAllWorldbooks(includeDisabled) {
 
   // 世界时钟推进：默认每轮走 turnMinutes 分钟；跨大跨度需玩家授权或正文转场
   function advanceWorldClock(world, latestAiText) {
-    const out = { ok: false, from: '', to: '', minutes: 0, days: 0, source: 'none', granted: false, clamped: false };
+    const out = { ok: false, from: '', to: '', minutes: 0, days: 0, source: 'none', granted: false, clamped: false, blockedTo: '', blockedMinutes: 0 };
     try {
       if (!world) return out;
       ensureWorldClockFields(world);
@@ -2219,6 +2354,11 @@ async function _collectAllWorldbooks(includeDisabled) {
       }
       // 只有 AI/后台自己制造的大跨度才受闸门限制；玩家明确指定的跨度绝不截断。
       if (deltaMin > step * 3 && !granted && (source === 'ai_clock' || source === 'state_clock' || source === 'declared')) {
+        /* 把「AI 原本想跳到哪」记下来：夹回是静默的，不告诉玩家的话，
+           他只会看到时钟几乎没动、AI 写的「次日清晨」那一行还被删了，
+           像 bug 不像设计。调用方拿这个字段去 toast 一句。 */
+        out.blockedTo = formatGameTime(target) || String(stateTime || '');
+        out.blockedMinutes = deltaMin;
         target = new Date(fromDate.getTime() + step * 60000);
         deltaMin = step; source = 'clamped'; out.clamped = true;
       }
@@ -2276,7 +2416,14 @@ async function _collectAllWorldbooks(includeDisabled) {
         const clockInfo = advanceWorldClock(world, latestAiText);
         world._lastClockSig = clockSig;
         if (clockInfo.ok) {
-          statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to };
+          statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to, 被拦下的目标: clockInfo.blockedTo || '' };
+        }
+        /* 夹回必须出声。以前这里是静默的：AI 写「次日清晨」、脚本只推 10 分钟、那行时间还被从正文删了，
+           玩家看到的是「时钟几乎不动、AI 说的话少了一句」，像坏了。现在给一句人话。 */
+        if (clockInfo.clamped) {
+          try {
+            toast('时间被脚本挡住了：AI 想推到 ' + (clockInfo.blockedTo || '很后面') + '，这轮只走了 ' + clockInfo.minutes + ' 分钟。要跨天就在你的话里写「第二天」。', 'warning');
+          } catch (e) {}
         }
       }
       const currentTime = world.时间 || '';
@@ -2434,7 +2581,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       // 完全绕过了 armEndingFlow 闸门，开局第 1、2 楼也会弹。现在只给一次不打断的提示。
       endingRequests.forEach(function(request) {
         if (markEndingPrompted(request.charName, request.ending.type)) {
-          try { toast('《' + request.charName + '》已达成终局条件，可在系统面板发起「周目结算」', 'info'); } catch (e) {}
+          try { toast('《' + request.charName + '》可以进行周目结算了 —— 系统面板 → 人物图鉴与存档 → 回忆与结局，点「结算这一局」', 'success'); } catch (e) {}
         }
       });
       if (gateLogs.length) { try { injectGateNotice(gateLogs); } catch (e) {} }
@@ -2788,6 +2935,14 @@ async function _collectAllWorldbooks(includeDisabled) {
       onGenerationEnd().catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
       // Galgame 沉浸层：只记记忆、接收第三方图片、刷新展示，不碰聊天记录
       try { onGalMessageReceived(galLatestAiIndex()); } catch (e) {}
+      /* 掌机：这一轮 AI 回完了——响一声，让掌机把这一局存下来。
+         只有真的在掌机里跑着卡带时才动（判断在 pocketAfterAiReply 里）。 */
+      try { if (typeof pocketAfterAiReply === 'function') pocketAfterAiReply('message_received'); } catch (e) {}
+    });
+    /* generation_ended 比 message_received 更早一点点到，两个都挂上、内部去抖；
+       有些酒馆版本没有这个事件，trySubscribe 订阅失败就只剩上面那一条。 */
+    trySubscribe('generation_ended', function() {
+      try { if (typeof pocketAfterAiReply === 'function') pocketAfterAiReply('generation_ended'); } catch (e) {}
     });
     trySubscribe('character_message_rendered', function() {
       setTimeout(function() {
@@ -2815,6 +2970,11 @@ async function _collectAllWorldbooks(includeDisabled) {
       try { injectGalMemoryPrompt(); } catch (e) {}
       // 放在最后注入，防止旧小抄/旧摘要把当前关系事实覆盖掉。
       try { injectRelationshipFactsPrompt(); } catch (e) {}
+      // 掌机金手指转写的那本《后宫王神宠秘籍》：玩家点了金手指才有内容，没点就是空。
+      try { injectPocketWorldBook(); } catch (e) {}
+      // 真正的最后一条：心声标签提醒。depth 0 = 落在 prompt 最下面，
+      // 上面那一大坨规则写多了模型会疲劳，最后一行它反而会照做。
+      try { injectVoiceTagReminder(); } catch (e) {}
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);
@@ -6608,6 +6768,46 @@ function openUpdateConfigDialog(panel) {
   color: var(--k-accent-2) !important;
   box-shadow: inset 0 0 0 1px rgba(var(--k-accent-rgb, 255,190,235), .07) !important;
 }
+/* 页签右上角的小页号：01 / 02 / 03，一眼看出这是翻页而不是开关 */
+#moon-phase-panel .mp-display-mode-switch button small {
+  display: block;
+  margin-top: 2px;
+  font: 500 8.5px/1 var(--k-font-mono, monospace);
+  letter-spacing: 1px;
+  opacity: .5;
+}
+#moon-phase-panel .mp-display-mode-switch button.active small { opacity: .85; }
+/* 街机 / 卡带机这两页不挂引导条：那两页不归酒馆侧管，别把「全屏看剧情」混进去 */
+#moon-phase-panel.mp-display-arcade .mp-guide,
+#moon-phase-panel.mp-display-pocket .mp-guide { display: none !important; }
+
+/* 「可结算」角标：结局提示只在聊天里响一次，玩家一滑就没了，面板上留个长期痕迹。
+   挂在主菜单「人物图鉴与存档」和「回忆与结局」两个位置，点进去就是那个按钮。 */
+#moon-phase-panel .mp-ready-dot {
+  display: inline-block;
+  align-self: flex-start;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid rgba(244, 114, 208, .55);
+  border-radius: 2px;
+  background: rgba(244, 114, 208, .16);
+  color: #ffd3ef;
+  font: 600 8.5px/1.4 var(--k-font-pixel, monospace);
+  font-style: normal;
+  letter-spacing: .4px;
+  vertical-align: 1px;
+  white-space: nowrap;
+  animation: mp-ready-pulse 2.6s ease-in-out infinite;
+}
+@keyframes mp-ready-pulse { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #moon-phase-panel .mp-ready-dot { animation: none; opacity: 1; } }
+/* 已经够格的那颗按钮：比旁边的「回忆画廊」再亮一档，但不用渐变，保持像素风 */
+#moon-phase-panel .mp-ending-ready {
+  border-color: rgba(244, 114, 208, .75) !important;
+  background: rgba(53, 20, 46, .92) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 190, 232, .16) !important;
+}
+#moon-phase-panel .mp-ending-ready span { color: #ffe4f5 !important; }
 
 /* ── 卡片 ─────────────────────────────────────────────────────────────── */
 #moon-phase-panel .mp-card {
@@ -17676,7 +17876,10 @@ var worldData = (rawVars && rawVars['世界']) || {};
     }
     if (confirmed(/(你|user|玩家)(已|彻底|已经)?(死了|停止了呼吸|失去心跳|永远闭上|咽下了最后一口气|倒在血泊中|牺牲了|殒命|离世)/i) || /(?:user已死|玩家死亡)/i.test(special)) return { triggered: true, type: 'UserDeathEnd', reason: '玩家在此刻迎来了生命的终点' };
     if (charDeathHit || (ch && ch.在场 === false && /死亡|消逝/.test(special))) return { triggered: true, type: 'CharDeathEnd', reason: '角色【' + charName + '】于此刻迎来终局' };
-    if (E >= 100 && R >= 5) return { triggered: true, type: 'HE', reason: '情感羁绊达到圆满境界' };
+    /* 圆满有两条路，任一条走到头都算：
+         ① 好感满 100；② 关系走到第 5 阶段（告白 / 恋人）。
+       以前这里是「且」——E 满但 R 卡在 4 的人会一直等下去，永远等不到提示。 */
+    if (E >= 100 || R >= 5) return { triggered: true, type: 'HE', reason: E >= 100 ? '好感达到圆满（100）' : '关系推进到第 5 阶段' };
     if (E <= -80 && R <= -4) return { triggered: true, type: 'BE', reason: '关系跌入无法挽回的仇视深渊' };
     if (special.indexOf('囚禁') >= 0 || (I >= 90 && !getSafetyLock())) return { triggered: true, type: 'CageEnd', reason: '关系进入囚禁终局条件' };
     return { triggered: false };
@@ -18198,6 +18401,15 @@ var worldData = (rawVars && rawVars['世界']) || {};
        以前这里是一张「第一次玩？照着做两步」的卡 + 上面六张菜单卡 + 一块 LCD，
        信息全在，但没人告诉新手从哪下手；现在按存档状态算一句话。 */
     const rosterNames = Object.keys(_panelChars).filter(function(n) { return !isCharSkeleton(_panelChars[n]); });
+    /* 谁已经够格结算，面板上必须看得见。
+       结局提示只在聊天里 toast 一次，玩家一滑就过去了，之后没有任何痕迹 ——
+       这里按同一套判据（好感 100 或阶段 5）算一遍，给菜单卡和「结算这一局」挂角标。
+       手动结算不传楼层，所以不受「前 3 楼不判」的限制。 */
+    const endingReadyNames = rosterNames.filter(function(n) {
+      try { return isEndingTriggerCondition(n, _panelChars[n], '', -1).triggered; } catch (e) { return false; }
+    });
+    const endingReady = endingReadyNames.length > 0;
+    const endingDot = '<i class="mp-ready-dot" aria-label="可以进行周目结算">可结算</i>';
     const guide = !hasRoster
       ? {
           ok: false,
@@ -18309,12 +18521,17 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<span class="mp-brand-sub">' + SYSTEM_MENU_SUB + '</span></span></button>' +
       '<span class="mp-badge" style="cursor:pointer;' + (_cachedUpdateInfo ? 'border-color:rgba(244,114,208,.6);color:#ffb3e8;' : '') + '">v' + MOON_FORMULA_VERSION + (_cachedUpdateInfo ? ' · 有新版' : '') + '</span>' +
       '<button class="mp-close" id="moon-phase-close" aria-label="关闭面板">✕</button></div>' +
+      /* 翻页条紧贴标题栏：三页（系统面板 / 街机 / 卡带机）都从这一行翻，
+         下面的内容随页走。以前它被引导条压在中间，手机上要滑一下才看得见。 */
+      '<div class="mp-display-mode-switch" role="tablist" aria-label="翻页：系统面板 / 街机 / 卡带机">' +
+      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板<small>01</small></button>' +
+      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏<small>02</small></button>' +
+      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机<small>03</small></button>' : '') +
+      '</div>' +
+      /* 引导条跟着「系统面板」这一页走；街机 / 卡带机页不显示，那两页不是给它用的 */
       guideHtml +
-      '<div class="mp-display-mode-switch" role="tablist" aria-label="切换面板或街机">' +
-      '<button type="button" role="tab" aria-selected="' + (!isArcadeMode) + '" class="' + (!isArcadeMode ? 'active' : '') + '" data-display-mode="system">系统面板</button>' +
-      '<button type="button" role="tab" aria-selected="' + isArcadeMode + '" class="' + (isArcadeMode ? 'active' : '') + '" data-display-mode="arcade">街机小游戏</button>' +
-      ((typeof mountPocket === 'function') ? '<button type="button" role="tab" aria-selected="' + isPocketMode + '" class="' + (isPocketMode ? 'active' : '') + '" data-display-mode="pocket">卡带机</button></div>' : '') +
       '<div class="mp-card mp-lcd-card' + (isArcadeMode ? ' mp-lcd-game' : (isPocketMode ? ' mp-pocket-card' : '')) + '">' + (isArcadeMode ? renderArcadeGameScreen() : (isPocketMode ? renderPocketScreen() : renderLcdScreen(panel, mode, antisl, extraSetting, cardMode, pacing, fanficOn))) + '</div>' +
+      (isPocketMode && typeof renderPocketTools === 'function' ? renderPocketTools() : '') +
       (isArcadeMode
         ? '<div class="mp-card mp-mode-select-card is-arcade">' + renderDifficultyPicker(selectedLevel, true) + '</div>'
         : '') +
@@ -18324,7 +18541,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       '<section class="mp-menu-home" id="moon-menu-home" style="' + (activeMenuKey ? 'display:none' : 'display:block') + '">' +
       '<div class="mp-menu-label">主菜单 · 点哪进哪</div><div class="mp-menu-grid">' +
       '<button class="mp-menu-card" data-menu-open="adventure"' + (hasRoster ? '' : ' data-primary="1"') + '><span class="mp-menu-icon">' + uiIco('play') + '</span><span><b>新游戏 / 继续旅程</b><small>建立人物档案、调整难度，或接续已有进度</small></span><i>›</i></button>' +
-      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>人物图鉴与存档</b><small>管理角色关系、玩家身份、结局与回忆</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="characters"><span class="mp-menu-icon">' + uiIco('heart') + '</span><span><b>人物图鉴与存档' + (endingReady ? endingDot : '') + '</b><small>管理角色关系、玩家身份、结局与回忆</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>世界编年史</b><small>查看与编辑世界事件、日期和未来节点</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统诊断室</b><small>检查数据、标签解析与插件冲突</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>游戏设置</b><small>调整界面、记忆、图像与运行参数</small></span><i>›</i></button>' +
@@ -18383,9 +18600,11 @@ var worldData = (rawVars && rawVars['世界']) || {};
         '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>生成玩家档案</span><small>整理当前玩家人设，形成可复用的小传</small></button>' +
         '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio-lib"><span>选择本聊天的玩家档案</span><small>只影响当前聊天；其他聊天保留自己的选择</small></button></div>' +
         '<div style="font-size:10px;color:var(--mp-fg-3);margin-top:7px;">玩家昵称与玩家小抄均按聊天存档，不再使用全局启用状态。</div>', true) +
-      pocketFold('chr-end', '回忆与结局', '想看攒下来的图和这一局的收尾',
+      pocketFold('chr-end', '回忆与结局' + (endingReady ? endingDot : ''), '想看攒下来的图和这一局的收尾',
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-gallery"><span>回忆画廊</span><small>看解锁的插画和成就，能下载保存</small></button>' +
-        '<button class="mp-btn" id="moon-phase-ending"><span>结算这一局</span><small>生成结局卡和一篇番外</small></button></div>', true) +
+        '<button class="mp-btn' + (endingReady ? ' mp-btn-highlight mp-ending-ready' : '') + '" id="moon-phase-ending"><span>结算这一局</span><small>' +
+        (endingReady ? '现在就可以：' + lcdEscape(endingReadyNames.join('、')) + ' 已经够了' : '生成结局卡和一篇番外') +
+        '</small></button></div>', true) +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="timeline" style="display:' + (activeMenuKey === 'timeline' ? 'block' : 'none') + '"><div class="mp-sub-label">冒险日志（可选）</div>' +
       pocketFold('tl-list', '世界大事表', '不写也能正常玩；写了 AI 会有主线目标',
@@ -18491,6 +18710,8 @@ var worldData = (rawVars && rawVars['世界']) || {};
         if (nextMode === panel.dataset.displayMode) return;
         panel.dataset.displayMode = nextMode;
         renderPanel(panel);
+        /* 翻页就该从页首开始看：不归零的话，从系统面板底下翻到卡带机会落在半截。 */
+        try { panel.scrollTop = 0; } catch (e) {}
       });
     }
     if (isArcadeMode) {
@@ -18500,6 +18721,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     if (isPocketMode) {
       const pocketCard = panel.querySelector('.mp-pocket-card');
       if (pocketCard && typeof mountPocket === 'function') panel._pocketStop = mountPocket(pocketCard);
+      if (typeof pocketBindTools === 'function') pocketBindTools(panel);
     }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');
@@ -22901,7 +23123,9 @@ async function applyAdaptiveOpening(charName, values) {
       div.id = 'moon-phase-menu-entry';
       div.className = 'list-group-item flex-container flexGap5 interactable';
       div.tabIndex = 0;
-      div.innerHTML = '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🌕</span><span>' + SYSTEM_MENU_NAME + '</span>';
+      /* 魔棒菜单那一行用短名（SYSTEM_UI_NAME）：长标题留给面板抬头。
+         菜单里塞二十多个字会被酒馆的菜单宽度挤成两行再截断，认不出是什么。 */
+      div.innerHTML = '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🌕</span><span>' + SYSTEM_UI_NAME + '</span>';
       div.addEventListener('click', function() { openPanel({ autoTour: true }); });
       menu.appendChild(div);
       return true;

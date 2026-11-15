@@ -63,6 +63,14 @@
       onGenerationEnd().catch(function(e) { try { console.warn('[Doki] 回复后处理失败：', e); } catch (ignore) {} });
       // Galgame 沉浸层：只记记忆、接收第三方图片、刷新展示，不碰聊天记录
       try { onGalMessageReceived(galLatestAiIndex()); } catch (e) {}
+      /* 掌机：这一轮 AI 回完了——响一声，让掌机把这一局存下来。
+         只有真的在掌机里跑着卡带时才动（判断在 pocketAfterAiReply 里）。 */
+      try { if (typeof pocketAfterAiReply === 'function') pocketAfterAiReply('message_received'); } catch (e) {}
+    });
+    /* generation_ended 比 message_received 更早一点点到，两个都挂上、内部去抖；
+       有些酒馆版本没有这个事件，trySubscribe 订阅失败就只剩上面那一条。 */
+    trySubscribe('generation_ended', function() {
+      try { if (typeof pocketAfterAiReply === 'function') pocketAfterAiReply('generation_ended'); } catch (e) {}
     });
     trySubscribe('character_message_rendered', function() {
       setTimeout(function() {
@@ -90,6 +98,11 @@
       try { injectGalMemoryPrompt(); } catch (e) {}
       // 放在最后注入，防止旧小抄/旧摘要把当前关系事实覆盖掉。
       try { injectRelationshipFactsPrompt(); } catch (e) {}
+      // 掌机金手指转写的那本《后宫王神宠秘籍》：玩家点了金手指才有内容，没点就是空。
+      try { injectPocketWorldBook(); } catch (e) {}
+      // 真正的最后一条：心声标签提醒。depth 0 = 落在 prompt 最下面，
+      // 上面那一大坨规则写多了模型会疲劳，最后一行它反而会照做。
+      try { injectVoiceTagReminder(); } catch (e) {}
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);

@@ -34,3 +34,24 @@
 .gt-list li button{min-height:24px;padding:1px 7px;font-size:10px;border:1px solid color-mix(in srgb,var(--color-lcd-ink) 30%,transparent);
   background:transparent;color:var(--color-lcd-ink);cursor:pointer}
 .gt-list li .bad{opacity:.55;text-decoration:line-through}
+
+/* ── 黑粉像素统一（跟随 --sui-*，定义在 pocket.01-console.css 末尾）────── */
+.cheat-stage{background:var(--sui-bg);color:var(--sui-text)}
+.gt-bar{background:var(--sui-edge);border-bottom:2px solid var(--sui-line);
+  color:var(--sui-pink);font:700 11px/1.3 var(--font-mono);letter-spacing:.16em}
+.gt-scroll h4{color:var(--sui-pink2);font:700 11px/1.3 var(--font-mono);letter-spacing:.16em}
+.gt-note{color:var(--sui-muted)}
+.gt-note b{color:var(--sui-text)}
+.gt-note.ok b{color:#8fd694}
+.gt-note.bad b{color:#ff9b9b}
+.gt-grid button,.gt-row button{border:2px solid var(--sui-line);background:var(--sui-panel);
+  color:var(--sui-text);box-shadow:2px 2px 0 var(--sui-edge)}
+.gt-grid button:hover,.gt-grid button.on,.gt-row button:hover{
+  background:var(--sui-pink);color:var(--sui-bg);border-color:var(--sui-pink);box-shadow:none}
+.gt-grid button small{color:inherit;opacity:.7}
+#gt-code{background:var(--sui-panel);color:var(--sui-pink2);border:2px solid var(--sui-line)}
+#gt-code::placeholder{color:color-mix(in srgb,var(--sui-muted) 80%,transparent)}
+.gt-list li{border-bottom:1px solid var(--sui-line)}
+.gt-list li code{color:var(--sui-text)}
+.gt-list li button{border:2px solid var(--sui-line);background:var(--sui-panel);color:var(--sui-text)}
+.gt-list li button:hover{background:var(--sui-pink);color:var(--sui-bg)}

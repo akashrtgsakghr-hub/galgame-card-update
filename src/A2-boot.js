@@ -12,7 +12,9 @@
       div.id = 'moon-phase-menu-entry';
       div.className = 'list-group-item flex-container flexGap5 interactable';
       div.tabIndex = 0;
-      div.innerHTML = '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🌕</span><span>' + SYSTEM_MENU_NAME + '</span>';
+      /* 魔棒菜单那一行用短名（SYSTEM_UI_NAME）：长标题留给面板抬头。
+         菜单里塞二十多个字会被酒馆的菜单宽度挤成两行再截断，认不出是什么。 */
+      div.innerHTML = '<span class="fa-fw extensionsMenuExtensionButton" style="font-size:15px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🌕</span><span>' + SYSTEM_UI_NAME + '</span>';
       div.addEventListener('click', function() { openPanel({ autoTour: true }); });
       menu.appendChild(div);
       return true;

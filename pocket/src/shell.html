@@ -17,7 +17,7 @@
   <div>
     <div class="eyebrow">月相系统 · 掌机扩展 / MOON POCKET v4</div>
     <h1>PINK<em>·</em>POCKET</h1>
-    <p class="subhead">竖版机身，像素外壳，屏幕在上，十字键在左下、A / B 斜排在右下。酒馆模式下按键只操作屏内系统，切街机模式会先装载模拟器再进卡带菜单。</p>
+    <p class="subhead">竖版机身，像素外壳，屏幕在上，十字键在左下、A / B 斜排在右下。开机就是卡带菜单：插一张卡带，按 A 启动。这台机器只管卡带，酒馆侧的面板不在这儿。</p>
   </div>
   <div class="mast-meta">
     <b>NOIR / PINK</b>
@@ -27,11 +27,9 @@
 
 <div class="mode-bar reveal" data-d="1">
   <div class="mode-inner">
-    <span class="mode-label">MODE</span>
-    <div class="mode-switch" role="group" aria-label="模式切换">
-      <span class="mode-thumb" aria-hidden="true"></span>
-      <button type="button" id="mode-tavern" aria-pressed="false">酒馆模式<small>TAVERN OS / 内部系统</small></button>
-      <button type="button" id="mode-arcade" aria-pressed="true">街机模式<small>ARCADE / 模拟器</small></button>
+    <span class="mode-label">CART</span>
+    <div class="mode-chip" role="group" aria-label="卡带机">
+      <b>卡带机</b><small>插卡 · 选卡 · 运行</small>
     </div>
     <div class="mode-tools">
       <button type="button" class="chip-btn" id="guide-btn">？ 攻略</button>
@@ -39,7 +37,7 @@
       <button type="button" class="chip-btn" id="wb-btn">世界书</button>
       <button type="button" class="chip-btn" id="skin-btn">美化自定义</button>
     </div>
-    <span class="mode-state"><i aria-hidden="true"></i>当前：<b id="mode-name">模拟器</b> · M 切换 / H 回主页</span>
+    <span class="mode-state"><i aria-hidden="true"></i>当前：<b id="mode-name">卡带机</b> · H 回卡带菜单</span>
   </div>
 </div>
 
@@ -66,7 +64,7 @@
         <div class="bezel-bar">
           <span>DOT MATRIX WITH STEREO SOUND</span>
           <span class="chips">
-            <span id="chip-mode">ARCADE</span>
+            <span id="chip-mode">CART</span>
             <span id="chip-skin">NOIR / PINK</span>
             <span id="chip-cheat">CHEAT OFF</span>
             <span id="chip-wb">WB 0</span>
@@ -75,31 +73,13 @@
         <div class="screen" id="screen">
           <iframe id="cart-frame" title="模拟器画面" sandbox="allow-scripts"></iframe>
 
-          <!-- 酒馆内部系统：屏内 DOM 实字，清晰不模糊 -->
-          <div class="screen-layer" id="tavern-os" hidden>
-            <div class="sl-bar"><span>月相系统 / TAVERN OS</span><small id="os-clock">内部系统面板 · 按 H 回到这里</small></div>
-            <div class="sl-scroll">
-              <div class="os-grid" id="os-grid">
-                <button type="button" class="os-tile" data-os="moon"><span class="no">01 / SYSTEM</span><b>月相</b><small>时钟与阶段推进</small><span class="stat" id="os-moon">上弦月 · 运行中</span></button>
-                <button type="button" class="os-tile" data-os="chars"><span class="no">02 / SYSTEM</span><b>角色与建档</b><small>人物关系 / 数值</small><span class="stat">复用酒馆建档逻辑</span></button>
-                <button type="button" class="os-tile" data-os="worldbook"><span class="no">03 / SYSTEM</span><b>世界书</b><small>口袋条目 / 词条折叠</small><span class="stat" id="os-wb">0 条 · 点击编辑</span></button>
-                <button type="button" class="os-tile" data-os="timeline"><span class="no">04 / SYSTEM</span><b>时间线</b><small>事件导演 / 回忆</small><span class="stat">最近：雨夜屋檐</span></button>
-                <button type="button" class="os-tile" data-os="galgame"><span class="no">05 / SYSTEM</span><b>沉浸模式</b><small>剧本稿 / 电影字幕</small><span class="stat">v4.8.20 样式</span></button>
-                <button type="button" class="os-tile" data-os="arcade"><span class="no">06 / SYSTEM</span><b>街机模式</b><small>模拟器 / 插卡即玩</small><span class="stat">按 A 进入卡带菜单</span></button>
-              </div>
-              <div class="os-detail" id="os-detail"><b>提示</b> · 这块屏就是酒馆内部系统的显示位。点上面的模块看状态，点「世界书」直接进条目编辑，点「街机模式」切进模拟器。</div>
-              <div class="os-feed" id="os-feed"></div>
-            </div>
-            <div class="os-hint" id="os-hint">↓ 下滑看设置与状态</div>
-            <div class="os-foot">HOME 回此页 · 方向键 / A 操作卡带菜单 · 金手指开启后世界书条目会写进剧情注入位</div>
-          </div>
-
           <!-- 卡带槽：对玩家只说「插卡 → 能玩」 -->
           <div class="screen-layer byor-layer" id="byor" hidden>
             <div class="sl-bar"><span>卡带 / CARTRIDGE</span><small>本机读取 · 不上传</small></div>
             <div class="sl-scroll">
-              <h4>插一张卡带进去</h4>
-              <p>选一个本机的卡带文件，就在这台机器里跑。系统本身<b>不带任何游戏</b>，也不会替你去下载。</p>
+              <h4>BT999 变态宝可梦</h4>
+              <p class="byor-sub"><b>后宫王内部特供</b> · v9.99 魔改汉化版</p>
+              <p>槽里就这一张改版卡带：把你手上那份 ROM 选进来，就在这台机器里跑。机器本身<b>不带任何游戏</b>，也不会替你去下载。</p>
               <div class="byor-row">
                 <button type="button" id="rom-btn">插入卡带</button>
                 <button type="button" id="demo-core-btn">装载运行核心</button>
@@ -116,40 +96,54 @@
           <!-- 真实运行层：GBA 画面 240×160（正好 3:2，与屏幕同比，不会被拉伸） -->
           <div class="screen-layer core-stage" id="core-stage" hidden>
             <canvas id="core-canvas" width="240" height="160"></canvas>
+            <!-- 顶部工具条：一行只放高频的四个，剩下的收进「⋯」。
+                 以前七个按钮平铺，窄屏上互相顶到一起，「导出存档」会被挤出屏幕外。 -->
             <div class="emu-hud">
-              <span class="emu-name" id="emu-name">CORE</span>
-              <span class="emu-stat"><b id="emu-fps">--</b> FPS</span>
-              <button type="button" class="emu-btn" id="emu-guide">攻略</button>
-              <button type="button" class="emu-btn" id="emu-map" aria-pressed="false" title="左上角那张手绘图：你走过的地方会自己画出来">地图</button>
-              <button type="button" class="emu-btn" id="emu-refresh" title="用完便利道具点一下：替你开一次背包再退出来">刷新</button>
-              <button type="button" class="emu-btn" id="emu-cheat">金手指</button>
-              <button type="button" class="emu-btn" id="emu-pause">暂停</button>
-              <button type="button" class="emu-btn" id="emu-save">导出存档</button>
-              <button type="button" class="emu-btn" id="core-back">← 卡带</button>
+              <div class="emu-hud-row">
+                <span class="emu-name" id="emu-name">CORE</span>
+                <span class="emu-stat"><b id="emu-fps">--</b> FPS</span>
+                <button type="button" class="emu-btn" id="emu-guide">攻略</button>
+                <button type="button" class="emu-btn" id="emu-map" aria-pressed="false" title="左上角那张手绘图：你走过的地方会自己画出来">地图</button>
+                <button type="button" class="emu-btn emu-more-btn" id="emu-more" aria-expanded="false" aria-controls="emu-more-panel" title="更多：金手指 / 刷新 / 暂停 / 导出存档">⋯</button>
+                <button type="button" class="emu-btn emu-back-btn" id="core-back" title="回卡带菜单">←<span class="emu-lbl"> 卡带</span></button>
+              </div>
+              <div class="emu-more" id="emu-more-panel" hidden>
+                <button type="button" class="emu-btn" id="emu-cheat" title="金手指：把存档转成世界书">金手指</button>
+                <button type="button" class="emu-btn" id="emu-refresh" title="用完便利道具点一下：替你开一次背包再退出来">刷新</button>
+                <button type="button" class="emu-btn" id="emu-pause">暂停</button>
+                <button type="button" class="emu-btn" id="emu-save" title="把这一局的存档导出成文件">导出存档</button>
+              </div>
             </div>
             <div class="emu-tip" id="emu-tip">方向键移动 · A 确认 · B 取消 · START 菜单</div>
             <div class="emu-veil" id="emu-veil"><b>装载核心…</b><span id="emu-veil-text">正在初始化 WASM</span></div>
 
-            <!-- 小地图：左上角那扇窗。不是游戏里的道具，是掌机自己照着画面描的 -->
+            <!-- 小地图：左上角那扇窗。不是游戏里的道具，是掌机自己照着画面描的。
+                 画布 192×144 按 1:1 CSS 像素显示（屏幕宽度够，DPR 2/3 下正好整数倍），
+                 所以地图是硬像素，不会被缩糊；标题栏只放名字和页码，按钮挪到脚条。 -->
             <div class="map-panel" id="map-panel" hidden aria-label="小地图">
               <div class="mp-head">
                 <span id="mp-title">手绘地图</span>
-                <button type="button" id="mp-again" title="换一张白纸，从脚下重新画">↺</button>
-                <button type="button" id="mp-fold" title="收起 / 展开" aria-label="收起地图">–</button>
+                <span class="mp-page" id="mp-page">1/1</span>
               </div>
               <canvas id="mp-canvas" width="192" height="144"></canvas>
               <div class="mp-foot">
-                <span class="mp-k you">■</span>你
-                <span class="mp-k in">入</span>入口
-                <span class="mp-k out">出</span>出口
+                <div class="mp-legend">
+                  <i class="mp-k you" aria-hidden="true"></i><span>你</span>
+                  <i class="mp-k in" aria-hidden="true">入</i>
+                  <i class="mp-k out" aria-hidden="true">出</i>
+                </div>
+                <button type="button" class="mp-key" id="mp-again" title="换一张白纸，从脚下重新画" aria-label="换一张白纸">新</button>
+                <button type="button" class="mp-key" id="mp-fold" title="收起 / 展开" aria-label="收起地图">–</button>
               </div>
             </div>
 
             <div class="map-note" id="mp-note" hidden>
-              <b>妈妈塞进包里的东西</b>
-              <p>鞋给你换了新的。路我不认得，就照旧册子描了一张空的——你走过的地方，它会自己一格格画出来。进林子、钻洞窟、绕迷宫，翻页就是新的一张。</p>
-              <label class="mp-chk"><input type="checkbox" id="mp-auto" checked> 进新地图时自动翻开</label>
-              <button type="button" id="mp-note-ok">收下</button>
+              <div class="note-bar"><b>妈妈塞进包里的东西</b><small>MOM</small></div>
+              <div class="note-body">
+                <p>鞋给你换了新的。路我不认得，就照旧册子描了一张空的——你走过的地方，它会自己一格格画出来。进林子、钻洞窟、绕迷宫，翻页就是新的一张。</p>
+                <label class="mp-chk"><input type="checkbox" id="mp-auto" checked><span>进新地图时自动翻开</span></label>
+              </div>
+              <div class="note-foot"><button type="button" id="mp-note-ok">收下</button></div>
             </div>
           </div>
 
@@ -222,7 +216,7 @@
 
     <div class="device-caption">
       <span>按键：<b>方向键 / Z·X / Enter / Shift</b> · P 关机 · Esc 回菜单 · H 主页</span>
-      <span><button type="button" id="menu-btn">⌂ 卡带菜单</button> <span id="save-caption">存档：LOCAL</span></span>
+      <span><button type="button" id="menu-btn">⌂ 卡带菜单</button> <button type="button" id="chime-btn" aria-pressed="true" title="AI 回复完成时响一声">提示音 · 开</button> <span id="save-caption">存档：LOCAL</span></span>
     </div>
   </section>
 
@@ -230,12 +224,12 @@
     <div class="rail-row">
       <span class="idx">LAYER 01 / 机身</span>
       <h3>竖版机身 · 像素外壳</h3>
-      <p>按 1989 年 DMG-01 的布局摆：屏幕在上，<b>十字键在左下、A / B 斜排在右下</b>，SELECT / START 居中，右下角是扬声器孔。机身走<b>像素风</b>——直角、3px 硬描边、纯色块、零模糊阴影，没有塑料渐变；屏幕是<b>暗橄榄液晶</b>（<code>#555e4b / #10150b</code>，取自面板截图的实测采样，饱和度约 20%），只留极淡点阵和一道斜光。</p>
+      <p>按 1989 年 DMG-01 的布局摆：屏幕在上，<b>十字键在左下、A / B 斜排在右下</b>，SELECT / START 居中，右下角是扬声器孔。整机走<b>黑粉像素</b>——直角、3px 硬描边、纯色块、零模糊阴影，没有塑料渐变；屏幕也是同一个黑，命令条与标题一律粉字，只留极淡的粉色点阵和一道斜光。屏里只有游戏画面和系统界面两种东西，两种都在这套配色里，不会再跳出一块别的颜色。</p>
     </div>
     <div class="rail-row">
       <span class="idx">LAYER 02 / 卡带</span>
       <h3>插卡就玩</h3>
-      <p>顶部卡带口点一下选文件，屏里就进卡带页。玩家看不到内部术语——<b>导入进来能跑的都叫卡带</b>。三个原创游戏是内置卡带；老游戏用你自己的卡带，核心走 <code>attachCore()</code>。</p>
+      <p>顶部卡带口点一下选文件，屏里就进卡带页。玩家看不到内部术语——<b>插进来能跑的就叫卡带</b>。卡带槽里只有一张「BT999变态宝可梦：后宫王内部特供_v9.99魔改汉化版」，卡带用你自己那份，核心走 <code>attachCore()</code>。</p>
     </div>
     <div class="rail-row">
       <span class="idx">LAYER 03 / 金手指</span>
@@ -245,7 +239,7 @@
     <div class="rail-row">
       <span class="idx">LAYER 04 / 美化</span>
       <h3>moon-skin v1</h3>
-      <p>一套 JSON 定义全部配色，含屏幕液晶色调。内置黑粉默认 + 三个从你的 My Boy 美化 APK <b>抽色</b>的皮肤；图案走本机导入槽，不打包第三方素材。<code>tools/apk-skin-extract.mjs</code> 可继续转更多 APK。</p>
+      <p>一套 JSON 定义全部配色，机身和屏内一起换。内置黑粉默认 + 三个从你的 My Boy 美化 APK <b>抽色</b>的皮肤；图案走本机导入槽，不打包第三方素材。<code>tools/apk-skin-extract.mjs</code> 可继续转更多 APK。</p>
     </div>
     <div class="rail-note"><b>关于你上传的目录：</b>ROM 是 32 MB 汉化改版（<code>POKEMON EMER / BPEE</code>），装载器已按真实头部重写，32 MB 也能过。目录里的模拟器是 VBA 的 exe、My Boy / GBA4iOS / Delta 的 APK 与 IPA、以及 <code>44670.org/gba</code> 的网页版——前三种是编译好的程序，<b>没有能在网页里直接搬的 JS 源码</b>；那个网页版是 <code>vba-next-wasm</code>（VBA-Next 编译成 WASM，GPL），要用就按它的许可证接进来，正好走 <code>attachCore()</code>。</div>
     <div class="rail-tools">
@@ -256,13 +250,6 @@
     <input type="file" id="cart-file" accept=".json,application/json" hidden>
   </aside>
 </main>
-
-<section class="tavern-view" id="tavern-view" aria-label="酒馆模式说明">
-  <div class="tavern-panel">
-    <span class="tag">MODE / TAVERN OS</span>
-    <p>酒馆模式下，宽屏显示月相、角色建档、世界书、时间线、沉浸模式与街机入口；拨到街机模式，屏幕直接切成模拟器启动菜单。切换不会中断正在运行的游戏与存档。</p>
-  </div>
-</section>
 
 <section class="spec reveal" data-d="4" aria-labelledby="spec-h">
   <div class="section-head"><h2 id="spec-h">接入规范 <small>接进 4.8.22 的入口 / 世界书与美化格式</small></h2></div>
@@ -293,7 +280,7 @@ MOON_POCKET.<span class="k">getInjectedWorldInfo</span>(); <span class="s">// �
 </section>
 
 <footer class="legal reveal" data-d="4">
-  <p><b>本页实际包含什么。</b> 三个原创像素小游戏（自有代码与程序化绘制，可按 CC0 使用）、一个本机 ROM 头部与 SHA-1 校验流程、一套可插拔核心接口、一套世界书转写与编辑逻辑、一套皮肤格式。<b>不含</b> ROM、模拟器核心、任天堂图像 / 音乐 / 文本，也未使用「宝可梦」作为产品标识。要玩老游戏：自己从合法持有的卡带 dump 出文件 → 插进顶部卡带口 → 接上开源核心。</p>
+  <p><b>本页实际包含什么。</b> 一个卡带槽（一张「BT999变态宝可梦：后宫王内部特供_v9.99魔改汉化版」）、一个本机 ROM 头部与 SHA-1 校验流程、一套可插拔核心接口、一套世界书转写与编辑逻辑、一套皮肤格式，以及按实机卡带盒构图自绘的封面示意。<b>不含</b> ROM、模拟器核心、任天堂图像 / 音乐 / 文本，也未使用「宝可梦」作为产品标识。要玩：自己从合法持有的卡带 dump 出文件 → 插进顶部卡带口 → 接上开源核心。</p>
   <p><b>关于「古老 / 非商业」。</b> 绿宝石 2004 年首发，著作权仍在保护期。中国著作权法第 24 条合理使用限于个人学习、研究、欣赏；把游戏文件打包进发布物或向公众提供属第 53 条的侵权行为，是否营利不是侵权认定标准。玩家自己 dump 自己玩、写模拟器、做美化配色都不越线；被追责的一直是分发 ROM 的站点与打包第三方素材的发布物。</p>
 </footer>
 
@@ -316,7 +303,7 @@ MOON_POCKET.<span class="k">getInjectedWorldInfo</span>(); <span class="s">// �
 <div class="overlay" id="wb-overlay" hidden>
   <section class="wb-panel" role="dialog" aria-modal="true" aria-labelledby="wb-title">
     <header class="wb-head">
-      <div><span class="tag">WORLD INFO / 世界书</span><h2 id="wb-title">口袋世界书 · 条目编辑</h2></div>
+      <div><span class="tag">WORLD INFO / 世界书</span><h2 id="wb-title">后宫王神宠秘籍</h2></div>
       <div class="wb-actions">
         <button type="button" id="wb-rebuild">重新转写</button>
         <button type="button" id="wb-import-btn">导入</button>
@@ -326,12 +313,12 @@ MOON_POCKET.<span class="k">getInjectedWorldInfo</span>(); <span class="s">// �
       </div>
       <input type="file" id="wb-file" accept=".json,application/json" hidden>
     </header>
-    <div class="wb-meta">来源 <b id="wb-source">—</b> · 条目 <b id="wb-count">0</b> · 已启用 <b id="wb-enabled">0</b> · 存档键 <span id="wb-key">—</span></div>
+    <div class="wb-meta">《<b id="wb-name">后宫王神宠秘籍</b>》· 来源 <b id="wb-source">—</b> · 条目 <b id="wb-count">0</b> · 已启用 <b id="wb-enabled">0</b></div>
     <div class="wb-body">
       <div class="wb-list" id="wb-list"></div>
       <aside class="wb-preview">
         <h3>剧情调用预览</h3>
-        <p>启用的条目按酒馆 world_info 的注入方式进入提示词。下面是当前会送进剧情的内容。</p>
+        <p>启用的条目会随每轮请求注入到提示词里，下面是当前会送进剧情的内容。</p>
         <pre id="wb-inject">（还没有启用的条目）</pre>
       </aside>
     </div>

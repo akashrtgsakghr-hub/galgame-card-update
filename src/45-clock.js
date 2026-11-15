@@ -50,7 +50,7 @@
 
   // 世界时钟推进：默认每轮走 turnMinutes 分钟；跨大跨度需玩家授权或正文转场
   function advanceWorldClock(world, latestAiText) {
-    const out = { ok: false, from: '', to: '', minutes: 0, days: 0, source: 'none', granted: false, clamped: false };
+    const out = { ok: false, from: '', to: '', minutes: 0, days: 0, source: 'none', granted: false, clamped: false, blockedTo: '', blockedMinutes: 0 };
     try {
       if (!world) return out;
       ensureWorldClockFields(world);
@@ -99,6 +99,11 @@
       }
       // 只有 AI/后台自己制造的大跨度才受闸门限制；玩家明确指定的跨度绝不截断。
       if (deltaMin > step * 3 && !granted && (source === 'ai_clock' || source === 'state_clock' || source === 'declared')) {
+        /* 把「AI 原本想跳到哪」记下来：夹回是静默的，不告诉玩家的话，
+           他只会看到时钟几乎没动、AI 写的「次日清晨」那一行还被删了，
+           像 bug 不像设计。调用方拿这个字段去 toast 一句。 */
+        out.blockedTo = formatGameTime(target) || String(stateTime || '');
+        out.blockedMinutes = deltaMin;
         target = new Date(fromDate.getTime() + step * 60000);
         deltaMin = step; source = 'clamped'; out.clamped = true;
       }

@@ -22,7 +22,14 @@
         const clockInfo = advanceWorldClock(world, latestAiText);
         world._lastClockSig = clockSig;
         if (clockInfo.ok) {
-          statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to };
+          statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to, 被拦下的目标: clockInfo.blockedTo || '' };
+        }
+        /* 夹回必须出声。以前这里是静默的：AI 写「次日清晨」、脚本只推 10 分钟、那行时间还被从正文删了，
+           玩家看到的是「时钟几乎不动、AI 说的话少了一句」，像坏了。现在给一句人话。 */
+        if (clockInfo.clamped) {
+          try {
+            toast('时间被脚本挡住了：AI 想推到 ' + (clockInfo.blockedTo || '很后面') + '，这轮只走了 ' + clockInfo.minutes + ' 分钟。要跨天就在你的话里写「第二天」。', 'warning');
+          } catch (e) {}
         }
       }
       const currentTime = world.时间 || '';
@@ -180,7 +187,7 @@
       // 完全绕过了 armEndingFlow 闸门，开局第 1、2 楼也会弹。现在只给一次不打断的提示。
       endingRequests.forEach(function(request) {
         if (markEndingPrompted(request.charName, request.ending.type)) {
-          try { toast('《' + request.charName + '》已达成终局条件，可在系统面板发起「周目结算」', 'info'); } catch (e) {}
+          try { toast('《' + request.charName + '》可以进行周目结算了 —— 系统面板 → 人物图鉴与存档 → 回忆与结局，点「结算这一局」', 'success'); } catch (e) {}
         }
       });
       if (gateLogs.length) { try { injectGateNotice(gateLogs); } catch (e) {} }

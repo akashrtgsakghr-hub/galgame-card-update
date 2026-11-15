@@ -81,7 +81,9 @@ async function buildWorldBook(snapshot){
   wbEntries=entries;saveWorldBook();return entries;
 }
 function wbKey(){return WB_PREFIX+chatId;}
-function saveWorldBook(){try{LS.setItem(wbKey(),JSON.stringify(wbEntries));}catch(e){}renderOs();}
+/* 名字单独落一条：宿主侧（酒馆面板 / 月相脚本）只读宿主存档里的字符串，
+   不该为了知道这本叫什么去认识掌机里的常量。 */
+function saveWorldBook(){try{LS.setItem(wbKey(),JSON.stringify(wbEntries));LS.setItem(FLAG_PREFIX+"wb-name",WB_NAME);}catch(e){}renderOs();}
 function loadWorldBook(){try{wbEntries=JSON.parse(LS.getItem(wbKey())||"[]")||[];}catch(e){wbEntries=[];}renderOs();}
 function bindNarrator(fn){if(fn&&typeof fn!=="function")throw new Error("转写 API 必须是函数");narrator=fn;return narrator;}
 function getInjectedWorldInfo(){
@@ -128,7 +130,7 @@ function renderWorldBook(){
 function updateWbMeta(){
   var enabled=wbEntries.filter(function(e){return !e.disable;}).length;
   $("#wb-count").textContent=wbEntries.length;$("#wb-enabled").textContent=enabled;
-  $("#wb-key").textContent=wbKey();
+  var nm=$("#wb-name");if(nm)nm.textContent=WB_NAME;
   $("#wb-source").textContent=(lastSnapshot&&lastSnapshot.source)||"本机存档";
   $("#wb-inject").textContent=getInjectedWorldInfo()||"（还没有启用的条目）";
   $("#wb-enable-all").checked=wbEntries.length>0&&enabled===wbEntries.length;
@@ -151,9 +153,10 @@ $("#wb-list").addEventListener("click",function(e){
 $("#wb-rebuild").addEventListener("click",function(){$("#wb-overlay").hidden=true;runConvert();});
 $("#wb-export-btn").addEventListener("click",function(){
   wbEntries=collectEditor();saveWorldBook();
-  var out={name:"口袋世界书 · "+chatId,entries:{}};
+  /* 世界书本体名：酒馆导入时就用这个名字建书，不用玩家再起一次 */
+  var out={name:WB_NAME,entries:{}};
   wbEntries.forEach(function(e){out.entries[String(e.uid)]=e;});
-  downloadJSON(out,"口袋世界书-"+chatId+".json");toast("已导出酒馆 world_info 格式 JSON");
+  downloadJSON(out,WB_NAME+"-"+chatId+".json");toast("已导出《"+WB_NAME+"》· 酒馆 world_info 格式");
 });
 $("#wb-import-btn").addEventListener("click",function(){$("#wb-file").click();});
 $("#wb-file").addEventListener("change",function(e){

@@ -42,6 +42,35 @@ $("#skin-scan").addEventListener("input",function(e){
   var s=JSON.parse(JSON.stringify(skinObj));s.scanline=Number(e.target.value)/100;applySkin(s);
 });
 
+/* ── 顶部工具条的「⋯」抽屉 ────────────────────────────────────────────────
+   主行只放攻略 / 地图 / 金手指 / ←卡带，刷新、暂停、导出存档收进来。
+   点开、点里面任一键、点面板外面、切层，都收得回去。 */
+(function(){
+  var more=$("#emu-more"),panel=$("#emu-more-panel");
+  if(!more||!panel)return;
+  function setOpen(open){
+    panel.hidden=!open;
+    more.setAttribute("aria-expanded",open?"true":"false");
+  }
+  more.addEventListener("click",function(e){
+    /* 别冒泡到 document，否则刚开就被外面那句「点外面收起」关掉 */
+    e.stopPropagation();setOpen(panel.hidden);
+  });
+  panel.addEventListener("click",function(e){
+    if(e.target.closest("button"))setOpen(false);
+  });
+  document.addEventListener("click",function(e){
+    if(panel.hidden)return;
+    if(panel.contains(e.target)||more.contains(e.target))return;
+    setOpen(false);
+  });
+  addEventListener("keydown",function(e){
+    if(e.code==="Escape"&&!panel.hidden){e.stopPropagation();setOpen(false);}
+  },true);
+  /* 对外给 showLayer 用：切层时把抽屉收掉，免得带着上一个界面的菜单进游戏 */
+  window.__pocketCloseMore=function(){setOpen(false);};
+})();
+
 /* ── 电源 / 按键 / 消息 ───────────────────────────────────────────────── */
 function setPower(on){
   powered=on;consoleEl.classList.toggle("is-on",on);consoleEl.classList.toggle("is-off",!on);
@@ -50,30 +79,6 @@ function setPower(on){
   if(activeId)postFrame({type:"moon-cart:pause",value:!on});
 }
 $("#power-btn").addEventListener("click",function(){setPower(!powered);});
-/* 酒馆模式下的屏内导航：方向键选模块，A 进，SELECT 往下翻设置 */
-var osSel=0;
-function updateOsHint(){
-  var sc=document.querySelector("#tavern-os .sl-scroll"),h=$("#os-hint");
-  if(!sc||!h)return;
-  h.hidden=(sc.scrollTop+sc.clientHeight)>=(sc.scrollHeight-6);
-}
-function osKey(b){
-  var tiles=[].slice.call(document.querySelectorAll(".os-tile"));
-  if(!tiles.length)return;
-  var cols=(window.innerWidth<=720)?2:3,n=tiles.length;
-  if(b==="right")osSel=(osSel+1)%n;
-  else if(b==="left")osSel=(osSel-1+n)%n;
-  else if(b==="down")osSel=Math.min(n-1,osSel+cols);
-  else if(b==="up")osSel=Math.max(0,osSel-cols);
-  else if(b==="a"||b==="start"){osSel=osSel%n;tiles[osSel].click();return;}
-  else if(b==="select"){var sc=document.querySelector("#tavern-os .sl-scroll");if(sc)sc.scrollBy({top:Math.round(sc.clientHeight*.8),behavior:"smooth"});return;}
-  else return;
-  tiles.forEach(function(t,i){t.classList.toggle("sel",i===osSel);});
-  tiles[osSel].scrollIntoView({block:"nearest"});
-  updateOsHint();
-}
-var osScroll=document.querySelector("#tavern-os .sl-scroll");
-if(osScroll)osScroll.addEventListener("scroll",updateOsHint);
 
 /* 切到街机模式：装载模拟器组件（真实会生成的 3 张内置卡带 + 显示区 + 按键映射） */
 var BOOT_STEPS=[["装载模拟器组件…",260],["初始化显示区…",200],["挂载卡带…",240],["校准按键映射…",180]];
@@ -97,8 +102,7 @@ function bootSequence(){
 function press(btn,down){
   var el=document.querySelector('[data-btn="'+btn+'"]');if(el)el.classList.toggle("down",down);
   if(!powered||!activeId)return;
-  /* 酒馆模式：按键只操作屏内 UI，不发给游戏；街机模式才当手柄用 */
-  if(!layers.os.hidden){ if(down)osKey(btn); return; }
+  /* 按键只往两个地方去：正在跑的核心，或者屏内的卡带菜单。没有第三处了。 */
   if(!layers.core.hidden){
     if(core&&typeof core.input==="function"){try{core.input(btn,down);}catch(e){}}
     return;
@@ -115,14 +119,15 @@ var KEYMAP={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
   KeyZ:"a",KeyX:"b",KeyC:"x",KeyV:"y",Enter:"start",ShiftLeft:"select",Space:"a"};
 addEventListener("keydown",function(e){
   if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
-  if(e.code==="KeyM"){setMode(mode==="arcade"?"tavern":"arcade");return;}
-  if(e.code==="KeyH"){setMode("tavern");return;}
+  /* M / H 以前是「酒馆模式 ↔ 街机模式」的拨杆。屏里没有酒馆那层了，
+     两个键统一当「回卡带菜单」用，老习惯不改。 */
+  if(e.code==="KeyM"||e.code==="KeyH"){goHome();return;}
   if(e.code==="KeyP"){setPower(!powered);return;}
   if(e.code==="Escape"){
     if(!$("#wb-overlay").hidden){$("#wb-overlay").hidden=true;}
     else if(!$("#skin-drawer").hidden){$("#skin-drawer").hidden=true;}
     else if(!$("#cheat-overlay").hidden){$("#cheat-overlay").hidden=true;}
-    else if(mode==="arcade")goHome();else goOs();
+    else goHome();
     return;
   }
   var k=KEYMAP[e.code];if(k){e.preventDefault();if(!e.repeat)press(k,true);}
@@ -218,6 +223,18 @@ window.MOON_POCKET={
     /* 调试用：直接塞一帧 240×160 RGBA（联调脚本拿真画面平移来验走位），返回状态机结果 */
     feed:function(frame){ return mapFeed(frame); }
   },
+  /* 存档区快照：写盘 / 读档 / 状态。auto 由宿主在「AI 回复完成」时调 */
+  save:{
+    write:function(reason){ return savWrite(reason||"manual"); },
+    restore:function(){ return savRestoreToCore(); },
+    state:function(){
+      var rec=savRead();
+      return { key:savKey(), has:!!rec, at:rec?Number(rec.at)||0:0,
+        raw:rec?Number(rec.raw)||0:0, packed:rec?String(rec.data||"").length:0,
+        pack:rec?rec.k:"", code:rec?rec.code:"", sig:savLastSig };
+    },
+    chime:function(on){ if(on===undefined) return chimeOn; savSetChime(!!on); return chimeOn; }
+  },
   list:function(){return CARTS.map(function(c){return {id:c.id,title:c.title,runtime:c.runtime,license:c.license};});},
   resetAskFlag:function(){LS.removeItem(FLAG_PREFIX+"cheat-asked");}
 };
@@ -263,6 +280,14 @@ if(EMBED){
       try{renderOs();}catch(_){}
     }else if(d.type==="moon-host:key"&&d.button){
       press(d.button,!!d.down);
+    }else if(d.type==="moon-host:cheat"){
+      /* 酒馆面板那一侧点的金手指：玩家不用先进卡带机翻菜单。
+         第一次开就把「问过了」标记打上，别让它在屏里再弹一次确认框把画面挡住。 */
+      if(d.on){try{LS.setItem(FLAG_PREFIX+"cheat-asked","1");}catch(_){}}
+      enableCheat(!!d.on);
+      if(d.on&&!wbEntries.length)runConvert();
+    }else if(d.type==="moon-host:wb-rebuild"){
+      runConvert();
     }
   });
   var reportHeight=function(){

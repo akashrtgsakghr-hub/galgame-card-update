@@ -274,6 +274,46 @@
   color: var(--k-accent-2) !important;
   box-shadow: inset 0 0 0 1px rgba(var(--k-accent-rgb, 255,190,235), .07) !important;
 }
+/* 页签右上角的小页号：01 / 02 / 03，一眼看出这是翻页而不是开关 */
+#moon-phase-panel .mp-display-mode-switch button small {
+  display: block;
+  margin-top: 2px;
+  font: 500 8.5px/1 var(--k-font-mono, monospace);
+  letter-spacing: 1px;
+  opacity: .5;
+}
+#moon-phase-panel .mp-display-mode-switch button.active small { opacity: .85; }
+/* 街机 / 卡带机这两页不挂引导条：那两页不归酒馆侧管，别把「全屏看剧情」混进去 */
+#moon-phase-panel.mp-display-arcade .mp-guide,
+#moon-phase-panel.mp-display-pocket .mp-guide { display: none !important; }
+
+/* 「可结算」角标：结局提示只在聊天里响一次，玩家一滑就没了，面板上留个长期痕迹。
+   挂在主菜单「人物图鉴与存档」和「回忆与结局」两个位置，点进去就是那个按钮。 */
+#moon-phase-panel .mp-ready-dot {
+  display: inline-block;
+  align-self: flex-start;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid rgba(244, 114, 208, .55);
+  border-radius: 2px;
+  background: rgba(244, 114, 208, .16);
+  color: #ffd3ef;
+  font: 600 8.5px/1.4 var(--k-font-pixel, monospace);
+  font-style: normal;
+  letter-spacing: .4px;
+  vertical-align: 1px;
+  white-space: nowrap;
+  animation: mp-ready-pulse 2.6s ease-in-out infinite;
+}
+@keyframes mp-ready-pulse { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #moon-phase-panel .mp-ready-dot { animation: none; opacity: 1; } }
+/* 已经够格的那颗按钮：比旁边的「回忆画廊」再亮一档，但不用渐变，保持像素风 */
+#moon-phase-panel .mp-ending-ready {
+  border-color: rgba(244, 114, 208, .75) !important;
+  background: rgba(53, 20, 46, .92) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 190, 232, .16) !important;
+}
+#moon-phase-panel .mp-ending-ready span { color: #ffe4f5 !important; }
 
 /* ── 卡片 ─────────────────────────────────────────────────────────────── */
 #moon-phase-panel .mp-card {

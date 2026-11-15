@@ -8,7 +8,8 @@ var DEFAULT_SKIN = {
     accent:"#ff86c2",accent2:"#ffc4e0",line:"rgba(255,255,255,.13)",lcd:"#555e4b",ink:"#10150b",button:"#33202f"},
   scanline:.035,radius:18,assets:{}
 };
-/* 屏幕沿用这块暗橄榄液晶：换机身皮肤不换屏，三套 APK 抽色皮肤都保留同一块屏 */
+/* 屏内一律跟机身走：黑粉皮肤出黑粉屏，抽色皮肤出各自的屏。
+   SKIN.lcd / SKIN.ink 这两套暗橄榄还在，只在 PALETTE_OLIVE=true 时回退用（旧版观感）。 */
 var BUILTIN_SKINS = [DEFAULT_SKIN,
   {format:"moon-skin",version:1,id:"apk.mimikyu-dusk",name:"谜拟Q · 暮色（配色抽取）",author:"本机 APK 抽色",license:"仅配色",
    tokens:{bg:"#0b070c",surface:"#141015",surface2:"#2a181d",edge:"#060407",text:"#f7e9f0",muted:"#948a90",
@@ -29,7 +30,7 @@ function hex2rgb(h){h=String(h||"").trim();var m=/^#?([\da-f]{6})$/i.exec(h);if(
 function rgb2hex(a){return "#"+a.map(function(v){return Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0");}).join("");}
 function mixHex(a,b,t){var x=hex2rgb(a),y=hex2rgb(b);return rgb2hex(x.map(function(v,i){return v*(1-t)+y[i]*t;}));}
 function rgba(h,al){var c=hex2rgb(h);return "rgba("+c[0]+","+c[1]+","+c[2]+","+al+")";}
-/* 屏内只用液晶四阶：浅底 / 深字 / 两档中间绿；机身粉色不进屏 */
+/* 从机身色推出屏内的四阶明度（旧橄榄观感用；现在屏内直接吃机身 token） */
 function deriveSkin(t){
   return { lcd:t.lcd, ink:t.ink, accent:t.accent,
     soft:mixHex(t.lcd,t.ink,.20), mid:mixHex(t.lcd,t.ink,.52), dark:t.ink,
@@ -64,6 +65,12 @@ function applySkin(s){
   var root=document.documentElement.style,t=skinObj.tokens;
   var tokenJSON=JSON.stringify(t),tokensChanged=tokenJSON!==prevTokenJSON;
   for(var k in TOKEN_MAP)root.setProperty(TOKEN_MAP[k],t[k]);
+  /* 镜像一份给「屏内系统界面」用：那套界面不允许再引用 --color-accent（祖先选择器会把它改掉），
+     但又得跟着换肤走，所以拆成 --skin-* 这一组只读副本。 */
+  root.setProperty("--skin-accent",t.accent);   root.setProperty("--skin-accent2",t.accent2);
+  root.setProperty("--skin-bg",t.bg);           root.setProperty("--skin-surface",t.surface);
+  root.setProperty("--skin-surface2",t.surface2); root.setProperty("--skin-edge",t.edge);
+  root.setProperty("--skin-text",t.text);       root.setProperty("--skin-muted",t.muted);
   root.setProperty("--scanline",String(skinObj.scanline));
   root.setProperty("--radius-device",skinObj.radius+"px");
   var art=skinObj.assets&&skinObj.assets.wallpaper;

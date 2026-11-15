@@ -157,6 +157,21 @@
       });
     }
     _applyBackendVarLines(text, statData, out.applied);
+    // [心声|角色名|内容]：先收进角色档，再从正文里删掉（玩家不该看到标签本身）。
+    // 名字对不上任何角色时原样留着 —— 宁可让玩家看到一行怪东西，也别吞掉可能是伏笔的内容。
+    // 和「角色.X.心声=…」共用同一套「已收到 / 本轮重复」登记，状态卡不用另做一套。
+    try {
+      text = text.replace(new RegExp(VOICE_TAG_GLOBAL_RE.source, 'gi'), function(full, name, value) {
+        const nm = String(name == null ? '' : name).trim();
+        const v = String(value == null ? '' : value).trim();
+        const ch = statData.角色 && statData.角色[nm];
+        if (!ch || !v) return full;
+        const prev = String(ch.心声 == null ? '' : ch.心声);
+        ch.心声 = v;
+        out.applied.push(nm + (prev === v ? '.心声重复' : '.心声'));
+        return '';
+      });
+    } catch (e) {}
     const cleaned = text.replace(new RegExp(BACKEND_VAR_LINE_RE.source, 'gm'), function(line) {
       return _isOwnedBackendLine(line) ? '' : line;
     }).replace(/\n{3,}/g, '\n\n');
