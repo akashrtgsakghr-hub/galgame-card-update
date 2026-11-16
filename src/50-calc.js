@@ -18,27 +18,6 @@
     return t.replace(/\s+/g, ' ').trim();
   }
 
-  /* ── 「上一轮到底结没结算」留痕 ────────────────────────────────────────────
-     玩家最常见的困惑是「我回复了，好感没动，是不是脚本没跑」。
-     脚本有没有跑只有它自己知道，所以每轮把结论写下来，面板直接读：
-     几个标签、谁涨了几分、有没有被周上限压住。 */
-  const LAST_SETTLE_KEY = 'moon_last_settle_v1';
-  function saveLastSettle(rec) {
-    try {
-      const st = getStorage();
-      if (!st) return false;
-      st.setItem(LAST_SETTLE_KEY + '_' + getChatStateKey(), JSON.stringify(rec));
-      return true;
-    } catch (e) { return false; }
-  }
-  function loadLastSettle() {
-    try {
-      const st = getStorage();
-      const raw = st && st.getItem(LAST_SETTLE_KEY + '_' + getChatStateKey());
-      const parsed = raw ? JSON.parse(raw) : null;
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch (e) { return null; }
-  }
 
   async function runMoonCalculation() {
     try {

@@ -31,14 +31,17 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `00-head.js` | 226 | IIFE 开头、窗口/文档引用、全部 localStorage key、数值参数、**版本号与更新公告** |
 | `05-timeline.js` | 235 | 时间线文本解析、内置仓库（localStorage 按角色卡分档）、候选扫描 |
 | `10-context.js` | 178 | SillyTavern 上下文读写、历史采集、AI 模型调用入口 |
-| `15-state.js` | 120 | toast、角色档案库、提示词写入（含「本轮注入了什么」记录）、本地存档读写 |
+| `15-state.js` | 121 | toast、角色档案库、本地存档读写、后台变量写盘合并 |
+| `16-inject.js` | 109 | **扩展提示词注入的唯一出口**：位置归一（只放行 0 / 2）、注入留痕、静默轮清空、末尾追加。新增注入一律调 `callSetPrompt` |
 | `20-tag.js` | 245 | Sylveina 标签解析、初见骰子结算（唯一掷骰入口）、减益处理 |
 | `25-modal.js` | 196 | 弹窗队列、loading、结果弹窗、街机挂载 |
 | `30-time.js` | 149 | 时间字符串解析、token 估算、世界书条目收集 |
 | `35-stat.js` | 403 | 阶段门、事件提示注入、四维增量、标签归属匹配 |
 | `40-backend.js` | 144 | 游戏时间格式化、AI 后台变量块的解析与写回 |
-| `45-clock.js` | 184 | 世界时钟推进（每轮分钟数 / 换日）、相对时间识别 |
-| `50-calc.js` | 302 | 主计算流程 `runMoonCalculation`、事件投掷与导演、初见标签归属（优先给新人） |
+| `44-time-phrase.js` | 114 | **口语时间解析**：明确时长（过了半小时）> 时段锚点（到中午了）> 模糊默认值（一会儿 / 片刻 / 穿衣 / 回家 / 吃饭）。改默认时长只看 `TIME_VAGUE_RULES` 那张表 |
+| `45-clock.js` | 156 | 世界时钟推进（来源优先级、每轮分钟数、换日、AI 大跨度夹回）；分钟级解析调 `44-time-phrase.js` |
+| `50-calc.js` | 376 | 主计算流程 `runMoonCalculation`、事件投掷与导演、初见标签归属（优先给新人）、每轮写下结算结论 |
+| `51-settle-log.js` | 71 | **结算留痕与面板说明**：`saveLastSettle` / `loadLastSettle` / `renderSettleTraceHtml`（「上一轮涨了谁」和「注入了多少段」两行） |
 | `55-timejump.js` | 121 | 时间跳跃检测、倒计时与操作提示 |
 | `60-listeners.js` | 168 | 事件监听绑定、正则尾部清洗 |
 | `65-ending.js` | 519 | 结局 / 尾声解析与幕布渲染、标签美化、生成结束钩子 |
@@ -48,7 +51,14 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `85-style.js` | 859 | 面板与 LCD 的历史 CSS；末尾先注入护眼基础层，最后调用 UI v2 样式层 |
 | `85b-ui.js` | 993 | **UI v2「墨樱」最终权威样式层**：墨紫黑四层 + 樱粉单强调、发丝线替粗框、折叠 / 弹窗 / 引导 / 答疑 / 掌机按键全部重写；导出 `pocketFold` / `pocketRow` / `bindPocketFolds` 三个构造器 |
 | `88-skin.js` | 5562 | 楼内状态卡：晨昏票根 / 月氏藏书票 / 预言家日报 / 朱丝栏邸报 / **少女心绪**（内部 id `calista`）五套外观（日报与少女心绪各有深浅两版）、数据适配、挂载与刷新。**少女心绪是手写段，不经过 `gen-skin.mjs`**：收起态是书签卡（标题带 + 缎带尖 + 点击落点涟漪），点击展开走四拍动画；容器底图 / 贝扣 / 扇贝水印都是内联实拍素材（6 个 data URI，用前先修画质），不是 CSS 画的；全文件禁止出现纯白，`skin.test.mjs` 会查 |
-| `90-panel.js` | 1389 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
+| `90-panel.js` | 1470 | 事件状态卡、LCD 渲染、面板主体、图库与图像生成 |
+| `90-reverse-mode.js` | 549 | **攻略模式核心**：设置、双账本、积分与券、签到、泄漏清洗、buff、提示注入、结算挂点 |
+| `90b-reverse-hud.js` | 561 | 攻略模式·状态栏悬浮窗（独立挂载，不参与面板渲染） |
+| `90c-reverse-items.js` | 446 | 攻略模式·道具：定义池、货架抽签、图鉴、大转盘、购买与使用 |
+| `90d-reverse-task.js` | 406 | 攻略模式·任务：任务库、生成 / 推进 / 完成 / 失败扣分、`[板]` 任务板、给她派活 |
+| `90e-reverse-punish.js` | 109 | **攻略模式·失败惩罚整活**：猫娘病毒的症状文案、触发与升级终身、手动解除、面板设置块 |
+| `90f-reverse-ui.js` | 388 | 攻略模式·面板：角色 / 玩家两版页签、渲染、事件委托 |
+| `90g-reverse-extra.js` | 266 | 攻略模式·周边：成就、纪念日与节日、Token 估算 |
 | `95-selfcheck.js` | 1276 | 系统自检、模拟测试、冲突扫描、token 统计、角色表、分类答疑、引导条与主菜单、折叠态保持 |
 | `95c-tour.js` | 194 | 聚光灯式新手引导：六步、只高亮真实存在的控件、可跳过 / 上一步 / Esc，看完写 `introSeen` |
 | `96-core.js` | 543 | 内置演绎规则（原世界书 7 条）的注入与让位判定 + 词条释义库（14 条，按本轮注入内容触发） |
@@ -82,7 +92,13 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 - 改面板样式 / 配色 → `85b-ui.js`（最终权威层，覆盖 `85-style.js` 的历史规则）
 - 改弹窗 / 答疑样式 → `85b-ui.js` 的「弹窗」「答疑」两段
 - 改新手引导步骤 → `95c-tour.js` 的 `tourSteps()`（只写选择器，不要硬编坐标）
-- 改时间推进规则 → `45-clock.js`、`55-timejump.js`
+- 改时间推进规则（来源优先级、夹回阈值、换日） → `45-clock.js`、`55-timejump.js`
+- 改口语时间怎么折算（一会儿 / 片刻 / 穿衣 / 回家 / 吃饭的默认分钟数） → `44-time-phrase.js` 的 `TIME_VAGUE_RULES`，只动那张表
+- 改「本轮注入到底有没有进 prompt」的判定与记录 → `16-inject.js`
+- 改「上一轮结算」那两行怎么显示 → `51-settle-log.js` 的 `renderSettleTraceHtml`
+- 攻略模式按域定位：设置 / 账本 / 积分 / buff / 注入 → `90-reverse-mode.js`；道具与商城 → `90c-reverse-items.js`；
+  任务与失败扣分 → `90d-reverse-task.js`；猫娘病毒 → `90e-reverse-punish.js`；面板与事件 → `90f-reverse-ui.js`；
+  成就 / 节日 / Token → `90g-reverse-extra.js`；悬浮窗 → `90b-reverse-hud.js`
 - 改标签解析 / 美化 → `20-tag.js`、`65-ending.js`
 - 改事件投掷节奏 → `50-calc.js`
 - 改时间线清单 → `05-timeline.js`（数据层）、`99-timeline-ui.js`（界面）
