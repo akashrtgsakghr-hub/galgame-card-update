@@ -24,15 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.15.5';
-  const MOON_FORMULA_CHANGELOG = "【v5.15.5 提示词真的进了酒馆：心声和数值终于会被执行】\n" +
-    "（从 v5.15.4 升级 · 建议更新，这一版修的是「规则压根没送进去」）\n" +
-    "1. 🩹 修好了一个一直没人发现的根因：脚本注入的规则位置参数是 4，而酒馆只认 0/1/2 —— 这些规则一直被静默丢弃。所以自测、模拟数据全绿，实战里 AI 却像不知道格式。现在统一落到合法位置。\n" +
-    "2. ⏰ 注入时机也修了：以前挂在「prompt 已拼好」之后，规则永远晚一轮、第一轮干脆没有；现在改成拼 prompt 之前就位。\n" +
-    "3. 📌 心声那句还会再贴一条到对话最末尾（和预设里 depth 0 的条目同一个位置），模型更容易照做。\n" +
-    "4. 🔍 面板新增「上一轮结算」：涨了谁、涨了多少、是不是被本周额度挡住、还是 AI 这轮没写标签 —— 一眼分清是脚本没跑还是模型没写。\n" +
-    "5. 🧪 面板新增「已注入 prompt：N 段 / X 字」，自检【测试9B】会点名位置不合法的条目。\n" +
-    "6. 🎭 卡带、攻略模式、时间短语、世界大事表照旧。";
+  const MOON_FORMULA_VERSION = '5.15.6';
+  const MOON_FORMULA_CHANGELOG = "【v5.15.6 说不清多久的话，也给个准数】\n" +
+    "（从 v5.15.5 升级）\n" +
+    "1. ⏱ 「一会儿」算 10 分钟，「片刻」算 5 分钟——以前这两种一律不认，时钟只能走默认那 10 分钟。\n" +
+    "2. 🚶 「回家」「出门」「去趟超市」没写多久就按 30 分钟算，不用每句都交代路上花了多长时间。\n" +
+    "3. 👕 「换了衣服」「穿好鞋」算 15 分钟；🍚 「吃个饭」算 1 小时。\n" +
+    "4. ➕ 一句里说了好几件就累加：「回家吃个饭」= 1.5 小时；但写了明确时长（「过了一个小时」）或时段（「中午」）就以那个为准，不重复叠加。\n" +
+    "5. 🚫 「还没回家」「别急着回去」这类没发生的说法不推时钟。\n" +
+    "6. 🎭 提示词注入、结算留痕、卡带与攻略模式照旧。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -2403,12 +2403,12 @@ async function _collectAllWorldbooks(includeDisabled) {
 
   /* ── 常用时间短语 ─────────────────────────────────────────────────
      随口一句「过去了一个小时」「到中午了」，时钟就该动，而不是每轮只走固定的
-     turnMinutes。这里只认两类：
+     turnMinutes。这里认三类，优先级从高到低：
        ① 明确时长：过去了 / 过了 / 经过 / 一个多小时后 + 分钟 · 刻钟 · 小时
        ② 时段锚点：中午 / 午饭 / 傍晚 / 深夜 / 天亮 …（推到今天或明天的那个点）
-     刻意不认「一会儿」「片刻」这类模糊词：出现频率高、跨度没准数，
-     一认就会在无关对话里把时钟推来推去。
-     返回 { minutes, kind: 'elapsed'|'anchor', crossedDay, phrase } 或 null。 */
+       ③ 模糊说法：一会儿 / 片刻 / 穿衣服 / 回家 / 吃饭 —— 按默认值折算（见下表）。
+          说不清花了多久的话才是日常里的多数，一律不认等于把时钟锁死在 10 分钟。
+     返回 { minutes, kind: 'elapsed'|'anchor'|'vague', crossedDay, phrase } 或 null。 */
   const TIME_DAY_JUMP_RE = /(?:明天|明日|昨天|昨日|前天|后天|大后天|次日|翌日|下周|下个?星期|下个?月)/;
   const TIME_ELAPSED_RE = /(?:过去|过了|又过|经过|流逝|度过|已经过去|转眼(?:间)?(?:就)?(?:又)?(?:过去|过))\s*(?:了)?\s*(半|一?个半|[零〇一二两三四五六七八九十百\d]+)\s*个?\s*(多)?\s*(分钟|分|刻钟|小时|钟头)/;
   const TIME_AFTER_RE = /(半|一?个半|[零〇一二两三四五六七八九十百\d]+)\s*个?\s*(多)?\s*(分钟|分|刻钟|小时|钟头)\s*(?:后|之后|以后)/;
@@ -2424,6 +2424,23 @@ async function _collectAllWorldbooks(includeDisabled) {
   ];
   /* 「午饭还没到」「等天亮」这种是在说未来/否定，不算已经到点 */
   const TIME_ANCHOR_NEG_RE = /(?:还没|没到|不到|才刚|等到|下次|改天|不是|别|来不及)/;
+
+  /* ── 模糊说法：给一组默认时长 ────────────────────────────────────────
+     日常里很少有人说「过了二十分钟」，更多是「一会儿」「吃个饭」「回家」。
+     这些说法本身就含着时间，按下面这张表折算：
+       片刻 5 分 · 一会儿 10 分 · 穿衣服/收拾 15 分 · 出门走动 30 分 · 吃饭 60 分
+     同一句里出现几种就叠加（封顶 3 小时），因为它们通常是先后发生的：
+     「回家吃个饭」= 30 + 60 = 90 分。只有这句里既没有明确时长、也没有时段锚点时才用，
+     那两种说法更准（「过了一个小时，然后回家」按 60 分算，不再叠 30）。 */
+  const TIME_VAGUE_RULES = [
+    { re: /(?:片刻|一小会儿|稍候|稍等)/g, minutes: 5, label: '片刻' },
+    { re: /(?:一会儿|待会儿|等会儿|一忽儿)/g, minutes: 10, label: '一会儿' },
+    { re: /(?:穿(?:好|上|起)?(?:衣服|外套|鞋)|换(?:了)?(?:一)?(?:身|件|套)?衣服|打扮|洗漱|收拾一下)/g, minutes: 15, label: '穿衣收拾' },
+    { re: /(?:回家|回去|回宿舍|回房间|回学校|回教室|出门|出发|动身|前往|赶到|走一趟|去一趟|去(?:了)?(?:超市|学校|公司|医院|店里|食堂|宿舍|公园|车站|街上|楼下|楼上|教室|图书馆|厕所|洗手间|外面|那边))/g, minutes: 30, label: '出门走动' },
+    { re: /(?:吃(?:了)?(?:个|顿)?饭|吃饭|用餐|吃(?:了)?点东西)/g, minutes: 60, label: '吃饭' }
+  ];
+  /* 「还没回家」「别急着回去」「没一会儿」都是在说没发生 / 不要发生 */
+  const TIME_VAGUE_NEG_RE = /(?:还没|没有|没|不到|别|不要|不用|不必|等到|下次|改天)$/;
 
   function parseTimePhrase(text, fromDate) {
     const s = String(text || '');
@@ -2465,6 +2482,29 @@ async function _collectAllWorldbooks(includeDisabled) {
       const crossedDay = diff <= 0;
       if (crossedDay) diff += 1440;
       return { minutes: diff, kind: 'anchor', crossedDay: crossedDay, phrase: hit[0] };
+    }
+    /* ③ 模糊说法兜底：没有明确时长、也没有时段锚点时才用。 */
+    let vague = 0;
+    const vagueLabels = [];
+    for (let i = 0; i < TIME_VAGUE_RULES.length; i++) {
+      const rule = TIME_VAGUE_RULES[i];
+      rule.re.lastIndex = 0;
+      let hit;
+      let usable = false;
+      while ((hit = rule.re.exec(s)) !== null) {
+        const before = s.slice(Math.max(0, hit.index - 3), hit.index);
+        if (TIME_VAGUE_NEG_RE.test(before)) continue;
+        /* 「我们出发吧」「回家吗」是在提议/发问，不是已经发生了 —— 不推时钟。 */
+        const after = s.slice(hit.index + hit[0].length, hit.index + hit[0].length + 2);
+        if (/^[吧吗呢啊嘛？?]/.test(after)) continue;
+        usable = true;
+        break;
+      }
+      rule.re.lastIndex = 0;
+      if (usable) { vague += rule.minutes; vagueLabels.push(rule.label); }
+    }
+    if (vague > 0) {
+      return { minutes: Math.min(vague, 180), kind: 'vague', crossedDay: false, phrase: vagueLabels.join('+') };
     }
     return null;
   }
@@ -22977,7 +23017,7 @@ const stateKey = getChatStateKey();
 
     /* 剧情和时间 */
     { cat: 'story', q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'],
-      a: '你没说时间时，每发一句话往前 <b>10 分钟</b>，像真的在一起过日子。<br><b>说了就按你说的走</b>：「过去了一个小时」「半个小时后再见」「到中午了」「午饭时间」都认——你说、AI 说都算。<br>要跨天就说「明天」「三天后」；AI 自己脑补的跨天（超过 12 小时）会被挡回来。' },
+      a: '你没说时间时，每发一句话往前 <b>10 分钟</b>，像真的在一起过日子。<br><b>说了就按你说的走</b>：「过去了一个小时」「半个小时后再见」「到中午了」「午饭时间」都认——你说、AI 说都算。<br><b>说不清多久也行</b>：「一会儿」10 分、「片刻」5 分、「换衣服」15 分、「回家 / 去趟超市」30 分、「吃个饭」1 小时，几种连着说就累加（「回家吃个饭」= 1.5 小时）。<br>要跨天就说「明天」「三天后」；AI 自己脑补的跨天（超过 12 小时）会被挡回来。' },
     { cat: 'story', q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '回不了头'],
       a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要Ta好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
     { cat: 'story', q: 'AI 回复末尾那个 [Sylveina|…] 是什么？', keys: ['标签', 'sylveina', '暗号', '括号'],

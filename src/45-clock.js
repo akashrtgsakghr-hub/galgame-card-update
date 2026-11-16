@@ -10,12 +10,12 @@
 
   /* ── 常用时间短语 ─────────────────────────────────────────────────
      随口一句「过去了一个小时」「到中午了」，时钟就该动，而不是每轮只走固定的
-     turnMinutes。这里只认两类：
+     turnMinutes。这里认三类，优先级从高到低：
        ① 明确时长：过去了 / 过了 / 经过 / 一个多小时后 + 分钟 · 刻钟 · 小时
        ② 时段锚点：中午 / 午饭 / 傍晚 / 深夜 / 天亮 …（推到今天或明天的那个点）
-     刻意不认「一会儿」「片刻」这类模糊词：出现频率高、跨度没准数，
-     一认就会在无关对话里把时钟推来推去。
-     返回 { minutes, kind: 'elapsed'|'anchor', crossedDay, phrase } 或 null。 */
+       ③ 模糊说法：一会儿 / 片刻 / 穿衣服 / 回家 / 吃饭 —— 按默认值折算（见下表）。
+          说不清花了多久的话才是日常里的多数，一律不认等于把时钟锁死在 10 分钟。
+     返回 { minutes, kind: 'elapsed'|'anchor'|'vague', crossedDay, phrase } 或 null。 */
   const TIME_DAY_JUMP_RE = /(?:明天|明日|昨天|昨日|前天|后天|大后天|次日|翌日|下周|下个?星期|下个?月)/;
   const TIME_ELAPSED_RE = /(?:过去|过了|又过|经过|流逝|度过|已经过去|转眼(?:间)?(?:就)?(?:又)?(?:过去|过))\s*(?:了)?\s*(半|一?个半|[零〇一二两三四五六七八九十百\d]+)\s*个?\s*(多)?\s*(分钟|分|刻钟|小时|钟头)/;
   const TIME_AFTER_RE = /(半|一?个半|[零〇一二两三四五六七八九十百\d]+)\s*个?\s*(多)?\s*(分钟|分|刻钟|小时|钟头)\s*(?:后|之后|以后)/;
@@ -31,6 +31,23 @@
   ];
   /* 「午饭还没到」「等天亮」这种是在说未来/否定，不算已经到点 */
   const TIME_ANCHOR_NEG_RE = /(?:还没|没到|不到|才刚|等到|下次|改天|不是|别|来不及)/;
+
+  /* ── 模糊说法：给一组默认时长 ────────────────────────────────────────
+     日常里很少有人说「过了二十分钟」，更多是「一会儿」「吃个饭」「回家」。
+     这些说法本身就含着时间，按下面这张表折算：
+       片刻 5 分 · 一会儿 10 分 · 穿衣服/收拾 15 分 · 出门走动 30 分 · 吃饭 60 分
+     同一句里出现几种就叠加（封顶 3 小时），因为它们通常是先后发生的：
+     「回家吃个饭」= 30 + 60 = 90 分。只有这句里既没有明确时长、也没有时段锚点时才用，
+     那两种说法更准（「过了一个小时，然后回家」按 60 分算，不再叠 30）。 */
+  const TIME_VAGUE_RULES = [
+    { re: /(?:片刻|一小会儿|稍候|稍等)/g, minutes: 5, label: '片刻' },
+    { re: /(?:一会儿|待会儿|等会儿|一忽儿)/g, minutes: 10, label: '一会儿' },
+    { re: /(?:穿(?:好|上|起)?(?:衣服|外套|鞋)|换(?:了)?(?:一)?(?:身|件|套)?衣服|打扮|洗漱|收拾一下)/g, minutes: 15, label: '穿衣收拾' },
+    { re: /(?:回家|回去|回宿舍|回房间|回学校|回教室|出门|出发|动身|前往|赶到|走一趟|去一趟|去(?:了)?(?:超市|学校|公司|医院|店里|食堂|宿舍|公园|车站|街上|楼下|楼上|教室|图书馆|厕所|洗手间|外面|那边))/g, minutes: 30, label: '出门走动' },
+    { re: /(?:吃(?:了)?(?:个|顿)?饭|吃饭|用餐|吃(?:了)?点东西)/g, minutes: 60, label: '吃饭' }
+  ];
+  /* 「还没回家」「别急着回去」「没一会儿」都是在说没发生 / 不要发生 */
+  const TIME_VAGUE_NEG_RE = /(?:还没|没有|没|不到|别|不要|不用|不必|等到|下次|改天)$/;
 
   function parseTimePhrase(text, fromDate) {
     const s = String(text || '');
@@ -72,6 +89,29 @@
       const crossedDay = diff <= 0;
       if (crossedDay) diff += 1440;
       return { minutes: diff, kind: 'anchor', crossedDay: crossedDay, phrase: hit[0] };
+    }
+    /* ③ 模糊说法兜底：没有明确时长、也没有时段锚点时才用。 */
+    let vague = 0;
+    const vagueLabels = [];
+    for (let i = 0; i < TIME_VAGUE_RULES.length; i++) {
+      const rule = TIME_VAGUE_RULES[i];
+      rule.re.lastIndex = 0;
+      let hit;
+      let usable = false;
+      while ((hit = rule.re.exec(s)) !== null) {
+        const before = s.slice(Math.max(0, hit.index - 3), hit.index);
+        if (TIME_VAGUE_NEG_RE.test(before)) continue;
+        /* 「我们出发吧」「回家吗」是在提议/发问，不是已经发生了 —— 不推时钟。 */
+        const after = s.slice(hit.index + hit[0].length, hit.index + hit[0].length + 2);
+        if (/^[吧吗呢啊嘛？?]/.test(after)) continue;
+        usable = true;
+        break;
+      }
+      rule.re.lastIndex = 0;
+      if (usable) { vague += rule.minutes; vagueLabels.push(rule.label); }
+    }
+    if (vague > 0) {
+      return { minutes: Math.min(vague, 180), kind: 'vague', crossedDay: false, phrase: vagueLabels.join('+') };
     }
     return null;
   }
