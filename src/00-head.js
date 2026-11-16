@@ -24,15 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.15.2';
-  const MOON_FORMULA_CHANGELOG = "【v5.15.2 正文干净了，心声不再断句】\n" +
-    "（5.15 第二版 · 从 v5.15.1 升级）\n" +
-    "1. 🧹 正文里那些标签和徽章全部清掉了：好感度看状态栏就够，正文只留故事。升级后旧消息里的徽章也会一并消失。\n" +
-    "2. 🎙 心声每轮都会刷：标签走双通道注入（状态块里也写了格式，回复完就提前注一次），不再只靠最末尾那一条——有些酒馆版本会把最末尾那条折叠掉。\n" +
-    "3. 🩹 心声里带括号（「他居然记得（那次礼堂）的事」）不再被截断成半句。\n" +
-    "4. 🩺 系统自检新增【测试9B】：直接看核心规则 / 状态格式 / 心声提醒有没有真的进酒馆，各多少字。\n" +
-    "5. 🕒 同一楼层重复触发，时钟不会再偷偷多走 10 分钟。\n" +
-    "6. 🎭 攻略模式、签到、掌机整包、沉浸模式照旧。";
+  const MOON_FORMULA_VERSION = '5.15.5';
+  const MOON_FORMULA_CHANGELOG = "【v5.15.5 提示词真的进了酒馆：心声和数值终于会被执行】\n" +
+    "（从 v5.15.4 升级 · 建议更新，这一版修的是「规则压根没送进去」）\n" +
+    "1. 🩹 修好了一个一直没人发现的根因：脚本注入的规则位置参数是 4，而酒馆只认 0/1/2 —— 这些规则一直被静默丢弃。所以自测、模拟数据全绿，实战里 AI 却像不知道格式。现在统一落到合法位置。\n" +
+    "2. ⏰ 注入时机也修了：以前挂在「prompt 已拼好」之后，规则永远晚一轮、第一轮干脆没有；现在改成拼 prompt 之前就位。\n" +
+    "3. 📌 心声那句还会再贴一条到对话最末尾（和预设里 depth 0 的条目同一个位置），模型更容易照做。\n" +
+    "4. 🔍 面板新增「上一轮结算」：涨了谁、涨了多少、是不是被本周额度挡住、还是 AI 这轮没写标签 —— 一眼分清是脚本没跑还是模型没写。\n" +
+    "5. 🧪 面板新增「已注入 prompt：N 段 / X 字」，自检【测试9B】会点名位置不合法的条目。\n" +
+    "6. 🎭 卡带、攻略模式、时间短语、世界大事表照旧。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -97,11 +97,17 @@
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
     turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto',
-    /* 初见投资的数值怎么来：
+    /* 初见骰子的数值怎么来：
        hybrid —— 骰子定数值，AI 只给「优势/劣势」档位（读过角色卡，判断人设契合度）
        dice   —— 全看骰子，AI 写什么档位都不采信
        firstMeetFloor：没过阈值也给 1d4 印象底分，避免建档完 E=0 一路干爬 */
-    firstMeetMode: 'hybrid', firstMeetFloor: true
+    firstMeetMode: 'hybrid', firstMeetFloor: true,
+    /* 时间线（世界大事表）：
+       timelineEnabled  关掉后事件导演不再读时间线，货架上的日期事件全部不触发；
+                        存着的条目还在，随时可以再打开。
+       timelineAutoScan 建档完成时自动扫一次世界书、把疑似时间线摆给玩家挑；
+                        挑不挑由玩家决定，扫完就记一次，不会反复弹。 */
+    timelineEnabled: true, timelineAutoScan: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;

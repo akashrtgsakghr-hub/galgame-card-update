@@ -211,7 +211,7 @@
           '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
         pocketRow('自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
           '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
-        pocketRow('初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+        pocketRow('初见骰子', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
           '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
         pocketRow('小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
           '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
@@ -358,7 +358,16 @@
         '<button class="mp-btn" id="moon-phase-tl-list"><span>看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
         '<button class="mp-btn" id="moon-phase-tl-gen"><span>让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
         '<button class="mp-btn" id="moon-phase-scan-timeline"><span>从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
-      '</div>', true) +
+      '</div>' +
+      pocketRow('时间线要不要生效', getSettings().timelineEnabled === false
+        ? '已关：到点的事件也不会被触发，条目还留着'
+        : '开着：到点的大事会自动变成当前事件，AI 只负责写好看',
+        '<button class="mp-safelock-btn ' + (getSettings().timelineEnabled === false ? 'off' : 'on') + '" id="moon-phase-tl-on">' + (getSettings().timelineEnabled === false ? '关' : '开') + '</button>') +
+      pocketRow('建档时自动扫世界书', getSettings().timelineAutoScan === false
+        ? '已关：想搬的时候自己点「从世界书搬」'
+        : '开：建档完成时扫一遍，把找到的时间线摆给你挑',
+        '<button class="mp-safelock-btn ' + (getSettings().timelineAutoScan === false ? 'off' : 'on') + '" id="moon-phase-tl-autoscan">' + (getSettings().timelineAutoScan === false ? '关' : '开') + '</button>') +
+      '<div style="height:4px;"></div>', true) +
       pocketFold('tl-edit', '自己补 / 改日期', 'AI 写漏了，或者日期读错了',
         '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
         '<button class="mp-btn" id="moon-phase-manual-tl"><span>手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
@@ -615,7 +624,7 @@ bindClick('#moon-phase-update', function() {
       const s2 = getSettings();
       s2.firstMeetMode = (s2.firstMeetMode === 'dice') ? 'hybrid' : 'dice';
       saveSettings(s2);
-      toast(s2.firstMeetMode === 'dice' ? '初见投资：只掷骰，AI 不再给档位' : '初见投资：AI 评档位，脚本掷数值', 'info');
+      toast(s2.firstMeetMode === 'dice' ? '初见骰子：只掷骰，AI 不再给档位' : '初见骰子：AI 评档位，脚本掷数值', 'info');
       refreshPanel();
     });
     (function() {
@@ -669,6 +678,20 @@ bindClick('#moon-phase-update', function() {
     bindClick('#moon-token-refresh', function() { refreshTokenCard(panel); });
     setTimeout(function() { try { refreshTokenCard(panel); } catch (e) {} }, 120);
     bindClick('#moon-phase-scan-timeline', function() { openScanTimelineDialog(panel); });
+    bindClick('#moon-phase-tl-on', function() {
+      const s = getSettings();
+      s.timelineEnabled = s.timelineEnabled === false;
+      saveSettings(s);
+      try { toast(s.timelineEnabled ? '时间线生效了：到点的事件会被排进剧情' : '时间线已关：条目还在，只是不再触发', 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+    });
+    bindClick('#moon-phase-tl-autoscan', function() {
+      const s = getSettings();
+      s.timelineAutoScan = s.timelineAutoScan === false;
+      saveSettings(s);
+      try { toast(s.timelineAutoScan ? '建档时会自动扫一遍世界书' : '已关：要搬的时候自己点「从世界书搬」', 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+    });
     bindClick('#moon-phase-tl-gen', function() { openTimelineGeneratorDialog(panel); });
     if (panel.querySelector('#moon-phase-tl-list')) bindClick('#moon-phase-tl-list', function() { openTimelineManagerDialog(panel); });
     bindClick('#moon-phase-manual-tl', function() { openManualTimelineInputDialog(panel); });
@@ -701,7 +724,7 @@ bindClick('#moon-phase-update', function() {
     info('特殊标签：Sylveina');
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
     info('自动建档：' + (getSettings().autoBootstrap === false ? 'OFF（要手动点开局适配）' : 'ON（对面首条回复后自动立档）'));
-    /* 初见投资留痕：谁结算过、骰点多少、档位从哪来、给了几分。
+    /* 初见骰子留痕：谁结算过、骰点多少、档位从哪来、给了几分。
        玩家反馈「建档后从零开始加」时，看这一行就能判断是没掷、还是掷了但没过。 */
     try {
       const _d = readMvuLatest();
@@ -713,7 +736,7 @@ bindClick('#moon-phase-update', function() {
         if (q._初见) _done.push(n + ' 1d20=' + q._初见.骰 + ' → E' + (q._初见.投入 >= 0 ? '+' : '') + q._初见.投入 + '（' + q._初见.档 + '·' + q._初见.来源 + '）');
         else if (q._firstMeetDone !== true) _pending.push(n);
       });
-      info('初见投资：' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI档位') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底'));
+      info('初见骰子：' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI档位') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底'));
       if (_done.length) info('　已结算：' + _done.join('；'));
       if (_pending.length) info('　待结算：' + _pending.join('、') + '（下一轮入场时掷）');
     } catch (e) {}
@@ -964,17 +987,37 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
         ];
         const missing = [];
         const sizes = [];
+        const illegal = [];
         probe.forEach(function(pair) {
           const raw = ep[pair[0]];
           const val = raw && typeof raw === 'object' ? String(raw.value || '') : String(raw || '');
+          const pos = raw && typeof raw === 'object' ? Number(raw.position) : NaN;
           if (!val.trim()) missing.push(pair[1]);
-          else sizes.push(pair[1] + ' ' + val.length + ' 字');
+          else {
+            sizes.push(pair[1] + ' ' + val.length + ' 字');
+            /* position 只有 0/2 会被酒馆放进 prompt（1 是聊天内注入）。
+               历史上脚本传的是 4，新版酒馆遇到这种值会整条丢弃 —— 现在这里直接点名。 */
+            if (pos === 0 || pos === 1 || pos === 2) { /* ok */ }
+            else illegal.push(pair[1] + '（position=' + (isNaN(pos) ? '未知' : pos) + '）');
+          }
         });
         if (missing.length) {
           lines.push('✖ 没进酒馆：' + missing.join('、') + '。先确认这一轮真的发过对话；仍然缺就是被别的插件或提示词管理器挤掉了。');
         } else {
           lines.push('✔ 三条都在：' + sizes.join('｜'));
         }
+        if (illegal.length) {
+          lines.push('✖ 位置不合法、会被酒馆静默丢掉：' + illegal.join('、') + '。这一版已统一成 0，若仍看到说明有旧版本覆盖。');
+        } else {
+          lines.push('✔ 位置合法（0 = 系统提示区），不会被静默丢弃');
+        }
+        try {
+          const rep = getInjectReport();
+          const n = (rep && rep.items) ? rep.items.length : 0;
+          lines.push(n
+            ? '✔ 本轮已写 ' + n + ' 段 / ' + (rep.total || 0) + ' 字；末尾还会再贴一条心声提醒（贴着最后一句）'
+            : '· 还没有本轮写入记录：发一句话之后再看');
+        } catch (e) {}
       }
     } catch (e) { lines.push('（注入检查跳过：' + String((e && e.message) || e) + '）'); }
 
@@ -1160,7 +1203,7 @@ const stateKey = getChatStateKey();
       const ch = chars[n];
       const imp = String(ch.重要度 || '主要');
       const present = ch.在场 !== false;
-      /* 初见投资的可见状态：掷过就写骰点和投入；没掷过就明确写着「待结算」，
+      /* 初见骰子的可见状态：掷过就写骰点和投入；没掷过就明确写着「待结算」，
          免得玩家又以为是「脚本没生效」。自己往变量里加的人也能在这里补一次。 */
       const fm = ch._quota && ch._quota._初见;
       const fmDone = !!fm || (ch._quota && ch._quota._firstMeetDone === true);
@@ -1440,11 +1483,11 @@ const stateKey = getChatStateKey();
     { cat: 'number', q: '事件太久没来了', keys: ['事件', '节奏', '频率', '没有事件'],
       a: '大约每 <b>8~12 回合</b>来一个日常小事件。<br>嫌慢嫌快：<b>玩法与手感 → 小事件来得多勤</b>，慢 / 中 / 快三档都能调。' },
     { cat: 'number', q: '开局给的分太高 / 太低', keys: ['初见', '开局', '底分', '保底'],
-      a: '<b>玩法与手感 → 初见投资</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断Ta吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
+      a: '<b>玩法与手感 → 初见骰子</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断Ta吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
 
     /* 剧情和时间 */
     { cat: 'story', q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'],
-      a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天。<br>要跳到几小时后或第二天，<b>得你自己说一声</b>（「我们明天见」「睡了」），或者正文里写「次日 / 一周后」。' },
+      a: '你没说时间时，每发一句话往前 <b>10 分钟</b>，像真的在一起过日子。<br><b>说了就按你说的走</b>：「过去了一个小时」「半个小时后再见」「到中午了」「午饭时间」都认——你说、AI 说都算。<br>要跨天就说「明天」「三天后」；AI 自己脑补的跨天（超过 12 小时）会被挡回来。' },
     { cat: 'story', q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '回不了头'],
       a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要Ta好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
     { cat: 'story', q: 'AI 回复末尾那个 [Sylveina|…] 是什么？', keys: ['标签', 'sylveina', '暗号', '括号'],
@@ -1452,7 +1495,7 @@ const stateKey = getChatStateKey();
     { cat: 'story', q: '沉浸模式怎么用？', keys: ['沉浸', 'gal', '全屏', '退出'],
       a: '主菜单点 <b>沉浸模式</b>，全屏读剧情，点一下往下走一句，像玩 Galgame。<br>想退出按 <b>Esc</b>，或者点右上角的退出按钮。' },
     { cat: 'story', q: '世界大事表要不要写？', keys: ['时间线', 'timeline', '主线', '大事表'],
-      a: '不写也能玩。<br>写了的话 AI 会照着上面的日期安排主线大事，世界更有目标感。<br>懒得写就让 AI 编一份：<b>冒险日志 → 让 AI 编一份</b>。' },
+      a: '不写也能玩。<br>写了的话 AI 会照着上面的日期安排主线大事，世界更有目标感。<br>懒得写就让 AI 编一份：<b>冒险日志 → 让 AI 编一份</b>。<br>世界书里本来就有时间线？<b>建档完成时会自动扫一遍</b>，扫到的摆给你挑；也能在「冒险日志 → 从世界书搬」手动搬。不想让它生效，同一页有总开关。' },
 
     /* 出错了 */
     { cat: 'error', q: '面板打不开 / 白屏', keys: ['打不开', '白屏', '报错', '崩'],

@@ -130,6 +130,45 @@
         '<span style="color:#94a3b8;font-size:10.5px;">' + (full ? '已满：剧情照走，加分等游戏内满 7 天重置' : '还能加 ' + remain.toFixed(1)) + '</span>' +
         '</div>';
     } catch (e) {}
+    /* 「这轮到底跑没跑」：脚本自己记的结算留痕，比玩家的体感靠谱。
+       没结算有两种：AI 没写标签（提示词/模型问题），或者被周上限压住（额度问题），
+       这里直接分清，省得再去翻控制台。 */
+    let settleHtml = '';
+    try {
+      const rec = loadLastSettle();
+      const name = String(ch.名字 || ch.姓名 || '').trim();
+      let text = '';
+      let color = '#94a3b8';
+      if (!rec) {
+        text = '还没有结算记录：这一局还没跑过一轮完整结算';
+      } else if (rec.changed && rec.changed.length) {
+        const mine = rec.changed.filter(function(c) { return !name || c.name === name; });
+        if (mine.length) {
+          text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：' + mine.map(function(c) { return c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('、');
+          color = '#6ee7b7';
+        } else {
+          text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：结算了，但' + (name || '这个角色') + '没有变化';
+        }
+      } else if (rec.blocked && rec.blocked.length) {
+        text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：' + rec.blocked.join('、') + ' 的加分被本周额度挡住了';
+        color = '#fbbf24';
+      } else {
+        text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：没检测到数值标签 —— AI 这轮没按格式写，不是脚本没跑';
+        color = '#fbbf24';
+      }
+      settleHtml = '<div class="mp-lcd-settle" style="margin-top:6px;font-size:10.5px;line-height:1.5;color:' + color + ';">' + lcdEscape(text) + '</div>';
+    } catch (e) {}
+    /* 注入自检：有内容 = 这一轮规则真的进了 prompt；全空 = 被别的东西挤掉了。 */
+    let injectHtml = '';
+    try {
+      const rep = getInjectReport();
+      const n = (rep && rep.items) ? rep.items.length : 0;
+      const total = (rep && rep.total) ? rep.total : 0;
+      const badPos = (rep && rep.items || []).filter(function(it) { return it.pos !== 0 && it.pos !== 1 && it.pos !== 2; });
+      injectHtml = '<div class="mp-lcd-inject" style="margin-top:4px;font-size:10px;color:' + (n ? '#94a3b8' : '#fbbf24') + ';">' +
+        (n ? ('已注入 prompt：' + n + ' 段 / ' + total + ' 字') : '还没有注入记录：发一句话之后再看') +
+        (badPos.length ? ' · ⚠ ' + badPos.length + ' 段位置不合法（会被酒馆丢掉）' : '') + '</div>';
+    } catch (e) {}
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
       '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
@@ -139,7 +178,7 @@
       playerAddressHtml +
       '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small>' + voiceStatusHtml + '<div>' +
         (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">还没有收到心声内容——检查本轮是否输出「角色.名字.心声=」后台行</span>') +
-      '</div></div>' + quotaHtml + '</div>';
+      '</div></div>' + quotaHtml + settleHtml + injectHtml + '</div>';
   }
 
   /* =========================================================
@@ -1072,7 +1111,7 @@
     // 玩家真的发起了周目结算，才允许把这轮报幕归档进图鉴
     try { armEndingFlow(); } catch (e) {}
     const built = buildChatboxEndingPrompt(charName, ch, endingType || 'TE', reason || '玩家主动结算周目');
-    callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 4, 0, false);
+    callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 0, 0, false);
 
     // 关闭掌机主面板，方便玩家直接在酒馆聊天窗口观看报幕生成
     try { closePanel(); } catch (e) {}

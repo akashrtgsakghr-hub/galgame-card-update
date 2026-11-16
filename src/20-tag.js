@@ -173,12 +173,12 @@
   function firstMeetMode() { try { return getSettings().firstMeetMode === 'dice' ? 'dice' : 'hybrid'; } catch (e) { return 'hybrid'; } }
   function firstMeetFloorOn() { try { return getSettings().firstMeetFloor !== false; } catch (e) { return true; } }
 
-  /* ── 初见投资：全系统唯一的掷骰入口 ──────────────────────
+  /* ── 初见骰子：全系统唯一的掷骰入口 ──────────────────────
      档位（优势/劣势）可以由 AI 给——它读过角色卡，判断「玩家设定踩中了哪些喜好」是它的强项；
      但最终数值一定在这里掷出来，AI 写的任何「好感度=XX」都不进这条链路。
      这样既有人设依据，又保留运气，还能被自检复现（骰点、档位、阈值全留痕）。
      以前只有「AI 必须写标签」一条路：模型忘了写、或写了没过阈值，E 就停在 0，
-     于是出现了「自动建档之后初见投资等于没生效、从零开始加」的问题。 */
+     于是出现了「自动建档之后初见骰子等于没生效、从零开始加」的问题。 */
   function rollFirstMeetInvestment(mode, advIn, disIn, opts) {
     opts = opts || {};
     const adv = clampFirstMeetAdv(advIn);

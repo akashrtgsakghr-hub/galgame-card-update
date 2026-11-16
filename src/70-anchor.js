@@ -77,7 +77,7 @@
       anchor.content,
       '═══════════════════════════════════'
     ].join('\n');
-    callSetPrompt(PROMPT_KEY + '_fate', content, 4, 1, false);
+    callSetPrompt(PROMPT_KEY + '_fate', content, 0, 1, false);
   }
   function clearFateCollapse() { callSetPrompt(PROMPT_KEY + '_fate', '', 0, 0, false); }
 

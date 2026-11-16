@@ -237,7 +237,7 @@
     }
     const text = galBuildMemoryPrompt();
     if (!text) { try { callSetPrompt(GAL_PROMPT_KEY, '', 0, 0, false); } catch (e) {} return false; }
-    callSetPrompt(GAL_PROMPT_KEY, text, 4, 1, false);
+    callSetPrompt(GAL_PROMPT_KEY, text, 0, 1, false);
     return true;
   }
 

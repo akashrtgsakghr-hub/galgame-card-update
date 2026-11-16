@@ -263,9 +263,9 @@
   function injectCorePrompt() {
     try {
       const st = resolveCoreRuleInjection();
-      if (!st.inject) { callSetPrompt(CORE_PROMPT_KEY, '', 4, 1, false); return false; }
+      if (!st.inject) { callSetPrompt(CORE_PROMPT_KEY, '', 0, 1, false); return false; }
       const head = '═══════════════════════════════════\n【月相系统 · 演绎规则（脚本内置，无需世界书）】';
-      callSetPrompt(CORE_PROMPT_KEY, head + '\n\n' + CORE_RULE_TEXT, 4, 1, false);
+      callSetPrompt(CORE_PROMPT_KEY, head + '\n\n' + CORE_RULE_TEXT, 0, 1, false);
       return true;
     } catch (e) { return false; }
   }
@@ -491,7 +491,7 @@
     try {
       const hits = scanGlossaryHits();
       if (!hits.length) {
-        callSetPrompt(GLOSSARY_PROMPT_KEY, '', 4, 1, false);
+        callSetPrompt(GLOSSARY_PROMPT_KEY, '', 0, 1, false);
         _glossaryLast = { ids: [], labels: [], chars: 0, at: Date.now() };
         return false;
       }
@@ -503,7 +503,7 @@
       /* 释义本身也含「阶段门」「冷战」这些词，不挡住就会自己命中自己，
          一轮里多调几次就雪球成全量。写完把记录还原回去。 */
       const snapshot = getRoundInjectedText();
-      callSetPrompt(GLOSSARY_PROMPT_KEY, text, 4, 1, false);
+      callSetPrompt(GLOSSARY_PROMPT_KEY, text, 0, 1, false);
       setRoundInjectedText(snapshot);
       _glossaryLast = { ids: built.ids, labels: built.labels, chars: text.length, at: Date.now() };
       return true;

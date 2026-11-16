@@ -18,6 +18,28 @@
     return t.replace(/\s+/g, ' ').trim();
   }
 
+  /* ── 「上一轮到底结没结算」留痕 ────────────────────────────────────────────
+     玩家最常见的困惑是「我回复了，好感没动，是不是脚本没跑」。
+     脚本有没有跑只有它自己知道，所以每轮把结论写下来，面板直接读：
+     几个标签、谁涨了几分、有没有被周上限压住。 */
+  const LAST_SETTLE_KEY = 'moon_last_settle_v1';
+  function saveLastSettle(rec) {
+    try {
+      const st = getStorage();
+      if (!st) return false;
+      st.setItem(LAST_SETTLE_KEY + '_' + getChatStateKey(), JSON.stringify(rec));
+      return true;
+    } catch (e) { return false; }
+  }
+  function loadLastSettle() {
+    try {
+      const st = getStorage();
+      const raw = st && st.getItem(LAST_SETTLE_KEY + '_' + getChatStateKey());
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (e) { return null; }
+  }
+
   async function runMoonCalculation() {
     try {
       const data = readMvuLatest();
@@ -86,7 +108,7 @@
         const oldRBeforeTurn = Number(ch.阶段值) || 0;
 
         try {
-          /* 初见投资：建档时会当场掷一次并清掉「待结算」标记。
+          /* 初见骰子：建档时会当场掷一次并清掉「待结算」标记。
              这里兜的是另一种情况——建档当时写入失败、或者角色那时还没到场，
              标记还挂着；只要这一轮文本点到了名字，就地补掷，不再无限期等 AI 标签。
              老存档没有这个标记，仍然只认 AI 写的 [初见|…]，不会被二次收费。 */
@@ -239,6 +261,17 @@
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}
+      try {
+        saveLastSettle({
+          at: Date.now(),
+          floor: latestAi ? Number(latestAi.idx) : -1,
+          turn: Math.max(0, Math.floor(Number(world._回合) || 0)),
+          tags: parsedTags.length,
+          changed: changedChars.map(function(c) { return { name: c.name, field: c.field, delta: c.delta, newValue: c.newValue }; }),
+          blocked: weeklyBlockedChars.slice(),
+          clamp: statData._最后推进 && statData._最后推进.是否拦截 ? String(statData._最后推进.来源 || '') : ''
+        });
+      } catch (e) {}
       /* 把这一轮实际生效的增量交回去：正文里那个数值徽章要按它改写，
          否则玩家看到「▲ +3」、状态卡只涨 1.5，第一反应就是脚本坏了。 */
       return { countdownActions: countdownActions, changedChars: changedChars, weeklyBlockedChars: weeklyBlockedChars };
@@ -277,7 +310,9 @@
         eventState.上次投掷回合 = Number(eventState.上次投掷回合) || 0;
         eventState.上次大事件游戏日 = Number(eventState.上次大事件游戏日) || 0;
         const entries = Array.isArray(worldbookEntries) ? worldbookEntries : [];
-        const timelineEvents = getTimelineEvents(entries);
+        /* 时间线总开关：关掉就整条链路都不读（连世界书里现成的时间线也不读），
+           存着的条目原样留着，玩家想再开就再开。判据只有 timelineActiveEvents 一处。 */
+        const timelineEvents = timelineActiveEvents(entries);
         let completed = ch._quota._timelineCompleted || [];
         if (!Array.isArray(completed)) completed = [];
         let triggeredTimeline = null;

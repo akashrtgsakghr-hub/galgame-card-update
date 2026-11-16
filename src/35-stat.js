@@ -136,7 +136,7 @@
         }
       }
     }
-    if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 4, 1, false);
+    if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 0, 1, false);
   }
   /* ───────────────────────────────────────────────────────── */
   function injectEventPrompt() {
@@ -247,7 +247,7 @@
         + '没有跨天就保持同一天，只把分钟往后推。）');
       lines.push('【分工】剧情事件的种类与节奏由脚本的骰子与导演系统决定，你不需要自己另起大事件；拿到哪件事，就把它写成最好看的那一版。');
       lines.push('禁止在正文与后台变量块里输出 好感度/肉体值/阶段值/嫉妒值 数值，禁止输出 JSON、UpdateVariable、StatusPlaceHolderImpl 或任何解释文字；四维数值全部由本插件按标签在本地计算和保存。');
-      callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 0, 1, false);
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
   }
 
@@ -259,6 +259,12 @@
 
      只留「角色名 + 格式 + 一个例子」，不重复讲道理：这一段每轮都在最显眼的位置，
      写长了反而把正文挤掉。 */
+  /* 这一行的原文同时留一份：除了走 extension_prompts，还要在请求发出前贴到 chat 末尾
+     （见 injectTailIntoFinalChat）。两条通道内容一样，位置不同——系统提示区管「在不在」，
+     最后一条管「有没有用」。 */
+  let _voiceTailNote = '';
+  function getVoiceTailNote() { return _voiceTailNote; }
+
   function injectVoiceTagReminder() {
     try {
       const data = loadLocalState();
@@ -267,13 +273,14 @@
         const ch = chars[n];
         return ch && !isCharSkeleton(ch) && ch.在场 !== false;
       }).slice(0, 3);
-      if (!names.length) { callSetPrompt(PROMPT_KEY + '_voice', '', 0, 0, false); return; }
+      if (!names.length) { _voiceTailNote = ''; callSetPrompt(PROMPT_KEY + '_voice', '', 0, 0, false); return; }
       const lines = [];
       lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
       lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
       lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
       lines.push('这行由系统收走，不会出现在玩家看到的正文里；不要写解释、不要写在上面的正文中间。');
-      callSetPrompt(PROMPT_KEY + '_voice', lines.join('\n'), 4, 0, false);
+      _voiceTailNote = lines.join('\n');
+      callSetPrompt(PROMPT_KEY + '_voice', _voiceTailNote, 0, 0, false);
     } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
   }
 
@@ -342,7 +349,7 @@
         used += chunk.length + 2;
       }
       if (!parts.length) { callSetPrompt(PROMPT_KEY + '_pocket_wb', '', 0, 0, false); return; }
-      callSetPrompt(PROMPT_KEY + '_pocket_wb', head + '\n\n' + parts.join('\n\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_pocket_wb', head + '\n\n' + parts.join('\n\n'), 0, 1, false);
     } catch (e) { console.warn('[Doki] 神宠秘籍注入失败：', e); }
   }
 
@@ -377,7 +384,7 @@
         if (address) lines.push('角色「' + name + '」已保存的对玩家专属称呼：「' + address + '」。这是持久资料，合适的直接称呼场景自然使用，不要自行改名。');
       });
       lines.push('不要在正文中解释这些数值或复述关系分析；它们只用于维持上下文一致。');
-      callSetPrompt(PROMPT_KEY + '_relationship_facts', lines.join('\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_relationship_facts', lines.join('\n'), 0, 1, false);
     } catch (e) { console.warn('[Doki] 关系事实注入失败：', e); }
   }
 
@@ -385,17 +392,17 @@
     const mode = getCardMode();
     if (mode === 'multi') {
       const content = ['【卡组模式：多人卡】', '标签必须带角色名，格式：[Sylveina|角色名|L/M/H|+/-|基础值]，例：[Sylveina|长谷川茗|L|+|1.5]。', '标签里的角色名必须使用本轮剧情中实际互动的角色正名，不要用昵称或称呼。', '若本轮与多个角色有互动，为每一个角色分别输出各自的 Sylveina 标签。', '没有写角色名的标签只会结算给「主要攻略对象」一个人，其他角色不会加分。'].join('\n');
-      callSetPrompt(PROMPT_KEY + '_cardmode', content, 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_cardmode', content, 0, 1, false);
     } else {
       const content = ['【卡组模式：单人卡】', '本轮数值标签统一使用角色卡主名（即当前对话的角色名）。', '不要用剧情里的昵称、称呼、化名或别名作为 <名>。', '若剧情里出现其他配角，可以在正文中描写，但数值标签只针对角色卡主名这一条。'].join('\n');
-      callSetPrompt(PROMPT_KEY + '_cardmode', content, 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_cardmode', content, 0, 1, false);
     }
   }
 
   function injectFanficEnhanceNotice() {
     if (!getFanficEnhance()) { callSetPrompt(PROMPT_KEY + '_fanfic', '', 0, 0, false); return; }
     const content = ['═══════════════════════════════════', '🌐【同人台词补强 · 已开启】', '本卡涉及原著 IP。请在撰写角色台词时遵循以下规则：', '① 台词优先参考该角色在原 IP 源语言里的用语习惯、口头禅、称谓、语气、节奏。', '② 若你能判断 IP 与源语言（如《文豪野犬》= 日语；《哈利波特》= 英语），台词请优先按源语言语感写；如玩家开了双语输出，则翻译部分使用源语言直译，不要意译、不要润色。', '③ 允许保留少量源语言原文词（称谓/语气词/专有名词），让台词更贴近原作。', '④ 不改变角色人设，不脱离当前剧情进度，只调整「说话方式」。', '═══════════════════════════════════'].join('\n');
-    callSetPrompt(PROMPT_KEY + '_fanfic', content, 4, 2, false);
+    callSetPrompt(PROMPT_KEY + '_fanfic', content, 0, 2, false);
   }
 
   function injectSafetyLockStatus() {
@@ -416,7 +423,7 @@
       '具体行为上限完全由角色卡的核心人设决定。',
       '═══════════════════════════════════'
     ].join('\n');
-    callSetPrompt(PROMPT_KEY + '_safety', content, 4, 2, false);
+    callSetPrompt(PROMPT_KEY + '_safety', content, 0, 2, false);
   }
 
   function isExtraModelActive() {

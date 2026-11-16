@@ -133,6 +133,26 @@
   }
   /* ───────────────────────────────────────────────────────── */
   /* ── 时间线清单：全部操作都写回脚本本地仓库 ── */
+  /* 建档完成后的自动扫一遍：只在「这条聊天还一条时间线都没有、也没自动扫过」时弹一次。
+     扫出来的条目不自动转写、不自动启用 —— 摆给玩家勾，勾不勾、转不转都由他。 */
+  function timelineAutoScanKey() { return 'moon_timeline_autoscan_v1'; }
+  async function maybeAutoScanTimeline(panel) {
+    try {
+      if (getSettings().timelineAutoScan === false) return false;
+      try { if (readChatFeatureValue(timelineAutoScanKey(), false)) return false; } catch (e) {}
+      try { if (loadTimelineStore().length) return false; } catch (e) {}
+      const entries = await scanAllTimelineEntries();
+      try { writeChatFeatureValue(timelineAutoScanKey(), true); } catch (e) {}
+      if (!entries.length) return false;
+      /* 面板可能已经关了（建档流程跑完才延迟到这里），能取到就用真实面板，
+         取不到也不影响：扫描对话框自己会重扫一次并挂在 body 上。 */
+      let target = panel;
+      try { target = (mainDoc && mainDoc.getElementById('moon-phase-panel')) || panel; } catch (e) {}
+      openScanTimelineDialog(target || {});
+      return true;
+    } catch (e) { return false; }
+  }
+
   function openTimelineManagerDialog(panel) {
     const list = loadTimelineStore();
     let nowStr = '';

@@ -76,7 +76,7 @@
     lines.push('【系统时间结算】本次实际经过 ' + info.systemDays + ' 天；已用于倒计时、冷战期限与周期刷新。');
     lines.push('→ 叙事要求：在接下来的剧情中自然体现这段时间流逝后的关系氛围。');
     lines.push('═══════════════════════════════════');
-    callSetPrompt(PROMPT_KEY + '_jump', lines.join('\n'), 4, 1, false);
+    callSetPrompt(PROMPT_KEY + '_jump', lines.join('\n'), 0, 1, false);
   }
   function checkAllCountdowns(sourceStatData) {
     const actions = [];
@@ -138,7 +138,7 @@
         actions.map(function(a) { return a.msg; }).join('\n\n'),
         '═══════════════════════════════════'
       ].join('\n');
-      callSetPrompt(PROMPT_KEY, content, 4, 1, false);
+      callSetPrompt(PROMPT_KEY, content, 0, 1, false);
     } catch (e) {}
   }
 

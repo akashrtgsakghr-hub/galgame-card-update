@@ -32,7 +32,7 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 | `05-timeline.js` | 235 | 时间线文本解析、内置仓库（localStorage 按角色卡分档）、候选扫描 |
 | `10-context.js` | 178 | SillyTavern 上下文读写、历史采集、AI 模型调用入口 |
 | `15-state.js` | 120 | toast、角色档案库、提示词写入（含「本轮注入了什么」记录）、本地存档读写 |
-| `20-tag.js` | 245 | Sylveina 标签解析、初见投资结算（唯一掷骰入口）、减益处理 |
+| `20-tag.js` | 245 | Sylveina 标签解析、初见骰子结算（唯一掷骰入口）、减益处理 |
 | `25-modal.js` | 196 | 弹窗队列、loading、结果弹窗、街机挂载 |
 | `30-time.js` | 149 | 时间字符串解析、token 估算、世界书条目收集 |
 | `35-stat.js` | 403 | 阶段门、事件提示注入、四维增量、标签归属匹配 |

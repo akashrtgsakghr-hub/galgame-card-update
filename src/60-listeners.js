@@ -12,6 +12,10 @@
       } catch (e) {}
       return false;
     };
+    /* 后台静默生成（成就命名、小抄重写、摘要、时间线）也是 GENERATION_STARTED，
+       类型是 quiet。它要的是 JSON，不是剧情——把我们那七节规则塞进去只会让它跑偏，
+       还白烧 token。所以 quiet 轮把注入全撤掉，正常轮再注回来。 */
+    let _quietTurn = false;
     trySubscribe('worldinfo_entries_loaded', function(lores) {
       try {
         if (!Array.isArray(lores)) return lores;
@@ -53,6 +57,7 @@
     // 街机只由月相自己发起的长任务打开（见 callOpeningModel / 首次自检）。
     trySubscribe('message_received', function() {
       isWaitingForExtraModel = false;
+      _quietTurn = false;
       // 终幕 / 后日谈导演指令只作用于玩家发起结算后的那一轮生成。
       // 旧实现只在成功渲染 [GalgameEnding|...] 时清空，AI 若没输出合规标签，
       // 这条「最高优先级」指令会一直留在后续每轮 prompt 里，导致持续写结局 / 后日谈。
@@ -88,7 +93,12 @@
     trySubscribe('mag_variable_update_ended', function() {
       isWaitingForExtraModel = false;
     });
-    trySubscribe('chat_completion_prompt_ready', function() {
+    /* ── 注入时序 ────────────────────────────────────────────────────────────
+       这一段以前只挂在 chat_completion_prompt_ready 上，而新版酒馆是「prompt 已经拼好」
+       才发这个事件——在这里写 extension_prompts，只对下一轮有效，第一轮干脆是空的。
+       现在主通道换成 generation_started（酒馆在拼 prompt **之前**发它），
+       prompt_ready 只留作兜底 + 把最后一句贴到 chat 末尾。 */
+    function runPromptInjectionSequence() {
       /* 先清空「本轮注入了什么」的记录，再按顺序注；核心规则和词条放到最后，
          这样它们能读到这一轮别人都往 prompt 里塞了些什么。 */
       try { resetRoundInjectedText(); } catch (e) {}
@@ -108,9 +118,27 @@
       try { injectRelationshipFactsPrompt(); } catch (e) {}
       // 掌机金手指转写的那本《后宫王神宠秘籍》：玩家点了金手指才有内容，没点就是空。
       try { injectPocketWorldBook(); } catch (e) {}
-      // 真正的最后一条：心声标签提醒。depth 0 = 落在 prompt 最下面，
-      // 上面那一大坨规则写多了模型会疲劳，最后一行它反而会照做。
+      // 真正的最后一条：心声标签提醒。
       try { injectVoiceTagReminder(); } catch (e) {}
+      try { saveInjectReport(); } catch (e) {}
+    }
+    /* 拼 prompt 之前：这一轮的规则必须在这时候就位。 */
+    trySubscribe('generation_started', function(type) {
+      if (String(type || '') === 'quiet') {
+        _quietTurn = true;
+        try { clearMoonPrompts(); } catch (e) {}
+        return;
+      }
+      _quietTurn = false;
+      try { runPromptInjectionSequence(); } catch (e) {}
+    });
+    /* prompt 已拼好：重算一遍内容（给下一轮更鲜的值），并把心声那句贴到 chat 末尾。
+       老版本酒馆在拼之前就读 extension_prompts，这时内容和已拼好的 prompt 一致，
+       injectTailIntoFinalChat 会检测到重复、不再追加。 */
+    trySubscribe('chat_completion_prompt_ready', function(chatData) {
+      if (_quietTurn) return;
+      try { runPromptInjectionSequence(); } catch (e) {}
+      try { injectTailIntoFinalChat(chatData, typeof getVoiceTailNote === 'function' ? getVoiceTailNote() : ''); } catch (e) {}
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);

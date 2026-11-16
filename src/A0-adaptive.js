@@ -263,10 +263,10 @@
       const ok = await writeMvuLatest(statData);
       if (!ok) return null;
 
-      /* ── 初见投资：建档那一刻就掷，不等下一轮 AI 的标签 ──────────────
+      /* ── 初见骰子：建档那一刻就掷，不等下一轮 AI 的标签 ──────────────
          以前建档只写一份 0 值骨架，把初见完全押给「下一轮 AI 会不会写
          [初见|…]」；模型忘了写、或者写了没过阈值，E 就一直停在 0，
-         玩家体感就是「自动建档没启用初见投资、从头开始一点点加」。
+         玩家体感就是「自动建档没启用初见骰子、从头开始一点点加」。
          现在建完档立刻结算：本轮 AI 恰好写了标签就用它的档位，没写就按中性掷，
          失败也有印象底分——建档完成的那一刻，人物就已经有起点。 */
       const firstMeetNotes = [];
@@ -300,6 +300,13 @@
           : '新角色已入档：' + made.join('、') + fmTxt, 'info');
       }
       try { refreshPanel(); } catch (e) {}
+      /* 建档完成 → 扫一遍世界书看有没有现成的时间线。只在「这条聊天还一条都没有」
+         时弹一次，扫出来的摆给玩家勾选，脚本不替他决定要不要用。 */
+      try {
+        if (reason !== 'silent' && typeof maybeAutoScanTimeline === 'function') {
+          setTimeout(function() { try { maybeAutoScanTimeline(null); } catch (e) {} }, 1600);
+        }
+      } catch (e) {}
       return made;
     } catch (e) { return null; }
   }
@@ -427,6 +434,11 @@ async function applyAdaptiveOpening(charName, values) {
     if (ok) {
       toast('自适应开局完成', 'success');
       try { refreshPanel(); } catch (e) {}
+      try {
+        if (typeof maybeAutoScanTimeline === 'function') {
+          setTimeout(function() { try { maybeAutoScanTimeline(null); } catch (e) {} }, 1600);
+        }
+      } catch (e) {}
     } else {
       toast('写入失败', 'warning');
     }

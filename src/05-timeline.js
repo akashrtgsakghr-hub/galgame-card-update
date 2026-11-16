@@ -205,6 +205,12 @@
     return merged;
   }
 
+  /* 开关的唯一判据：事件导演读时间线之前都走这里，免得两处各判一次判出分歧。 */
+  function timelineActiveEvents(entries) {
+    try { if (getSettings().timelineEnabled === false) return []; } catch (e) {}
+    return getTimelineEvents(entries);
+  }
+
   function scanTimelineCandidates(entries) {
     const out = [];
     if (!Array.isArray(entries)) return out;

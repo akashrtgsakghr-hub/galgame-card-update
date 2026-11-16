@@ -100,7 +100,7 @@
         lines.push('当前聊天未启用玩家小抄；不要凭空补充玩家身份、外貌、经历或性格。');
       }
       lines.push('═══════════════════════════════════');
-      callSetPrompt(USER_BIO_PROMPT_KEY, lines.join('\n'), 4, 1, false);
+      callSetPrompt(USER_BIO_PROMPT_KEY, lines.join('\n'), 0, 1, false);
       return bio;
     } catch (e) { console.warn('[Doki] 玩家身份提示注入失败：', e); return null; }
   }
@@ -218,7 +218,7 @@
       lines.push('');
       charNames.forEach(function(n) { const content = String(byChar[n].versions.current.content || '').trim(); lines.push('【' + n + '】'); lines.push(content); lines.push(''); });
       lines.push('═══════════════════════════════════');
-      callSetPrompt(PROMPT_KEY + '_bio', lines.join('\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_bio', lines.join('\n'), 0, 1, false);
       return { count: charNames.length, charNames: charNames };
     } catch (e) { console.warn('[Doki] 小抄注入失败：', e); return null; }
   }

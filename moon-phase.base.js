@@ -24,15 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.15.2';
-  const MOON_FORMULA_CHANGELOG = "【v5.15.2 正文干净了，心声不再断句】\n" +
-    "（5.15 第二版 · 从 v5.15.1 升级）\n" +
-    "1. 🧹 正文里那些标签和徽章全部清掉了：好感度看状态栏就够，正文只留故事。升级后旧消息里的徽章也会一并消失。\n" +
-    "2. 🎙 心声每轮都会刷：标签走双通道注入（状态块里也写了格式，回复完就提前注一次），不再只靠最末尾那一条——有些酒馆版本会把最末尾那条折叠掉。\n" +
-    "3. 🩹 心声里带括号（「他居然记得（那次礼堂）的事」）不再被截断成半句。\n" +
-    "4. 🩺 系统自检新增【测试9B】：直接看核心规则 / 状态格式 / 心声提醒有没有真的进酒馆，各多少字。\n" +
-    "5. 🕒 同一楼层重复触发，时钟不会再偷偷多走 10 分钟。\n" +
-    "6. 🎭 攻略模式、签到、掌机整包、沉浸模式照旧。";
+  const MOON_FORMULA_VERSION = '5.15.5';
+  const MOON_FORMULA_CHANGELOG = "【v5.15.5 提示词真的进了酒馆：心声和数值终于会被执行】\n" +
+    "（从 v5.15.4 升级 · 建议更新，这一版修的是「规则压根没送进去」）\n" +
+    "1. 🩹 修好了一个一直没人发现的根因：脚本注入的规则位置参数是 4，而酒馆只认 0/1/2 —— 这些规则一直被静默丢弃。所以自测、模拟数据全绿，实战里 AI 却像不知道格式。现在统一落到合法位置。\n" +
+    "2. ⏰ 注入时机也修了：以前挂在「prompt 已拼好」之后，规则永远晚一轮、第一轮干脆没有；现在改成拼 prompt 之前就位。\n" +
+    "3. 📌 心声那句还会再贴一条到对话最末尾（和预设里 depth 0 的条目同一个位置），模型更容易照做。\n" +
+    "4. 🔍 面板新增「上一轮结算」：涨了谁、涨了多少、是不是被本周额度挡住、还是 AI 这轮没写标签 —— 一眼分清是脚本没跑还是模型没写。\n" +
+    "5. 🧪 面板新增「已注入 prompt：N 段 / X 字」，自检【测试9B】会点名位置不合法的条目。\n" +
+    "6. 🎭 卡带、攻略模式、时间短语、世界大事表照旧。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -97,11 +97,17 @@
     eventPacing: 'And', timelineTag: '', fanficEnhance: false, introSeen: false,
     panelAutoOpened: false, autoReload: true, epilogueTargetWords: 8000, galleryRetentionDays: 0,
     turnMinutes: 10, autoBootstrap: true, coreRules: 'auto', glossary: 'auto',
-    /* 初见投资的数值怎么来：
+    /* 初见骰子的数值怎么来：
        hybrid —— 骰子定数值，AI 只给「优势/劣势」档位（读过角色卡，判断人设契合度）
        dice   —— 全看骰子，AI 写什么档位都不采信
        firstMeetFloor：没过阈值也给 1d4 印象底分，避免建档完 E=0 一路干爬 */
-    firstMeetMode: 'hybrid', firstMeetFloor: true
+    firstMeetMode: 'hybrid', firstMeetFloor: true,
+    /* 时间线（世界大事表）：
+       timelineEnabled  关掉后事件导演不再读时间线，货架上的日期事件全部不触发；
+                        存着的条目还在，随时可以再打开。
+       timelineAutoScan 建档完成时自动扫一次世界书、把疑似时间线摆给玩家挑；
+                        挑不挑由玩家决定，扫完就记一次，不会反复弹。 */
+    timelineEnabled: true, timelineAutoScan: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;
@@ -452,6 +458,12 @@
     return merged;
   }
 
+  /* 开关的唯一判据：事件导演读时间线之前都走这里，免得两处各判一次判出分歧。 */
+  function timelineActiveEvents(entries) {
+    try { if (getSettings().timelineEnabled === false) return []; } catch (e) {}
+    return getTimelineEvents(entries);
+  }
+
   function scanTimelineCandidates(entries) {
     const out = [];
     if (!Array.isArray(entries)) return out;
@@ -698,11 +710,94 @@
     _roundInjectedText += '\n' + (value.length > room ? value.slice(0, room) : value);
   }
 
+  /* ── 扩展提示词注入 ──────────────────────────────────────────────────────
+     酒馆的 extension_prompt_types 一共只有三个值：BEFORE_PROMPT(2) / IN_PROMPT(0) / IN_CHAT(1)。
+     我们历史上一直传 4，想表达「放进聊天记录里、贴着对话」；但酒馆拼 prompt 时对未知键
+     只放行 0 和 2（preparePromptsForChatCompletion 里 `if (![0,2].includes(position)) continue;`），
+     别的值会被整条丢弃、还不报错。结果就是：世界书那几条照常生效（成就、状态格式的骨架），
+     而脚本注入的规则一条都没进过 prompt——心声格式、数值说明自然就没人执行。
+     现在统一落 IN_PROMPT(0)：老版本认、新版本认、不会被静默丢掉。 */
+  const PROMPT_POS_BEFORE = 2;
+  const PROMPT_POS_IN_PROMPT = 0;
+  let _injectReport = { at: 0, items: [], total: 0 };
+
+  function normalizePromptPos(position) {
+    /* 只有显式要「放到主提示词前面」的才保留 2，其余（含历史遗留的 4 / 1）一律落 IN_PROMPT。 */
+    return Number(position) === PROMPT_POS_BEFORE ? PROMPT_POS_BEFORE : PROMPT_POS_IN_PROMPT;
+  }
+
+  function noteInjection(key, value, pos, depth) {
+    try {
+      const len = String(value || '').length;
+      const items = _injectReport.items.filter(function(it) { return it.key !== key; });
+      if (len > 0) items.push({ key: String(key), chars: len, pos: pos, depth: depth });
+      _injectReport = { at: Date.now(), items: items, total: items.reduce(function(a, b) { return a + b.chars; }, 0) };
+    } catch (e) {}
+  }
+
+  function getInjectReport() {
+    if (_injectReport.items.length) return _injectReport;
+    /* 刷新页面后内存里是空的，但玩家想看「上一轮到底注没注」——
+       所以每轮结束时落一份到本地，重开面板还能读到。 */
+    try {
+      const st = getStorage();
+      const raw = st && st.getItem('moon_inject_report_v1_' + getChatStateKey());
+      const saved = raw ? JSON.parse(raw) : null;
+      if (saved && saved.items && saved.items.length) return saved;
+    } catch (e) {}
+    return _injectReport;
+  }
+
+  function saveInjectReport() {
+    try {
+      const st = getStorage();
+      if (!st || !_injectReport.items.length) return false;
+      st.setItem('moon_inject_report_v1_' + getChatStateKey(), JSON.stringify(_injectReport));
+      return true;
+    } catch (e) { return false; }
+  }
+
   function callSetPrompt(key, value, position, depth, scan) {
-    try { if (typeof mainWin.setExtensionPrompt === 'function') { mainWin.setExtensionPrompt(key, value, position, depth, scan); appendRoundInjectedText(value); return true; } } catch (e) {}
-    try { if (typeof window.setExtensionPrompt === 'function') { window.setExtensionPrompt(key, value, position, depth, scan); appendRoundInjectedText(value); return true; } } catch (e) {}
-    try { const ctx = getSTCtx(); if (ctx && typeof ctx.setExtensionPrompt === 'function') { ctx.setExtensionPrompt(key, value, position, depth, scan); appendRoundInjectedText(value); return true; } } catch (e) {}
+    const pos = normalizePromptPos(position);
+    const dep = Math.max(0, Number(depth) || 0);
+    try { if (typeof mainWin.setExtensionPrompt === 'function') { mainWin.setExtensionPrompt(key, value, pos, dep, scan, 0); noteInjection(key, value, pos, dep); appendRoundInjectedText(value); return true; } } catch (e) {}
+    try { if (typeof window.setExtensionPrompt === 'function') { window.setExtensionPrompt(key, value, pos, dep, scan, 0); noteInjection(key, value, pos, dep); appendRoundInjectedText(value); return true; } } catch (e) {}
+    try { const ctx = getSTCtx(); if (ctx && typeof ctx.setExtensionPrompt === 'function') { ctx.setExtensionPrompt(key, value, pos, dep, scan, 0); noteInjection(key, value, pos, dep); appendRoundInjectedText(value); return true; } } catch (e) {}
     return false;
+  }
+
+  /* 把上一轮注入过的键全部清空：后台静默生成（要 JSON 的那些）之前调用，
+     免得七节剧情规则去干扰它。正常轮会在 generation_started 重新注满。 */
+  function clearMoonPrompts() {
+    try {
+      const keys = (_injectReport.items || []).map(function(it) { return it.key; });
+      keys.forEach(function(k) { try { callSetPrompt(k, '', 0, 0, false); } catch (e) {} });
+      _injectReport = { at: Date.now(), items: [], total: 0 };
+      return keys.length;
+    } catch (e) { return 0; }
+  }
+
+  /* 最后一条：等价于预设里「depth 0 的系统条目」。
+     extension_prompts 只往系统提示区放（IN_PROMPT），想让它贴着最后一句玩家发言，
+     只能在 prompt 已经拼好、请求还没发出去的那一刻，往 chat 数组尾部追加一条 system 消息。
+     酒馆自己的 depth 0 注入也是这么落位的，所以不会被当成异常请求。 */
+  function injectTailIntoFinalChat(chatData, note) {
+    try {
+      const text = String(note || '').trim();
+      if (!text) return false;
+      const chat = chatData && chatData.chat;
+      if (!Array.isArray(chat) || !chat.length) return false;
+      /* 只在「最后一条是玩家发言」时贴：后台静默生成 / 续写 / 旁白这类请求的
+         末尾不是 user，贴上去只会干扰它要的格式。 */
+      const tail = chat[chat.length - 1];
+      if (!tail || String(tail.role || '') !== 'user') return false;
+      const probe = text.slice(0, 24);
+      for (let i = chat.length - 1; i >= 0 && i >= chat.length - 3; i--) {
+        if (String((chat[i] && chat[i].content) || '').indexOf(probe) >= 0) return false;
+      }
+      chat.push({ role: 'system', content: text, injected: true });
+      return true;
+    } catch (e) { return false; }
   }
 
   function getChatStateKey() {
@@ -973,12 +1068,12 @@
   function firstMeetMode() { try { return getSettings().firstMeetMode === 'dice' ? 'dice' : 'hybrid'; } catch (e) { return 'hybrid'; } }
   function firstMeetFloorOn() { try { return getSettings().firstMeetFloor !== false; } catch (e) { return true; } }
 
-  /* ── 初见投资：全系统唯一的掷骰入口 ──────────────────────
+  /* ── 初见骰子：全系统唯一的掷骰入口 ──────────────────────
      档位（优势/劣势）可以由 AI 给——它读过角色卡，判断「玩家设定踩中了哪些喜好」是它的强项；
      但最终数值一定在这里掷出来，AI 写的任何「好感度=XX」都不进这条链路。
      这样既有人设依据，又保留运气，还能被自检复现（骰点、档位、阈值全留痕）。
      以前只有「AI 必须写标签」一条路：模型忘了写、或写了没过阈值，E 就停在 0，
-     于是出现了「自动建档之后初见投资等于没生效、从零开始加」的问题。 */
+     于是出现了「自动建档之后初见骰子等于没生效、从零开始加」的问题。 */
   function rollFirstMeetInvestment(mode, advIn, disIn, opts) {
     opts = opts || {};
     const adv = clampFirstMeetAdv(advIn);
@@ -1570,7 +1665,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         }
       }
     }
-    if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 4, 1, false);
+    if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 0, 1, false);
   }
   /* ───────────────────────────────────────────────────────── */
   function injectEventPrompt() {
@@ -1681,7 +1776,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         + '没有跨天就保持同一天，只把分钟往后推。）');
       lines.push('【分工】剧情事件的种类与节奏由脚本的骰子与导演系统决定，你不需要自己另起大事件；拿到哪件事，就把它写成最好看的那一版。');
       lines.push('禁止在正文与后台变量块里输出 好感度/肉体值/阶段值/嫉妒值 数值，禁止输出 JSON、UpdateVariable、StatusPlaceHolderImpl 或任何解释文字；四维数值全部由本插件按标签在本地计算和保存。');
-      callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_event', lines.join('\n'), 0, 1, false);
     } catch (e) { console.warn('[Doki] 状态注入失败：', e); }
   }
 
@@ -1693,6 +1788,12 @@ async function _collectAllWorldbooks(includeDisabled) {
 
      只留「角色名 + 格式 + 一个例子」，不重复讲道理：这一段每轮都在最显眼的位置，
      写长了反而把正文挤掉。 */
+  /* 这一行的原文同时留一份：除了走 extension_prompts，还要在请求发出前贴到 chat 末尾
+     （见 injectTailIntoFinalChat）。两条通道内容一样，位置不同——系统提示区管「在不在」，
+     最后一条管「有没有用」。 */
+  let _voiceTailNote = '';
+  function getVoiceTailNote() { return _voiceTailNote; }
+
   function injectVoiceTagReminder() {
     try {
       const data = loadLocalState();
@@ -1701,13 +1802,14 @@ async function _collectAllWorldbooks(includeDisabled) {
         const ch = chars[n];
         return ch && !isCharSkeleton(ch) && ch.在场 !== false;
       }).slice(0, 3);
-      if (!names.length) { callSetPrompt(PROMPT_KEY + '_voice', '', 0, 0, false); return; }
+      if (!names.length) { _voiceTailNote = ''; callSetPrompt(PROMPT_KEY + '_voice', '', 0, 0, false); return; }
       const lines = [];
       lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
       lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
       lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
       lines.push('这行由系统收走，不会出现在玩家看到的正文里；不要写解释、不要写在上面的正文中间。');
-      callSetPrompt(PROMPT_KEY + '_voice', lines.join('\n'), 4, 0, false);
+      _voiceTailNote = lines.join('\n');
+      callSetPrompt(PROMPT_KEY + '_voice', _voiceTailNote, 0, 0, false);
     } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
   }
 
@@ -1776,7 +1878,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         used += chunk.length + 2;
       }
       if (!parts.length) { callSetPrompt(PROMPT_KEY + '_pocket_wb', '', 0, 0, false); return; }
-      callSetPrompt(PROMPT_KEY + '_pocket_wb', head + '\n\n' + parts.join('\n\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_pocket_wb', head + '\n\n' + parts.join('\n\n'), 0, 1, false);
     } catch (e) { console.warn('[Doki] 神宠秘籍注入失败：', e); }
   }
 
@@ -1811,7 +1913,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         if (address) lines.push('角色「' + name + '」已保存的对玩家专属称呼：「' + address + '」。这是持久资料，合适的直接称呼场景自然使用，不要自行改名。');
       });
       lines.push('不要在正文中解释这些数值或复述关系分析；它们只用于维持上下文一致。');
-      callSetPrompt(PROMPT_KEY + '_relationship_facts', lines.join('\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_relationship_facts', lines.join('\n'), 0, 1, false);
     } catch (e) { console.warn('[Doki] 关系事实注入失败：', e); }
   }
 
@@ -1819,17 +1921,17 @@ async function _collectAllWorldbooks(includeDisabled) {
     const mode = getCardMode();
     if (mode === 'multi') {
       const content = ['【卡组模式：多人卡】', '标签必须带角色名，格式：[Sylveina|角色名|L/M/H|+/-|基础值]，例：[Sylveina|长谷川茗|L|+|1.5]。', '标签里的角色名必须使用本轮剧情中实际互动的角色正名，不要用昵称或称呼。', '若本轮与多个角色有互动，为每一个角色分别输出各自的 Sylveina 标签。', '没有写角色名的标签只会结算给「主要攻略对象」一个人，其他角色不会加分。'].join('\n');
-      callSetPrompt(PROMPT_KEY + '_cardmode', content, 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_cardmode', content, 0, 1, false);
     } else {
       const content = ['【卡组模式：单人卡】', '本轮数值标签统一使用角色卡主名（即当前对话的角色名）。', '不要用剧情里的昵称、称呼、化名或别名作为 <名>。', '若剧情里出现其他配角，可以在正文中描写，但数值标签只针对角色卡主名这一条。'].join('\n');
-      callSetPrompt(PROMPT_KEY + '_cardmode', content, 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_cardmode', content, 0, 1, false);
     }
   }
 
   function injectFanficEnhanceNotice() {
     if (!getFanficEnhance()) { callSetPrompt(PROMPT_KEY + '_fanfic', '', 0, 0, false); return; }
     const content = ['═══════════════════════════════════', '🌐【同人台词补强 · 已开启】', '本卡涉及原著 IP。请在撰写角色台词时遵循以下规则：', '① 台词优先参考该角色在原 IP 源语言里的用语习惯、口头禅、称谓、语气、节奏。', '② 若你能判断 IP 与源语言（如《文豪野犬》= 日语；《哈利波特》= 英语），台词请优先按源语言语感写；如玩家开了双语输出，则翻译部分使用源语言直译，不要意译、不要润色。', '③ 允许保留少量源语言原文词（称谓/语气词/专有名词），让台词更贴近原作。', '④ 不改变角色人设，不脱离当前剧情进度，只调整「说话方式」。', '═══════════════════════════════════'].join('\n');
-    callSetPrompt(PROMPT_KEY + '_fanfic', content, 4, 2, false);
+    callSetPrompt(PROMPT_KEY + '_fanfic', content, 0, 2, false);
   }
 
   function injectSafetyLockStatus() {
@@ -1850,7 +1952,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       '具体行为上限完全由角色卡的核心人设决定。',
       '═══════════════════════════════════'
     ].join('\n');
-    callSetPrompt(PROMPT_KEY + '_safety', content, 4, 2, false);
+    callSetPrompt(PROMPT_KEY + '_safety', content, 0, 2, false);
   }
 
   function isExtraModelActive() {
@@ -2299,6 +2401,74 @@ async function _collectAllWorldbooks(includeDisabled) {
     return mNext ? 1 : 0;
   }
 
+  /* ── 常用时间短语 ─────────────────────────────────────────────────
+     随口一句「过去了一个小时」「到中午了」，时钟就该动，而不是每轮只走固定的
+     turnMinutes。这里只认两类：
+       ① 明确时长：过去了 / 过了 / 经过 / 一个多小时后 + 分钟 · 刻钟 · 小时
+       ② 时段锚点：中午 / 午饭 / 傍晚 / 深夜 / 天亮 …（推到今天或明天的那个点）
+     刻意不认「一会儿」「片刻」这类模糊词：出现频率高、跨度没准数，
+     一认就会在无关对话里把时钟推来推去。
+     返回 { minutes, kind: 'elapsed'|'anchor', crossedDay, phrase } 或 null。 */
+  const TIME_DAY_JUMP_RE = /(?:明天|明日|昨天|昨日|前天|后天|大后天|次日|翌日|下周|下个?星期|下个?月)/;
+  const TIME_ELAPSED_RE = /(?:过去|过了|又过|经过|流逝|度过|已经过去|转眼(?:间)?(?:就)?(?:又)?(?:过去|过))\s*(?:了)?\s*(半|一?个半|[零〇一二两三四五六七八九十百\d]+)\s*个?\s*(多)?\s*(分钟|分|刻钟|小时|钟头)/;
+  const TIME_AFTER_RE = /(半|一?个半|[零〇一二两三四五六七八九十百\d]+)\s*个?\s*(多)?\s*(分钟|分|刻钟|小时|钟头)\s*(?:后|之后|以后)/;
+  const TIME_ANCHORS = [
+    { re: /(?:凌晨|黎明前)/, hh: 3 * 60 },
+    { re: /(?:天亮|破晓|拂晓|清晨|早晨|早上|早饭|早餐)/, hh: 7 * 60 },
+    { re: /(?:上午)/, hh: 10 * 60 },
+    { re: /(?:中午|正午|晌午|午饭|午餐)/, hh: 12 * 60 },
+    { re: /(?:下午|午后)/, hh: 15 * 60 },
+    { re: /(?:傍晚|黄昏|日落|夕阳)/, hh: 18 * 60 },
+    { re: /(?:晚上|入夜|晚饭|晚餐)/, hh: 19 * 60 },
+    { re: /(?:深夜|半夜|午夜|子夜)/, hh: 23 * 60 }
+  ];
+  /* 「午饭还没到」「等天亮」这种是在说未来/否定，不算已经到点 */
+  const TIME_ANCHOR_NEG_RE = /(?:还没|没到|不到|才刚|等到|下次|改天|不是|别|来不及)/;
+
+  function parseTimePhrase(text, fromDate) {
+    const s = String(text || '');
+    if (!s || !fromDate) return null;
+    /* 日级说法（明天 / 三天后）交给 parsePlayerTimeJumpTarget 处理，这里不抢：
+       两套同时命中会互相覆盖，谁先谁后都说不清。 */
+    if (TIME_DAY_JUMP_RE.test(s)) return null;
+    const m = TIME_ELAPSED_RE.exec(s) || TIME_AFTER_RE.exec(s);
+    if (m) {
+      const unit = m[3];
+      let n = 0;
+      if (/^一?个半$/.test(m[1])) n = 1.5;
+      else if (/^半个?多?$/.test(m[1])) n = 0.5;
+      else n = Number(parseChineseCount(m[1])) || 0;
+      if (n > 0) {
+        const per = (unit === '分钟' || unit === '分') ? 1 : (unit === '刻钟' ? 15 : 60);
+        let minutes = n * per;
+        /* 「多」是「这个数量再往上一点」：三个多小时 ≈ 3.5 小时，半个多小时 ≈ 45 分。
+           ×1.5 会把 3 小时算成 4.5 小时，只有 1 这个数恰好对上。 */
+        if (m[2] === '多') minutes += (n < 1 ? per * 0.25 : per / 2);
+        minutes = Math.round(minutes);
+        if (minutes > 0 && minutes <= 96 * 60) {
+          return { minutes: minutes, kind: 'elapsed', crossedDay: false, phrase: String(m[0]).trim() };
+        }
+      }
+    }
+    for (let i = 0; i < TIME_ANCHORS.length; i++) {
+      const a = TIME_ANCHORS[i];
+      const hit = a.re.exec(s);
+      if (!hit) continue;
+      const before = s.slice(Math.max(0, hit.index - 8), hit.index);
+      if (TIME_ANCHOR_NEG_RE.test(before)) continue;
+      /* 否定/未到常写在锚点词后面：「午饭还没到」「中午还早」。 */
+      const after = s.slice(hit.index + hit[0].length, hit.index + hit[0].length + 4);
+      if (/^(?:还|尚|没|未|不|才|早)/.test(after)) continue;
+      const target = new Date(fromDate.getTime());
+      target.setHours(Math.floor(a.hh / 60), a.hh % 60, 0, 0);
+      let diff = Math.round((target.getTime() - fromDate.getTime()) / 60000);
+      const crossedDay = diff <= 0;
+      if (crossedDay) diff += 1440;
+      return { minutes: diff, kind: 'anchor', crossedDay: crossedDay, phrase: hit[0] };
+    }
+    return null;
+  }
+
   function getTurnMinutes() {
     const v = Number(getSettings().turnMinutes);
     return (isFinite(v) && v > 0 && v <= 120) ? Math.round(v) : DEFAULT_TURN_MINUTES;
@@ -2352,8 +2522,13 @@ async function _collectAllWorldbooks(includeDisabled) {
       out.from = fromStr;
       const playerText = getLatestUserMessageText();
       const playerTarget = parsePlayerTimeJumpTarget(fromDate, playerText);
+      const playerPhrase = parseTimePhrase(playerText, fromDate);
       const narrativeDays = detectRelativeElapsedDays(latestAiText);
-      const granted = !!playerTarget || TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
+      /* AI 侧：分钟级和当日内的时段锚点才认。它要是在晚上写「到中午了」，
+         那是把时间写串了 —— 直接给它跳到明天中午会凭空吃掉十几个小时。 */
+      const aiPhraseRaw = parseTimePhrase(latestAiText, fromDate);
+      const aiPhrase = (aiPhraseRaw && aiPhraseRaw.minutes <= 12 * 60) ? aiPhraseRaw : null;
+      const granted = !!playerTarget || !!playerPhrase || TIME_GRANT_RE.test(playerText) || narrativeDays > 0;
       out.granted = granted;
       const step = getTurnMinutes();
       let target = null;
@@ -2361,6 +2536,11 @@ async function _collectAllWorldbooks(includeDisabled) {
 
       // ① 玩家明确指定跨度时，以玩家为准，优先级高于 AI 时间标签和后台变量时间。
       if (playerTarget) { target = playerTarget; source = 'player_jump'; }
+      // ①b 玩家说的「过去一个小时 / 到中午了」这类常用时间词。
+      if (!target && playerPhrase) {
+        target = new Date(fromDate.getTime() + playerPhrase.minutes * 60000);
+        source = 'player_phrase';
+      }
 
       // ② 正文/后台明确声明时间。_时钟已由正文确定 只负责表明本轮时间字段已更新，不代表允许擅自缩短玩家跨度。
       if (!target && world._时钟已由正文确定 === true) {
@@ -2374,6 +2554,12 @@ async function _collectAllWorldbooks(includeDisabled) {
       if (!target) {
         const cur = parseGameTime(stateTime);
         if (cur && stateTime !== fromStr) { target = cur; source = 'state_clock'; }
+      }
+      /* ⑤ AI 正文里写的「过了一个小时 / 到傍晚了」：只在它没改后台时间字段时兜底。
+         放在 state_clock 之后 —— 后台字段是它明写的数，比正文里的口语更可信。 */
+      if (!target && aiPhrase) {
+        target = new Date(fromDate.getTime() + aiPhrase.minutes * 60000);
+        source = 'ai_phrase';
       }
       // ③ 正文相对时间兜底（如「三天后」「一年后」）。
       if (!target && narrativeDays > 0) {
@@ -2448,6 +2634,28 @@ async function _collectAllWorldbooks(includeDisabled) {
     return t.replace(/\s+/g, ' ').trim();
   }
 
+  /* ── 「上一轮到底结没结算」留痕 ────────────────────────────────────────────
+     玩家最常见的困惑是「我回复了，好感没动，是不是脚本没跑」。
+     脚本有没有跑只有它自己知道，所以每轮把结论写下来，面板直接读：
+     几个标签、谁涨了几分、有没有被周上限压住。 */
+  const LAST_SETTLE_KEY = 'moon_last_settle_v1';
+  function saveLastSettle(rec) {
+    try {
+      const st = getStorage();
+      if (!st) return false;
+      st.setItem(LAST_SETTLE_KEY + '_' + getChatStateKey(), JSON.stringify(rec));
+      return true;
+    } catch (e) { return false; }
+  }
+  function loadLastSettle() {
+    try {
+      const st = getStorage();
+      const raw = st && st.getItem(LAST_SETTLE_KEY + '_' + getChatStateKey());
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (e) { return null; }
+  }
+
   async function runMoonCalculation() {
     try {
       const data = readMvuLatest();
@@ -2516,7 +2724,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         const oldRBeforeTurn = Number(ch.阶段值) || 0;
 
         try {
-          /* 初见投资：建档时会当场掷一次并清掉「待结算」标记。
+          /* 初见骰子：建档时会当场掷一次并清掉「待结算」标记。
              这里兜的是另一种情况——建档当时写入失败、或者角色那时还没到场，
              标记还挂着；只要这一轮文本点到了名字，就地补掷，不再无限期等 AI 标签。
              老存档没有这个标记，仍然只认 AI 写的 [初见|…]，不会被二次收费。 */
@@ -2669,6 +2877,17 @@ async function _collectAllWorldbooks(includeDisabled) {
         } catch (e) {}
       }
       try { refreshPanel(); } catch (e) {}
+      try {
+        saveLastSettle({
+          at: Date.now(),
+          floor: latestAi ? Number(latestAi.idx) : -1,
+          turn: Math.max(0, Math.floor(Number(world._回合) || 0)),
+          tags: parsedTags.length,
+          changed: changedChars.map(function(c) { return { name: c.name, field: c.field, delta: c.delta, newValue: c.newValue }; }),
+          blocked: weeklyBlockedChars.slice(),
+          clamp: statData._最后推进 && statData._最后推进.是否拦截 ? String(statData._最后推进.来源 || '') : ''
+        });
+      } catch (e) {}
       /* 把这一轮实际生效的增量交回去：正文里那个数值徽章要按它改写，
          否则玩家看到「▲ +3」、状态卡只涨 1.5，第一反应就是脚本坏了。 */
       return { countdownActions: countdownActions, changedChars: changedChars, weeklyBlockedChars: weeklyBlockedChars };
@@ -2707,7 +2926,9 @@ async function _collectAllWorldbooks(includeDisabled) {
         eventState.上次投掷回合 = Number(eventState.上次投掷回合) || 0;
         eventState.上次大事件游戏日 = Number(eventState.上次大事件游戏日) || 0;
         const entries = Array.isArray(worldbookEntries) ? worldbookEntries : [];
-        const timelineEvents = getTimelineEvents(entries);
+        /* 时间线总开关：关掉就整条链路都不读（连世界书里现成的时间线也不读），
+           存着的条目原样留着，玩家想再开就再开。判据只有 timelineActiveEvents 一处。 */
+        const timelineEvents = timelineActiveEvents(entries);
         let completed = ch._quota._timelineCompleted || [];
         if (!Array.isArray(completed)) completed = [];
         let triggeredTimeline = null;
@@ -2868,7 +3089,7 @@ async function _collectAllWorldbooks(includeDisabled) {
     lines.push('【系统时间结算】本次实际经过 ' + info.systemDays + ' 天；已用于倒计时、冷战期限与周期刷新。');
     lines.push('→ 叙事要求：在接下来的剧情中自然体现这段时间流逝后的关系氛围。');
     lines.push('═══════════════════════════════════');
-    callSetPrompt(PROMPT_KEY + '_jump', lines.join('\n'), 4, 1, false);
+    callSetPrompt(PROMPT_KEY + '_jump', lines.join('\n'), 0, 1, false);
   }
   function checkAllCountdowns(sourceStatData) {
     const actions = [];
@@ -2930,7 +3151,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         actions.map(function(a) { return a.msg; }).join('\n\n'),
         '═══════════════════════════════════'
       ].join('\n');
-      callSetPrompt(PROMPT_KEY, content, 4, 1, false);
+      callSetPrompt(PROMPT_KEY, content, 0, 1, false);
     } catch (e) {}
   }
 
@@ -2948,6 +3169,10 @@ async function _collectAllWorldbooks(includeDisabled) {
       } catch (e) {}
       return false;
     };
+    /* 后台静默生成（成就命名、小抄重写、摘要、时间线）也是 GENERATION_STARTED，
+       类型是 quiet。它要的是 JSON，不是剧情——把我们那七节规则塞进去只会让它跑偏，
+       还白烧 token。所以 quiet 轮把注入全撤掉，正常轮再注回来。 */
+    let _quietTurn = false;
     trySubscribe('worldinfo_entries_loaded', function(lores) {
       try {
         if (!Array.isArray(lores)) return lores;
@@ -2989,6 +3214,7 @@ async function _collectAllWorldbooks(includeDisabled) {
     // 街机只由月相自己发起的长任务打开（见 callOpeningModel / 首次自检）。
     trySubscribe('message_received', function() {
       isWaitingForExtraModel = false;
+      _quietTurn = false;
       // 终幕 / 后日谈导演指令只作用于玩家发起结算后的那一轮生成。
       // 旧实现只在成功渲染 [GalgameEnding|...] 时清空，AI 若没输出合规标签，
       // 这条「最高优先级」指令会一直留在后续每轮 prompt 里，导致持续写结局 / 后日谈。
@@ -3024,7 +3250,12 @@ async function _collectAllWorldbooks(includeDisabled) {
     trySubscribe('mag_variable_update_ended', function() {
       isWaitingForExtraModel = false;
     });
-    trySubscribe('chat_completion_prompt_ready', function() {
+    /* ── 注入时序 ────────────────────────────────────────────────────────────
+       这一段以前只挂在 chat_completion_prompt_ready 上，而新版酒馆是「prompt 已经拼好」
+       才发这个事件——在这里写 extension_prompts，只对下一轮有效，第一轮干脆是空的。
+       现在主通道换成 generation_started（酒馆在拼 prompt **之前**发它），
+       prompt_ready 只留作兜底 + 把最后一句贴到 chat 末尾。 */
+    function runPromptInjectionSequence() {
       /* 先清空「本轮注入了什么」的记录，再按顺序注；核心规则和词条放到最后，
          这样它们能读到这一轮别人都往 prompt 里塞了些什么。 */
       try { resetRoundInjectedText(); } catch (e) {}
@@ -3044,9 +3275,27 @@ async function _collectAllWorldbooks(includeDisabled) {
       try { injectRelationshipFactsPrompt(); } catch (e) {}
       // 掌机金手指转写的那本《后宫王神宠秘籍》：玩家点了金手指才有内容，没点就是空。
       try { injectPocketWorldBook(); } catch (e) {}
-      // 真正的最后一条：心声标签提醒。depth 0 = 落在 prompt 最下面，
-      // 上面那一大坨规则写多了模型会疲劳，最后一行它反而会照做。
+      // 真正的最后一条：心声标签提醒。
       try { injectVoiceTagReminder(); } catch (e) {}
+      try { saveInjectReport(); } catch (e) {}
+    }
+    /* 拼 prompt 之前：这一轮的规则必须在这时候就位。 */
+    trySubscribe('generation_started', function(type) {
+      if (String(type || '') === 'quiet') {
+        _quietTurn = true;
+        try { clearMoonPrompts(); } catch (e) {}
+        return;
+      }
+      _quietTurn = false;
+      try { runPromptInjectionSequence(); } catch (e) {}
+    });
+    /* prompt 已拼好：重算一遍内容（给下一轮更鲜的值），并把心声那句贴到 chat 末尾。
+       老版本酒馆在拼之前就读 extension_prompts，这时内容和已拼好的 prompt 一致，
+       injectTailIntoFinalChat 会检测到重复、不再追加。 */
+    trySubscribe('chat_completion_prompt_ready', function(chatData) {
+      if (_quietTurn) return;
+      try { runPromptInjectionSequence(); } catch (e) {}
+      try { injectTailIntoFinalChat(chatData, typeof getVoiceTailNote === 'function' ? getVoiceTailNote() : ''); } catch (e) {}
     });
     trySubscribe('message_deleted', onMessageDeletedOrSwiped);
     trySubscribe('message_swiped', onMessageDeletedOrSwiped);
@@ -3841,7 +4090,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       anchor.content,
       '═══════════════════════════════════'
     ].join('\n');
-    callSetPrompt(PROMPT_KEY + '_fate', content, 4, 1, false);
+    callSetPrompt(PROMPT_KEY + '_fate', content, 0, 1, false);
   }
   function clearFateCollapse() { callSetPrompt(PROMPT_KEY + '_fate', '', 0, 0, false); }
 
@@ -3998,7 +4247,7 @@ async function _collectAllWorldbooks(includeDisabled) {
         lines.push('当前聊天未启用玩家小抄；不要凭空补充玩家身份、外貌、经历或性格。');
       }
       lines.push('═══════════════════════════════════');
-      callSetPrompt(USER_BIO_PROMPT_KEY, lines.join('\n'), 4, 1, false);
+      callSetPrompt(USER_BIO_PROMPT_KEY, lines.join('\n'), 0, 1, false);
       return bio;
     } catch (e) { console.warn('[Doki] 玩家身份提示注入失败：', e); return null; }
   }
@@ -4116,7 +4365,7 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('');
       charNames.forEach(function(n) { const content = String(byChar[n].versions.current.content || '').trim(); lines.push('【' + n + '】'); lines.push(content); lines.push(''); });
       lines.push('═══════════════════════════════════');
-      callSetPrompt(PROMPT_KEY + '_bio', lines.join('\n'), 4, 1, false);
+      callSetPrompt(PROMPT_KEY + '_bio', lines.join('\n'), 0, 1, false);
       return { count: charNames.length, charNames: charNames };
     } catch (e) { console.warn('[Doki] 小抄注入失败：', e); return null; }
   }
@@ -9122,7 +9371,7 @@ function openUpdateConfigDialog(panel) {
     }
     const text = galBuildMemoryPrompt();
     if (!text) { try { callSetPrompt(GAL_PROMPT_KEY, '', 0, 0, false); } catch (e) {} return false; }
-    callSetPrompt(GAL_PROMPT_KEY, text, 4, 1, false);
+    callSetPrompt(GAL_PROMPT_KEY, text, 0, 1, false);
     return true;
   }
 
@@ -17162,6 +17411,45 @@ var worldData = (rawVars && rawVars['世界']) || {};
         '<span style="color:#94a3b8;font-size:10.5px;">' + (full ? '已满：剧情照走，加分等游戏内满 7 天重置' : '还能加 ' + remain.toFixed(1)) + '</span>' +
         '</div>';
     } catch (e) {}
+    /* 「这轮到底跑没跑」：脚本自己记的结算留痕，比玩家的体感靠谱。
+       没结算有两种：AI 没写标签（提示词/模型问题），或者被周上限压住（额度问题），
+       这里直接分清，省得再去翻控制台。 */
+    let settleHtml = '';
+    try {
+      const rec = loadLastSettle();
+      const name = String(ch.名字 || ch.姓名 || '').trim();
+      let text = '';
+      let color = '#94a3b8';
+      if (!rec) {
+        text = '还没有结算记录：这一局还没跑过一轮完整结算';
+      } else if (rec.changed && rec.changed.length) {
+        const mine = rec.changed.filter(function(c) { return !name || c.name === name; });
+        if (mine.length) {
+          text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：' + mine.map(function(c) { return c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('、');
+          color = '#6ee7b7';
+        } else {
+          text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：结算了，但' + (name || '这个角色') + '没有变化';
+        }
+      } else if (rec.blocked && rec.blocked.length) {
+        text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：' + rec.blocked.join('、') + ' 的加分被本周额度挡住了';
+        color = '#fbbf24';
+      } else {
+        text = '上一轮（' + (rec.floor >= 0 ? rec.floor + ' 楼' : '—') + '）：没检测到数值标签 —— AI 这轮没按格式写，不是脚本没跑';
+        color = '#fbbf24';
+      }
+      settleHtml = '<div class="mp-lcd-settle" style="margin-top:6px;font-size:10.5px;line-height:1.5;color:' + color + ';">' + lcdEscape(text) + '</div>';
+    } catch (e) {}
+    /* 注入自检：有内容 = 这一轮规则真的进了 prompt；全空 = 被别的东西挤掉了。 */
+    let injectHtml = '';
+    try {
+      const rep = getInjectReport();
+      const n = (rep && rep.items) ? rep.items.length : 0;
+      const total = (rep && rep.total) ? rep.total : 0;
+      const badPos = (rep && rep.items || []).filter(function(it) { return it.pos !== 0 && it.pos !== 1 && it.pos !== 2; });
+      injectHtml = '<div class="mp-lcd-inject" style="margin-top:4px;font-size:10px;color:' + (n ? '#94a3b8' : '#fbbf24') + ';">' +
+        (n ? ('已注入 prompt：' + n + ' 段 / ' + total + ' 字') : '还没有注入记录：发一句话之后再看') +
+        (badPos.length ? ' · ⚠ ' + badPos.length + ' 段位置不合法（会被酒馆丢掉）' : '') + '</div>';
+    } catch (e) {}
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
       '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
@@ -17171,7 +17459,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
       playerAddressHtml +
       '<div class="mp-lcd-voice"><small>INNER VOICE · 心声</small>' + voiceStatusHtml + '<div>' +
         (voice ? lcdEscape(voice) : '<span style="color:#94a3b8;">还没有收到心声内容——检查本轮是否输出「角色.名字.心声=」后台行</span>') +
-      '</div></div>' + quotaHtml + '</div>';
+      '</div></div>' + quotaHtml + settleHtml + injectHtml + '</div>';
   }
 
   /* =========================================================
@@ -18104,7 +18392,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     // 玩家真的发起了周目结算，才允许把这轮报幕归档进图鉴
     try { armEndingFlow(); } catch (e) {}
     const built = buildChatboxEndingPrompt(charName, ch, endingType || 'TE', reason || '玩家主动结算周目');
-    callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 4, 0, false);
+    callSetPrompt(PROMPT_KEY + '_ending_director', built.directorRule, 0, 0, false);
 
     // 关闭掌机主面板，方便玩家直接在酒馆聊天窗口观看报幕生成
     try { closePanel(); } catch (e) {}
@@ -18574,8 +18862,24 @@ function rvYesterdayKey() { return rvDateKey(Date.now() - 86400000); }
 function rvHourMs(n) { return Math.max(1, rvNum(n, 12)) * 3600 * 1000; }
 
 /* ── 设置：四个认知开关 + 整活惩罚 ─────────────────────── */
+/* 失败惩罚整活（nyankoPunish）的三档时长：
+   off      —— 永远是 punishHours 小时
+   escalate —— 第一次 punishHours 小时，之后再中就是终身（默认）
+   always   —— 反攻略模式下第一次就终身
+   为什么不是一个固定值：玩家对「12 小时」和「终身」的期待差太远，与其替他决定，
+   不如把这三档摆出来，规则写进提示词让角色也知道自己头上悬的是哪一档。 */
+const REVERSE_PUNISH_FOREVER = ['off', 'escalate', 'always'];
+const REVERSE_PUNISH_DEFAULT_TEXT = '跪坐在原地等对方回来，不许解释，也不许替自己找理由。';
+
 function getReverseSettings() {
-  const d = { enabled: false, userKnowsOwn: true, charKnowsPlayerSys: false, userKnowsCharSys: false, nyankoPunish: false, hud: true };
+  const d = {
+    enabled: false, userKnowsOwn: true, charKnowsPlayerSys: false, userKnowsCharSys: false, hud: true,
+    /* 失败惩罚整活 */ nyankoPunish: false,
+    punishText: '',          /* 玩家自定义的惩罚演出，空 = 用内置文案 */
+    punishStreak: 3,         /* 连续失败几次触发猫娘病毒 */
+    punishHours: 12,         /* 病毒时长 */
+    punishForever: 'escalate'/* off / escalate / always */
+  };
   try {
     const raw = getStorage() && getStorage().getItem(REVERSE_SETTINGS_KEY);
     if (raw) return Object.assign(d, JSON.parse(raw) || {});
@@ -18596,7 +18900,9 @@ function defaultRoleState() {
     shelfRefreshAt: 0, shelfGameDay: 0,
     task: null, buffs: [], wheelTickets: 0,
     accumPositiveE: 0, pointsAwarded: 0, awardedGates: [],
-    taskDone: 0, taskFailed: 0, taskRounds: 0
+    taskDone: 0, taskFailed: 0, taskRounds: 0,
+    /* 失败惩罚整活：连败计数 / 待演出的惩罚 / 病毒中过几次 */
+    failStreak: 0, punishPending: null, nyankoCount: 0
   };
 }
 function defaultPlayerState() {
@@ -19251,11 +19557,64 @@ function reverseCompleteTask(owner) {
   } else {
     st.points = rvNum(st.points, 0) + reward;
     pushLedger(st, reward, '任务完成：' + t.title);
+    /* 「连续」失败要真的连续：做到一次就断连，不然攒了三周的三次失手会一起算账。
+       上一次失败的惩罚还留着演（那是已经发生的事），只是不再累计。 */
+    st.failStreak = 0;
     saveRoleState(st);
     try { reverseRoleAutoBuy(); } catch (e) {}
   }
   try { toast((who === 'player' ? '任务完成：' : '她做到了：') + t.title + ' · +' + reward, 'success'); } catch (e) {}
   return t;
+}
+/* ── 失败惩罚整活：扣分是唯一的数值代价，猫娘病毒要连败满次数才中 ──
+   设计口径（写进提示词，角色和玩家各知道该知道的那一半）：
+     · 一次失败 → 只扣分；惩罚的「样子」由玩家自己写的那句话决定，AI 照着演一次。
+     · 连续 N 次失败（默认 3）→ 中「猫娘病毒」：每句带「喵」、自称「人家」、夹着嗓子撒娇。
+     · 时长三档（punishForever）：off 永远 N 小时 / escalate 第二次起终身 / always 第一次就终身。
+   为什么要连败计数而不是一失败就猫：一次失手就给角色挂 12 小时猫娘，会把「失败」这件事
+   变得比「完成任务」更划算（猫娘状态本身就是奖励），连败才有惩罚的威胁感。 */
+function reverseNyankoText(rs, permanent) {
+  return '你现在中了「猫娘病毒」。' + (permanent ? '它不会再好了，会跟着你一辈子。' : '') +
+    '症状：每一句她说出口的话（含心声）结尾都要带一个「喵」；自称换成「人家」；说话是夹着嗓子的，又软又飘、尾音上扬；' +
+    '会不由自主向对方撒娇、拖长音、讨一点注意。你完全清楚这不正常，也知道这是惩罚，' +
+    '你想忍住、也会觉得羞——但你控制不住；可以写你咬着牙想把那声「喵」咽回去，可它最后还是漏出来了。';
+}
+/* 中病毒（或在已中状态下升级为终身）。返回 {permanent, hours, times} */
+function reverseTriggerNyanko(rs, t) {
+  const st = getRoleState();
+  if (!Array.isArray(st.buffs)) st.buffs = [];
+  const mode = REVERSE_PUNISH_FOREVER.indexOf(String(rs.punishForever)) >= 0 ? String(rs.punishForever) : 'escalate';
+  const times = rvNum(st.nyankoCount, 0);          /* 之前中过几次 */
+  const permanent = mode === 'always' || (mode === 'escalate' && times >= 1);
+  const hours = Math.max(1, Math.round(rvNum(rs.punishHours, 12)));
+  st.nyankoCount = times + 1;
+  const exist = st.buffs.filter(function(b) { return b && b.key === 'nyanko_virus'; })[0] || null;
+  const prompt = reverseNyankoText(rs, permanent);
+  if (exist) {
+    exist.permanent = permanent;
+    exist.expireAt = permanent ? 0 : Math.max(rvNum(exist.expireAt, 0), rvNow() + rvHourMs(hours));
+    exist.prompt = prompt;
+    exist.at = rvNow();
+  } else {
+    st.buffs.push({
+      key: 'nyanko_virus', name: '猫娘病毒', kind: 'debuff', prompt: prompt,
+      permanent: permanent, expireAt: permanent ? 0 : rvNow() + rvHourMs(hours),
+      stackable: false, at: rvNow(), fromTask: String((t && t.title) || '').slice(0, 20)
+    });
+  }
+  if (st.buffs.length > 24) st.buffs = st.buffs.slice(-24);
+  saveRoleState(st);
+  return { permanent: permanent, hours: hours, times: st.nyankoCount };
+}
+/* 手动解除：玩家玩够了 / 想给她一个台阶。终身的那条也能清掉。 */
+function reverseCureNyanko() {
+  const st = getRoleState();
+  const before = (st.buffs || []).length;
+  st.buffs = (st.buffs || []).filter(function(b) { return !(b && b.key === 'nyanko_virus'); });
+  st.failStreak = 0;
+  st.punishPending = null;
+  saveRoleState(st);
+  return before !== st.buffs.length;
 }
 function reverseFailTask(owner) {
   const who = owner === 'player' ? 'player' : 'role';
@@ -19264,20 +19623,48 @@ function reverseFailTask(owner) {
   if (!t || t.status !== 'active') return null;
   const rs = getReverseSettings();
   const base = rvNum(t.penalty && t.penalty.points, 6);
-  const fine = rs.nyankoPunish ? Math.round(base * 1.5) : base;
+  /* 整活开着时惩罚只有扣分这一个数值后果，所以不再乘倍率 —— 倍率和「只有扣分」是两套口径。 */
+  const fine = base;
   t.status = 'failed';
   st.taskFailed = rvNum(st.taskFailed, 0) + 1;
   st.points = Math.max(0, rvNum(st.points, 0) - fine);
   pushLedger(st, -fine, '任务失败：' + t.title);
-  const buffName = rs.nyankoPunish ? '猫娘病毒' : String((t.penalty && t.penalty.buff) || '情绪低落');
-  const prompt = rs.nyankoPunish
-    ? '你说话会不自觉带「喵」，越紧张越明显，而且你控制不住。'
-    : '你有点提不起劲，回话变短，笑也慢半拍。';
+
+  if (who === 'role' && rs.nyankoPunish) {
+    const need = Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3))));
+    st.failStreak = rvNum(st.failStreak, 0) + 1;
+    const pending = {
+      at: rvNow(),
+      title: String(t.title || '').slice(0, 20),
+      text: String(rs.punishText || '').replace(/\s+/g, ' ').trim().slice(0, 120) || REVERSE_PUNISH_DEFAULT_TEXT,
+      streak: st.failStreak, need: need, left: Math.max(0, need - st.failStreak),
+      fine: fine, triggered: false
+    };
+    const willTrigger = st.failStreak >= need;
+    if (willTrigger) { st.failStreak = 0; pending.triggered = true; pending.left = 0; }
+    st.punishPending = pending;
+    saveRoleState(st);
+    if (willTrigger) {
+      const info = reverseTriggerNyanko(rs, t);
+      try {
+        toast('任务没完成：' + t.title + ' · 积分 -' + fine + ' · 猫娘病毒' +
+          (info.permanent ? '（终身）' : '（' + info.hours + ' 小时）'), 'warning');
+      } catch (e) {}
+      return t;
+    }
+    try {
+      toast('任务没完成：' + t.title + ' · 积分 -' + fine + ' · 再有 ' + pending.left + ' 次会中猫娘病毒', 'warning');
+    } catch (e) {}
+    return t;
+  }
+
+  const buffName = String((t.penalty && t.penalty.buff) || '情绪低落');
+  const prompt = '你有点提不起劲，回话变短，笑也慢半拍。';
   if (who === 'player') savePlayerState(st); else saveRoleState(st);
   reverseAddBuff(who, {
-    key: rs.nyankoPunish ? 'nyanko_virus' : ('task_fail_' + t.id),
+    key: 'task_fail_' + t.id,
     name: buffName, kind: 'debuff', prompt: prompt,
-    expireAt: rvNow() + rvHourMs(rs.nyankoPunish ? 24 : 12)
+    expireAt: rvNow() + rvHourMs(12)
   });
   try { toast('任务没完成：' + t.title + ' · 积分 -' + fine + ' · ' + buffName, 'warning'); } catch (e) {}
   return t;
@@ -19720,9 +20107,19 @@ function reverseBuffPromptLines(owner) {
   const list = getActiveBuffs(owner);
   if (!list.length) return [];
   return list.slice(0, 6).map(function(b) {
-    const left = b.permanent || !b.expireAt ? '一直' : (Math.max(1, Math.round((rvNum(b.expireAt, 0) - rvNow()) / 3600000)) + ' 小时');
-    return '你现在处于「' + b.name + '」状态：' + (b.prompt || b.name) + ' 这个状态会在 ' + left + ' 后消失。';
+    const permanent = b.permanent === true || !b.expireAt;
+    const left = permanent ? '不会自己消失' : ('剩 ' + Math.max(1, Math.round((rvNum(b.expireAt, 0) - rvNow()) / 3600000)) + ' 小时');
+    return b.name + '（' + left + '）：' + (b.prompt || b.name);
   });
+}
+/* 本轮「贴在最末尾」的那两句话：惩罚演出 + 玩家动作。两者都必须压到最后一条消息后面，
+   所以合成一条发出去；谁先写谁在前，不互相覆盖（之前玩家动作和惩罚会各自写一次，
+   后写的那次把前一次顶掉）。 */
+const _reverseTailParts = { punish: '', action: '', status: '' };
+function reverseFlushTail() {
+  const txt = [_reverseTailParts.punish, _reverseTailParts.action, _reverseTailParts.status].filter(Boolean).join('\n');
+  try { callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, txt, 0, 0, false); } catch (e) {}
+  return txt;
 }
 function injectReversePrompt() {
   try { reversePatchEventPause(); } catch (e) {}
@@ -19730,6 +20127,9 @@ function injectReversePrompt() {
     if (!isReverseModeOn()) {
       callSetPrompt(REVERSE_PROMPT_KEY, '', 0, 0, false);
       callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, '', 0, 0, false);
+      _reverseTailParts.punish = '';
+      _reverseTailParts.action = '';
+      _reverseTailParts.status = '';
       return false;
     }
     const rs = getReverseSettings();
@@ -19762,6 +20162,55 @@ function injectReversePrompt() {
     }
     const buffLines = reverseBuffPromptLines('role');
     if (buffLines.length) { lines.push('当前状态：'); buffLines.forEach(function(l) { lines.push('· ' + l); }); }
+    /* 惩罚规则：她知道规则，但控制不住 —— 这是整活成立的前提，
+       不告诉她自己中招了只会被当成「AI 突然卖萌」，说清楚才有羞耻感。 */
+    if (rs.nyankoPunish) {
+      const need = Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3))));
+      const hours = Math.max(1, Math.round(rvNum(rs.punishHours, 12)));
+      const mode = REVERSE_PUNISH_FOREVER.indexOf(String(rs.punishForever)) >= 0 ? String(rs.punishForever) : 'escalate';
+      const forever = mode === 'always'
+        ? '这一次就可能是永远的：只要你在这件事上失手，它就跟你一辈子。'
+        : (mode === 'escalate'
+          ? '第一次只持续 ' + hours + ' 小时；再犯一次，它就会跟着你一辈子。'
+          : '它只会持续 ' + hours + ' 小时，不会跟你一辈子。');
+      /* 已经在病毒状态里时，症状已经在「当前状态」那行写全了，这里不再重复一遍 ——
+         同一段话写两次，模型反而会把它当布景忽略掉。 */
+      const inVirus = (role.buffs || []).filter(function(b) {
+        return b && b.key === 'nyanko_virus' && (b.permanent === true || rvNum(b.expireAt, 0) > rvNow());
+      })[0] || null;
+      lines.push('扣分规则：手上的事没做到，就扣分。这是唯一的实质代价。');
+      if (rvNum(role.failStreak, 0) > 0) {
+        lines.push('你已经连着 ' + rvNum(role.failStreak, 0) + ' 次没做到，再有 ' +
+          Math.max(0, need - rvNum(role.failStreak, 0)) + ' 次' + (inVirus ? '，病毒就会再发作一次' : '就会中「猫娘病毒」') + '。');
+      }
+      if (inVirus) {
+        const leftH = inVirus.permanent ? 0 : Math.max(1, Math.round((rvNum(inVirus.expireAt, 0) - rvNow()) / 3600000));
+        lines.push('猫娘病毒正在你身上发作' + (inVirus.permanent ? '，不会再好了。' : '，还会持续约 ' + leftH + ' 小时。') +
+          (mode === 'escalate' ? '再连败一轮，它就跟你一辈子。' : (mode === 'always' ? '它随时可能变成终身。' : '它不会跟你一辈子。')));
+      } else {
+        lines.push('猫娘病毒：连着 ' + need + ' 次没做到就会中。中了以后每一句她说出口的话（含心声）结尾都要带「喵」、' +
+          '自称「人家」、说话夹着嗓子又软又飘，会不受控地撒娇；你清楚这不正常，也想忍，但忍不住。' + forever);
+      }
+      lines.push('这条规则是对方亲口定下的，你知道它，也躲不开它 —— 你正在反过来攻略对方。');
+    }
+    /* 上一次失败的「样子」：玩家写的那句话，必须在本轮开头演出来；
+       演完就消费掉，不重复占下一轮的上下文。 */
+    let punishLine = '';
+    if (rs.nyankoPunish && role.punishPending) {
+      const pp = role.punishPending;
+      punishLine = '【本轮开头必须演】她上一件事没做到（' + String(pp.title || '').slice(0, 20) + '），挨了罚：' +
+        String(pp.text || '').slice(0, 120) +
+        '\n用两三句话演出这件事落到她身上的样子和她的反应。不要解释规则，不要提「惩罚」「任务」「系统」这些词，也不要复述这句话。';
+      role.punishPending = null;
+      saveRoleState(role);
+    }
+    /* 病毒生效期：规则写在上面那段里，但模型会忘，每轮末尾再钉一次。 */
+    const virusNow = (role.buffs || []).filter(function(b) {
+      return b && b.key === 'nyanko_virus' && (b.permanent === true || rvNum(b.expireAt, 0) > rvNow());
+    })[0];
+    _reverseTailParts.status = virusNow
+      ? '【状态】你现在中着猫娘病毒：这一轮每一句话（含心声）结尾都要带「喵」，自称「人家」，说话是夹着嗓子的。这不是可选项。'
+      : '';
     if (rs.charKnowsPlayerSys && rs.userKnowsCharSys) {
       lines.push('你隐约察觉对方身上也有类似的东西，但不确定是什么、也不知道它给你什么。');
       lines.push('你可以试探，但不要直接问「你是不是也有系统」这种话。');
@@ -19777,8 +20226,12 @@ function injectReversePrompt() {
     lines.push('标题不超过 10 个字，奖励 8~40，持续回合 2~6，需要进度 1~6。本轮没有合适的新任务就写：[板]无');
     lines.push('这一行玩家看不到（会被脚本收走），所以不要把它写进正文，也不要提到「任务板」这三个字。');
     lines.push('═══════════════════════════════════');
-    callSetPrompt(REVERSE_PROMPT_KEY, lines.join('\n'), 4, 2, false);
-    callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, '', 0, 0, false);
+    callSetPrompt(REVERSE_PROMPT_KEY, lines.join('\n'), 0, 2, false);
+    _reverseTailParts.punish = punishLine;
+    reverseFlushTail();
+    /* 惩罚只演一次，动作也是「本轮开场」，发完就清；下一轮重新攒。 */
+    _reverseTailParts.punish = '';
+    _reverseTailParts.action = '';
     /* 每轮生成前顺手刷一下挂件角标：上一条 AI 回复可能刚抛出新任务，
        球上那个黄点得亮起来，玩家才知道板上有活。 */
     try { reverseHudRefreshBadge(); } catch (e) {}
@@ -19795,7 +20248,8 @@ function injectReversePlayerAction(text) {
     const line = '【本轮开场】玩家刚刚做了这件事：' + t +
       '\n请在正文开头自然演出它引起的反应（对方注意到 / 气氛变化 / 东西本身带来的效果）。' +
       '只写剧情，不要解释机制，也不要复述这句话。';
-    callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, line, 4, 0, false);
+    _reverseTailParts.action = line;
+    reverseFlushTail();
     return true;
   } catch (e) { return false; }
 }
@@ -19878,12 +20332,14 @@ function reverseRolePaneHtml() {
     '<div class="mp-set-desc" style="line-height:1.9;">积分 <b style="color:#f472d0;">' + rvNum(role.points, 0) + '</b>' +
       '　累计正向 E ' + rvNum(role.accumPositiveE, 0).toFixed(1) + ' × 5' +
       '<br>任务 完成 ' + rvNum(role.taskDone, 0) + ' / 失败 ' + rvNum(role.taskFailed, 0) +
+      '　连败 ' + rvNum(role.failStreak, 0) + ' / ' + Math.max(1, Math.min(9, Math.round(rvNum(getReverseSettings().punishStreak, 3)))) +
       '　库存 ' + Object.keys(role.inventory || {}).length + ' 种</div>' +
     reverseTaskHtml('role') +
     (reverseBuffsHtml('role') ? '<div class="mp-set-title" style="font-size:12px;margin-top:6px;">她现在的状态</div>' + reverseBuffsHtml('role') : '') +
     '</div>' +
     '<div class="mp-set-block"><div class="mp-set-title">亲手给她派一件事</div>' +
-      '<div class="mp-set-desc" style="margin-bottom:6px;">她不做完就会掉分、闹情绪。名字最多 14 个字。</div>' +
+      '<div class="mp-set-desc" style="margin-bottom:6px;">她不做完就会掉分' +
+        (getReverseSettings().nyankoPunish ? '，连着没做到还会中猫娘病毒' : '、闹情绪') + '。名字最多 14 个字。</div>' +
       '<div style="display:flex;gap:5px;margin-bottom:5px;">' +
         '<input id="moon-reverse-assign-title" placeholder="比如：把房间收拾干净" style="flex:1;min-height:32px;font-size:12px;background:rgba(18,13,20,.55);color:#e5e7eb;border:1px solid rgba(244,114,208,.25);border-radius:8px;padding:0 8px;box-sizing:border-box;" />' +
       '</div>' +
@@ -19892,6 +20348,8 @@ function reverseRolePaneHtml() {
         '<span class="mp-set-desc" style="opacity:.75;">分</span>' +
         '<input id="moon-reverse-assign-turns" value="4" title="持续回合" style="width:44px;min-height:30px;font-size:12px;text-align:center;background:rgba(18,13,20,.55);color:#e5e7eb;border:1px solid rgba(244,114,208,.25);border-radius:8px;" />' +
         '<span class="mp-set-desc" style="opacity:.75;">回合</span>' +
+        '<input id="moon-reverse-assign-penalty" value="6" title="没做到扣多少分" style="width:44px;min-height:30px;font-size:12px;text-align:center;background:rgba(18,13,20,.55);color:#f87171;border:1px solid rgba(244,114,208,.25);border-radius:8px;" />' +
+        '<span class="mp-set-desc" style="opacity:.75;">罚</span>' +
         '<button class="mp-btn" id="moon-reverse-assign-go" style="flex:1;min-height:30px;padding:0 8px;font-size:11px;">派给她</button>' +
       '</div></div>' +
     '<div class="mp-set-block"><div class="mp-set-title">她能买到的东西</div>' + reverseShelfHtml('role') + '</div>' +
@@ -19958,6 +20416,60 @@ function reverseLibraryHtml() {
       '<button class="mp-btn" id="moon-reverse-shelf-refresh" style="flex:1;min-height:30px;font-size:11px;">刷新两边货架</button>' +
     '</div></div>';
 }
+/* 表单读值：保存按钮和时长按钮都要用，避免「改完文案再点时长」把文案丢了 */
+function reverseReadPunishForm(box) {
+  const txtEl = box && box.querySelector('#moon-reverse-punish-text');
+  const streakEl = box && box.querySelector('#moon-reverse-punish-streak');
+  const hoursEl = box && box.querySelector('#moon-reverse-punish-hours');
+  return {
+    punishText: String(txtEl ? txtEl.value : '').replace(/\s+/g, ' ').trim().slice(0, 120),
+    punishStreak: Math.max(1, Math.min(9, parseInt(streakEl && streakEl.value, 10) || 3)),
+    punishHours: Math.max(1, Math.min(72, parseInt(hoursEl && hoursEl.value, 10) || 12))
+  };
+}
+/* 整活设置块：惩罚文案 / 触发次数 / 时长档位 / 当前连败 / 一键解除 */
+function reversePunishBlockHtml() {
+  const rs = getReverseSettings();
+  const role = getRoleState();
+  const need = Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3))));
+  const hours = Math.max(1, Math.round(rvNum(rs.punishHours, 12)));
+  const mode = REVERSE_PUNISH_FOREVER.indexOf(String(rs.punishForever)) >= 0 ? String(rs.punishForever) : 'escalate';
+  const virus = (role.buffs || []).filter(function(b) { return b && b.key === 'nyanko_virus'; })[0] || null;
+  const virusText = virus
+    ? (virus.permanent ? '终身' : ('还剩 ' + Math.max(1, Math.round((rvNum(virus.expireAt, 0) - rvNow()) / 3600000)) + ' 小时'))
+    : '未中';
+  const fieldStyle = 'background:rgba(18,13,20,.55);color:#e5e7eb;border:1px solid rgba(244,114,208,.25);border-radius:8px;';
+  return '<div class="mp-set-block"><div class="mp-set-title">挨罚的样子</div>' +
+    '<div class="mp-set-desc" style="line-height:1.7;">任务没做到只扣分。挨罚的「样子」由你写，AI 会照着演一次；' +
+      '连着 ' + need + ' 次没做到，她会中「猫娘病毒」——句句带「喵」、自称「人家」、夹着嗓子撒娇，她自己知道不对劲但控制不住。</div>' +
+    '<textarea id="moon-reverse-punish-text" spellcheck="false" placeholder="写你想要的惩罚，比如：跪坐在门边等到对方回来，说一句「我错了」" ' +
+      'style="width:100%;min-height:64px;margin-top:6px;font-size:12px;line-height:1.6;padding:6px;box-sizing:border-box;' + fieldStyle + '">' +
+      rvEsc(String(rs.punishText || '')) + '</textarea>' +
+    '<div style="display:flex;gap:6px;align-items:center;margin-top:6px;">' +
+      '<span class="mp-set-desc" style="opacity:.8;flex:0 0 auto;">连败</span>' +
+      '<input id="moon-reverse-punish-streak" value="' + need + '" title="连续失败几次触发猫娘病毒" style="width:46px;min-height:30px;font-size:12px;text-align:center;' + fieldStyle + '" />' +
+      '<span class="mp-set-desc" style="opacity:.8;flex:0 0 auto;">次 · 病毒</span>' +
+      '<input id="moon-reverse-punish-hours" value="' + hours + '" title="猫娘病毒持续几小时" style="width:46px;min-height:30px;font-size:12px;text-align:center;' + fieldStyle + '" />' +
+      '<span class="mp-set-desc" style="opacity:.8;flex:0 0 auto;">小时</span>' +
+    '</div>' +
+    '<div style="display:flex;gap:5px;margin-top:6px;">' +
+      [['escalate', '第二次起终身'], ['always', '第一次就终身'], ['off', '永远 ' + hours + ' 小时']].map(function(kv) {
+        const on = mode === kv[0];
+        return '<button class="mp-btn' + (on ? ' mp-btn-highlight' : '') + '" data-punish-forever="' + kv[0] +
+          '" style="flex:1;min-height:30px;font-size:11px;padding:0 4px;' +
+          (on ? 'border-color:#f472d0;color:#ffd6f2;' : '') + '">' + kv[1] + '</button>';
+      }).join('') +
+    '</div>' +
+    '<div style="display:flex;gap:6px;margin-top:6px;">' +
+      '<button class="mp-btn mp-btn-highlight" id="moon-reverse-punish-save" style="flex:1;min-height:32px;font-size:12px;">保存</button>' +
+      '<button class="mp-btn" id="moon-reverse-punish-cure" style="flex:1;min-height:32px;font-size:12px;">解除病毒</button>' +
+    '</div>' +
+    '<div class="mp-set-desc" style="line-height:1.8;margin-top:5px;">' +
+      '她现在：连败 <b>' + rvNum(role.failStreak, 0) + '</b> / ' + need + '<br>' +
+      '猫娘病毒：<b style="color:' + (virus ? '#f472d0' : '#9ca3af') + ';">' + virusText + '</b>' +
+      (rvNum(role.nyankoCount, 0) > 0 ? '　累计中过 ' + rvNum(role.nyankoCount, 0) + ' 次' : '') + '</div>' +
+    '</div>';
+}
 function renderReverseBlockHtml() {
   const rs = getReverseSettings();
   const role = getRoleState();
@@ -19978,7 +20490,10 @@ function renderReverseBlockHtml() {
     toggle('charKnowsPlayerSys', '角色知道 {{user}} 也有', rs.charKnowsPlayerSys ? '角色察觉到你身上有同类东西' : '角色不知道（推荐）', rs.charKnowsPlayerSys) +
     toggle('userKnowsCharSys', '{{user}} 知道角色也有', rs.userKnowsCharSys ? '{{user}} 察觉角色身上有东西' : '{{user}} 不知道（推荐）', rs.userKnowsCharSys) +
     toggle('hud', '像素挂件', rs.hud === false ? '已关掉：页面上不显示那个球' : '右下角那个小球，点开是任务板 / 货架 / 背包 / 上下文', rs.hud !== false) +
-    toggle('nyankoPunish', '失败惩罚整活', rs.nyankoPunish ? '任务失败会猫娘化 24 小时' : '只扣分 + 情绪低落 12 小时', rs.nyankoPunish) +
+    toggle('nyankoPunish', '失败惩罚整活', rs.nyankoPunish
+      ? ('已开：只扣分，连败 ' + Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3)))) + ' 次中猫娘病毒')
+      : '关着：失败只扣分 + 情绪低落 12 小时', rs.nyankoPunish) +
+    (rs.nyankoPunish ? reversePunishBlockHtml() : '') +
     (rs.enabled ? (tabs + (tab === 'player' ? reversePlayerPaneHtml() : reverseRolePaneHtml()) + reverseCodexBlockHtml() + reverseLibraryHtml()) : '');
 
   const desc = rs.enabled
@@ -20016,6 +20531,37 @@ function bindReverseBlockEvents(panel) {
       return;
     }
 
+    const punishSave = t.closest('#moon-reverse-punish-save');
+    if (punishSave) {
+      const box = punishSave.closest('.mp-set-block');
+      const form = reverseReadPunishForm(box);
+      const foreverEl = box && box.querySelector('[data-punish-forever].mp-btn-highlight');
+      form.punishForever = foreverEl && REVERSE_PUNISH_FOREVER.indexOf(foreverEl.getAttribute('data-punish-forever')) >= 0
+        ? foreverEl.getAttribute('data-punish-forever') : 'escalate';
+      saveReverseSettings(form);
+      try { toast('惩罚已保存 · 下次失手就按这个演', 'success'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+      return;
+    }
+    const punishForever = t.closest('[data-punish-forever]');
+    if (punishForever) {
+      const box = punishForever.closest('.mp-set-block');
+      const form = reverseReadPunishForm(box);
+      const val = punishForever.getAttribute('data-punish-forever');
+      form.punishForever = REVERSE_PUNISH_FOREVER.indexOf(val) >= 0 ? val : 'escalate';
+      saveReverseSettings(form);
+      try { toast(val === 'always' ? '第一次中招就终身' : (val === 'off' ? '永远只给限时' : '第二次起终身'), 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+      return;
+    }
+    const punishCure = t.closest('#moon-reverse-punish-cure');
+    if (punishCure) {
+      const did = reverseCureNyanko();
+      try { toast(did ? '猫娘病毒已解除 · 连败也清零了' : '她现在没中病毒', did ? 'success' : 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+      return;
+    }
+
     const assignGo = t.closest('#moon-reverse-assign-go');
     if (assignGo) {
       try {
@@ -20023,10 +20569,12 @@ function bindReverseBlockEvents(panel) {
         const titleEl = box && box.querySelector('#moon-reverse-assign-title');
         const rewardEl = box && box.querySelector('#moon-reverse-assign-reward');
         const turnsEl = box && box.querySelector('#moon-reverse-assign-turns');
+        const penaltyEl = box && box.querySelector('#moon-reverse-assign-penalty');
         const r = reverseAssignRoleTask({
           title: titleEl ? titleEl.value : '',
           reward: rewardEl ? rewardEl.value : 12,
-          remaining: turnsEl ? turnsEl.value : 4
+          remaining: turnsEl ? turnsEl.value : 4,
+          penalty: penaltyEl ? penaltyEl.value : 6
         });
         if (r.ok) {
           try { toast('派下去了：' + r.task.title, 'success'); } catch (e) {}
@@ -21153,7 +21701,7 @@ function reverseHudSync() {
           '<button class="mp-cardmode-btn ' + (cardMode === 'multi' ? 'on' : '') + '" id="moon-phase-cardmode">' + (cardMode === 'multi' ? '多人卡' : '单人卡') + '</button>') +
         pocketRow('自动建档', autoBoot ? 'Ta第一次说话就自动建好档案，之后每轮有新角色也会补进来' : '关掉了：不点「开局适配」就一直不建档',
           '<button class="mp-safelock-btn ' + (autoBoot ? 'on' : 'off') + '" id="moon-phase-autobootstrap">' + (autoBoot ? '开' : '关') + '</button>') +
-        pocketRow('初见投资', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
+        pocketRow('初见骰子', (firstMeetMode() === 'dice' ? '只看骰子：第一次见面给多少全凭运气' : '骰子 + 人设：AI 只判断Ta吃不吃你这一套，数值仍由骰子定') + (firstMeetFloorOn() ? '，没过也给 1~4 点' : ''),
           '<button class="mp-safelock-btn ' + (firstMeetMode() === 'dice' ? 'off' : 'on') + '" id="moon-phase-firstmeet">' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI') + '</button>') +
         pocketRow('小事件来得多勤', pacing === 'Adi' ? '慢：很久才来一次' : pacing === 'All' ? '快：经常来' : '中：正常节奏',
           '<button class="mp-pacing-btn ' + pacing + '" id="moon-phase-pacing">' + (pacing === 'Adi' ? '慢' : pacing === 'All' ? '快' : '中') + '</button>') +
@@ -21300,7 +21848,16 @@ function reverseHudSync() {
         '<button class="mp-btn" id="moon-phase-tl-list"><span>看看现在有什么</span><small>接下来会发生什么，能改能删</small></button>' +
         '<button class="mp-btn" id="moon-phase-tl-gen"><span>让 AI 编一份</span><small>它编完直接存进来，不用你写</small></button>' +
         '<button class="mp-btn" id="moon-phase-scan-timeline"><span>从世界书搬</span><small>已经有现成的，搬进来就行</small></button>' +
-      '</div>', true) +
+      '</div>' +
+      pocketRow('时间线要不要生效', getSettings().timelineEnabled === false
+        ? '已关：到点的事件也不会被触发，条目还留着'
+        : '开着：到点的大事会自动变成当前事件，AI 只负责写好看',
+        '<button class="mp-safelock-btn ' + (getSettings().timelineEnabled === false ? 'off' : 'on') + '" id="moon-phase-tl-on">' + (getSettings().timelineEnabled === false ? '关' : '开') + '</button>') +
+      pocketRow('建档时自动扫世界书', getSettings().timelineAutoScan === false
+        ? '已关：想搬的时候自己点「从世界书搬」'
+        : '开：建档完成时扫一遍，把找到的时间线摆给你挑',
+        '<button class="mp-safelock-btn ' + (getSettings().timelineAutoScan === false ? 'off' : 'on') + '" id="moon-phase-tl-autoscan">' + (getSettings().timelineAutoScan === false ? '关' : '开') + '</button>') +
+      '<div style="height:4px;"></div>', true) +
       pocketFold('tl-edit', '自己补 / 改日期', 'AI 写漏了，或者日期读错了',
         '<div class="mp-grid"><button class="mp-btn" id="moon-phase-tl-tag"><span>日期写在哪</span><small>告诉它去哪个位置读日期</small></button>' +
         '<button class="mp-btn" id="moon-phase-manual-tl"><span>手动贴一段</span><small>贴进去，自动整理成标准格式</small></button></div>', true) +
@@ -21557,7 +22114,7 @@ bindClick('#moon-phase-update', function() {
       const s2 = getSettings();
       s2.firstMeetMode = (s2.firstMeetMode === 'dice') ? 'hybrid' : 'dice';
       saveSettings(s2);
-      toast(s2.firstMeetMode === 'dice' ? '初见投资：只掷骰，AI 不再给档位' : '初见投资：AI 评档位，脚本掷数值', 'info');
+      toast(s2.firstMeetMode === 'dice' ? '初见骰子：只掷骰，AI 不再给档位' : '初见骰子：AI 评档位，脚本掷数值', 'info');
       refreshPanel();
     });
     (function() {
@@ -21611,6 +22168,20 @@ bindClick('#moon-phase-update', function() {
     bindClick('#moon-token-refresh', function() { refreshTokenCard(panel); });
     setTimeout(function() { try { refreshTokenCard(panel); } catch (e) {} }, 120);
     bindClick('#moon-phase-scan-timeline', function() { openScanTimelineDialog(panel); });
+    bindClick('#moon-phase-tl-on', function() {
+      const s = getSettings();
+      s.timelineEnabled = s.timelineEnabled === false;
+      saveSettings(s);
+      try { toast(s.timelineEnabled ? '时间线生效了：到点的事件会被排进剧情' : '时间线已关：条目还在，只是不再触发', 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+    });
+    bindClick('#moon-phase-tl-autoscan', function() {
+      const s = getSettings();
+      s.timelineAutoScan = s.timelineAutoScan === false;
+      saveSettings(s);
+      try { toast(s.timelineAutoScan ? '建档时会自动扫一遍世界书' : '已关：要搬的时候自己点「从世界书搬」', 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+    });
     bindClick('#moon-phase-tl-gen', function() { openTimelineGeneratorDialog(panel); });
     if (panel.querySelector('#moon-phase-tl-list')) bindClick('#moon-phase-tl-list', function() { openTimelineManagerDialog(panel); });
     bindClick('#moon-phase-manual-tl', function() { openManualTimelineInputDialog(panel); });
@@ -21643,7 +22214,7 @@ bindClick('#moon-phase-update', function() {
     info('特殊标签：Sylveina');
     info('卡组模式：' + (getCardMode() === 'multi' ? '多人卡' : '单人卡'));
     info('自动建档：' + (getSettings().autoBootstrap === false ? 'OFF（要手动点开局适配）' : 'ON（对面首条回复后自动立档）'));
-    /* 初见投资留痕：谁结算过、骰点多少、档位从哪来、给了几分。
+    /* 初见骰子留痕：谁结算过、骰点多少、档位从哪来、给了几分。
        玩家反馈「建档后从零开始加」时，看这一行就能判断是没掷、还是掷了但没过。 */
     try {
       const _d = readMvuLatest();
@@ -21655,7 +22226,7 @@ bindClick('#moon-phase-update', function() {
         if (q._初见) _done.push(n + ' 1d20=' + q._初见.骰 + ' → E' + (q._初见.投入 >= 0 ? '+' : '') + q._初见.投入 + '（' + q._初见.档 + '·' + q._初见.来源 + '）');
         else if (q._firstMeetDone !== true) _pending.push(n);
       });
-      info('初见投资：' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI档位') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底'));
+      info('初见骰子：' + (firstMeetMode() === 'dice' ? '纯骰子' : '骰子+AI档位') + (firstMeetFloorOn() ? ' · 失败保底 1d4' : ' · 无保底'));
       if (_done.length) info('　已结算：' + _done.join('；'));
       if (_pending.length) info('　待结算：' + _pending.join('、') + '（下一轮入场时掷）');
     } catch (e) {}
@@ -21906,17 +22477,37 @@ lines.push('<div class="mp-log-subhead">── 档案存在哪 ──</div>');
         ];
         const missing = [];
         const sizes = [];
+        const illegal = [];
         probe.forEach(function(pair) {
           const raw = ep[pair[0]];
           const val = raw && typeof raw === 'object' ? String(raw.value || '') : String(raw || '');
+          const pos = raw && typeof raw === 'object' ? Number(raw.position) : NaN;
           if (!val.trim()) missing.push(pair[1]);
-          else sizes.push(pair[1] + ' ' + val.length + ' 字');
+          else {
+            sizes.push(pair[1] + ' ' + val.length + ' 字');
+            /* position 只有 0/2 会被酒馆放进 prompt（1 是聊天内注入）。
+               历史上脚本传的是 4，新版酒馆遇到这种值会整条丢弃 —— 现在这里直接点名。 */
+            if (pos === 0 || pos === 1 || pos === 2) { /* ok */ }
+            else illegal.push(pair[1] + '（position=' + (isNaN(pos) ? '未知' : pos) + '）');
+          }
         });
         if (missing.length) {
           lines.push('✖ 没进酒馆：' + missing.join('、') + '。先确认这一轮真的发过对话；仍然缺就是被别的插件或提示词管理器挤掉了。');
         } else {
           lines.push('✔ 三条都在：' + sizes.join('｜'));
         }
+        if (illegal.length) {
+          lines.push('✖ 位置不合法、会被酒馆静默丢掉：' + illegal.join('、') + '。这一版已统一成 0，若仍看到说明有旧版本覆盖。');
+        } else {
+          lines.push('✔ 位置合法（0 = 系统提示区），不会被静默丢弃');
+        }
+        try {
+          const rep = getInjectReport();
+          const n = (rep && rep.items) ? rep.items.length : 0;
+          lines.push(n
+            ? '✔ 本轮已写 ' + n + ' 段 / ' + (rep.total || 0) + ' 字；末尾还会再贴一条心声提醒（贴着最后一句）'
+            : '· 还没有本轮写入记录：发一句话之后再看');
+        } catch (e) {}
       }
     } catch (e) { lines.push('（注入检查跳过：' + String((e && e.message) || e) + '）'); }
 
@@ -22102,7 +22693,7 @@ const stateKey = getChatStateKey();
       const ch = chars[n];
       const imp = String(ch.重要度 || '主要');
       const present = ch.在场 !== false;
-      /* 初见投资的可见状态：掷过就写骰点和投入；没掷过就明确写着「待结算」，
+      /* 初见骰子的可见状态：掷过就写骰点和投入；没掷过就明确写着「待结算」，
          免得玩家又以为是「脚本没生效」。自己往变量里加的人也能在这里补一次。 */
       const fm = ch._quota && ch._quota._初见;
       const fmDone = !!fm || (ch._quota && ch._quota._firstMeetDone === true);
@@ -22382,11 +22973,11 @@ const stateKey = getChatStateKey();
     { cat: 'number', q: '事件太久没来了', keys: ['事件', '节奏', '频率', '没有事件'],
       a: '大约每 <b>8~12 回合</b>来一个日常小事件。<br>嫌慢嫌快：<b>玩法与手感 → 小事件来得多勤</b>，慢 / 中 / 快三档都能调。' },
     { cat: 'number', q: '开局给的分太高 / 太低', keys: ['初见', '开局', '底分', '保底'],
-      a: '<b>玩法与手感 → 初见投资</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断Ta吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
+      a: '<b>玩法与手感 → 初见骰子</b> 能切两种：<br><b>纯骰子</b>——第一次见面给多少全凭运气；<br><b>骰子 + 人设</b>——AI 只判断Ta吃不吃你这一套，数值仍由骰子定。<br>没过也有 1~4 点保底，不会一分不给。' },
 
     /* 剧情和时间 */
     { cat: 'story', q: '时间是怎么走的？', keys: ['时间推进', '十分钟', '游戏日', '时间'],
-      a: '你每发一句话，时间往前 <b>10 分钟</b>，像真的在一起过日子。<br>过了半夜就算新的一天。<br>要跳到几小时后或第二天，<b>得你自己说一声</b>（「我们明天见」「睡了」），或者正文里写「次日 / 一周后」。' },
+      a: '你没说时间时，每发一句话往前 <b>10 分钟</b>，像真的在一起过日子。<br><b>说了就按你说的走</b>：「过去了一个小时」「半个小时后再见」「到中午了」「午饭时间」都认——你说、AI 说都算。<br>要跨天就说「明天」「三天后」；AI 自己脑补的跨天（超过 12 小时）会被挡回来。' },
     { cat: 'story', q: '「锚定时间线」是什么？', keys: ['锚定', '时间线', '锁定', '回不了头'],
       a: '一个<b>回不了头</b>的开关，在「玩法与手感」最下面。<br>打开后，只要Ta好感跌破 0 或者跟你冷战，这段剧情就锁死：删楼、滑动、重摇、刷好感都解不开，<b>只能开新对话</b>。<br>不打开就完全不影响你。' },
     { cat: 'story', q: 'AI 回复末尾那个 [Sylveina|…] 是什么？', keys: ['标签', 'sylveina', '暗号', '括号'],
@@ -22394,7 +22985,7 @@ const stateKey = getChatStateKey();
     { cat: 'story', q: '沉浸模式怎么用？', keys: ['沉浸', 'gal', '全屏', '退出'],
       a: '主菜单点 <b>沉浸模式</b>，全屏读剧情，点一下往下走一句，像玩 Galgame。<br>想退出按 <b>Esc</b>，或者点右上角的退出按钮。' },
     { cat: 'story', q: '世界大事表要不要写？', keys: ['时间线', 'timeline', '主线', '大事表'],
-      a: '不写也能玩。<br>写了的话 AI 会照着上面的日期安排主线大事，世界更有目标感。<br>懒得写就让 AI 编一份：<b>冒险日志 → 让 AI 编一份</b>。' },
+      a: '不写也能玩。<br>写了的话 AI 会照着上面的日期安排主线大事，世界更有目标感。<br>懒得写就让 AI 编一份：<b>冒险日志 → 让 AI 编一份</b>。<br>世界书里本来就有时间线？<b>建档完成时会自动扫一遍</b>，扫到的摆给你挑；也能在「冒险日志 → 从世界书搬」手动搬。不想让它生效，同一页有总开关。' },
 
     /* 出错了 */
     { cat: 'error', q: '面板打不开 / 白屏', keys: ['打不开', '白屏', '报错', '崩'],
@@ -23012,9 +23603,9 @@ const stateKey = getChatStateKey();
   function injectCorePrompt() {
     try {
       const st = resolveCoreRuleInjection();
-      if (!st.inject) { callSetPrompt(CORE_PROMPT_KEY, '', 4, 1, false); return false; }
+      if (!st.inject) { callSetPrompt(CORE_PROMPT_KEY, '', 0, 1, false); return false; }
       const head = '═══════════════════════════════════\n【月相系统 · 演绎规则（脚本内置，无需世界书）】';
-      callSetPrompt(CORE_PROMPT_KEY, head + '\n\n' + CORE_RULE_TEXT, 4, 1, false);
+      callSetPrompt(CORE_PROMPT_KEY, head + '\n\n' + CORE_RULE_TEXT, 0, 1, false);
       return true;
     } catch (e) { return false; }
   }
@@ -23240,7 +23831,7 @@ const stateKey = getChatStateKey();
     try {
       const hits = scanGlossaryHits();
       if (!hits.length) {
-        callSetPrompt(GLOSSARY_PROMPT_KEY, '', 4, 1, false);
+        callSetPrompt(GLOSSARY_PROMPT_KEY, '', 0, 1, false);
         _glossaryLast = { ids: [], labels: [], chars: 0, at: Date.now() };
         return false;
       }
@@ -23252,7 +23843,7 @@ const stateKey = getChatStateKey();
       /* 释义本身也含「阶段门」「冷战」这些词，不挡住就会自己命中自己，
          一轮里多调几次就雪球成全量。写完把记录还原回去。 */
       const snapshot = getRoundInjectedText();
-      callSetPrompt(GLOSSARY_PROMPT_KEY, text, 4, 1, false);
+      callSetPrompt(GLOSSARY_PROMPT_KEY, text, 0, 1, false);
       setRoundInjectedText(snapshot);
       _glossaryLast = { ids: built.ids, labels: built.labels, chars: text.length, at: Date.now() };
       return true;
@@ -24474,6 +25065,26 @@ async function openScanTimelineDialog(panel) {
   }
   /* ───────────────────────────────────────────────────────── */
   /* ── 时间线清单：全部操作都写回脚本本地仓库 ── */
+  /* 建档完成后的自动扫一遍：只在「这条聊天还一条时间线都没有、也没自动扫过」时弹一次。
+     扫出来的条目不自动转写、不自动启用 —— 摆给玩家勾，勾不勾、转不转都由他。 */
+  function timelineAutoScanKey() { return 'moon_timeline_autoscan_v1'; }
+  async function maybeAutoScanTimeline(panel) {
+    try {
+      if (getSettings().timelineAutoScan === false) return false;
+      try { if (readChatFeatureValue(timelineAutoScanKey(), false)) return false; } catch (e) {}
+      try { if (loadTimelineStore().length) return false; } catch (e) {}
+      const entries = await scanAllTimelineEntries();
+      try { writeChatFeatureValue(timelineAutoScanKey(), true); } catch (e) {}
+      if (!entries.length) return false;
+      /* 面板可能已经关了（建档流程跑完才延迟到这里），能取到就用真实面板，
+         取不到也不影响：扫描对话框自己会重扫一次并挂在 body 上。 */
+      let target = panel;
+      try { target = (mainDoc && mainDoc.getElementById('moon-phase-panel')) || panel; } catch (e) {}
+      openScanTimelineDialog(target || {});
+      return true;
+    } catch (e) { return false; }
+  }
+
   function openTimelineManagerDialog(panel) {
     const list = loadTimelineStore();
     let nowStr = '';
@@ -25015,10 +25626,10 @@ function openTimelineKeywordDialog(panel, onDone) {
       const ok = await writeMvuLatest(statData);
       if (!ok) return null;
 
-      /* ── 初见投资：建档那一刻就掷，不等下一轮 AI 的标签 ──────────────
+      /* ── 初见骰子：建档那一刻就掷，不等下一轮 AI 的标签 ──────────────
          以前建档只写一份 0 值骨架，把初见完全押给「下一轮 AI 会不会写
          [初见|…]」；模型忘了写、或者写了没过阈值，E 就一直停在 0，
-         玩家体感就是「自动建档没启用初见投资、从头开始一点点加」。
+         玩家体感就是「自动建档没启用初见骰子、从头开始一点点加」。
          现在建完档立刻结算：本轮 AI 恰好写了标签就用它的档位，没写就按中性掷，
          失败也有印象底分——建档完成的那一刻，人物就已经有起点。 */
       const firstMeetNotes = [];
@@ -25052,6 +25663,13 @@ function openTimelineKeywordDialog(panel, onDone) {
           : '新角色已入档：' + made.join('、') + fmTxt, 'info');
       }
       try { refreshPanel(); } catch (e) {}
+      /* 建档完成 → 扫一遍世界书看有没有现成的时间线。只在「这条聊天还一条都没有」
+         时弹一次，扫出来的摆给玩家勾选，脚本不替他决定要不要用。 */
+      try {
+        if (reason !== 'silent' && typeof maybeAutoScanTimeline === 'function') {
+          setTimeout(function() { try { maybeAutoScanTimeline(null); } catch (e) {} }, 1600);
+        }
+      } catch (e) {}
       return made;
     } catch (e) { return null; }
   }
@@ -25179,6 +25797,11 @@ async function applyAdaptiveOpening(charName, values) {
     if (ok) {
       toast('自适应开局完成', 'success');
       try { refreshPanel(); } catch (e) {}
+      try {
+        if (typeof maybeAutoScanTimeline === 'function') {
+          setTimeout(function() { try { maybeAutoScanTimeline(null); } catch (e) {} }, 1600);
+        }
+      } catch (e) {}
     } else {
       toast('写入失败', 'warning');
     }

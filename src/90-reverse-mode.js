@@ -73,8 +73,24 @@ function rvYesterdayKey() { return rvDateKey(Date.now() - 86400000); }
 function rvHourMs(n) { return Math.max(1, rvNum(n, 12)) * 3600 * 1000; }
 
 /* ── 设置：四个认知开关 + 整活惩罚 ─────────────────────── */
+/* 失败惩罚整活（nyankoPunish）的三档时长：
+   off      —— 永远是 punishHours 小时
+   escalate —— 第一次 punishHours 小时，之后再中就是终身（默认）
+   always   —— 反攻略模式下第一次就终身
+   为什么不是一个固定值：玩家对「12 小时」和「终身」的期待差太远，与其替他决定，
+   不如把这三档摆出来，规则写进提示词让角色也知道自己头上悬的是哪一档。 */
+const REVERSE_PUNISH_FOREVER = ['off', 'escalate', 'always'];
+const REVERSE_PUNISH_DEFAULT_TEXT = '跪坐在原地等对方回来，不许解释，也不许替自己找理由。';
+
 function getReverseSettings() {
-  const d = { enabled: false, userKnowsOwn: true, charKnowsPlayerSys: false, userKnowsCharSys: false, nyankoPunish: false, hud: true };
+  const d = {
+    enabled: false, userKnowsOwn: true, charKnowsPlayerSys: false, userKnowsCharSys: false, hud: true,
+    /* 失败惩罚整活 */ nyankoPunish: false,
+    punishText: '',          /* 玩家自定义的惩罚演出，空 = 用内置文案 */
+    punishStreak: 3,         /* 连续失败几次触发猫娘病毒 */
+    punishHours: 12,         /* 病毒时长 */
+    punishForever: 'escalate'/* off / escalate / always */
+  };
   try {
     const raw = getStorage() && getStorage().getItem(REVERSE_SETTINGS_KEY);
     if (raw) return Object.assign(d, JSON.parse(raw) || {});
@@ -95,7 +111,9 @@ function defaultRoleState() {
     shelfRefreshAt: 0, shelfGameDay: 0,
     task: null, buffs: [], wheelTickets: 0,
     accumPositiveE: 0, pointsAwarded: 0, awardedGates: [],
-    taskDone: 0, taskFailed: 0, taskRounds: 0
+    taskDone: 0, taskFailed: 0, taskRounds: 0,
+    /* 失败惩罚整活：连败计数 / 待演出的惩罚 / 病毒中过几次 */
+    failStreak: 0, punishPending: null, nyankoCount: 0
   };
 }
 function defaultPlayerState() {
@@ -750,11 +768,64 @@ function reverseCompleteTask(owner) {
   } else {
     st.points = rvNum(st.points, 0) + reward;
     pushLedger(st, reward, '任务完成：' + t.title);
+    /* 「连续」失败要真的连续：做到一次就断连，不然攒了三周的三次失手会一起算账。
+       上一次失败的惩罚还留着演（那是已经发生的事），只是不再累计。 */
+    st.failStreak = 0;
     saveRoleState(st);
     try { reverseRoleAutoBuy(); } catch (e) {}
   }
   try { toast((who === 'player' ? '任务完成：' : '她做到了：') + t.title + ' · +' + reward, 'success'); } catch (e) {}
   return t;
+}
+/* ── 失败惩罚整活：扣分是唯一的数值代价，猫娘病毒要连败满次数才中 ──
+   设计口径（写进提示词，角色和玩家各知道该知道的那一半）：
+     · 一次失败 → 只扣分；惩罚的「样子」由玩家自己写的那句话决定，AI 照着演一次。
+     · 连续 N 次失败（默认 3）→ 中「猫娘病毒」：每句带「喵」、自称「人家」、夹着嗓子撒娇。
+     · 时长三档（punishForever）：off 永远 N 小时 / escalate 第二次起终身 / always 第一次就终身。
+   为什么要连败计数而不是一失败就猫：一次失手就给角色挂 12 小时猫娘，会把「失败」这件事
+   变得比「完成任务」更划算（猫娘状态本身就是奖励），连败才有惩罚的威胁感。 */
+function reverseNyankoText(rs, permanent) {
+  return '你现在中了「猫娘病毒」。' + (permanent ? '它不会再好了，会跟着你一辈子。' : '') +
+    '症状：每一句她说出口的话（含心声）结尾都要带一个「喵」；自称换成「人家」；说话是夹着嗓子的，又软又飘、尾音上扬；' +
+    '会不由自主向对方撒娇、拖长音、讨一点注意。你完全清楚这不正常，也知道这是惩罚，' +
+    '你想忍住、也会觉得羞——但你控制不住；可以写你咬着牙想把那声「喵」咽回去，可它最后还是漏出来了。';
+}
+/* 中病毒（或在已中状态下升级为终身）。返回 {permanent, hours, times} */
+function reverseTriggerNyanko(rs, t) {
+  const st = getRoleState();
+  if (!Array.isArray(st.buffs)) st.buffs = [];
+  const mode = REVERSE_PUNISH_FOREVER.indexOf(String(rs.punishForever)) >= 0 ? String(rs.punishForever) : 'escalate';
+  const times = rvNum(st.nyankoCount, 0);          /* 之前中过几次 */
+  const permanent = mode === 'always' || (mode === 'escalate' && times >= 1);
+  const hours = Math.max(1, Math.round(rvNum(rs.punishHours, 12)));
+  st.nyankoCount = times + 1;
+  const exist = st.buffs.filter(function(b) { return b && b.key === 'nyanko_virus'; })[0] || null;
+  const prompt = reverseNyankoText(rs, permanent);
+  if (exist) {
+    exist.permanent = permanent;
+    exist.expireAt = permanent ? 0 : Math.max(rvNum(exist.expireAt, 0), rvNow() + rvHourMs(hours));
+    exist.prompt = prompt;
+    exist.at = rvNow();
+  } else {
+    st.buffs.push({
+      key: 'nyanko_virus', name: '猫娘病毒', kind: 'debuff', prompt: prompt,
+      permanent: permanent, expireAt: permanent ? 0 : rvNow() + rvHourMs(hours),
+      stackable: false, at: rvNow(), fromTask: String((t && t.title) || '').slice(0, 20)
+    });
+  }
+  if (st.buffs.length > 24) st.buffs = st.buffs.slice(-24);
+  saveRoleState(st);
+  return { permanent: permanent, hours: hours, times: st.nyankoCount };
+}
+/* 手动解除：玩家玩够了 / 想给她一个台阶。终身的那条也能清掉。 */
+function reverseCureNyanko() {
+  const st = getRoleState();
+  const before = (st.buffs || []).length;
+  st.buffs = (st.buffs || []).filter(function(b) { return !(b && b.key === 'nyanko_virus'); });
+  st.failStreak = 0;
+  st.punishPending = null;
+  saveRoleState(st);
+  return before !== st.buffs.length;
 }
 function reverseFailTask(owner) {
   const who = owner === 'player' ? 'player' : 'role';
@@ -763,20 +834,48 @@ function reverseFailTask(owner) {
   if (!t || t.status !== 'active') return null;
   const rs = getReverseSettings();
   const base = rvNum(t.penalty && t.penalty.points, 6);
-  const fine = rs.nyankoPunish ? Math.round(base * 1.5) : base;
+  /* 整活开着时惩罚只有扣分这一个数值后果，所以不再乘倍率 —— 倍率和「只有扣分」是两套口径。 */
+  const fine = base;
   t.status = 'failed';
   st.taskFailed = rvNum(st.taskFailed, 0) + 1;
   st.points = Math.max(0, rvNum(st.points, 0) - fine);
   pushLedger(st, -fine, '任务失败：' + t.title);
-  const buffName = rs.nyankoPunish ? '猫娘病毒' : String((t.penalty && t.penalty.buff) || '情绪低落');
-  const prompt = rs.nyankoPunish
-    ? '你说话会不自觉带「喵」，越紧张越明显，而且你控制不住。'
-    : '你有点提不起劲，回话变短，笑也慢半拍。';
+
+  if (who === 'role' && rs.nyankoPunish) {
+    const need = Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3))));
+    st.failStreak = rvNum(st.failStreak, 0) + 1;
+    const pending = {
+      at: rvNow(),
+      title: String(t.title || '').slice(0, 20),
+      text: String(rs.punishText || '').replace(/\s+/g, ' ').trim().slice(0, 120) || REVERSE_PUNISH_DEFAULT_TEXT,
+      streak: st.failStreak, need: need, left: Math.max(0, need - st.failStreak),
+      fine: fine, triggered: false
+    };
+    const willTrigger = st.failStreak >= need;
+    if (willTrigger) { st.failStreak = 0; pending.triggered = true; pending.left = 0; }
+    st.punishPending = pending;
+    saveRoleState(st);
+    if (willTrigger) {
+      const info = reverseTriggerNyanko(rs, t);
+      try {
+        toast('任务没完成：' + t.title + ' · 积分 -' + fine + ' · 猫娘病毒' +
+          (info.permanent ? '（终身）' : '（' + info.hours + ' 小时）'), 'warning');
+      } catch (e) {}
+      return t;
+    }
+    try {
+      toast('任务没完成：' + t.title + ' · 积分 -' + fine + ' · 再有 ' + pending.left + ' 次会中猫娘病毒', 'warning');
+    } catch (e) {}
+    return t;
+  }
+
+  const buffName = String((t.penalty && t.penalty.buff) || '情绪低落');
+  const prompt = '你有点提不起劲，回话变短，笑也慢半拍。';
   if (who === 'player') savePlayerState(st); else saveRoleState(st);
   reverseAddBuff(who, {
-    key: rs.nyankoPunish ? 'nyanko_virus' : ('task_fail_' + t.id),
+    key: 'task_fail_' + t.id,
     name: buffName, kind: 'debuff', prompt: prompt,
-    expireAt: rvNow() + rvHourMs(rs.nyankoPunish ? 24 : 12)
+    expireAt: rvNow() + rvHourMs(12)
   });
   try { toast('任务没完成：' + t.title + ' · 积分 -' + fine + ' · ' + buffName, 'warning'); } catch (e) {}
   return t;
@@ -1219,9 +1318,19 @@ function reverseBuffPromptLines(owner) {
   const list = getActiveBuffs(owner);
   if (!list.length) return [];
   return list.slice(0, 6).map(function(b) {
-    const left = b.permanent || !b.expireAt ? '一直' : (Math.max(1, Math.round((rvNum(b.expireAt, 0) - rvNow()) / 3600000)) + ' 小时');
-    return '你现在处于「' + b.name + '」状态：' + (b.prompt || b.name) + ' 这个状态会在 ' + left + ' 后消失。';
+    const permanent = b.permanent === true || !b.expireAt;
+    const left = permanent ? '不会自己消失' : ('剩 ' + Math.max(1, Math.round((rvNum(b.expireAt, 0) - rvNow()) / 3600000)) + ' 小时');
+    return b.name + '（' + left + '）：' + (b.prompt || b.name);
   });
+}
+/* 本轮「贴在最末尾」的那两句话：惩罚演出 + 玩家动作。两者都必须压到最后一条消息后面，
+   所以合成一条发出去；谁先写谁在前，不互相覆盖（之前玩家动作和惩罚会各自写一次，
+   后写的那次把前一次顶掉）。 */
+const _reverseTailParts = { punish: '', action: '', status: '' };
+function reverseFlushTail() {
+  const txt = [_reverseTailParts.punish, _reverseTailParts.action, _reverseTailParts.status].filter(Boolean).join('\n');
+  try { callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, txt, 0, 0, false); } catch (e) {}
+  return txt;
 }
 function injectReversePrompt() {
   try { reversePatchEventPause(); } catch (e) {}
@@ -1229,6 +1338,9 @@ function injectReversePrompt() {
     if (!isReverseModeOn()) {
       callSetPrompt(REVERSE_PROMPT_KEY, '', 0, 0, false);
       callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, '', 0, 0, false);
+      _reverseTailParts.punish = '';
+      _reverseTailParts.action = '';
+      _reverseTailParts.status = '';
       return false;
     }
     const rs = getReverseSettings();
@@ -1261,6 +1373,55 @@ function injectReversePrompt() {
     }
     const buffLines = reverseBuffPromptLines('role');
     if (buffLines.length) { lines.push('当前状态：'); buffLines.forEach(function(l) { lines.push('· ' + l); }); }
+    /* 惩罚规则：她知道规则，但控制不住 —— 这是整活成立的前提，
+       不告诉她自己中招了只会被当成「AI 突然卖萌」，说清楚才有羞耻感。 */
+    if (rs.nyankoPunish) {
+      const need = Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3))));
+      const hours = Math.max(1, Math.round(rvNum(rs.punishHours, 12)));
+      const mode = REVERSE_PUNISH_FOREVER.indexOf(String(rs.punishForever)) >= 0 ? String(rs.punishForever) : 'escalate';
+      const forever = mode === 'always'
+        ? '这一次就可能是永远的：只要你在这件事上失手，它就跟你一辈子。'
+        : (mode === 'escalate'
+          ? '第一次只持续 ' + hours + ' 小时；再犯一次，它就会跟着你一辈子。'
+          : '它只会持续 ' + hours + ' 小时，不会跟你一辈子。');
+      /* 已经在病毒状态里时，症状已经在「当前状态」那行写全了，这里不再重复一遍 ——
+         同一段话写两次，模型反而会把它当布景忽略掉。 */
+      const inVirus = (role.buffs || []).filter(function(b) {
+        return b && b.key === 'nyanko_virus' && (b.permanent === true || rvNum(b.expireAt, 0) > rvNow());
+      })[0] || null;
+      lines.push('扣分规则：手上的事没做到，就扣分。这是唯一的实质代价。');
+      if (rvNum(role.failStreak, 0) > 0) {
+        lines.push('你已经连着 ' + rvNum(role.failStreak, 0) + ' 次没做到，再有 ' +
+          Math.max(0, need - rvNum(role.failStreak, 0)) + ' 次' + (inVirus ? '，病毒就会再发作一次' : '就会中「猫娘病毒」') + '。');
+      }
+      if (inVirus) {
+        const leftH = inVirus.permanent ? 0 : Math.max(1, Math.round((rvNum(inVirus.expireAt, 0) - rvNow()) / 3600000));
+        lines.push('猫娘病毒正在你身上发作' + (inVirus.permanent ? '，不会再好了。' : '，还会持续约 ' + leftH + ' 小时。') +
+          (mode === 'escalate' ? '再连败一轮，它就跟你一辈子。' : (mode === 'always' ? '它随时可能变成终身。' : '它不会跟你一辈子。')));
+      } else {
+        lines.push('猫娘病毒：连着 ' + need + ' 次没做到就会中。中了以后每一句她说出口的话（含心声）结尾都要带「喵」、' +
+          '自称「人家」、说话夹着嗓子又软又飘，会不受控地撒娇；你清楚这不正常，也想忍，但忍不住。' + forever);
+      }
+      lines.push('这条规则是对方亲口定下的，你知道它，也躲不开它 —— 你正在反过来攻略对方。');
+    }
+    /* 上一次失败的「样子」：玩家写的那句话，必须在本轮开头演出来；
+       演完就消费掉，不重复占下一轮的上下文。 */
+    let punishLine = '';
+    if (rs.nyankoPunish && role.punishPending) {
+      const pp = role.punishPending;
+      punishLine = '【本轮开头必须演】她上一件事没做到（' + String(pp.title || '').slice(0, 20) + '），挨了罚：' +
+        String(pp.text || '').slice(0, 120) +
+        '\n用两三句话演出这件事落到她身上的样子和她的反应。不要解释规则，不要提「惩罚」「任务」「系统」这些词，也不要复述这句话。';
+      role.punishPending = null;
+      saveRoleState(role);
+    }
+    /* 病毒生效期：规则写在上面那段里，但模型会忘，每轮末尾再钉一次。 */
+    const virusNow = (role.buffs || []).filter(function(b) {
+      return b && b.key === 'nyanko_virus' && (b.permanent === true || rvNum(b.expireAt, 0) > rvNow());
+    })[0];
+    _reverseTailParts.status = virusNow
+      ? '【状态】你现在中着猫娘病毒：这一轮每一句话（含心声）结尾都要带「喵」，自称「人家」，说话是夹着嗓子的。这不是可选项。'
+      : '';
     if (rs.charKnowsPlayerSys && rs.userKnowsCharSys) {
       lines.push('你隐约察觉对方身上也有类似的东西，但不确定是什么、也不知道它给你什么。');
       lines.push('你可以试探，但不要直接问「你是不是也有系统」这种话。');
@@ -1276,8 +1437,12 @@ function injectReversePrompt() {
     lines.push('标题不超过 10 个字，奖励 8~40，持续回合 2~6，需要进度 1~6。本轮没有合适的新任务就写：[板]无');
     lines.push('这一行玩家看不到（会被脚本收走），所以不要把它写进正文，也不要提到「任务板」这三个字。');
     lines.push('═══════════════════════════════════');
-    callSetPrompt(REVERSE_PROMPT_KEY, lines.join('\n'), 4, 2, false);
-    callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, '', 0, 0, false);
+    callSetPrompt(REVERSE_PROMPT_KEY, lines.join('\n'), 0, 2, false);
+    _reverseTailParts.punish = punishLine;
+    reverseFlushTail();
+    /* 惩罚只演一次，动作也是「本轮开场」，发完就清；下一轮重新攒。 */
+    _reverseTailParts.punish = '';
+    _reverseTailParts.action = '';
     /* 每轮生成前顺手刷一下挂件角标：上一条 AI 回复可能刚抛出新任务，
        球上那个黄点得亮起来，玩家才知道板上有活。 */
     try { reverseHudRefreshBadge(); } catch (e) {}
@@ -1294,7 +1459,8 @@ function injectReversePlayerAction(text) {
     const line = '【本轮开场】玩家刚刚做了这件事：' + t +
       '\n请在正文开头自然演出它引起的反应（对方注意到 / 气氛变化 / 东西本身带来的效果）。' +
       '只写剧情，不要解释机制，也不要复述这句话。';
-    callSetPrompt(REVERSE_PLAYER_PROMPT_KEY, line, 4, 0, false);
+    _reverseTailParts.action = line;
+    reverseFlushTail();
     return true;
   } catch (e) { return false; }
 }
@@ -1377,12 +1543,14 @@ function reverseRolePaneHtml() {
     '<div class="mp-set-desc" style="line-height:1.9;">积分 <b style="color:#f472d0;">' + rvNum(role.points, 0) + '</b>' +
       '　累计正向 E ' + rvNum(role.accumPositiveE, 0).toFixed(1) + ' × 5' +
       '<br>任务 完成 ' + rvNum(role.taskDone, 0) + ' / 失败 ' + rvNum(role.taskFailed, 0) +
+      '　连败 ' + rvNum(role.failStreak, 0) + ' / ' + Math.max(1, Math.min(9, Math.round(rvNum(getReverseSettings().punishStreak, 3)))) +
       '　库存 ' + Object.keys(role.inventory || {}).length + ' 种</div>' +
     reverseTaskHtml('role') +
     (reverseBuffsHtml('role') ? '<div class="mp-set-title" style="font-size:12px;margin-top:6px;">她现在的状态</div>' + reverseBuffsHtml('role') : '') +
     '</div>' +
     '<div class="mp-set-block"><div class="mp-set-title">亲手给她派一件事</div>' +
-      '<div class="mp-set-desc" style="margin-bottom:6px;">她不做完就会掉分、闹情绪。名字最多 14 个字。</div>' +
+      '<div class="mp-set-desc" style="margin-bottom:6px;">她不做完就会掉分' +
+        (getReverseSettings().nyankoPunish ? '，连着没做到还会中猫娘病毒' : '、闹情绪') + '。名字最多 14 个字。</div>' +
       '<div style="display:flex;gap:5px;margin-bottom:5px;">' +
         '<input id="moon-reverse-assign-title" placeholder="比如：把房间收拾干净" style="flex:1;min-height:32px;font-size:12px;background:rgba(18,13,20,.55);color:#e5e7eb;border:1px solid rgba(244,114,208,.25);border-radius:8px;padding:0 8px;box-sizing:border-box;" />' +
       '</div>' +
@@ -1391,6 +1559,8 @@ function reverseRolePaneHtml() {
         '<span class="mp-set-desc" style="opacity:.75;">分</span>' +
         '<input id="moon-reverse-assign-turns" value="4" title="持续回合" style="width:44px;min-height:30px;font-size:12px;text-align:center;background:rgba(18,13,20,.55);color:#e5e7eb;border:1px solid rgba(244,114,208,.25);border-radius:8px;" />' +
         '<span class="mp-set-desc" style="opacity:.75;">回合</span>' +
+        '<input id="moon-reverse-assign-penalty" value="6" title="没做到扣多少分" style="width:44px;min-height:30px;font-size:12px;text-align:center;background:rgba(18,13,20,.55);color:#f87171;border:1px solid rgba(244,114,208,.25);border-radius:8px;" />' +
+        '<span class="mp-set-desc" style="opacity:.75;">罚</span>' +
         '<button class="mp-btn" id="moon-reverse-assign-go" style="flex:1;min-height:30px;padding:0 8px;font-size:11px;">派给她</button>' +
       '</div></div>' +
     '<div class="mp-set-block"><div class="mp-set-title">她能买到的东西</div>' + reverseShelfHtml('role') + '</div>' +
@@ -1457,6 +1627,60 @@ function reverseLibraryHtml() {
       '<button class="mp-btn" id="moon-reverse-shelf-refresh" style="flex:1;min-height:30px;font-size:11px;">刷新两边货架</button>' +
     '</div></div>';
 }
+/* 表单读值：保存按钮和时长按钮都要用，避免「改完文案再点时长」把文案丢了 */
+function reverseReadPunishForm(box) {
+  const txtEl = box && box.querySelector('#moon-reverse-punish-text');
+  const streakEl = box && box.querySelector('#moon-reverse-punish-streak');
+  const hoursEl = box && box.querySelector('#moon-reverse-punish-hours');
+  return {
+    punishText: String(txtEl ? txtEl.value : '').replace(/\s+/g, ' ').trim().slice(0, 120),
+    punishStreak: Math.max(1, Math.min(9, parseInt(streakEl && streakEl.value, 10) || 3)),
+    punishHours: Math.max(1, Math.min(72, parseInt(hoursEl && hoursEl.value, 10) || 12))
+  };
+}
+/* 整活设置块：惩罚文案 / 触发次数 / 时长档位 / 当前连败 / 一键解除 */
+function reversePunishBlockHtml() {
+  const rs = getReverseSettings();
+  const role = getRoleState();
+  const need = Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3))));
+  const hours = Math.max(1, Math.round(rvNum(rs.punishHours, 12)));
+  const mode = REVERSE_PUNISH_FOREVER.indexOf(String(rs.punishForever)) >= 0 ? String(rs.punishForever) : 'escalate';
+  const virus = (role.buffs || []).filter(function(b) { return b && b.key === 'nyanko_virus'; })[0] || null;
+  const virusText = virus
+    ? (virus.permanent ? '终身' : ('还剩 ' + Math.max(1, Math.round((rvNum(virus.expireAt, 0) - rvNow()) / 3600000)) + ' 小时'))
+    : '未中';
+  const fieldStyle = 'background:rgba(18,13,20,.55);color:#e5e7eb;border:1px solid rgba(244,114,208,.25);border-radius:8px;';
+  return '<div class="mp-set-block"><div class="mp-set-title">挨罚的样子</div>' +
+    '<div class="mp-set-desc" style="line-height:1.7;">任务没做到只扣分。挨罚的「样子」由你写，AI 会照着演一次；' +
+      '连着 ' + need + ' 次没做到，她会中「猫娘病毒」——句句带「喵」、自称「人家」、夹着嗓子撒娇，她自己知道不对劲但控制不住。</div>' +
+    '<textarea id="moon-reverse-punish-text" spellcheck="false" placeholder="写你想要的惩罚，比如：跪坐在门边等到对方回来，说一句「我错了」" ' +
+      'style="width:100%;min-height:64px;margin-top:6px;font-size:12px;line-height:1.6;padding:6px;box-sizing:border-box;' + fieldStyle + '">' +
+      rvEsc(String(rs.punishText || '')) + '</textarea>' +
+    '<div style="display:flex;gap:6px;align-items:center;margin-top:6px;">' +
+      '<span class="mp-set-desc" style="opacity:.8;flex:0 0 auto;">连败</span>' +
+      '<input id="moon-reverse-punish-streak" value="' + need + '" title="连续失败几次触发猫娘病毒" style="width:46px;min-height:30px;font-size:12px;text-align:center;' + fieldStyle + '" />' +
+      '<span class="mp-set-desc" style="opacity:.8;flex:0 0 auto;">次 · 病毒</span>' +
+      '<input id="moon-reverse-punish-hours" value="' + hours + '" title="猫娘病毒持续几小时" style="width:46px;min-height:30px;font-size:12px;text-align:center;' + fieldStyle + '" />' +
+      '<span class="mp-set-desc" style="opacity:.8;flex:0 0 auto;">小时</span>' +
+    '</div>' +
+    '<div style="display:flex;gap:5px;margin-top:6px;">' +
+      [['escalate', '第二次起终身'], ['always', '第一次就终身'], ['off', '永远 ' + hours + ' 小时']].map(function(kv) {
+        const on = mode === kv[0];
+        return '<button class="mp-btn' + (on ? ' mp-btn-highlight' : '') + '" data-punish-forever="' + kv[0] +
+          '" style="flex:1;min-height:30px;font-size:11px;padding:0 4px;' +
+          (on ? 'border-color:#f472d0;color:#ffd6f2;' : '') + '">' + kv[1] + '</button>';
+      }).join('') +
+    '</div>' +
+    '<div style="display:flex;gap:6px;margin-top:6px;">' +
+      '<button class="mp-btn mp-btn-highlight" id="moon-reverse-punish-save" style="flex:1;min-height:32px;font-size:12px;">保存</button>' +
+      '<button class="mp-btn" id="moon-reverse-punish-cure" style="flex:1;min-height:32px;font-size:12px;">解除病毒</button>' +
+    '</div>' +
+    '<div class="mp-set-desc" style="line-height:1.8;margin-top:5px;">' +
+      '她现在：连败 <b>' + rvNum(role.failStreak, 0) + '</b> / ' + need + '<br>' +
+      '猫娘病毒：<b style="color:' + (virus ? '#f472d0' : '#9ca3af') + ';">' + virusText + '</b>' +
+      (rvNum(role.nyankoCount, 0) > 0 ? '　累计中过 ' + rvNum(role.nyankoCount, 0) + ' 次' : '') + '</div>' +
+    '</div>';
+}
 function renderReverseBlockHtml() {
   const rs = getReverseSettings();
   const role = getRoleState();
@@ -1477,7 +1701,10 @@ function renderReverseBlockHtml() {
     toggle('charKnowsPlayerSys', '角色知道 {{user}} 也有', rs.charKnowsPlayerSys ? '角色察觉到你身上有同类东西' : '角色不知道（推荐）', rs.charKnowsPlayerSys) +
     toggle('userKnowsCharSys', '{{user}} 知道角色也有', rs.userKnowsCharSys ? '{{user}} 察觉角色身上有东西' : '{{user}} 不知道（推荐）', rs.userKnowsCharSys) +
     toggle('hud', '像素挂件', rs.hud === false ? '已关掉：页面上不显示那个球' : '右下角那个小球，点开是任务板 / 货架 / 背包 / 上下文', rs.hud !== false) +
-    toggle('nyankoPunish', '失败惩罚整活', rs.nyankoPunish ? '任务失败会猫娘化 24 小时' : '只扣分 + 情绪低落 12 小时', rs.nyankoPunish) +
+    toggle('nyankoPunish', '失败惩罚整活', rs.nyankoPunish
+      ? ('已开：只扣分，连败 ' + Math.max(1, Math.min(9, Math.round(rvNum(rs.punishStreak, 3)))) + ' 次中猫娘病毒')
+      : '关着：失败只扣分 + 情绪低落 12 小时', rs.nyankoPunish) +
+    (rs.nyankoPunish ? reversePunishBlockHtml() : '') +
     (rs.enabled ? (tabs + (tab === 'player' ? reversePlayerPaneHtml() : reverseRolePaneHtml()) + reverseCodexBlockHtml() + reverseLibraryHtml()) : '');
 
   const desc = rs.enabled
@@ -1515,6 +1742,37 @@ function bindReverseBlockEvents(panel) {
       return;
     }
 
+    const punishSave = t.closest('#moon-reverse-punish-save');
+    if (punishSave) {
+      const box = punishSave.closest('.mp-set-block');
+      const form = reverseReadPunishForm(box);
+      const foreverEl = box && box.querySelector('[data-punish-forever].mp-btn-highlight');
+      form.punishForever = foreverEl && REVERSE_PUNISH_FOREVER.indexOf(foreverEl.getAttribute('data-punish-forever')) >= 0
+        ? foreverEl.getAttribute('data-punish-forever') : 'escalate';
+      saveReverseSettings(form);
+      try { toast('惩罚已保存 · 下次失手就按这个演', 'success'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+      return;
+    }
+    const punishForever = t.closest('[data-punish-forever]');
+    if (punishForever) {
+      const box = punishForever.closest('.mp-set-block');
+      const form = reverseReadPunishForm(box);
+      const val = punishForever.getAttribute('data-punish-forever');
+      form.punishForever = REVERSE_PUNISH_FOREVER.indexOf(val) >= 0 ? val : 'escalate';
+      saveReverseSettings(form);
+      try { toast(val === 'always' ? '第一次中招就终身' : (val === 'off' ? '永远只给限时' : '第二次起终身'), 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+      return;
+    }
+    const punishCure = t.closest('#moon-reverse-punish-cure');
+    if (punishCure) {
+      const did = reverseCureNyanko();
+      try { toast(did ? '猫娘病毒已解除 · 连败也清零了' : '她现在没中病毒', did ? 'success' : 'info'); } catch (e) {}
+      try { refreshPanel(); } catch (e) {}
+      return;
+    }
+
     const assignGo = t.closest('#moon-reverse-assign-go');
     if (assignGo) {
       try {
@@ -1522,10 +1780,12 @@ function bindReverseBlockEvents(panel) {
         const titleEl = box && box.querySelector('#moon-reverse-assign-title');
         const rewardEl = box && box.querySelector('#moon-reverse-assign-reward');
         const turnsEl = box && box.querySelector('#moon-reverse-assign-turns');
+        const penaltyEl = box && box.querySelector('#moon-reverse-assign-penalty');
         const r = reverseAssignRoleTask({
           title: titleEl ? titleEl.value : '',
           reward: rewardEl ? rewardEl.value : 12,
-          remaining: turnsEl ? turnsEl.value : 4
+          remaining: turnsEl ? turnsEl.value : 4,
+          penalty: penaltyEl ? penaltyEl.value : 6
         });
         if (r.ok) {
           try { toast('派下去了：' + r.task.title, 'success'); } catch (e) {}
