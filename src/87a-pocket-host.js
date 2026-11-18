@@ -49,18 +49,26 @@
     }
 
     /* 把 iframe 容器贴到占位块的位置；滚动、缩放、面板重绘后都要重新对齐 */
+    /* 每帧都写一次 style 会逼浏览器重排这块 iframe——掌机自己已经在 60fps 重绘，
+       再叠一层布局抖动就是玩家感觉到的「卡」。值没变就别写。 */
+    let lastL = -1, lastT = -1, lastW = -1, lastH = -1, lastShow = '';
     const sync = function () {
       if (stopped || !host || !mainDoc.body.contains(host)) return;
       const r = slot.getBoundingClientRect();
       /* 占位块不可见（面板关了 / 被别的层替换 / 切走）就把容器摘掉显示：
          用 display:none 而不是 visibility，Chrome 会对不可见的 iframe 停掉渲染循环，
          核心不再空转烧 CPU。 */
-      if (r.width < 40 || r.height < 40) { host.style.display = 'none'; return; }
-      host.style.display = 'block';
-      host.style.left = Math.round(r.left) + 'px';
-      host.style.top = Math.round(r.top) + 'px';
-      host.style.width = Math.round(r.width) + 'px';
-      host.style.height = Math.round(r.height) + 'px';
+      if (r.width < 40 || r.height < 40) {
+        if (lastShow !== 'none') { host.style.display = 'none'; lastShow = 'none'; lastL = -1; }
+        return;
+      }
+      const L = Math.round(r.left), T = Math.round(r.top);
+      const W = Math.round(r.width), H = Math.round(r.height);
+      if (lastShow !== 'block') { host.style.display = 'block'; lastShow = 'block'; }
+      if (L !== lastL) { host.style.left = L + 'px'; lastL = L; }
+      if (T !== lastT) { host.style.top = T + 'px'; lastT = T; }
+      if (W !== lastW) { host.style.width = W + 'px'; lastW = W; }
+      if (H !== lastH) { host.style.height = H + 'px'; lastH = H; }
     };
     sync();
     const raf = function () { if (stopped) return; sync(); requestAnimationFrame(raf); };

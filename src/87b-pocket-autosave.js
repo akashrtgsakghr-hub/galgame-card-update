@@ -2,27 +2,39 @@
    掌机跑在 sandbox iframe 里（opaque origin），既读不到酒馆的 chat，也收不到酒馆的事件；
    只有宿主这一层能听到生成结束，也才能把存档挂到当前这条聊天上。
 
-   这里做三件事：
-   1. 响一声：两个正弦音，过 2.2kHz 低通，音量 0.07——够听见，不刺耳。
+   这里做四件事：
+   1. 响一声：一声小猫叫（87c 里内嵌的采样）；采样不可用时退回两个正弦音的门铃。
+      两条链路分开走——猫叫绕开 2.2kHz 低通，不然「喵」会被削成闷响。
    2. 让掌机落盘：给 iframe 发 moon-host:autosave，它抓 Flash 区、压缩、写回本机，
       宿主再把整包写进 chatMetadata（这一步在 87a 的 persist 通道里）。
    3. 记一笔真实楼层：从 ctx.chat 里读最后一条 AI 消息的楼层与摘要，
-      和存档一起记下来——这样「这局是第几楼那轮回复时存的」是可查的，不是猜的。 */
+      和存档一起记下来——这样「这局是第几楼那轮回复时存的」是可查的，不是猜的。
+   4. 提示玩家回正文：玩家正盯着掌机时，正文那边已经出新楼层了。
+      在掌机右上角浮一枚小提示，点一下就关面板并滚到最新一条。 */
 
 const POCKET_CHIME_KEY = 'moon_phase_pocket_chime_v1';
 const POCKET_SAVE_NOTE_KEY = 'moon_phase_pocket_last_save_v1';
+
+/* 音色。'cat' = 87c 里那声喵；改成 'bell' 就退回双音门铃。
+   不放进设置面板，是因为玩家没理由关心实现——两种都能听见，只是喜好。 */
+var POCKET_CHIME_KIND = 'cat';
 
 /* 用 var 而不是 let：这些变量可能被前面分片里的回调在初始化顺序之前读到，
    var 会提升成 undefined，不会抛 TDZ。 */
 var pocketChimeCtx = null;
 var pocketChimeMaster = null;
+var pocketChimeDirect = null;
+var pocketCatBuf = null;
+var pocketCatState = 0;      // 0 未解、1 解码中、2 可用、-1 失败
 var pocketChimeOnCache = null;
 var pocketPlaying = false;
 var pocketReplyAt = 0;
+var pocketNudgeEl = null;
+var pocketNudgeTimer = 0;
 
 /* 掌机的 iframe 被拆掉（切显示模式 / 换聊天）时清掉「在玩」标记：
    不然下次 AI 回复完会对着一个不存在的掌机响一声。 */
-function pocketPlayingOff() { pocketPlaying = false; }
+function pocketPlayingOff() { pocketPlaying = false; pocketNudgeDismiss(); }
 
 /* ── 提示音开关（存在酒馆这一层，玩家换聊天也还是这个选择） ─────────────── */
 function pocketChimeGet() {
@@ -51,6 +63,7 @@ function pocketChimePrime() {
     if (!AC) return;
     if (!pocketChimeCtx) {
       pocketChimeCtx = new AC();
+      /* 门铃那条：过 2.2kHz 低通，软一点 */
       pocketChimeMaster = pocketChimeCtx.createGain();
       pocketChimeMaster.gain.value = 1;
       const lp = pocketChimeCtx.createBiquadFilter();
@@ -58,15 +71,56 @@ function pocketChimePrime() {
       lp.frequency.value = 2200;
       pocketChimeMaster.connect(lp);
       lp.connect(pocketChimeCtx.destination);
+      /* 猫叫那条：直连，不加滤波——采样本身就是 8bit/10.5kHz，
+         再过一层低通只会把「喵」的尾音削没。 */
+      pocketChimeDirect = pocketChimeCtx.createGain();
+      pocketChimeDirect.gain.value = 1;
+      pocketChimeDirect.connect(pocketChimeCtx.destination);
     }
     if (pocketChimeCtx.state === 'suspended') { try { pocketChimeCtx.resume(); } catch (e) {} }
+    pocketCatDecode();
   } catch (e) {}
 }
 
-function pocketChimePlay(force) {
-  if (!force && !pocketChimeGet()) return false;
+/* 采样只有 12KB，趁手势时解码好（几十毫秒），别等要响的那一刻才解。 */
+function pocketCatDecode() {
+  if (pocketCatState !== 0) return;
+  if (!pocketChimeCtx) return;
+  let b64 = '';
+  try { b64 = (typeof POCKET_CAT_B64 === 'string') ? POCKET_CAT_B64 : ''; } catch (e) { b64 = ''; }
+  if (!b64) { pocketCatState = -1; return; }
+  pocketCatState = 1;
   try {
-    pocketChimePrime();
+    const bin = atob(b64);
+    const n = bin.length;
+    const u8 = new Uint8Array(n);
+    for (let i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+    const after = function (buf) { pocketCatBuf = buf; pocketCatState = 2; };
+    const fail = function () { pocketCatState = -1; };
+    const p = pocketChimeCtx.decodeAudioData(u8.buffer, after, fail);
+    /* 新版浏览器返回 Promise，旧版靠回调 —— 两条都接上，谁先到算谁 */
+    if (p && typeof p.then === 'function') p.then(after).catch(fail);
+  } catch (e) { pocketCatState = -1; }
+}
+
+function pocketCatPlay() {
+  try {
+    if (pocketCatState === 0) pocketCatDecode();
+    if (!pocketCatBuf || !pocketChimeCtx) return false;
+    if (pocketChimeCtx.state === 'suspended') { try { pocketChimeCtx.resume(); } catch (e) {} }
+    const src = pocketChimeCtx.createBufferSource();
+    const g = pocketChimeCtx.createGain();
+    src.buffer = pocketCatBuf;
+    g.gain.value = 0.6;          // 采样已归一化到 0.92，这里再留一截余量
+    src.connect(g);
+    g.connect(pocketChimeDirect || pocketChimeCtx.destination);
+    src.start(0);
+    return true;
+  } catch (e) { return false; }
+}
+
+function pocketBellPlay() {
+  try {
     const ctx = pocketChimeCtx;
     if (!ctx) return false;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
@@ -86,6 +140,20 @@ function pocketChimePlay(force) {
       o.stop(t0 + pair[1] + 0.9);
     });
     return true;
+  } catch (e) { return false; }
+}
+
+function pocketChimePlay(force) {
+  if (!force && !pocketChimeGet()) return false;
+  try {
+    pocketChimePrime();
+    if (!pocketChimeCtx) return false;
+    if (POCKET_CHIME_KIND === 'cat') {
+      if (pocketCatPlay()) return true;
+      /* 采样还没解好 / 解不开：这一声用门铃顶上，不能让玩家什么都听不到 */
+      if (pocketCatState === 1) { try { mainWin.setTimeout(function () { pocketCatPlay(); }, 400); } catch (e) {} }
+    }
+    return pocketBellPlay();
   } catch (e) { return false; }
 }
 
@@ -147,6 +215,57 @@ function pocketNoteSave(info) {
   } catch (e) {}
 }
 
+/* ── 提示玩家回正文 ────────────────────────────────────────────────────────
+   玩家盯着掌机的时候，正文那边已经多了一楼。只响一声不够——他得知道回去看什么。
+   这枚胶囊挂在掌机容器里（不在 iframe 内，才能在点击时关掉面板、滚到正文）。 */
+function pocketNudgeDismiss() {
+  if (pocketNudgeTimer) { try { mainWin.clearTimeout(pocketNudgeTimer); } catch (e) {} pocketNudgeTimer = 0; }
+  const el = pocketNudgeEl;
+  pocketNudgeEl = null;
+  if (!el) return;
+  try { el.style.opacity = '0'; } catch (e) {}
+  try {
+    mainWin.setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 180);
+  } catch (e) {}
+}
+
+function pocketNudge() {
+  try {
+    const host = mainDoc.getElementById('moon-pocket-host');
+    if (!host) return false;
+    /* 掌机没在显示（display:none）说明玩家已经回到正文了，正文就在眼前，不用再喊 */
+    if (host.style.display === 'none') return false;
+    pocketNudgeDismiss();
+    const el = mainDoc.createElement('button');
+    el.type = 'button';
+    el.id = 'moon-pocket-nudge';
+    el.textContent = 'AI 回话了 · 点这里回正文';
+    el.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:10px;' +
+      'z-index:2;border:0;cursor:pointer;white-space:nowrap;' +
+      'font:600 12px/1.55 system-ui,-apple-system,"Microsoft YaHei",sans-serif;letter-spacing:.02em;' +
+      'color:#F6EEF0;background:rgba(28,20,26,.88);padding:7px 14px;border-radius:999px;' +
+      'box-shadow:0 2px 10px rgba(20,12,18,.38);opacity:0;transition:opacity .18s ease;';
+    el.addEventListener('click', function (e) {
+      try { e.preventDefault(); } catch (err) {}
+      pocketNudgeDismiss();
+      /* 面板是全屏遮罩，不关掉就看不见正文；关面板会连掌机一起停，
+         但存档刚在上一行写进 chatMetadata 了，下次打开原样恢复。 */
+      try { if (typeof closePanel === 'function') closePanel(); } catch (err) {}
+      try {
+        const chat = mainDoc.getElementById('chat');
+        const last = chat && chat.lastElementChild;
+        if (last && typeof last.scrollIntoView === 'function') last.scrollIntoView({ block: 'end' });
+      } catch (err) {}
+    });
+    host.appendChild(el);
+    pocketNudgeEl = el;
+    try { mainWin.requestAnimationFrame(function () { el.style.opacity = '1'; }); } catch (e) { el.style.opacity = '1'; }
+    /* 16 秒没点就自己收起来，别一直压在掌机画面上 */
+    pocketNudgeTimer = mainWin.setTimeout(function () { pocketNudgeDismiss(); }, 16000);
+    return true;
+  } catch (e) { return false; }
+}
+
 /* ── 主入口：AI 这一轮回完了 ───────────────────────────────────────────── */
 function pocketAfterAiReply(reason) {
   /* 什么情况下什么都不做：
@@ -160,6 +279,7 @@ function pocketAfterAiReply(reason) {
   pocketReplyAt = now;
   pocketChimePlay();
   pocketRequestAutosave(reason || 'ai-reply');
+  pocketNudge();
   return true;
 }
 
@@ -172,6 +292,8 @@ function pocketAfterAiReply(reason) {
       if (d.type === 'moon-pocket:playing') {
         pocketPlaying = true;
         pocketChimePrime();
+        /* 玩家已经回到掌机开始玩了，那条「回正文」的提示该收了 */
+        pocketNudgeDismiss();
       } else if (d.type === 'moon-pocket:chime-set') {
         pocketChimeSet(!!d.on);
       } else if (d.type === 'moon-pocket:saved') {

@@ -31,7 +31,7 @@ if (FLAVOR !== 'full' && FLAVOR !== 'base') throw new Error('未知的 --flavor�
 
 /* 原版要剔掉的分片：掌机内嵌页、掌机宿主、主题贴图 / 主题包 / 状态卡主题 / 美化文档。
    其它分片（含 88-skin、89-skin-forge 这些老的皮肤功能）原版都留着。 */
-const BASE_SKIP = [/^87-pocket-embed\.js$/, /^87a-pocket-host\.js$/, /^87b-pocket-autosave\.js$/, /^89a-theme-tex\.js$/,
+const BASE_SKIP = [/^87-pocket-embed\.js$/, /^87a-pocket-host\.js$/, /^87b-pocket-autosave\.js$/, /^87c-pocket-chime-cat\.js$/, /^89a-theme-tex\.js$/,
   /^89b-theme-pack\.js$/, /^89c-status-theme\.js$/, /^89d-beauty-docs\.js$/];
 
 const OUT_SCRIPT = path.join(ROOT, FLAVOR === 'base' ? 'moon-phase.base.js' : 'moon-phase.js');

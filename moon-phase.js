@@ -24,15 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.15.7';
-  const MOON_FORMULA_CHANGELOG = "【v5.15.7 掌机页补回新版：金手指台和新核心都在了】\n" +
-    "（从 v5.15.6 升级 · 用掌机 / 内置卡带的务必更新）\n" +
-    "1. 🩹 5.15.5、5.15.6 两版里嵌的掌机页其实是旧的（打包时改的是产物、随后又被重建覆盖）——页面里没有金手指台、也没有新核心。现在按源分片重新打包，逐字节对齐。\n" +
-    "2. 💾 新核心带了存档修复：空卡开机时不再把存档区算成 0 字节，你第一次存档不会被静默丢掉。\n" +
-    "3. 🎮 金手指台回来了：VBA / GameShark / 8+4 三种写法都认，删码会真的撤掉。\n" +
-    "4. 🖼 帧缓冲透明度也修了，画面不会再出现整屏发黑。\n" +
-    "5. 📦 卡带本体没动（还是上次那版 md5 3cdf9652），改的只是掌机页。\n" +
-    "6. ⏱ 时间短语、提示词注入、结算留痕照旧。";
+  const MOON_FORMULA_VERSION = '5.15.8';
+  const MOON_FORMULA_CHANGELOG = "【v5.15.8 喵一声，回去看正文】\n" +
+    "（从 v5.15.7 升级 · 用掌机 / 内置卡带的务必更新）\n" +
+    "1. 🐱 提示音换成小猫叫：音源是卡带里喵喵的原始叫声采样（448ms / 10.5kHz），点开面板时就解码好，AI 一回完立刻响，不是临时现解。\n" +
+    "2. 🔔 采样读不到或解不开时自动退回原来的双音门铃，任何情况下都有声音；静音开关照旧，静音只闭嘴、不影响存档。\n" +
+    "3. 💾 AI 回完自动存档照旧：抓存档区 → 压缩 → 写进当前聊天的 chatMetadata，并记下「这是第几楼那轮回复时存的」，不是猜的。\n" +
+    "4. 👉 新增「AI 回话了 · 点这里回正文」：玩家正盯着掌机时浮在画面底部，点一下关面板并滚到最新一条；16 秒不点自己收起，玩家回掌机继续玩也会自动收。\n" +
+    "5. 🧪 自动存档回归 30 条全绿：猫叫正常播、没有采样退回门铃、解码失败退回门铃、静音不挡存档、提示只在掌机真的开着时出现。\n" +
+    "6. 📦 卡带本体没动，这次改的只是酒馆这一层的提示音与提示条。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -11280,18 +11280,26 @@ function openUpdateConfigDialog(panel) {
     }
 
     /* 把 iframe 容器贴到占位块的位置；滚动、缩放、面板重绘后都要重新对齐 */
+    /* 每帧都写一次 style 会逼浏览器重排这块 iframe——掌机自己已经在 60fps 重绘，
+       再叠一层布局抖动就是玩家感觉到的「卡」。值没变就别写。 */
+    let lastL = -1, lastT = -1, lastW = -1, lastH = -1, lastShow = '';
     const sync = function () {
       if (stopped || !host || !mainDoc.body.contains(host)) return;
       const r = slot.getBoundingClientRect();
       /* 占位块不可见（面板关了 / 被别的层替换 / 切走）就把容器摘掉显示：
          用 display:none 而不是 visibility，Chrome 会对不可见的 iframe 停掉渲染循环，
          核心不再空转烧 CPU。 */
-      if (r.width < 40 || r.height < 40) { host.style.display = 'none'; return; }
-      host.style.display = 'block';
-      host.style.left = Math.round(r.left) + 'px';
-      host.style.top = Math.round(r.top) + 'px';
-      host.style.width = Math.round(r.width) + 'px';
-      host.style.height = Math.round(r.height) + 'px';
+      if (r.width < 40 || r.height < 40) {
+        if (lastShow !== 'none') { host.style.display = 'none'; lastShow = 'none'; lastL = -1; }
+        return;
+      }
+      const L = Math.round(r.left), T = Math.round(r.top);
+      const W = Math.round(r.width), H = Math.round(r.height);
+      if (lastShow !== 'block') { host.style.display = 'block'; lastShow = 'block'; }
+      if (L !== lastL) { host.style.left = L + 'px'; lastL = L; }
+      if (T !== lastT) { host.style.top = T + 'px'; lastT = T; }
+      if (W !== lastW) { host.style.width = W + 'px'; lastW = W; }
+      if (H !== lastH) { host.style.height = H + 'px'; lastH = H; }
     };
     sync();
     const raf = function () { if (stopped) return; sync(); requestAnimationFrame(raf); };
@@ -11605,27 +11613,39 @@ function openUpdateConfigDialog(panel) {
    掌机跑在 sandbox iframe 里（opaque origin），既读不到酒馆的 chat，也收不到酒馆的事件；
    只有宿主这一层能听到生成结束，也才能把存档挂到当前这条聊天上。
 
-   这里做三件事：
-   1. 响一声：两个正弦音，过 2.2kHz 低通，音量 0.07——够听见，不刺耳。
+   这里做四件事：
+   1. 响一声：一声小猫叫（87c 里内嵌的采样）；采样不可用时退回两个正弦音的门铃。
+      两条链路分开走——猫叫绕开 2.2kHz 低通，不然「喵」会被削成闷响。
    2. 让掌机落盘：给 iframe 发 moon-host:autosave，它抓 Flash 区、压缩、写回本机，
       宿主再把整包写进 chatMetadata（这一步在 87a 的 persist 通道里）。
    3. 记一笔真实楼层：从 ctx.chat 里读最后一条 AI 消息的楼层与摘要，
-      和存档一起记下来——这样「这局是第几楼那轮回复时存的」是可查的，不是猜的。 */
+      和存档一起记下来——这样「这局是第几楼那轮回复时存的」是可查的，不是猜的。
+   4. 提示玩家回正文：玩家正盯着掌机时，正文那边已经出新楼层了。
+      在掌机右上角浮一枚小提示，点一下就关面板并滚到最新一条。 */
 
 const POCKET_CHIME_KEY = 'moon_phase_pocket_chime_v1';
 const POCKET_SAVE_NOTE_KEY = 'moon_phase_pocket_last_save_v1';
+
+/* 音色。'cat' = 87c 里那声喵；改成 'bell' 就退回双音门铃。
+   不放进设置面板，是因为玩家没理由关心实现——两种都能听见，只是喜好。 */
+var POCKET_CHIME_KIND = 'cat';
 
 /* 用 var 而不是 let：这些变量可能被前面分片里的回调在初始化顺序之前读到，
    var 会提升成 undefined，不会抛 TDZ。 */
 var pocketChimeCtx = null;
 var pocketChimeMaster = null;
+var pocketChimeDirect = null;
+var pocketCatBuf = null;
+var pocketCatState = 0;      // 0 未解、1 解码中、2 可用、-1 失败
 var pocketChimeOnCache = null;
 var pocketPlaying = false;
 var pocketReplyAt = 0;
+var pocketNudgeEl = null;
+var pocketNudgeTimer = 0;
 
 /* 掌机的 iframe 被拆掉（切显示模式 / 换聊天）时清掉「在玩」标记：
    不然下次 AI 回复完会对着一个不存在的掌机响一声。 */
-function pocketPlayingOff() { pocketPlaying = false; }
+function pocketPlayingOff() { pocketPlaying = false; pocketNudgeDismiss(); }
 
 /* ── 提示音开关（存在酒馆这一层，玩家换聊天也还是这个选择） ─────────────── */
 function pocketChimeGet() {
@@ -11654,6 +11674,7 @@ function pocketChimePrime() {
     if (!AC) return;
     if (!pocketChimeCtx) {
       pocketChimeCtx = new AC();
+      /* 门铃那条：过 2.2kHz 低通，软一点 */
       pocketChimeMaster = pocketChimeCtx.createGain();
       pocketChimeMaster.gain.value = 1;
       const lp = pocketChimeCtx.createBiquadFilter();
@@ -11661,15 +11682,56 @@ function pocketChimePrime() {
       lp.frequency.value = 2200;
       pocketChimeMaster.connect(lp);
       lp.connect(pocketChimeCtx.destination);
+      /* 猫叫那条：直连，不加滤波——采样本身就是 8bit/10.5kHz，
+         再过一层低通只会把「喵」的尾音削没。 */
+      pocketChimeDirect = pocketChimeCtx.createGain();
+      pocketChimeDirect.gain.value = 1;
+      pocketChimeDirect.connect(pocketChimeCtx.destination);
     }
     if (pocketChimeCtx.state === 'suspended') { try { pocketChimeCtx.resume(); } catch (e) {} }
+    pocketCatDecode();
   } catch (e) {}
 }
 
-function pocketChimePlay(force) {
-  if (!force && !pocketChimeGet()) return false;
+/* 采样只有 12KB，趁手势时解码好（几十毫秒），别等要响的那一刻才解。 */
+function pocketCatDecode() {
+  if (pocketCatState !== 0) return;
+  if (!pocketChimeCtx) return;
+  let b64 = '';
+  try { b64 = (typeof POCKET_CAT_B64 === 'string') ? POCKET_CAT_B64 : ''; } catch (e) { b64 = ''; }
+  if (!b64) { pocketCatState = -1; return; }
+  pocketCatState = 1;
   try {
-    pocketChimePrime();
+    const bin = atob(b64);
+    const n = bin.length;
+    const u8 = new Uint8Array(n);
+    for (let i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+    const after = function (buf) { pocketCatBuf = buf; pocketCatState = 2; };
+    const fail = function () { pocketCatState = -1; };
+    const p = pocketChimeCtx.decodeAudioData(u8.buffer, after, fail);
+    /* 新版浏览器返回 Promise，旧版靠回调 —— 两条都接上，谁先到算谁 */
+    if (p && typeof p.then === 'function') p.then(after).catch(fail);
+  } catch (e) { pocketCatState = -1; }
+}
+
+function pocketCatPlay() {
+  try {
+    if (pocketCatState === 0) pocketCatDecode();
+    if (!pocketCatBuf || !pocketChimeCtx) return false;
+    if (pocketChimeCtx.state === 'suspended') { try { pocketChimeCtx.resume(); } catch (e) {} }
+    const src = pocketChimeCtx.createBufferSource();
+    const g = pocketChimeCtx.createGain();
+    src.buffer = pocketCatBuf;
+    g.gain.value = 0.6;          // 采样已归一化到 0.92，这里再留一截余量
+    src.connect(g);
+    g.connect(pocketChimeDirect || pocketChimeCtx.destination);
+    src.start(0);
+    return true;
+  } catch (e) { return false; }
+}
+
+function pocketBellPlay() {
+  try {
     const ctx = pocketChimeCtx;
     if (!ctx) return false;
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
@@ -11689,6 +11751,20 @@ function pocketChimePlay(force) {
       o.stop(t0 + pair[1] + 0.9);
     });
     return true;
+  } catch (e) { return false; }
+}
+
+function pocketChimePlay(force) {
+  if (!force && !pocketChimeGet()) return false;
+  try {
+    pocketChimePrime();
+    if (!pocketChimeCtx) return false;
+    if (POCKET_CHIME_KIND === 'cat') {
+      if (pocketCatPlay()) return true;
+      /* 采样还没解好 / 解不开：这一声用门铃顶上，不能让玩家什么都听不到 */
+      if (pocketCatState === 1) { try { mainWin.setTimeout(function () { pocketCatPlay(); }, 400); } catch (e) {} }
+    }
+    return pocketBellPlay();
   } catch (e) { return false; }
 }
 
@@ -11750,6 +11826,57 @@ function pocketNoteSave(info) {
   } catch (e) {}
 }
 
+/* ── 提示玩家回正文 ────────────────────────────────────────────────────────
+   玩家盯着掌机的时候，正文那边已经多了一楼。只响一声不够——他得知道回去看什么。
+   这枚胶囊挂在掌机容器里（不在 iframe 内，才能在点击时关掉面板、滚到正文）。 */
+function pocketNudgeDismiss() {
+  if (pocketNudgeTimer) { try { mainWin.clearTimeout(pocketNudgeTimer); } catch (e) {} pocketNudgeTimer = 0; }
+  const el = pocketNudgeEl;
+  pocketNudgeEl = null;
+  if (!el) return;
+  try { el.style.opacity = '0'; } catch (e) {}
+  try {
+    mainWin.setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 180);
+  } catch (e) {}
+}
+
+function pocketNudge() {
+  try {
+    const host = mainDoc.getElementById('moon-pocket-host');
+    if (!host) return false;
+    /* 掌机没在显示（display:none）说明玩家已经回到正文了，正文就在眼前，不用再喊 */
+    if (host.style.display === 'none') return false;
+    pocketNudgeDismiss();
+    const el = mainDoc.createElement('button');
+    el.type = 'button';
+    el.id = 'moon-pocket-nudge';
+    el.textContent = 'AI 回话了 · 点这里回正文';
+    el.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:10px;' +
+      'z-index:2;border:0;cursor:pointer;white-space:nowrap;' +
+      'font:600 12px/1.55 system-ui,-apple-system,"Microsoft YaHei",sans-serif;letter-spacing:.02em;' +
+      'color:#F6EEF0;background:rgba(28,20,26,.88);padding:7px 14px;border-radius:999px;' +
+      'box-shadow:0 2px 10px rgba(20,12,18,.38);opacity:0;transition:opacity .18s ease;';
+    el.addEventListener('click', function (e) {
+      try { e.preventDefault(); } catch (err) {}
+      pocketNudgeDismiss();
+      /* 面板是全屏遮罩，不关掉就看不见正文；关面板会连掌机一起停，
+         但存档刚在上一行写进 chatMetadata 了，下次打开原样恢复。 */
+      try { if (typeof closePanel === 'function') closePanel(); } catch (err) {}
+      try {
+        const chat = mainDoc.getElementById('chat');
+        const last = chat && chat.lastElementChild;
+        if (last && typeof last.scrollIntoView === 'function') last.scrollIntoView({ block: 'end' });
+      } catch (err) {}
+    });
+    host.appendChild(el);
+    pocketNudgeEl = el;
+    try { mainWin.requestAnimationFrame(function () { el.style.opacity = '1'; }); } catch (e) { el.style.opacity = '1'; }
+    /* 16 秒没点就自己收起来，别一直压在掌机画面上 */
+    pocketNudgeTimer = mainWin.setTimeout(function () { pocketNudgeDismiss(); }, 16000);
+    return true;
+  } catch (e) { return false; }
+}
+
 /* ── 主入口：AI 这一轮回完了 ───────────────────────────────────────────── */
 function pocketAfterAiReply(reason) {
   /* 什么情况下什么都不做：
@@ -11763,6 +11890,7 @@ function pocketAfterAiReply(reason) {
   pocketReplyAt = now;
   pocketChimePlay();
   pocketRequestAutosave(reason || 'ai-reply');
+  pocketNudge();
   return true;
 }
 
@@ -11775,6 +11903,8 @@ function pocketAfterAiReply(reason) {
       if (d.type === 'moon-pocket:playing') {
         pocketPlaying = true;
         pocketChimePrime();
+        /* 玩家已经回到掌机开始玩了，那条「回正文」的提示该收了 */
+        pocketNudgeDismiss();
       } else if (d.type === 'moon-pocket:chime-set') {
         pocketChimeSet(!!d.on);
       } else if (d.type === 'moon-pocket:saved') {
@@ -11783,6 +11913,19 @@ function pocketAfterAiReply(reason) {
     });
   } catch (e) {}
 })();
+/* 87c-pocket-chime-cat.js —— 「AI 回完了」的那一声：小猫叫。
+   音源是卡带里喵喵的 GBA 原始采样（pokeemerald/sound/direct_sound_samples/cries/meowth.wav，
+   8bit / 10512Hz / 448ms），转成 16bit PCM 后 base64 内嵌在这里。
+   要换音源就改 scripts/gen-chime-cat.mjs 重新生成，别手改这串 base64。
+
+   为什么内嵌而不是读文件：掌机跑在 sandbox iframe 里，脚本本身是贴进酒馆的单文件，
+   没有第二个资源文件可读；一段 450ms 的采样 base64 只有 12KB，
+   比一次网络请求可靠得多。
+
+   播放失败（旧浏览器 / 解码异常）时，87b 会自动退回原来的双音门铃，不会没声音。 */
+var POCKET_CAT_B64 = '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';
+var POCKET_CAT_RATE = 10512;
+var POCKET_CAT_MS = 448;
 /* 88-skin.js —— 楼内状态卡皮肤：晨昏票根 / 月氏藏书票 / 预言家日报 / 朱丝栏邸报（玩家自选）
    前两套由 tools/gen-skin.mjs 从正则美化 JSON 生成；
    预言家日报与朱丝栏邸报是后加的手写皮肤
