@@ -41,6 +41,7 @@ scripts/gen-theme-tex.mjs  从状态卡皮肤里抽出贴图 → src/89a-theme-t
 scripts/embed-docs.mjs     把 docs/*.md 编进脚本（面板「下载文档」用）→ src/89d-beauty-docs.js
 scripts/resplit.mjs      src/ 落后多个版本时，按行级映射把单文件重新切回分片
 docs/                    两份美化制作文档（全局主题 / 状态卡），也是脚本内置文档的源
+docs/releases/<版本>.md  发版稿：GitHub Release 的正文来源（见「发版」一节）
 pocket/                  掌机（卡带机）子系统：页面源码 + 打包工具 + 内核说明
 moon-phase.js            ↑ 上述全部拼出来的成品，玩家下载 / 自动更新的就是这个
 Galgame攻略系统-酒馆助手导入.json   同上，酒馆助手的脚本导入格式
@@ -271,6 +272,28 @@ src/*.js  ──[ scripts/build.mjs ]──►  moon-phase.js
 面板「更新与帮助 → 🔄 检查版本更新」即可。更新线路是自动兜底的：先走官方直连，8 秒不通自动换国内镜像（jsDelivr / jsDelivr Fastly / ghproxy.net / gh-proxy，整条链路 45 秒封顶），上次能用的线路会被记住；全部连不通时才会弹窗，列出每条线路的失败原因并给出「再试一次 / 换源」。
 
 完整说明（线路顺序、三种提示、失败急救、常见问题、手动更新）见 [`更新说明书.md`](更新说明书.md)；历史版本记录见 [`update.md`](update.md)。
+
+## 发版
+
+每次发版要写两份东西，缺一不可：
+
+| 写哪里 | 给谁看 | 内容 |
+| --- | --- | --- |
+| `update.md` | 已经装了的玩家（面板里的更新公告读的就是它） | 这一版改了什么、为什么改 |
+| `docs/releases/<版本>.md` | GitHub Release 页（新玩家 / 想换版本的人） | 这一版值不值得换，外加附件与校验值 |
+
+推 `main` 之后，`.github/workflows/release.yml` 会按 `docs/releases/` 里新增或改动的稿子发布 Release：
+检出同名 tag 那一版源码 → 重新构建四个产物当附件 → 体积与 sha256 现算进正文。没有对应 tag 时就在当前提交上建。
+
+稿子可以从公告里先抽一份，再按需改两句：
+
+```bash
+node scripts/release-notes.mjs 5.15.8 --write   # 从 update.md 抽一份 docs/releases/5.15.8.md
+node scripts/release-notes.mjs 5.15.8           # 预览 Release 正文（含下载表与校验）
+node scripts/release-notes.mjs 5.15.8 --title   # 只看标题
+```
+
+改完稿子只推 `docs/releases/` 也会触发：同名 Release 会被更新正文与附件，不会重复建。
 
 ## 回忆画廊与周目结算
 

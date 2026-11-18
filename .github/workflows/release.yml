@@ -1,0 +1,106 @@
+name: release
+
+# 每次发版除了更新公告（update.md），还要在 GitHub 上有一份 Release。
+# 这个 workflow 负责把 docs/releases/<版本>.md 变成真正的 Release：
+#   · 按 tag 取对应那一版的源码，重新构建四个产物 → 挂成附件（旧版本也能拿到旧附件）
+#   · 下载表里的体积与 sha256 由构建结果现算，不靠手抄
+#   · 已有同名 Release 就更新正文与附件，没有才新建
+# 所以以后发版的固定动作只有两条：写 update.md 的小节 + 写 docs/releases/<版本>.md，然后推 main。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/releases/**'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库（要拿全量 tag）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 找出这次新增 / 改动的 Release 稿
+        id: pick
+        run: |
+          set -euo pipefail
+          before='${{ github.event.before }}'
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            changed=$(ls docs/releases/*.md 2>/dev/null || true)
+          else
+            changed=$(git diff --name-only "$before" "${{ github.sha }}" -- docs/releases || true)
+          fi
+
+          # 只保留仍然存在的文件（删稿不删 Release）
+          keep=""
+          for f in $changed; do
+            if [ -f "$f" ]; then keep="$keep $f"; fi
+          done
+
+          echo "files=$keep" >> "$GITHUB_OUTPUT"
+          if [ -z "$keep" ]; then echo "没有需要发布的稿子"; else echo "本次处理：$keep"; fi
+
+      - name: 构建并发布
+        if: steps.pick.outputs.files != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rel
+
+          for f in ${{ steps.pick.outputs.files }}; do
+            ver=$(basename "$f" .md)
+            tag="v$ver"
+
+            # 有 tag 就按 tag 那一版构建（历史版本补发时，附件必须是当年那一版）
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              ref="$tag"
+              target_args=""
+              echo "→ $tag（按 tag 构建）"
+            else
+              ref="HEAD"
+              target_args="--target ${{ github.sha }}"
+              echo "→ $tag（没有 tag，按当前 HEAD 建，release 时连同 tag 一起创建）"
+            fi
+
+            work="/tmp/rel/$ver"
+            git worktree add --detach "$work" "$ref" >/dev/null
+            ( cd "$work" && node scripts/build.mjs >/dev/null && node scripts/build.mjs --flavor=base >/dev/null )
+
+            title=$(node scripts/release-notes.mjs "$ver" --title)
+            node scripts/release-notes.mjs "$ver" --assets="$work" > "/tmp/rel/$ver.md"
+
+            assets=""
+            for a in moon-phase.js moon-phase.base.js "Galgame攻略系统-酒馆助手导入.json" "DokiDoki-原版-酒馆助手导入.json"; do
+              if [ -f "$work/$a" ]; then assets="$assets $work/$a"; fi
+            done
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release edit "$tag" --title "$title" --notes-file "/tmp/rel/$ver.md"
+              gh release upload "$tag" $assets --clobber
+              echo "✅ 已更新 $tag"
+            else
+              gh release create "$tag" $target_args --title "$title" --notes-file "/tmp/rel/$ver.md" $assets
+              echo "✅ 已发布 $tag"
+            fi
+
+            git worktree remove "$work" --force >/dev/null
+          done
