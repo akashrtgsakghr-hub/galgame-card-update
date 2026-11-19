@@ -3,9 +3,19 @@
 
   function collectManualBootstrapCandidates() {
     const out = []; const seen = {};
+    /* 多人卡的卡名通常是剧本名/合集名，不是角色 —— 拿它当候选人，建出来就是一个假人。
+       所以多人卡下把卡名排除；单人卡照旧（那种卡的卡名就是角色名）。 */
+    const isMulti = (typeof getCardMode === 'function') && getCardMode() === 'multi';
+    let cardNameNow = '';
+    try { cardNameNow = String((typeof getCurrentCardName === 'function' ? getCurrentCardName() : '') || '').replace(/[。\.]+$/, '').trim(); } catch (e) {}
+    function blocked(name) {
+      try { return (typeof isMoonCharBlocked === 'function') && isMoonCharBlocked(name); } catch (e) { return false; }
+    }
     function add(name, source) {
       name = String(name || '').trim();
       if (!name || name.length > 24) return;
+      if (blocked(name)) return;
+      if (isMulti && cardNameNow && name === cardNameNow && source === '角色卡') return;
       if (seen[name]) { if (seen[name].indexOf(source) < 0) seen[name].push(source); return; }
       seen[name] = [source];
       out.push({ name: name, sources: seen[name] });

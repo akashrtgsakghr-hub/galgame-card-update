@@ -187,9 +187,24 @@
       const latestTagMsg = getLatestAiMessage();
       const latestText = latestTagMsg ? String(latestTagMsg.msg.mes || '') : '';
       const named = collectNamedCharsFromMessage(latestText);
+      /* 多人卡的关键词触发：世界书里认出来的角色，只要这一轮正文点到名，就当他要出场。
+         以前只认 Sylveina 标签 / 后台变量，模型漏写一轮，这个人就永远进不了档；
+         世界书条目本身就是触发器，比等模型写标签稳。 */
+      if (mode === 'multi' && typeof wbCharacterCandidates === 'function') {
+        try {
+          const wbNames = wbCharacterCandidates().map(function (c) { return c.name; }).slice(0, 60);
+          for (let wi = 0; wi < wbNames.length; wi++) {
+            const nm = wbNames[wi];
+            if (nm && latestText.indexOf(nm) >= 0 && named.indexOf(nm) < 0) named.push(nm);
+          }
+        } catch (e) {}
+      }
       const pushName = function(n) {
         const v = String(n || '').trim();
-        if (v && names.indexOf(v) < 0) names.push(v);
+        if (!v) return;
+        /* 玩家勾过「永久不再建档」的人，无论从哪条路进来都不建 */
+        try { if (typeof isMoonCharBlocked === 'function' && isMoonCharBlocked(v)) return; } catch (e) {}
+        if (names.indexOf(v) < 0) names.push(v);
       };
       if (!tableEmpty) {
         /* 已经有真档案：这一轮只补「新出场的人」。
@@ -206,9 +221,21 @@
            宁可不建，也不往档案里塞一个假人。 */
         named.forEach(pushName);
         if (!names.length) guessSpeakerNames(latestText).slice(0, 3).forEach(pushName);
-        if (!names.length) return null;
       }
-      if (!names.length) return null;
+      if (!names.length) {
+        /* 多人卡空表、这一轮谁都没点到名：不能瞎建，但也不能让玩家一直找不到入口。
+           每个聊天只提示一次，点面板里的「世界书建档」就能挑人。 */
+        if (mode === 'multi' && tableEmpty) {
+          try {
+            const hintKey = 'moon_multi_bootstrap_hint_v1';
+            if (readChatFeatureValue(hintKey, false) !== true) {
+              writeChatFeatureValue(hintKey, true);
+              toast('多人卡：面板 → 开局适配 → 📖 世界书建档，先挑要建档的角色', 'info');
+            }
+          } catch (e) {}
+        }
+        return null;
+      }
 
       let cardFirstMes = '';
       try {

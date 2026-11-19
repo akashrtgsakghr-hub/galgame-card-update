@@ -341,17 +341,25 @@
     let detectHtml = '';
     if (hasValidVars) detectHtml = '<div style="padding:10px 12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.35);border-radius:9px;color:#6ee7b7;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>✔ 这个对话已经有角色档案了</b>：' + validNames.join('、') + '<br><span style="color:#a7f3d0;">档案正常的话，直接点右上角关掉就行。</span></div>';
     else detectHtml = '<div style="padding:10px 12px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.35);border-radius:9px;color:#7dd3fc;font-size:11.5px;line-height:1.7;margin-bottom:12px;"><b>ℹ️ 这个对话还没有角色档案</b><br>现在建一份就好。卡组模式：<b>' + (cardMode === 'multi' ? '多人卡（好几个角色）' : '单人卡（一个角色）') + '</b></div>';
+    const wbBtn = '<button id="moon-adapt-wb" style="width:100%;padding:12px;border-radius:10px;border:1px solid ' +
+      (cardMode === 'multi' ? 'rgba(251,191,36,0.75)' : 'rgba(56,189,248,0.45)') + ';background:linear-gradient(135deg,' +
+      (cardMode === 'multi' ? '#2a1a05,#78350f' : '#0b1f33,#0b4a6f') + ');color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">' +
+      '📖 世界书建档' + (cardMode === 'multi' ? '　👈 多人卡点这个' : '') +
+      '<div style="font-size:10.5px;font-weight:400;color:' + (cardMode === 'multi' ? '#fcd34d' : '#a5f3fc') + ';margin-top:4px;">' +
+      '从世界书里把角色名字抓出来，你勾选要建哪几个，再按 4 个一批让 AI 判。<br>可以手填、可以掷骰；也能删档案、设「永久不再建档」。</div></button>';
     const html = detectHtml +
       '<div style="display:flex;flex-direction:column;gap:8px;">' +
+      wbBtn +
       '<button id="moon-adapt-adaptive" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(56,189,248,0.6);background:linear-gradient(135deg,#0c2540,#075985);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🌅 AI 智能建档　👈 点这个就行<div style="font-size:10.5px;font-weight:400;color:#a5f3fc;margin-top:4px;">AI 把聊天记录读一遍，自动建好角色档案。<br>第一次玩、或者老对话第一次装这个插件，都点它。</div></button>' +
       '<button id="moon-adapt-migrate" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(251,191,36,0.6);background:linear-gradient(135deg,#2a1a05,#78350f);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🔄 兼容迁移<div style="font-size:10.5px;font-weight:400;color:#fcd34d;margin-top:4px;">只有一种情况用它：你以前装过旧版本，旧数值搬不过来。</div></button>' +
       '<button id="moon-adapt-manual" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(34,197,94,0.6);background:linear-gradient(135deg,#052e16,#166534);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🖊 手动建档<div style="font-size:10.5px;font-weight:400;color:#bbf7d0;margin-top:4px;">自己挑人：扫世界书/角色卡/聊天里的人名，勾选后让 AI 判或自己填。</div></button>' +
       '<button id="moon-adapt-aimig" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.6);background:linear-gradient(135deg,#2a1040,#4c1d95);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">🤖 AI 辅助迁移<div style="font-size:10.5px;font-weight:400;color:#e9d5ff;margin-top:4px;">角色表里堆了很多乱七八糟的条目，让 AI 判断哪个留、哪个删。</div></button>' +
       '<button id="moon-adapt-pack" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(110,231,183,0.6);background:linear-gradient(135deg,#052e20,#064e3b);color:#f4f1ea;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600;text-align:left;">📦 打包迁移到新对话<div style="font-size:10.5px;font-weight:400;color:#6ee7b7;margin-top:4px;">想把档案搬到另一个聊天窗口继续玩，就用它。</div></button>' +
       '</div>';
-    showModalDialog('🚀 开局适配 · 点第一个就行', html, null, {
+    showModalDialog(cardMode === 'multi' ? '🚀 开局适配 · 多人卡先选人' : '🚀 开局适配 · 点第一个就行', html, null, {
       confirmText: '关闭',
       onOpen: function(mask) {
+        mask.querySelector('#moon-adapt-wb').addEventListener('click', function() { try { mask.remove(); } catch (e) {} openWorldbookBootstrapDialog(panel); });
         mask.querySelector('#moon-adapt-adaptive').addEventListener('click', function() { try { mask.remove(); } catch (e) {} manualAdaptiveOpening(panel); });
         mask.querySelector('#moon-adapt-manual').addEventListener('click', function() { try { mask.remove(); } catch (e) {} openManualBootstrapDialog(panel); });
         mask.querySelector('#moon-adapt-migrate').addEventListener('click', function() { try { mask.remove(); } catch (e) {} manualMigrate(panel); });

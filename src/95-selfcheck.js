@@ -340,7 +340,8 @@
       pocketFold('chr-files', '人物档案', '认错人、说话不像、想手改数值',
         '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" id="moon-phase-roster"><span>查看 / 修改档案</span><small>谁算主要攻略对象、现在多少分，都能手改</small></button>' +
         '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio"><span>让Ta试演一段</span><small>先看Ta说话像不像本人，不像就重写</small></button>' +
-        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button></div>', true) +
+        '<button class="mp-btn mp-btn-highlight" id="moon-phase-bio-lib"><span>已存的人物小抄</span><small>管所有写好的小抄，可改可开关</small></button>' +
+        '<button class="mp-btn" id="moon-phase-char-del"><span>删除角色档案</span><small>删掉某个人的数值；能设成「永久不再建档」</small></button></div>', true) +
       pocketFold('chr-you', '玩家身份档案', '每个聊天单独保存昵称与玩家设定，互不串档',
         '<div class="mp-grid"><button class="mp-btn mp-btn-user" id="moon-phase-player-nickname"><span>设置本聊天昵称</span><small>当前：' + lcdEscape(getChatPlayerIdentity().nickname || '跟随酒馆用户名') + '</small></button>' +
         '<button class="mp-btn mp-btn-user" id="moon-phase-user-bio"><span>生成玩家档案</span><small>整理当前玩家人设，形成可复用的小传</small></button>' +
@@ -674,6 +675,7 @@ bindClick('#moon-phase-update', function() {
     bindClick('#moon-phase-image-settings', function() { openImageGenerationSettingsDialog(panel); });
     bindClick('#moon-phase-faq', openFaqDialog);
     bindClick('#moon-phase-adapt', function() { openUnifiedAdaptDialog(panel); });
+    bindClick('#moon-phase-char-del', function() { openCharListDeleteDialog(panel); });
     bindClick('#moon-phase-ai-detect', function() { openAiConflictDialog(panel); });
     bindClick('#moon-token-refresh', function() { refreshTokenCard(panel); });
     setTimeout(function() { try { refreshTokenCard(panel); } catch (e) {} }, 120);
