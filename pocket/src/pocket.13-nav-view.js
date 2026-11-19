@@ -175,6 +175,70 @@ function navFrameLuma() {
   }
   return out;
 }
+/* ── 直接读存档定位（首选）───────────────────────────────────────────────
+   卡带里那张 gMoonSymTab 给了 &gSaveBlock1Ptr。SaveBlock1 的布局是源码写死的
+   （include/global.h）：
+     0x00 struct Coords16 pos       → 当前格 x / y
+     0x04 struct WarpData location  → mapGroup / mapNum
+   顺着读一次就有「哪张图的哪一格」，一格不差。
+
+   为什么不继续用画面比对：它只认「画面中间那块地形」，画面一旦被别的东西盖住
+   （骑乘时坐骑压在身上、对话框、菜单、黑屏过场、战斗）就认不出来，地图直接空掉。
+   读内存不看画面，这些情况全都不受影响。──────────────────────────────── */
+var navMemTab = null, navMemTabAbsent = false;
+
+/* 换卡带时清缓存：ROM 指针、地图图集、坐标表、已认出的位置都得重来 */
+function navForgetRom() {
+  navRom = null; navRomLen = 0;
+  navAtlasCache = null; navAdjCache = null; navAtlasBroken = false;
+  navMemTab = null; navMemTabAbsent = false;
+  navMapCanvasCache = {}; navMapCanvasKey = '';
+  navLumaCache = {}; navGridCache = {};
+  navHere = null; navDest = null; navPlan = null;
+}
+
+function navMemTable() {
+  if (navMemTab || navMemTabAbsent) return navMemTab;
+  var b = navRomBytes();
+  var M = coreModule;
+  /* ROM 还没装进核心时先别下结论：小窗一开机就在重绘，这里会被反复调用，
+     只有「ROM 读到了但搜不到表」才算这张卡带没带坐标表。 */
+  if (!b || !b.length || !M || !M._emuPeek32) return null;
+  /* 'S','M','T','1' 按小端拼成 0x31544D53 */
+  var MAGIC = 0x31544D53;
+  var at = -1;
+  for (var o = 0; o + 8 <= b.length; o += 4) {
+    if (((b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0) === MAGIC) { at = o; break; }
+  }
+  if (at < 0) { navMemTabAbsent = true; return null; }
+  navMemTab = {
+    at: at,
+    savPtrAddr: (b[at + 4] | (b[at + 5] << 8) | (b[at + 6] << 16) | (b[at + 7] << 24)) >>> 0,
+  };
+  return navMemTab;
+}
+
+/* 读存档 → { idx, x, y }；读不到（还没进游戏 / 卡带没这张表）返回 null */
+function navMemLocate() {
+  var tab = navMemTable();
+  var M = coreModule;
+  if (!tab || !M || !M._emuPeek32) return null;
+  var atlas = navAtlas();
+  if (!atlas) return null;
+  var sav = M._emuPeek32(tab.savPtrAddr) >>> 0;
+  /* SaveBlock1 在 EWRAM（0x02000000 起）；0 或越界说明还没建好存档 */
+  if (sav < 0x02000000 || sav >= 0x02040000) return null;
+  var p0 = M._emuPeek32(sav) >>> 0;
+  var p1 = M._emuPeek32(sav + 4) >>> 0;
+  var x = p0 & 0xFFFF, y = (p0 >>> 16) & 0xFFFF;
+  var g = p1 & 0xFF, n = (p1 >>> 8) & 0xFF;
+  var idx = atlas.indexOf(g, n);
+  if (idx < 0 || idx >= atlas.count) return null;
+  var lay = atlas.layoutOf(idx);
+  if (!lay || x >= lay.w || y >= lay.h) return null;
+  return { idx: idx, x: x, y: y, score: 999, exact: true };
+}
+
 /* 找「这张画面属于哪张图的哪一格」。
    两条硬规矩，宁可说「认不准」也不指错路：
    · 这一窗如果几乎是一块纯色（树林、墙面、水面），任何图都对得上，直接放弃；
@@ -182,6 +246,9 @@ function navFrameLuma() {
 function navIdentify(frameLuma) {
   var atlas = navAtlas();
   if (!atlas) return null;
+  /* 能读存档就别猜：画面比对只在没有符号表的卡带上兜底 */
+  var exact = navMemLocate();
+  if (exact) return exact;
   var fl = frameLuma || navFrameLuma();
   if (!fl || fl.length < 15 * NAV_Rows) return null;
   var rows = NAV_Rows, tiles = 15 * rows;
@@ -486,7 +553,7 @@ function navOpen() {
   setTimeout(function () {
     var here = navIdentify();
     if (here) { navHere = here; navHint('点图上一格 = 定目的地'); }
-    else navHint('这一帧认不出——屋里太空、菜单、对话、战斗里都认不出，走到有树有路的地方再点');
+    else navHint('读不到你的位置——还没进游戏，或者这张卡带里没有坐标表');
     navDraw();
   }, 30);
 }

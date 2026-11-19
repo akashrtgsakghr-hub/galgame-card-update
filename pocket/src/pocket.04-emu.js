@@ -4,7 +4,24 @@
    ─ 生命周期：loadCore() 初始化 → boot() 塞 ROM → 每帧 runFrame → 取 240×160 RGBA
    ─ C 侧符号：1=ROM缓冲 2=存档区(128KB Flash+8KB) 3=帧缓冲 4=金手指文本缓冲
    ═══════════════════════════════════════════════════════════════════════════ */
-var CORE_JS_URL = "core/44gba.js", CORE_WASM_URL = "core/44gba.wasm";
+/* ── 可插拔核心注册表 ─────────────────────────────────────────────────────
+   两套核心并存，切换只改 CORE_PICK 一行：
+     mgba  MPL-2.0。ROM 由 vf->map 直接映射 JS 那 32MB 缓冲（零拷贝），存档按
+           卡带头部探测成 SRAM / FLASH512 / FLASH1M / EEPROM。32MB 改版卡带能
+           过「新游戏」这一步 —— 44vba 在那里会死等，排查 8 个方向后确认是核心层。
+     vba   GPL-3.0，wasm 小一半，老卡带照样能跑；留着当退路与对照。
+   两份文件都留在 core/ 下，随时能切回去比对。 */
+var CORES = {
+  mgba: { js: "core/mgba.js", wasm: "core/mgba.wasm",
+          name: "mGBA", license: "MPL-2.0", label: "mGBA / MPL-2.0",
+          hint: "核心文件 core/mgba.js 与 .wasm 需在同目录" },
+  vba:  { js: "core/44gba.js", wasm: "core/44gba.wasm",
+          name: "44vba", license: "GPL-3.0", label: "44vba / GPL-3.0",
+          hint: "核心文件 core/44gba.js 与 .wasm 需在同目录" }
+};
+var CORE_PICK = "mgba";
+var CORE_SEL = CORES[CORE_PICK] || CORES.mgba;
+var CORE_JS_URL = CORE_SEL.js, CORE_WASM_URL = CORE_SEL.wasm;
 var cheatSpeed=1;
 var coreModule=null, corePromise=null, coreCtx=null, coreImageData=null,
     coreFbView=null, coreSavView=null, coreRaf=0, coreKeys=0, corePaused=false,
@@ -67,7 +84,18 @@ function loadCore(){
     window.onSaveBufChanged = window.onSaveBufChanged || function(){};
     return new Promise(function(res, rej){
       window.Module = {
+        /* 两种喂 wasm 的方式都给上：
+           44vba 是旧 Emscripten，认 wasmBinary；
+           mGBA 是 7.0，wasmBinary 已被移除，只剩 wasmBinaryFile（一个 URL）。
+           所以统一走 instantiateWasm —— 它两边都支持，而且不经过网络，
+           srcdoc iframe（opaque origin）里也能用。 */
         wasmBinary: assets.wasm,
+        instantiateWasm: function(imports, success){
+          WebAssembly.instantiate(assets.wasm, imports).then(function(r){
+            success(r.instance, r.module);
+          }).catch(rej);
+          return {};
+        },
         print: function(){},
         printErr: function(m){ if(/error|abort/i.test(String(m))) try{console.warn("[core] "+m);}catch(e){} },
         onRuntimeInitialized: function(){ res(window.Module); }
@@ -76,11 +104,10 @@ function loadCore(){
     });
   }).then(function(M){
     coreModule = M;
-    var fbPtr = M._emuGetSymbol(3), savPtr = M._emuGetSymbol(2);
-    coreFbView = new Uint8ClampedArray(M.HEAPU8.buffer).subarray(fbPtr, fbPtr + 240*160*4);
-    coreSavView = M.HEAPU8.subarray(savPtr, savPtr + 0x20000 + 0x2000);
     coreCtx = $("#core-canvas").getContext("2d");
-    coreImageData = new ImageData(coreFbView, 240, 160);
+    /* 强制重绑一次：核心初始化时堆可能刚扩过，这里不能沿用任何旧 view */
+    coreLastHeapBuffer = null;
+    refreshCoreMemoryViews();
     return M;
   }).catch(function(err){
     corePromise = null;
@@ -89,17 +116,65 @@ function loadCore(){
   return corePromise;
 }
 
+/* ── 内存视图与渲染 ────────────────────────────────────────────────────────
+   两个真问题，以前都埋着：
+   ① 视图只在 loadCore 时绑一次。wasm 一旦 grow（ALLOW_MEMORY_GROWTH、或者核心
+      内部 realloc 触发内存扩容），底层 ArrayBuffer 会换人，旧 TypedArray view
+      全部 detach —— 表现就是画面突然全黑、存档读出来全是 0，而且不报错。
+   ② 帧循环 try/catch 里只有 `return`，核心真崩了玩家只看到黑屏，一点线索没有。
+   现在每次进帧循环先核一遍 buffer 身份，换了就重绑；异常直接抬到屏幕上。 */
+var coreLastHeapBuffer = null, coreFatalError = null;
+
+/* 返回 true 表示重绑过。正常情况下只是一次指针比较，开销可以忽略。 */
+function refreshCoreMemoryViews(){
+  var M = coreModule;
+  if (!M || !M.HEAPU8) throw new Error("WASM 内存尚未初始化");
+  var buf = M.HEAPU8.buffer;
+  if (coreLastHeapBuffer === buf && coreFbView && coreSavView && coreImageData) return false;
+  var fbPtr = M._emuGetSymbol(3), savPtr = M._emuGetSymbol(2);
+  if (!fbPtr || !savPtr) throw new Error("取不到帧缓冲 / 存档区指针");
+  /* 两个 view 都直接架在新 buffer 上：帧缓冲零拷贝进 ImageData，
+     存档区仍是 Uint8Array（savWrite / savSig 那边按 Uint8Array 处理）。 */
+  coreFbView = new Uint8ClampedArray(buf, fbPtr, 240 * 160 * 4);
+  coreSavView = new Uint8Array(buf, savPtr, 0x20000 + 0x2000);
+  coreImageData = new ImageData(coreFbView, 240, 160);
+  coreLastHeapBuffer = buf;
+  try{ console.info("[core] 内存视图已重绑（wasm 内存换过）"); }catch(e){}
+  return true;
+}
+
+function renderCoreFrame(){
+  refreshCoreMemoryViews();
+  if (!coreCtx || !coreImageData) throw new Error("画面上下文未初始化");
+  coreCtx.putImageData(coreImageData, 0, 0);
+}
+
+/* 核心真出错时不再静默：把话说在屏幕上，比让玩家对着黑屏猜有用 */
+function showCoreRuntimeError(err){
+  coreFatalError = err;
+  corePaused = true;
+  try{ console.error("[core FATAL]", err); }catch(e){}
+  var veil = $("#emu-veil"), veilText = $("#emu-veil-text");
+  if (veil){ veil.hidden = false; if (veil.firstElementChild) veil.firstElementChild.textContent = "模拟器运行异常"; }
+  if (veilText) veilText.textContent = "模拟器已停止：" + String((err && err.message) || err);
+  var f = $("#emu-fps"); if (f) f.textContent = "ERR";
+  toast("模拟器异常，已暂停：见屏幕提示");
+}
+
 /* 一帧：跑核心 → 取帧缓冲画到屏幕。核心算 1 帧约 1ms，60fps 绰绰有余。 */
 function coreTick(ts){
   coreRaf = requestAnimationFrame(coreTick);
-  if (!coreModule || !coreBooted || corePaused) return;
+  if (!coreModule || !coreBooted || corePaused || coreFatalError) return;
   /* 有人在按帧推进（瞬间移动）：这里让位，免得两边同时喂帧、时间对不上 */
   if (coreManual) return;
-  /* 倍速：一帧 rAF 里多跑几帧核心。金手指台的「加速」就是改这个数，
-     不改游戏本身，也不影响存档。 */
-  try{ for (var _f = 0; _f < cheatSpeed; _f++) coreModule._emuRunFrame(coreKeys); }catch(e){ return; }
-  coreClock += cheatSpeed;
-  coreCtx.putImageData(coreImageData, 0, 0);
+  /* 倍速：一帧 rAF 里多跑几帧核心。金手指台的「加速」就是改这个数， */
+  try{
+    refreshCoreMemoryViews();
+    var n = Math.max(1, Math.min(cheatSpeed || 1, 8));
+    for (var _f = 0; _f < n; _f++) coreModule._emuRunFrame(coreKeys);
+    coreClock += n;
+    renderCoreFrame();
+  }catch(err){ showCoreRuntimeError(err); return; }
   coreFrames++;
   if (!coreFpsT) coreFpsT = ts;
   else if (ts - coreFpsT >= 500){
@@ -112,7 +187,7 @@ function coreStart(){ if (!coreRaf) coreRaf = requestAnimationFrame(coreTick); }
 function coreStop(){ if (coreRaf){ cancelAnimationFrame(coreRaf); coreRaf = 0; } }
 
 var GBA_CORE = {
-  name: "44vba", license: "GPL-3.0", version: "wasm", real: true,
+  name: CORE_SEL.name, license: CORE_SEL.license, version: "wasm", real: true,
   boot: function(buf, meta){
     var veil = $("#emu-veil"), veilText = $("#emu-veil-text");
     if (veil){ veil.hidden = false; veil.firstElementChild.textContent = "装载核心…"; }
@@ -122,7 +197,7 @@ var GBA_CORE = {
       : (meta && meta.title ? meta.title : "GBA");
     $("#emu-name").textContent = shown;
     if (meta && meta.title) $("#emu-name").title = "卡带头部：" + meta.title + (meta.code ? " / " + meta.code : "");
-    coreBooted = false; corePaused = false; coreKeys = 0;
+    coreBooted = false; corePaused = false; coreKeys = 0; coreFatalError = null;
     return loadCore().then(function(M){
       if (veilText) veilText.textContent = "正在把卡带内容交给核心（" + (buf.length/1048576).toFixed(0) + " MB）";
       var romPtr = M._emuGetSymbol(1);
@@ -140,9 +215,12 @@ var GBA_CORE = {
           if (typeof mapReset === "function") mapReset();
           if (typeof savWatchStart === "function") savWatchStart();
           if (veil) veil.hidden = true;
-          $("#core-state").textContent = "44vba / GPL-3.0 · 运行中";
+          $("#core-state").textContent = CORE_SEL.label + " · 运行中";
           if (restored) toast("已接上这张卡带的存档 · 游戏里选「继续」");
           if (typeof savUpdateCaption === "function") savUpdateCaption();
+          /* 换卡/重开机后把玩家存过的金手指重新挂上：_emuLoadROM 换了核心实例，
+             以前挂的钩子全没了，不重放就等于「代码还在列表里但不生效」。 */
+          if (typeof cheatReapply === "function") { try{ cheatReapply(); }catch(e){} }
           /* 告诉宿主「真的在玩了」：AI 回复完成后要不要响一声、要不要自动存档，看这个 */
           try{ parent.postMessage({ type: "moon-pocket:playing",
             code: (lastRom && lastRom.code) || "", title: (lastRom && lastRom.title) || "" }, "*"); }catch(e){}
@@ -151,7 +229,7 @@ var GBA_CORE = {
     }).catch(function(err){
       coreBooted = false;
       if (veil){ veil.hidden = false; veil.firstElementChild.textContent = "核心装载失败"; }
-      if (veilText) veilText.textContent = String(err && err.message || err) + "（核心文件 core/44gba.js 与 .wasm 需在同目录）";
+      if (veilText) veilText.textContent = String(err && err.message || err) + "（" + CORE_SEL.hint + "）";
       throw err;
     });
   },
@@ -165,11 +243,15 @@ var GBA_CORE = {
      瞬间移动要「按住方向键正好 16 帧 = 走一格」，靠毫秒计时在倍速下会飘，
      所以这里直接一帧一帧地喂。调用方负责成对地 manual(true)/manual(false)。 */
   step: function(n){
-    if (!coreModule || !coreBooted) return 0;
-    try{ for (var i = 0; i < n; i++) coreModule._emuRunFrame(coreKeys); }catch(e){ return 0; }
-    coreClock += n;
-    try{ coreCtx.putImageData(coreImageData, 0, 0); }catch(e){}
-    return n;
+    if (!coreModule || !coreBooted || coreFatalError) return 0;
+    n = Math.max(1, Math.min(Number(n) || 1, 600));
+    try{
+      refreshCoreMemoryViews();
+      for (var i = 0; i < n; i++) coreModule._emuRunFrame(coreKeys);
+      coreClock += n;
+      renderCoreFrame();
+      return n;
+    }catch(err){ showCoreRuntimeError(err); return 0; }
   },
   manual: function(on){ coreManual = !!on; },
   pause: function(v){ corePaused = !!v; },
@@ -219,30 +301,44 @@ $("#emu-save").addEventListener("click",function(){
   toast("已导出 "+name+"（128KB，非零 "+nz+" 字节）");
 });
 $("#rom-btn").addEventListener("click",function(){$("#rom-file").click();});
+/* 统一的插卡流程：文件、内置卡带、槽位复用都走这里 */
+function bootRomBuffer(buf,name,fromFile){
+  var out=$("#rom-result");
+  var bytes=buf.byteLength||buf.length;
+  if(out)out.textContent="读取中…（"+bytes.toLocaleString()+" 字节）";
+  var meta=parseGBAHeader(buf,name||"BT999.gba");
+  return crypto.subtle.digest("SHA-1",buf).then(function(h){
+    var hex=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+    meta.hash=hex;lastRom=meta;renderRomCard(meta,hex);renderCartSlot();
+    if(out)out.innerHTML="解析完成：<b>"+esc(meta.title)+" / "+esc(meta.code)+"</b> · "+meta.sizeMB+" MB · SHA-1 <code>"+hex.slice(0,16)+"…</code><br>"
+      +"正在交给运行核心（"+esc(GBA_CORE.name)+" / "+esc(GBA_CORE.license)+"）。"
+      +"<br>卡带内容只在本页内存里，未上传、未保存。";
+    /* 插进去就直接跑：核心异步初始化，装载期间屏幕上显示进度 */
+    if(!core||!core.real)attachCore(GBA_CORE,true);
+    showLayer("core");
+    return Promise.resolve(core.boot(new Uint8Array(buf),meta)).then(function(){
+      if(out)out.innerHTML+="<br>核心已接管画面。";
+      $("#emu-tip").textContent="方向键移动 · A 确认 · B 取消 · START 菜单 · 导出存档可拿到 .sav";
+      /* 卡带字节已经拷进 wasm 堆，JS 这边这份 32MB 副本没必要留着 */
+      if(embeddedRomBuf===buf)embeddedRomBuf=null;
+      toast("卡带已启动 · "+meta.sizeMB+" MB");
+      /* 玩家从本地选的文件：开机成功后交给宿主存起来，下次开机就不用再选了。
+         必须等核心拷完再 transfer（提前发会把 buffer 置空，HEAPU8.set 就炸了）。 */
+      if(fromFile){
+        try{parent.postMessage({type:"moon-pocket:rom-picked",buf:buf,size:bytes},"*",[buf]);}catch(e){}
+        embeddedRomCached=true;embeddedRomSize=bytes;
+        try{renderCartSlot();}catch(_){}
+      }
+    }).catch(function(err){
+      if(out)out.innerHTML+="<br>核心装载失败："+esc(err&&err.message||err);
+      toast("核心装载失败，见卡带页说明");
+    });
+  });
+}
 $("#rom-file").addEventListener("change",function(e){
   var f=e.target.files&&e.target.files[0];if(!f)return;
-  var out=$("#rom-result");out.textContent="读取中…（"+f.size.toLocaleString()+" 字节）";
-  f.arrayBuffer().then(function(buf){
-    var meta=parseGBAHeader(buf,f.name);
-    return crypto.subtle.digest("SHA-1",buf).then(function(h){
-      var hex=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
-      meta.hash=hex;lastRom=meta;renderRomCard(meta,hex);renderCartSlot();
-      out.innerHTML="解析完成：<b>"+esc(meta.title)+" / "+esc(meta.code)+"</b> · "+meta.sizeMB+" MB · SHA-1 <code>"+hex.slice(0,16)+"…</code><br>"
-        +"正在交给运行核心（"+esc(GBA_CORE.name)+" / "+esc(GBA_CORE.license)+"）。"
-        +"<br>文件只在本页内存里读取，未复制、未上传、未保存。";
-      /* 插进去就直接跑：核心异步初始化，装载期间屏幕上显示进度 */
-      if(!core||!core.real)attachCore(GBA_CORE,true);
-      showLayer("core");
-      Promise.resolve(core.boot(new Uint8Array(buf),meta)).then(function(){
-        out.innerHTML+="<br>核心已接管画面。";
-        $("#emu-tip").textContent="方向键移动 · A 确认 · B 取消 · START 菜单 · 导出存档可拿到 .sav";
-        toast("卡带已启动 · "+meta.sizeMB+" MB");
-      }).catch(function(err){
-        out.innerHTML+="<br>核心装载失败："+esc(err&&err.message||err);
-        toast("核心装载失败，见卡带页说明");
-      });
-    });
-  }).catch(function(err){out.textContent="解析失败："+err.message;});
+  f.arrayBuffer().then(function(buf){return bootRomBuffer(buf,f.name,true);})
+    .catch(function(err){var o=$("#rom-result");if(o)o.textContent="解析失败："+err.message;});
   e.target.value="";
 });
 

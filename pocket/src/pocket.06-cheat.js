@@ -10,13 +10,28 @@
 var CHEAT_CODES_KEY = "moon-pocket-cheat-codes-v1";
 var cheatCodes = [], cheatEngine = null, cheatMashTimer = 0, cheatHoldTimer = 0;
 var CHEAT_SPEEDS = [1, 2, 4];
-var CHEAT_PROBE_ADDR = 0x203fff0;   /* EWRAM 尾巴，一般没人用 */
+/* 探针地址：IWRAM 里 .bss 结尾（0x03006F01）到栈底之间的空档，8 字节，
+   离栈顶还有 4KB，正常调用深度碰不到；比原来落在 EWRAM 堆顶（可能被
+   malloc 分出去）要安全。 */
+var CHEAT_PROBE_ADDR = 0x3006f10;
 
 function cheatLoad(){
   try{
     var raw = LS.getItem(CHEAT_CODES_KEY);
     if(raw){ var arr = JSON.parse(raw); if(arr && arr.length) cheatCodes = arr; }
   }catch(e){}
+}
+/* 把列表整体重挂：先清空核心侧，再按顺序重发。删码/改码/换卡都走这里，
+   这样核心里的钩子和界面上看到的列表永远一致，不会出现「删了但还生效」。 */
+function cheatReapply(){
+  var M = coreModule;
+  if(!M || !coreBooted || typeof M._emuClearCheats !== "function") return;
+  try{ M._emuClearCheats(); }catch(e){}
+  for(var i = cheatCodes.length - 1; i >= 0; i--){   /* 列表是 unshift 存的，倒序重放才和加的先后一致 */
+    var r = cheatPush(cheatCodes[i].code);
+    cheatCodes[i].ret = r.ret;
+  }
+  try{ cheatRender(); }catch(e){}
 }
 function cheatSave(){
   try{ LS.setItem(CHEAT_CODES_KEY, JSON.stringify(cheatCodes.slice(0, 40))); }catch(e){}
@@ -45,7 +60,8 @@ function cheatSelfTest(done){
   var magic = [0xdead, 0xbeef, 0xcafe, 0xf00d], accepted = 0;
   for(var i = 0; i < magic.length; i++){
     var addr = (CHEAT_PROBE_ADDR + i * 2).toString(16).padStart(7, "0");
-    var r = cheatPush("1" + addr + " " + magic[i].toString(16).padStart(4, "0"));
+    /* 探针用 VBA 写法（地址:数据），宽度明确，不会被当成加密的 CodeBreaker */
+    var r = cheatPush("0" + addr + ":" + magic[i].toString(16).padStart(4, "0"));
     if(r.ok) accepted++;
   }
   try{ M._emuRunFrame(coreKeys); }catch(e){}
@@ -150,14 +166,16 @@ $("#gt-test").addEventListener("click", function(){
   cheatSelfTest(function(){ cheatRender(); });
 });
 $("#gt-clear").addEventListener("click", function(){
-  cheatCodes = []; cheatSave(); cheatRender(); toast("已清空代码列表（游戏里已生效的不会撤回）");
+  cheatCodes = []; cheatSave(); cheatReapply(); cheatRender();
+  toast("已清空代码列表 · 核心侧也一起撤了");
 });
 $("#gt-list").addEventListener("click", function(e){
   var b = e.target.closest("button"); if(!b) return;
   if(b.dataset.cheatRe){ cheatAdd(b.dataset.cheatRe); return; }
   if(b.dataset.cheatDel){
     cheatCodes = cheatCodes.filter(function(c){ return c.code !== b.dataset.cheatDel; });
-    cheatSave(); cheatRender();
+    cheatSave(); cheatReapply(); cheatRender();
+    toast("这条已撤掉 · 其余代码保持生效");
   }
 });
 $(".gt-grid").addEventListener("click", function(e){

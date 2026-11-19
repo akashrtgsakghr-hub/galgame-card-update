@@ -221,7 +221,26 @@ window.MOON_POCKET={
     show:mapShow, hide:mapHide, toggle:mapToggle, reset:mapReset,
     newPage:function(){ mapInit().newPage(); },
     /* 调试用：直接塞一帧 240×160 RGBA（联调脚本拿真画面平移来验走位），返回状态机结果 */
-    feed:function(frame){ return mapFeed(frame); }
+    feed:function(frame){ return mapFeed(frame); },
+    /* 调试用：现在按存档读到的位置（读不到返回 null）——用来确认「读内存」这条通没通 */
+    locate:function(){ return (typeof navMemLocate === "function") ? navMemLocate() : null; },
+    atlasMode:function(){ return mapAtlasMode; },
+    /* 调试用：整图能不能画出来、卡在哪一步 */
+    probe:function(){
+      var mem = (typeof navMemLocate === "function") ? navMemLocate() : null;
+      var out = { mem: mem, atlas: !!(typeof navAtlas === "function" && navAtlas()),
+        img: null, lay: null, err: window.__mapRenderErr || null };
+      if (mem) {
+        try {
+          var a = navAtlas();
+          var l = a && a.layoutOf(mem.idx);
+          out.lay = l ? { w: l.w, h: l.h } : null;
+          var img = navRenderMapCanvas(mem.idx);
+          out.img = img ? { w: img.width, h: img.height } : null;
+        } catch (e) { out.err = String(e && e.message || e); }
+      }
+      return out;
+    }
   },
   /* 存档区快照：写盘 / 读档 / 状态。auto 由宿主在「AI 回复完成」时调 */
   save:{
@@ -288,6 +307,27 @@ if(EMBED){
       if(d.on&&!wbEntries.length)runConvert();
     }else if(d.type==="moon-host:wb-rebuild"){
       runConvert();
+    }else if(d.type==="moon-host:rom-none"){
+      /* 宿主手里没有卡带（普通发布版且玩家还没选过文件）：直接弹文件框 */
+      embeddedRomPending=false;
+      $("#rom-file").click();
+    }else if(d.type==="moon-host:rom-error"){
+      embeddedRomPending=false;
+      toast("卡带准备失败："+(d.message||"未知原因"));
+      var _oe=$("#rom-result");if(_oe)_oe.textContent="卡带准备失败："+(d.message||"未知原因");
+    }else if(d.type==="moon-host:rom-cached"){
+      /* 宿主已经把这个 32MB 记住了：下次打开点卡槽就能直接玩 */
+      toast(d.ok?"卡带已记住 · 下次点卡槽直接玩":"卡带能玩，但这台机器没让存（空间不足或无痕模式）");
+    }else if(d.type==="moon-host:rom-meta"){
+      /* 宿主只报来源（此时一个字节都没解）——先把卡槽文案写对 */
+      embeddedRomSize=d.size||0;
+      embeddedRomCached=!!d.cached;
+      try{renderCartSlot();}catch(_){}
+    }else if(d.type==="moon-host:rom"&&d.buf){
+      /* 玩家点了卡槽、宿主才解好推过来。存着，并立刻装机。 */
+      embeddedRomBuf=d.buf;
+      try{renderCartSlot();}catch(_){}
+      if(embeddedRomPending){embeddedRomPending=false;bootRomBuffer(embeddedRomBuf,"BT999 · 内置卡带");}
     }
   });
   var reportHeight=function(){
@@ -299,3 +339,27 @@ if(EMBED){
   setTimeout(reportHeight,80);setTimeout(reportHeight,600);
   post({type:"moon-pocket:ready"});
 }
+
+/* ── 屏内工具栏闲置下沉 ──────────────────────────────────────────────
+   这条 bar 常年压在游戏画面上：标题画面挡 logo，取名界面正好压住游戏
+   自己画的「移动 / 确认 / 返回」提示。不操作 4 秒就沉下去变淡，碰一下
+   或悬停立刻回来——按钮位置不变，只是别一直挡着。 */
+(function(){
+  var hud=document.querySelector("#core-stage .emu-hud");
+  if(!hud)return;
+  var idleTimer=null;
+  var wake=function(){
+    hud.classList.remove("is-idle");
+    clearTimeout(idleTimer);
+    idleTimer=setTimeout(function(){hud.classList.add("is-idle");},4000);
+  };
+  var stage=document.querySelector("#core-stage");
+  if(stage){
+    stage.addEventListener("pointermove",wake,{passive:true});
+    stage.addEventListener("pointerdown",wake,{passive:true});
+  }
+  addEventListener("keydown",wake,{passive:true});
+  /* 截图/自动化用：派发 moon-pocket:hud-wake 就能把它叫回来 */
+  addEventListener("moon-pocket:hud-wake",wake);
+  wake();
+})();

@@ -10,11 +10,24 @@ function renderCartSlot(){
   }else{
     slot.classList.remove("loaded");
     label.textContent="NO CARTRIDGE";
-    hint.textContent="插入 BT999";
+    /* 带 ROM 的构建里，宿主会先把卡带内容送进来：这时槽位就是「点一下装机」 */
+    var _rs=embeddedRomSize||(embeddedRomBuf?embeddedRomBuf.byteLength:0);
+    /* 三种状态：本机已记住（点开即玩）/ 脚本自带（点一下装）/ 都没有（选本地文件） */
+    hint.textContent=_rs?((embeddedRomCached?"已存卡带 · 点开即玩":"内置 BT999 · ")+Math.round(_rs/1048576)+" MB"):"插入 BT999";
   }
 }
 $("#cart-slot").addEventListener("click",function(){
-  if(lastRom)insert("rom.slot.byor");else $("#rom-file").click();
+  if(lastRom){insert("rom.slot.byor");return;}
+  /* 没插过卡、但脚本里自带卡带：直接装自带的，不用玩家去找文件 */
+  if(embeddedRomBuf){bootRomBuffer(embeddedRomBuf,"BT999 · 内置卡带");return;}
+  /* 宿主只报了大小、还没解码：先要，解完它会推过来，推过来就自动装机 */
+  if(embeddedRomSize){
+    embeddedRomPending=true;
+    try{parent.postMessage({type:"moon-pocket:want-rom"},"*");}catch(e){}
+    toast("正在准备内置卡带…");
+    return;
+  }
+  $("#rom-file").click();
 });
 var SAVE_DB={BPEE:"FLASH 128KB（rom_config.ini: flashSize=128k）",BPRE:"FLASH 128KB（FireRed）",
   BPEJ:"FLASH 128KB（日版）",BPGJ:"FLASH 128KB",AXVE:"FLASH 128KB",AXPE:"FLASH 128KB"};

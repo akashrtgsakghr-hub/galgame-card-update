@@ -118,19 +118,20 @@
             <div class="emu-veil" id="emu-veil"><b>装载核心…</b><span id="emu-veil-text">正在初始化 WASM</span></div>
 
             <!-- 小地图：左上角那扇窗。不是游戏里的道具，是掌机自己照着画面描的。
-                 画布 192×144 按 1:1 CSS 像素显示（屏幕宽度够，DPR 2/3 下正好整数倍），
-                 所以地图是硬像素，不会被缩糊；标题栏只放名字和页码，按钮挪到脚条。 -->
+                 画布 128×96 按 1:1 CSS 像素显示，地图是硬像素不会被缩糊；
+                 尺寸刻意做小，它只是「我在图上哪儿」的角标——点画面会开全屏整图。
+                 标题栏只放名字和页码，按钮挪到脚条。 -->
             <div class="map-panel" id="map-panel" hidden aria-label="小地图">
               <div class="mp-head">
                 <span id="mp-title">手绘地图</span>
                 <span class="mp-page" id="mp-page">1/1</span>
               </div>
-              <canvas id="mp-canvas" width="192" height="144"></canvas>
+              <canvas id="mp-canvas" width="128" height="96"></canvas>
               <div class="mp-foot">
                 <div class="mp-legend">
                   <i class="mp-k you" aria-hidden="true"></i><span>你</span>
-                  <i class="mp-k in" aria-hidden="true">入</i>
-                  <i class="mp-k out" aria-hidden="true">出</i>
+                  <i class="mp-k in" aria-hidden="true" data-atlas-hide>入</i>
+                  <i class="mp-k out" aria-hidden="true" data-atlas-hide>出</i>
                 </div>
                 <button type="button" class="mp-key" id="mp-again" title="换一张白纸，从脚下重新画" aria-label="换一张白纸">新</button>
                 <button type="button" class="mp-key" id="mp-fold" title="收起 / 展开" aria-label="收起地图">–</button>
@@ -140,7 +141,7 @@
             <div class="map-note" id="mp-note" hidden>
               <div class="note-bar"><b>妈妈塞进包里的东西</b><small>MOM</small></div>
               <div class="note-body">
-                <p>鞋给你换了新的。路我不认得，就照旧册子描了一张空的——你走过的地方，它会自己一格格画出来。进林子、钻洞窟、绕迷宫，翻页就是新的一张。</p>
+                <p>鞋给你换了新的。地图直接照着旧册子描全了——整条路、每片草地都在上面，不用你自己先走一遍。白点闪的那格就是你。点一下地图能摊开看整张，还能挑个地方让我给你指路。</p>
                 <label class="mp-chk"><input type="checkbox" id="mp-auto" checked><span>进新地图时自动翻开</span></label>
               </div>
               <div class="note-foot"><button type="button" id="mp-note-ok">收下</button></div>

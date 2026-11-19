@@ -149,12 +149,17 @@ body[data-cheat="on"] .led.cheat{background:var(--color-accent-2);box-shadow:0 0
    「导出存档」那种长标签直接被挤出屏幕，所以这里分成主行 + 抽屉。 */
 .emu-hud{position:absolute;left:0;right:0;top:0;z-index:3;padding:4px 6px 5px;
   background:linear-gradient(180deg,rgba(10,15,8,.86),rgba(10,15,8,0));
-  font:600 9px/1 var(--font-mono);color:var(--color-lcd);letter-spacing:.04em}
+  font:600 9px/1 var(--font-mono);color:var(--color-lcd);letter-spacing:.04em;
+  /* 闲置时让位：这条工具栏压在游戏画面上，取名界面那种「游戏自己在顶上写字」的
+     场景会跟它打架。不操作几秒就沉下去变淡，一动就回来 */
+  transition:opacity 260ms ease,transform 260ms ease;opacity:1;transform:translateY(0)}
+.emu-hud.is-idle{opacity:.16;transform:translateY(-2px)}
+.emu-hud:hover,.emu-hud:focus-within{opacity:1!important;transform:none!important}
 .emu-hud-row{display:flex;align-items:center;gap:6px;min-width:0}
 /* 名字让位给按钮：小屏上「POKÉMON EMERALD」不该把工具栏顶出去 */
 .emu-name{flex:1 1 auto;min-width:0;max-width:32%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--color-lcd);text-shadow:0 1px 0 rgba(0,0,0,.8)}
-.emu-stat{opacity:.85;white-space:nowrap;font-size:8.5px}
+.emu-stat{opacity:.85;white-space:nowrap;font-size:8.5px;font-variant-numeric:tabular-nums}
 .emu-stat b{color:var(--color-accent-2)}
 .emu-btn{flex:none;min-height:21px;padding:3px 6px;border:2px solid rgba(247,233,240,.55);border-radius:0;
   background:rgba(10,15,8,.55);color:var(--color-lcd);font:700 8.5px/1 var(--font-mono);
@@ -178,7 +183,10 @@ body[data-cheat="on"] .led.cheat{background:var(--color-accent-2);box-shadow:0 0
 }
 .emu-tip{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:4px 8px;
   background:linear-gradient(0deg,rgba(10,15,8,.82),rgba(10,15,8,0));
-  font:500 9px/1.4 var(--font-ui);color:var(--color-lcd);opacity:.78;text-align:center}
+  /* 这条提示压在游戏画面上，之前 opacity:.78 时几乎看不见（尤其标题画面那种亮背景）。
+     颜色不动，只把字做实 + 描一圈黑边把对比度拉起来 */
+  font:500 9px/1.4 var(--font-ui);color:var(--color-lcd);opacity:.95;
+  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.8);text-align:center}
 .emu-veil{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:6px;background:rgba(10,15,8,.92);color:var(--color-lcd);
   font:700 11px/1.5 var(--font-mono);letter-spacing:.1em;text-align:center;padding:16px}

@@ -19,7 +19,7 @@ pre .k{color:var(--color-accent)}pre .s{color:var(--color-accent-2)}
 .overlay{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:20px;
   background:rgba(6,3,8,.76);backdrop-filter:blur(6px)}
 .overlay[hidden]{display:none}
-.dialog{width:min(100%,560px);max-height:90vh;overflow:auto;padding:26px 28px;
+.dialog{width:min(100%,560px);max-height:90vh;overflow:auto;overscroll-behavior:contain;padding:26px 28px;
   background:var(--color-surface);border:1px solid var(--color-accent);box-shadow:var(--shadow-3)}
 .dialog .tag{font:600 10px/1.4 var(--font-mono);letter-spacing:.3em;color:var(--color-accent)}
 .dialog h2{margin:12px 0 10px;font:700 27px/1.2 var(--font-display);letter-spacing:.01em}
@@ -49,7 +49,7 @@ pre .k{color:var(--color-accent)}pre .s{color:var(--color-accent-2)}
   font:500 10.5px/1.7 var(--font-mono);color:var(--color-muted)}
 .wb-meta b{color:var(--color-accent-2)}
 .wb-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:0;flex:1;min-height:0}
-.wb-list{overflow:auto;padding:14px 16px;min-width:0}
+.wb-list{overflow:auto;overscroll-behavior:contain;padding:14px 16px;min-width:0}
 .wb-entry{border:1px solid var(--color-line);margin-bottom:10px;background:var(--color-surface-2)}
 .wb-entry[open]{border-color:color-mix(in srgb,var(--color-accent) 45%,var(--color-line))}
 .wb-entry > summary{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;list-style:none;min-height:44px}
@@ -84,7 +84,7 @@ pre .k{color:var(--color-accent)}pre .s{color:var(--color-accent-2)}
 
 
 /* ── 美化抽屉 ── */
-.skin-drawer{position:fixed;right:0;top:0;bottom:0;z-index:95;width:min(100%,400px);overflow:auto;
+.skin-drawer{position:fixed;right:0;top:0;bottom:0;z-index:95;width:min(100%,400px);overflow:auto;overscroll-behavior:contain;
   background:var(--color-surface);border-left:1px solid var(--color-accent);box-shadow:var(--shadow-3);padding:22px}
 .skin-drawer[hidden]{display:none}
 .skin-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid var(--color-line);padding-bottom:14px}

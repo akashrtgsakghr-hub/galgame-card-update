@@ -10,6 +10,8 @@ var frame = $("#cart-frame"), consoleEl = $("#console");
 var layers = { byor:$("#byor"), core:$("#core-stage"), cheat:$("#cheat-stage"), msg:$("#screen-msg"), boot:$("#boot") };
 var activeId = null, powered = true, mode = "arcade", core = null, bridge = null, narrator = null;
 var lastRom = null, lastSnapshot = null, frameLive = false, toastTimer = null;
+/* 内嵌卡带：宿主把 ROM 送进来时存在这儿（ArrayBuffer）。主发布版没有这一段，恒为 null。 */
+var embeddedRomBuf = null, embeddedRomSize = 0, embeddedRomPending = false, embeddedRomCached = false;
 var chatId = "local", wbEntries = [], cheatOn = false;
 var SAVE_PREFIX = "moon-pocket:demo:", WB_PREFIX = "moon-pocket:worldbook:", FLAG_PREFIX = "moon-pocket:flag:";
 /* 金手指转写出来的那本世界书叫什么。导出 JSON、编辑页抬头、酒馆侧注入的标题都是这一份；

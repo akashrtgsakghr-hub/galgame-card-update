@@ -3,23 +3,26 @@
 
    这两块是「游戏里弹出来的窗」，所以按像素对话框的规矩来，不是按网页卡片的规矩来：
    ─ 一根 2px 粉描边定外框，里面 2px 空隙再压一根 1px 细线（双层框），不用阴影糊边。
-   ─ 画布 192×144 按 1:1 CSS 像素摆：DPR 2/3 下正好整数倍，地图是硬像素，不会被缩糊。
+   ─ 画布 128×96 按 1:1 CSS 像素摆，地图是硬像素，不会被缩糊。
+     尺寸有意做小：它只是角标，占满屏幕会挡视野；要看整张点一下画面开全屏。
    ─ 标题栏只放名字和页码，动作按钮全部收到脚条，靠右排成一排 13px 键帽。
    ─ 颜色走 --sui-*（见 pocket.01-console.css 末尾），换肤跟着变。
    ═══════════════════════════════════════════════════════════════════════════ */
 .map-panel{position:absolute;left:4px;top:25px;z-index:4;
-  width:196px;max-width:calc(100% - 8px);
+  /* 窗宽跟着视口走：桌面 132，手机缩到 96 上下；画布由 JS 按窗宽 1:1 重设（见 ⑨ mapFit） */
+  width:clamp(96px,23vw,132px);max-width:calc(100% - 8px);
   background:var(--sui-bg);border:2px solid var(--sui-pink);
   box-shadow:0 0 0 2px rgba(0,0,0,.55),3px 3px 0 rgba(0,0,0,.45);
-  font:600 8px/1 var(--font-mono);color:var(--sui-text);letter-spacing:.04em;user-select:none}
+  font:600 8px/1 var(--font-mono);color:var(--sui-text);letter-spacing:.04em;user-select:none;
+  container-type:inline-size}   /* 窗子小时（手机）标题栏和键帽跟着缩，别让框占掉半屏 */
 .map-panel[hidden]{display:none}
 
 /* 标题栏：左边名字（不再挤到省略号），右边页码 */
-.mp-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;
-  height:15px;padding:0 5px;border-bottom:1px solid color-mix(in srgb,var(--sui-pink) 42%,transparent)}
-#mp-title{font:700 8.5px/15px var(--font-mono);color:var(--sui-pink);letter-spacing:.06em;
+.mp-head{display:flex;align-items:baseline;justify-content:space-between;gap:4px;
+  height:13px;padding:0 4px;border-bottom:1px solid color-mix(in srgb,var(--sui-pink) 42%,transparent)}
+#mp-title{font:700 8px/13px var(--font-mono);color:var(--sui-pink);letter-spacing:.06em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mp-page{flex:none;font:700 8px/15px var(--font-mono);color:var(--sui-muted);letter-spacing:.1em}
+.mp-page{flex:none;font:700 7.5px/13px var(--font-mono);color:var(--sui-muted);letter-spacing:.1em}
 
 /* 画布：宽度 = 窗宽减 4px 边框，正好 192，1:1 */
 #mp-canvas{position:static;inset:auto;display:block;width:100%;height:auto;
@@ -27,19 +30,19 @@
 .map-panel.is-shut #mp-canvas,.map-panel.is-shut .mp-legend{display:none}
 
 /* 脚条：图例在左、键帽在右；收起时脚条留着，不然展不开 */
-.mp-foot{display:flex;align-items:center;gap:3px;height:17px;padding:0 3px 0 5px;
+.mp-foot{display:flex;align-items:center;gap:3px;height:15px;padding:0 3px 0 4px;
   border-top:1px solid color-mix(in srgb,var(--sui-pink) 42%,transparent)}
 .mp-legend{flex:1;min-width:0;display:flex;align-items:center;gap:4px;
-  font:700 7.5px/1 var(--font-mono);color:var(--sui-muted);letter-spacing:0}
+  font:700 7px/1 var(--font-mono);color:var(--sui-muted);letter-spacing:0}
 .mp-legend .mp-k{flex:none;display:inline-flex;align-items:center;justify-content:center;
-  width:9px;height:9px;font:700 7px/1 var(--font-mono);color:var(--sui-bg);letter-spacing:0}
+  width:8px;height:8px;font:700 6.5px/1 var(--font-mono);color:var(--sui-bg);letter-spacing:0}
 .mp-legend .mp-k.you{background:var(--sui-pink2)}
 .mp-legend .mp-k.in{background:#8fd08a}
 .mp-legend .mp-k.out{background:#e8b96a}
-/* 键帽：13px 方块，按下沉 1px */
-.mp-key{flex:none;width:13px;height:13px;padding:0;border:1px solid color-mix(in srgb,var(--sui-pink) 55%,transparent);
+/* 键帽：12px 方块，按下沉 1px */
+.mp-key{flex:none;width:12px;height:12px;padding:0;border:1px solid color-mix(in srgb,var(--sui-pink) 55%,transparent);
   background:rgba(255,134,194,.08);color:var(--sui-pink2);
-  font:700 9px/1 var(--font-mono);cursor:pointer}
+  font:700 8.5px/1 var(--font-mono);cursor:pointer}
 .mp-key:hover{background:var(--sui-pink);color:var(--sui-bg);border-color:var(--sui-pink)}
 .mp-key:active{transform:translate(1px,1px)}
 /* 空图（还没走几步）时不压暗，纸本身就是暗的 */
@@ -82,6 +85,20 @@
 
 /* 窄屏：窗宽跟着屏幕走，别顶出屏幕 */
 @media (max-width:720px){
-  .map-panel{width:186px;left:3px;top:23px}
+  .map-panel{left:3px;top:21px}
   .map-note{left:5%;right:5%;top:9%}
+}
+
+/* 全图模式下「入/出」不适用（那是手绘分页的标记），只留「你」 */
+.map-panel.is-atlas .mp-k[data-atlas-hide]{display:none}
+
+/* 窗子被缩到 112px 以下（手机）：标题栏、键帽同步压薄，框整体矮一圈 */
+@container (max-width:112px){
+  .mp-head{height:11px;padding:0 3px}
+  #mp-title{font:700 7px/11px var(--font-mono)}
+  .mp-page{font:700 6.5px/11px var(--font-mono)}
+  .mp-foot{height:13px;padding:0 2px 0 3px;gap:2px}
+  .mp-legend{font:700 6px/1 var(--font-mono);gap:3px}
+  .mp-legend .mp-k{width:7px;height:7px;font:700 6px/1 var(--font-mono)}
+  .mp-key{width:11px;height:11px;font:700 7.5px/1 var(--font-mono)}
 }

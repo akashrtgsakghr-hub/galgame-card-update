@@ -35,7 +35,9 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
-html{scroll-behavior:smooth}
+/* 深色主题要声明给浏览器：不然 Windows / 安卓上的滚动条、下拉框、日期控件
+   会走浅色那一套，在黑机身上凭空多出一条白边 */
+html{scroll-behavior:smooth;color-scheme:dark}
 body{
   margin:0;min-height:100vh;background:var(--color-bg);color:var(--color-text);
   font:400 var(--step-1)/1.75 var(--font-mono);letter-spacing:.02em;overflow-x:hidden;
@@ -50,7 +52,10 @@ body::after{
   mix-blend-mode:overlay;
 }
 button,input,textarea,select{font:inherit;color:inherit}
-button{cursor:pointer}
+/* 手机上点按键：默认要等 ~300ms 判断是不是双击放大，虚拟手柄上这个延迟很致命；
+   tap-highlight 默认是浏览器蓝，压在黑粉机身上像贴了块创可贴，直接去掉
+   （按下反馈由 .dpad button.down / .ab 的位移自己给） */
+button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{
   outline:2px solid var(--color-accent);outline-offset:3px}
 ::selection{background:var(--color-accent);color:var(--color-bg)}

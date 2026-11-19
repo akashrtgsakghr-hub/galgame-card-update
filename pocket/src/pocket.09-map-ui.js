@@ -7,14 +7,47 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 var MAP_TILES = 44;                  /* 一页图纸 44×44 格（704×704 像素） */
 var MAP_SAMPLE_MS = 110;             /* 取帧间隔：约 9 次/秒，够用又不抢帧 */
-var MAP_VIEW_W = 192, MAP_VIEW_H = 144;   /* 小窗画布：12×9 格，1:1 像素 */
+/* 小窗画布：原来是 192×144（12×9 格），占掉屏幕近三成，玩家嫌挡视野——
+   它只是「我在图上哪儿」的角标，要看清楚点击画面会开全屏整图，
+   所以缩到窗口实际宽度的 1/4 屏上下（桌面约 128×96，面积只剩四成）。
+   尺寸不写死：窗宽由 CSS 定（跟着屏幕缩放），画布按窗宽 1:1 重设，
+   这样在任何屏幕尺寸下都是硬像素、不糊。 */
+var MAP_VIEW_W = 128, MAP_VIEW_H = 96;   /* 兜底尺寸，实际以 mapFit() 量出来的为准 */
 /* 视野往上偏 2 格：底部那条 36px 是 HUD，本来就没拼进图纸，
    把小窗往上挪一挪，既避开黑边，也正好多看点「前面」 */
 var MAP_VIEW_UP = 2;
 
 var mapTracker = null, mapOpen = false, mapAuto = true, mapFolded = false;
+var mapAtlasMode = false;   /* true = 正在用卡带直出的整图，不是手绘拼贴 */
 var mapLastSample = 0, mapBlinks = 0;
 var mapViewCv = null, mapViewCtx = null;
+
+/* 小窗默认就摆在屏幕上（不用先点一次），所以「该不该重画」看的是它可不可见，
+   不是 mapOpen——那个说的是玩家有没有手动展开过。 */
+function mapVisible(){
+  var h = $("#map-panel");
+  return !!(h && !h.hidden);
+}
+
+/* 画布尺寸跟着窗口走：窗宽由 CSS 决定（窄屏会缩），这里把画布重设成同样的像素数，
+   保持 1:1 —— 缩放会让硬像素地图变糊，也会让「你」那个方块变形。
+   高度按 4:3 走，跟 GBA 屏幕同比例。 */
+var mapFitW = 0, mapFitH = 0;
+function mapFit(){
+  var host = $("#map-panel");
+  var w = host ? Math.round(host.clientWidth) : 0;
+  if (w < 80) w = MAP_VIEW_W;                       /* 窗还没显示（clientWidth 为 0）时用兜底 */
+  if (w > 192) w = 192;
+  var h = Math.round(w * 0.75);
+  if (w !== mapFitW || h !== mapFitH){
+    mapFitW = w; mapFitH = h;
+    if (mapViewCv){
+      mapViewCv.width = w; mapViewCv.height = h;    /* 重设尺寸会清空画布，下一帧会重画 */
+      mapViewCtx = mapViewCv.getContext("2d");
+    }
+  }
+  return { w: mapFitW, h: mapFitH };
+}
 
 function mapPrefsLoad(){ mapAuto = LS.getItem(FLAG_PREFIX + "map-auto") !== "0"; }
 function mapPrefsSave(){ LS.setItem(FLAG_PREFIX + "map-auto", mapAuto ? "1" : "0"); }
@@ -52,9 +85,9 @@ function mapFeed(frame){
     mapSyncSheet(pg);
     mapUpdateChrome();
     /* 真的在这张图上走过一步，才自动翻开——开场白、菜单那种静止画面不该弹窗 */
-    if (!mapOpen && mapAuto && pg && pg.moves >= 1){
+    if (!mapOpen && mapAuto && ((pg && pg.moves >= 1)
+        || (typeof navMemLocate === "function" && navMemLocate()))){
       mapShow(true);
-      if (LS.getItem(FLAG_PREFIX + "map-note") !== "1") mapShowNote();
     } else if (mapOpen) mapRender();
   } else if (ev === "newpage"){
     mapUpdateChrome();
@@ -69,7 +102,12 @@ function mapSample(){
   var src = coreImageData.data;
   if (!mapFrameCopy) mapFrameCopy = new Uint8ClampedArray(src.length);
   mapFrameCopy.set(src);
-  return mapFeed(mapFrameCopy);
+  var ev = mapFeed(mapFrameCopy);
+  /* 全图模式的位置是从存档读的，跟「画面有没有变」无关：骑乘时玩家在走、画面被
+     坐骑盖住，走到新一格也未必触发 commit。窗开着就按采样节奏重画，
+     不然玩家标记会一直停在第一次画上去的地方。 */
+  if (mapVisible()) mapRender();
+  return ev;
 }
 
 /* ── 画：小窗里只显示玩家周围 12×9 格 ─────────────────────────────────── */
@@ -167,10 +205,67 @@ function mapRegion(sx, sy, w, h){
   mapRegionCtx.drawImage(mapSheetCanvas(mapTracker.page()), sx, sy, w, h, 0, 0, w, h);
   return mapRegionCv;
 }
+/* ── 卡带直出地图：整张图 + 玩家点 ──────────────────────────────────────
+   以前这扇窗是「你走到哪，它画到哪」——玩家得自己把路走一遍才有图，
+   没去过的地方永远是空的。
+
+   现在直接问卡带：坐标从存档读（见 ⑬ navMemLocate），地形从 ROM 的
+   metatile 表渲染（navRenderMapCanvas）——整张图一次画全，一格不差，
+   也不用等玩家先走过。玩家位置仍用原来那个闪烁方块表示。 */
+function mapRenderAtlas(g, vw, vh, mem) {
+  var img = navRenderMapCanvas(mem.idx);
+  var atlas = navAtlas();
+  var lay = atlas && atlas.layoutOf(mem.idx);
+  if (!img || !lay) return false;
+  var W = lay.w * 16, H = lay.h * 16;
+  if (!W || !H) return false;
+  var s = Math.min(vw / W, vh / H);
+  var ox = Math.round((vw - W * s) / 2), oy = Math.round((vh - H * s) / 2);
+  g.fillStyle = "#0b060d"; g.fillRect(0, 0, vw, vh);
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, 0, 0, W, H, ox, oy, Math.round(W * s), Math.round(H * s));
+
+  /* 你：沿用原来的闪烁方块。地图缩得越小，方块越不能跟着缩——
+     缩到 0.2 倍时 6px 只剩 1px，玩家根本找不到自己。 */
+  var cx = ox + (mem.x * 16 + 8) * s, cy = oy + (mem.y * 16 + 8) * s;
+  var on = (mapBlinks % 2) === 0;
+  g.fillStyle = "#0b060d"; g.fillRect(cx - 4, cy - 4, 8, 8);
+  g.fillStyle = on ? "#ffffff" : "#ff86c2"; g.fillRect(cx - 3, cy - 3, 6, 6);
+
+  /* 缩得太狠时给个外圈，让它在一堆地形里跳出来 */
+  if (s < 0.6) {
+    g.strokeStyle = on ? "rgba(255,255,255,.55)" : "rgba(255,134,194,.55)";
+    g.lineWidth = 1;
+    g.strokeRect(cx - 5.5, cy - 5.5, 11, 11);
+  }
+  return true;
+}
+
 function mapRender(){
   var g = mapViewCtx;
+  var D = window.__mapDbg || (window.__mapDbg = { calls: 0, mem: 0, img: 0, g: 0, open: 0 });
+  D.calls++; D.open = mapOpen ? 1 : 0;
   if (!g) return;
-  var vw = MAP_VIEW_W, vh = MAP_VIEW_H, T = MapCore.TILE;
+  D.g = 1;
+  var dims = mapFit();
+  var vw = dims.w, vh = dims.h, T = MapCore.TILE;
+
+  /* 首选：卡带直出整图。读不到存档（还没进游戏）才退回手绘 */
+  if (typeof navMemLocate === "function" && typeof navRenderMapCanvas === "function") {
+    try {
+      var mem = navMemLocate();
+      if (mem) D.mem++;
+      if (mem && mapRenderAtlas(g, vw, vh, mem)) {
+        var wasAtlas = mapAtlasMode;
+        mapAtlasMode = true;
+        D.img++;
+        /* 标题/页码按模式变，切换的那一次要跟着改，否则写着「手绘地图」却画着全图 */
+        if (!wasAtlas) mapUpdateChrome();
+        return;
+      }
+    } catch (e) { try { window.__mapRenderErr = String(e && e.message || e); } catch (e2) {} }
+  }
+  mapAtlasMode = false;
   g.fillStyle = "#0b060d"; g.fillRect(0, 0, vw, vh);
   var tr = mapTracker, page = tr && tr.page();
   if (!page){
@@ -223,10 +318,14 @@ function mapUpdateChrome(){
   var tr = mapTracker, t = $("#mp-title"), p = $("#mp-page"), page = tr && tr.page();
   var pages = (tr && tr.pages()) || [];
   /* 标题只写名字，页码单独占右边一格：以前「手绘地图 · 第 2 页」挤在 100px 里被截成省略号 */
-  if (t) t.textContent = "手绘地图";
-  if (p) p.textContent = Math.max(1, pages.indexOf(page) + 1) + "/" + Math.max(1, pages.length);
+  if (t) t.textContent = mapAtlasMode ? "地图 · 全图" : "手绘地图";
+  if (p) p.textContent = mapAtlasMode ? "整张" : (Math.max(1, pages.indexOf(page) + 1) + "/" + Math.max(1, pages.length));
   var host = $("#map-panel");
-  if (host) host.classList.toggle("is-empty", !page || page.pastes < 2);
+  if (host) {
+    host.classList.toggle("is-empty", !mapAtlasMode && (!page || page.pastes < 2));
+    /* 全图模式下没有「入/出」这回事（那是手绘分页的概念），别在图例里误导 */
+    host.classList.toggle("is-atlas", mapAtlasMode);
+  }
 }
 
 /* ── 交互 ─────────────────────────────────────────────────────────────── */
@@ -236,7 +335,9 @@ function mapShow(silent){
   host.hidden = false; mapOpen = true;
   var b = $("#emu-map"); if (b) b.setAttribute("aria-pressed", "true");
   mapRender();
-  if (!silent) toast("小地图 · 走过的地方会自己画出来");
+  if (!silent) toast(mapAtlasMode ? "小地图 · 整张图，点一下能摊开" : "小地图 · 走过的地方会自己画出来");
+  /* 便条只在玩家自己点开那一次弹，自动亮出来的这一下不打断视线 */
+  if (!silent && LS.getItem(FLAG_PREFIX + "map-note") !== "1") mapShowNote();
 }
 function mapHide(){
   var host = $("#map-panel");
@@ -255,6 +356,9 @@ function mapFold(){
 function mapReset(){
   if (mapTracker) mapTracker.reset();
   mapFrameCopy = null;
+  /* 换一张卡带 = 换一张地图册：上次那张 ROM 的字节和坐标表地址都不能再用，
+     否则会拿新卡带的坐标去查旧卡带的地图。 */
+  if (typeof navForgetRom === "function") navForgetRom();
   mapHide();
   mapUpdateChrome();
   mapRender();
@@ -278,10 +382,18 @@ if ($("#mp-auto")) $("#mp-auto").addEventListener("change", function(){
 
 mapPrefsLoad();
 mapViewCv = $("#mp-canvas");
+mapFit();
 mapViewCtx = mapViewCv ? mapViewCv.getContext("2d") : null;
 if ($("#mp-auto")) $("#mp-auto").checked = mapAuto;
 mapUpdateChrome();
 mapRender();
+
+/* 窗宽变了（换窗口大小 / 手机转屏）就重设画布，否则会糊 */
+var mapResizeTimer = 0;
+window.addEventListener("resize", function(){
+  clearTimeout(mapResizeTimer);
+  mapResizeTimer = setTimeout(function(){ mapFit(); mapRender(); }, 180);
+});
 
 /* 取帧循环：自己一条 rAF，不挤在核心帧循环里；错了也只丢一帧，不连累游戏 */
 (function mapLoop(ts){
@@ -289,8 +401,8 @@ mapRender();
   if (!ts || ts - mapLastSample < MAP_SAMPLE_MS) return;
   mapLastSample = ts;
   try { mapSample(); } catch (e) { /* 吞掉：地图坏一帧不该把卡带带崩 */ }
-  if (mapOpen){
+  if (mapVisible()){
     mapBlinks++;
-    if (mapBlinks % 8 === 0) mapRender();      /* 只有「你」那个点需要重画 */
+    if (mapBlinks % 8 === 0) mapRender();      /* 「你」那个点在闪，隔一会儿重画一次 */
   }
 })(0);

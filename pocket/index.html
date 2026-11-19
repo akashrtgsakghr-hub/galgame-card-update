@@ -45,7 +45,9 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
-html{scroll-behavior:smooth}
+/* 深色主题要声明给浏览器：不然 Windows / 安卓上的滚动条、下拉框、日期控件
+   会走浅色那一套，在黑机身上凭空多出一条白边 */
+html{scroll-behavior:smooth;color-scheme:dark}
 body{
   margin:0;min-height:100vh;background:var(--color-bg);color:var(--color-text);
   font:400 var(--step-1)/1.75 var(--font-mono);letter-spacing:.02em;overflow-x:hidden;
@@ -60,7 +62,10 @@ body::after{
   mix-blend-mode:overlay;
 }
 button,input,textarea,select{font:inherit;color:inherit}
-button{cursor:pointer}
+/* 手机上点按键：默认要等 ~300ms 判断是不是双击放大，虚拟手柄上这个延迟很致命；
+   tap-highlight 默认是浏览器蓝，压在黑粉机身上像贴了块创可贴，直接去掉
+   （按下反馈由 .dpad button.down / .ab 的位移自己给） */
+button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{
   outline:2px solid var(--color-accent);outline-offset:3px}
 ::selection{background:var(--color-accent);color:var(--color-bg)}
@@ -297,12 +302,17 @@ body[data-cheat="on"] .led.cheat{background:var(--color-accent-2);box-shadow:0 0
    「导出存档」那种长标签直接被挤出屏幕，所以这里分成主行 + 抽屉。 */
 .emu-hud{position:absolute;left:0;right:0;top:0;z-index:3;padding:4px 6px 5px;
   background:linear-gradient(180deg,rgba(10,15,8,.86),rgba(10,15,8,0));
-  font:600 9px/1 var(--font-mono);color:var(--color-lcd);letter-spacing:.04em}
+  font:600 9px/1 var(--font-mono);color:var(--color-lcd);letter-spacing:.04em;
+  /* 闲置时让位：这条工具栏压在游戏画面上，取名界面那种「游戏自己在顶上写字」的
+     场景会跟它打架。不操作几秒就沉下去变淡，一动就回来 */
+  transition:opacity 260ms ease,transform 260ms ease;opacity:1;transform:translateY(0)}
+.emu-hud.is-idle{opacity:.16;transform:translateY(-2px)}
+.emu-hud:hover,.emu-hud:focus-within{opacity:1!important;transform:none!important}
 .emu-hud-row{display:flex;align-items:center;gap:6px;min-width:0}
 /* 名字让位给按钮：小屏上「POKÉMON EMERALD」不该把工具栏顶出去 */
 .emu-name{flex:1 1 auto;min-width:0;max-width:32%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--color-lcd);text-shadow:0 1px 0 rgba(0,0,0,.8)}
-.emu-stat{opacity:.85;white-space:nowrap;font-size:8.5px}
+.emu-stat{opacity:.85;white-space:nowrap;font-size:8.5px;font-variant-numeric:tabular-nums}
 .emu-stat b{color:var(--color-accent-2)}
 .emu-btn{flex:none;min-height:21px;padding:3px 6px;border:2px solid rgba(247,233,240,.55);border-radius:0;
   background:rgba(10,15,8,.55);color:var(--color-lcd);font:700 8.5px/1 var(--font-mono);
@@ -326,7 +336,10 @@ body[data-cheat="on"] .led.cheat{background:var(--color-accent-2);box-shadow:0 0
 }
 .emu-tip{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:4px 8px;
   background:linear-gradient(0deg,rgba(10,15,8,.82),rgba(10,15,8,0));
-  font:500 9px/1.4 var(--font-ui);color:var(--color-lcd);opacity:.78;text-align:center}
+  /* 这条提示压在游戏画面上，之前 opacity:.78 时几乎看不见（尤其标题画面那种亮背景）。
+     颜色不动，只把字做实 + 描一圈黑边把对比度拉起来 */
+  font:500 9px/1.4 var(--font-ui);color:var(--color-lcd);opacity:.95;
+  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.8);text-align:center}
 .emu-veil{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:6px;background:rgba(10,15,8,.92);color:var(--color-lcd);
   font:700 11px/1.5 var(--font-mono);letter-spacing:.1em;text-align:center;padding:16px}
@@ -494,7 +507,7 @@ pre .k{color:var(--color-accent)}pre .s{color:var(--color-accent-2)}
 .overlay{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:20px;
   background:rgba(6,3,8,.76);backdrop-filter:blur(6px)}
 .overlay[hidden]{display:none}
-.dialog{width:min(100%,560px);max-height:90vh;overflow:auto;padding:26px 28px;
+.dialog{width:min(100%,560px);max-height:90vh;overflow:auto;overscroll-behavior:contain;padding:26px 28px;
   background:var(--color-surface);border:1px solid var(--color-accent);box-shadow:var(--shadow-3)}
 .dialog .tag{font:600 10px/1.4 var(--font-mono);letter-spacing:.3em;color:var(--color-accent)}
 .dialog h2{margin:12px 0 10px;font:700 27px/1.2 var(--font-display);letter-spacing:.01em}
@@ -524,7 +537,7 @@ pre .k{color:var(--color-accent)}pre .s{color:var(--color-accent-2)}
   font:500 10.5px/1.7 var(--font-mono);color:var(--color-muted)}
 .wb-meta b{color:var(--color-accent-2)}
 .wb-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:0;flex:1;min-height:0}
-.wb-list{overflow:auto;padding:14px 16px;min-width:0}
+.wb-list{overflow:auto;overscroll-behavior:contain;padding:14px 16px;min-width:0}
 .wb-entry{border:1px solid var(--color-line);margin-bottom:10px;background:var(--color-surface-2)}
 .wb-entry[open]{border-color:color-mix(in srgb,var(--color-accent) 45%,var(--color-line))}
 .wb-entry > summary{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;list-style:none;min-height:44px}
@@ -559,7 +572,7 @@ pre .k{color:var(--color-accent)}pre .s{color:var(--color-accent-2)}
 
 
 /* ── 美化抽屉 ── */
-.skin-drawer{position:fixed;right:0;top:0;bottom:0;z-index:95;width:min(100%,400px);overflow:auto;
+.skin-drawer{position:fixed;right:0;top:0;bottom:0;z-index:95;width:min(100%,400px);overflow:auto;overscroll-behavior:contain;
   background:var(--color-surface);border-left:1px solid var(--color-accent);box-shadow:var(--shadow-3);padding:22px}
 .skin-drawer[hidden]{display:none}
 .skin-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid var(--color-line);padding-bottom:14px}
@@ -813,23 +826,26 @@ body.is-embed .console{max-width:none;margin:0}
 
    这两块是「游戏里弹出来的窗」，所以按像素对话框的规矩来，不是按网页卡片的规矩来：
    ─ 一根 2px 粉描边定外框，里面 2px 空隙再压一根 1px 细线（双层框），不用阴影糊边。
-   ─ 画布 192×144 按 1:1 CSS 像素摆：DPR 2/3 下正好整数倍，地图是硬像素，不会被缩糊。
+   ─ 画布 128×96 按 1:1 CSS 像素摆，地图是硬像素，不会被缩糊。
+     尺寸有意做小：它只是角标，占满屏幕会挡视野；要看整张点一下画面开全屏。
    ─ 标题栏只放名字和页码，动作按钮全部收到脚条，靠右排成一排 13px 键帽。
    ─ 颜色走 --sui-*（见 pocket.01-console.css 末尾），换肤跟着变。
    ═══════════════════════════════════════════════════════════════════════════ */
 .map-panel{position:absolute;left:4px;top:25px;z-index:4;
-  width:196px;max-width:calc(100% - 8px);
+  /* 窗宽跟着视口走：桌面 132，手机缩到 96 上下；画布由 JS 按窗宽 1:1 重设（见 ⑨ mapFit） */
+  width:clamp(96px,23vw,132px);max-width:calc(100% - 8px);
   background:var(--sui-bg);border:2px solid var(--sui-pink);
   box-shadow:0 0 0 2px rgba(0,0,0,.55),3px 3px 0 rgba(0,0,0,.45);
-  font:600 8px/1 var(--font-mono);color:var(--sui-text);letter-spacing:.04em;user-select:none}
+  font:600 8px/1 var(--font-mono);color:var(--sui-text);letter-spacing:.04em;user-select:none;
+  container-type:inline-size}   /* 窗子小时（手机）标题栏和键帽跟着缩，别让框占掉半屏 */
 .map-panel[hidden]{display:none}
 
 /* 标题栏：左边名字（不再挤到省略号），右边页码 */
-.mp-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px;
-  height:15px;padding:0 5px;border-bottom:1px solid color-mix(in srgb,var(--sui-pink) 42%,transparent)}
-#mp-title{font:700 8.5px/15px var(--font-mono);color:var(--sui-pink);letter-spacing:.06em;
+.mp-head{display:flex;align-items:baseline;justify-content:space-between;gap:4px;
+  height:13px;padding:0 4px;border-bottom:1px solid color-mix(in srgb,var(--sui-pink) 42%,transparent)}
+#mp-title{font:700 8px/13px var(--font-mono);color:var(--sui-pink);letter-spacing:.06em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mp-page{flex:none;font:700 8px/15px var(--font-mono);color:var(--sui-muted);letter-spacing:.1em}
+.mp-page{flex:none;font:700 7.5px/13px var(--font-mono);color:var(--sui-muted);letter-spacing:.1em}
 
 /* 画布：宽度 = 窗宽减 4px 边框，正好 192，1:1 */
 #mp-canvas{position:static;inset:auto;display:block;width:100%;height:auto;
@@ -837,19 +853,19 @@ body.is-embed .console{max-width:none;margin:0}
 .map-panel.is-shut #mp-canvas,.map-panel.is-shut .mp-legend{display:none}
 
 /* 脚条：图例在左、键帽在右；收起时脚条留着，不然展不开 */
-.mp-foot{display:flex;align-items:center;gap:3px;height:17px;padding:0 3px 0 5px;
+.mp-foot{display:flex;align-items:center;gap:3px;height:15px;padding:0 3px 0 4px;
   border-top:1px solid color-mix(in srgb,var(--sui-pink) 42%,transparent)}
 .mp-legend{flex:1;min-width:0;display:flex;align-items:center;gap:4px;
-  font:700 7.5px/1 var(--font-mono);color:var(--sui-muted);letter-spacing:0}
+  font:700 7px/1 var(--font-mono);color:var(--sui-muted);letter-spacing:0}
 .mp-legend .mp-k{flex:none;display:inline-flex;align-items:center;justify-content:center;
-  width:9px;height:9px;font:700 7px/1 var(--font-mono);color:var(--sui-bg);letter-spacing:0}
+  width:8px;height:8px;font:700 6.5px/1 var(--font-mono);color:var(--sui-bg);letter-spacing:0}
 .mp-legend .mp-k.you{background:var(--sui-pink2)}
 .mp-legend .mp-k.in{background:#8fd08a}
 .mp-legend .mp-k.out{background:#e8b96a}
-/* 键帽：13px 方块，按下沉 1px */
-.mp-key{flex:none;width:13px;height:13px;padding:0;border:1px solid color-mix(in srgb,var(--sui-pink) 55%,transparent);
+/* 键帽：12px 方块，按下沉 1px */
+.mp-key{flex:none;width:12px;height:12px;padding:0;border:1px solid color-mix(in srgb,var(--sui-pink) 55%,transparent);
   background:rgba(255,134,194,.08);color:var(--sui-pink2);
-  font:700 9px/1 var(--font-mono);cursor:pointer}
+  font:700 8.5px/1 var(--font-mono);cursor:pointer}
 .mp-key:hover{background:var(--sui-pink);color:var(--sui-bg);border-color:var(--sui-pink)}
 .mp-key:active{transform:translate(1px,1px)}
 /* 空图（还没走几步）时不压暗，纸本身就是暗的 */
@@ -892,8 +908,22 @@ body.is-embed .console{max-width:none;margin:0}
 
 /* 窄屏：窗宽跟着屏幕走，别顶出屏幕 */
 @media (max-width:720px){
-  .map-panel{width:186px;left:3px;top:23px}
+  .map-panel{left:3px;top:21px}
   .map-note{left:5%;right:5%;top:9%}
+}
+
+/* 全图模式下「入/出」不适用（那是手绘分页的标记），只留「你」 */
+.map-panel.is-atlas .mp-k[data-atlas-hide]{display:none}
+
+/* 窗子被缩到 112px 以下（手机）：标题栏、键帽同步压薄，框整体矮一圈 */
+@container (max-width:112px){
+  .mp-head{height:11px;padding:0 3px}
+  #mp-title{font:700 7px/11px var(--font-mono)}
+  .mp-page{font:700 6.5px/11px var(--font-mono)}
+  .mp-foot{height:13px;padding:0 2px 0 3px;gap:2px}
+  .mp-legend{font:700 6px/1 var(--font-mono);gap:3px}
+  .mp-legend .mp-k{width:7px;height:7px;font:700 6px/1 var(--font-mono)}
+  .mp-key{width:11px;height:11px;font:700 7.5px/1 var(--font-mono)}
 }
 
 /* 导航放大层：整张地区图铺满屏幕，红线 + 目的地 + 一键寻路
@@ -1070,19 +1100,20 @@ body.is-embed .console{max-width:none;margin:0}
             <div class="emu-veil" id="emu-veil"><b>装载核心…</b><span id="emu-veil-text">正在初始化 WASM</span></div>
 
             <!-- 小地图：左上角那扇窗。不是游戏里的道具，是掌机自己照着画面描的。
-                 画布 192×144 按 1:1 CSS 像素显示（屏幕宽度够，DPR 2/3 下正好整数倍），
-                 所以地图是硬像素，不会被缩糊；标题栏只放名字和页码，按钮挪到脚条。 -->
+                 画布 128×96 按 1:1 CSS 像素显示，地图是硬像素不会被缩糊；
+                 尺寸刻意做小，它只是「我在图上哪儿」的角标——点画面会开全屏整图。
+                 标题栏只放名字和页码，按钮挪到脚条。 -->
             <div class="map-panel" id="map-panel" hidden aria-label="小地图">
               <div class="mp-head">
                 <span id="mp-title">手绘地图</span>
                 <span class="mp-page" id="mp-page">1/1</span>
               </div>
-              <canvas id="mp-canvas" width="192" height="144"></canvas>
+              <canvas id="mp-canvas" width="128" height="96"></canvas>
               <div class="mp-foot">
                 <div class="mp-legend">
                   <i class="mp-k you" aria-hidden="true"></i><span>你</span>
-                  <i class="mp-k in" aria-hidden="true">入</i>
-                  <i class="mp-k out" aria-hidden="true">出</i>
+                  <i class="mp-k in" aria-hidden="true" data-atlas-hide>入</i>
+                  <i class="mp-k out" aria-hidden="true" data-atlas-hide>出</i>
                 </div>
                 <button type="button" class="mp-key" id="mp-again" title="换一张白纸，从脚下重新画" aria-label="换一张白纸">新</button>
                 <button type="button" class="mp-key" id="mp-fold" title="收起 / 展开" aria-label="收起地图">–</button>
@@ -1092,7 +1123,7 @@ body.is-embed .console{max-width:none;margin:0}
             <div class="map-note" id="mp-note" hidden>
               <div class="note-bar"><b>妈妈塞进包里的东西</b><small>MOM</small></div>
               <div class="note-body">
-                <p>鞋给你换了新的。路我不认得，就照旧册子描了一张空的——你走过的地方，它会自己一格格画出来。进林子、钻洞窟、绕迷宫，翻页就是新的一张。</p>
+                <p>鞋给你换了新的。地图直接照着旧册子描全了——整条路、每片草地都在上面，不用你自己先走一遍。白点闪的那格就是你。点一下地图能摊开看整张，还能挑个地方让我给你指路。</p>
                 <label class="mp-chk"><input type="checkbox" id="mp-auto" checked><span>进新地图时自动翻开</span></label>
               </div>
               <div class="note-foot"><button type="button" id="mp-note-ok">收下</button></div>
@@ -1348,6 +1379,8 @@ var frame = $("#cart-frame"), consoleEl = $("#console");
 var layers = { byor:$("#byor"), core:$("#core-stage"), cheat:$("#cheat-stage"), msg:$("#screen-msg"), boot:$("#boot") };
 var activeId = null, powered = true, mode = "arcade", core = null, bridge = null, narrator = null;
 var lastRom = null, lastSnapshot = null, frameLive = false, toastTimer = null;
+/* 内嵌卡带：宿主把 ROM 送进来时存在这儿（ArrayBuffer）。主发布版没有这一段，恒为 null。 */
+var embeddedRomBuf = null, embeddedRomSize = 0, embeddedRomPending = false, embeddedRomCached = false;
 var chatId = "local", wbEntries = [], cheatOn = false;
 var SAVE_PREFIX = "moon-pocket:demo:", WB_PREFIX = "moon-pocket:worldbook:", FLAG_PREFIX = "moon-pocket:flag:";
 /* 金手指转写出来的那本世界书叫什么。导出 JSON、编辑页抬头、酒馆侧注入的标题都是这一份；
@@ -1719,11 +1752,24 @@ function renderCartSlot(){
   }else{
     slot.classList.remove("loaded");
     label.textContent="NO CARTRIDGE";
-    hint.textContent="插入 BT999";
+    /* 带 ROM 的构建里，宿主会先把卡带内容送进来：这时槽位就是「点一下装机」 */
+    var _rs=embeddedRomSize||(embeddedRomBuf?embeddedRomBuf.byteLength:0);
+    /* 三种状态：本机已记住（点开即玩）/ 脚本自带（点一下装）/ 都没有（选本地文件） */
+    hint.textContent=_rs?((embeddedRomCached?"已存卡带 · 点开即玩":"内置 BT999 · ")+Math.round(_rs/1048576)+" MB"):"插入 BT999";
   }
 }
 $("#cart-slot").addEventListener("click",function(){
-  if(lastRom)insert("rom.slot.byor");else $("#rom-file").click();
+  if(lastRom){insert("rom.slot.byor");return;}
+  /* 没插过卡、但脚本里自带卡带：直接装自带的，不用玩家去找文件 */
+  if(embeddedRomBuf){bootRomBuffer(embeddedRomBuf,"BT999 · 内置卡带");return;}
+  /* 宿主只报了大小、还没解码：先要，解完它会推过来，推过来就自动装机 */
+  if(embeddedRomSize){
+    embeddedRomPending=true;
+    try{parent.postMessage({type:"moon-pocket:want-rom"},"*");}catch(e){}
+    toast("正在准备内置卡带…");
+    return;
+  }
+  $("#rom-file").click();
 });
 var SAVE_DB={BPEE:"FLASH 128KB（rom_config.ini: flashSize=128k）",BPRE:"FLASH 128KB（FireRed）",
   BPEJ:"FLASH 128KB（日版）",BPGJ:"FLASH 128KB",AXVE:"FLASH 128KB",AXPE:"FLASH 128KB"};
@@ -1812,7 +1858,24 @@ function drawCoreView(){
    ─ 生命周期：loadCore() 初始化 → boot() 塞 ROM → 每帧 runFrame → 取 240×160 RGBA
    ─ C 侧符号：1=ROM缓冲 2=存档区(128KB Flash+8KB) 3=帧缓冲 4=金手指文本缓冲
    ═══════════════════════════════════════════════════════════════════════════ */
-var CORE_JS_URL = "core/44gba.js", CORE_WASM_URL = "core/44gba.wasm";
+/* ── 可插拔核心注册表 ─────────────────────────────────────────────────────
+   两套核心并存，切换只改 CORE_PICK 一行：
+     mgba  MPL-2.0。ROM 由 vf->map 直接映射 JS 那 32MB 缓冲（零拷贝），存档按
+           卡带头部探测成 SRAM / FLASH512 / FLASH1M / EEPROM。32MB 改版卡带能
+           过「新游戏」这一步 —— 44vba 在那里会死等，排查 8 个方向后确认是核心层。
+     vba   GPL-3.0，wasm 小一半，老卡带照样能跑；留着当退路与对照。
+   两份文件都留在 core/ 下，随时能切回去比对。 */
+var CORES = {
+  mgba: { js: "core/mgba.js", wasm: "core/mgba.wasm",
+          name: "mGBA", license: "MPL-2.0", label: "mGBA / MPL-2.0",
+          hint: "核心文件 core/mgba.js 与 .wasm 需在同目录" },
+  vba:  { js: "core/44gba.js", wasm: "core/44gba.wasm",
+          name: "44vba", license: "GPL-3.0", label: "44vba / GPL-3.0",
+          hint: "核心文件 core/44gba.js 与 .wasm 需在同目录" }
+};
+var CORE_PICK = "mgba";
+var CORE_SEL = CORES[CORE_PICK] || CORES.mgba;
+var CORE_JS_URL = CORE_SEL.js, CORE_WASM_URL = CORE_SEL.wasm;
 var cheatSpeed=1;
 var coreModule=null, corePromise=null, coreCtx=null, coreImageData=null,
     coreFbView=null, coreSavView=null, coreRaf=0, coreKeys=0, corePaused=false,
@@ -1875,7 +1938,18 @@ function loadCore(){
     window.onSaveBufChanged = window.onSaveBufChanged || function(){};
     return new Promise(function(res, rej){
       window.Module = {
+        /* 两种喂 wasm 的方式都给上：
+           44vba 是旧 Emscripten，认 wasmBinary；
+           mGBA 是 7.0，wasmBinary 已被移除，只剩 wasmBinaryFile（一个 URL）。
+           所以统一走 instantiateWasm —— 它两边都支持，而且不经过网络，
+           srcdoc iframe（opaque origin）里也能用。 */
         wasmBinary: assets.wasm,
+        instantiateWasm: function(imports, success){
+          WebAssembly.instantiate(assets.wasm, imports).then(function(r){
+            success(r.instance, r.module);
+          }).catch(rej);
+          return {};
+        },
         print: function(){},
         printErr: function(m){ if(/error|abort/i.test(String(m))) try{console.warn("[core] "+m);}catch(e){} },
         onRuntimeInitialized: function(){ res(window.Module); }
@@ -1884,11 +1958,10 @@ function loadCore(){
     });
   }).then(function(M){
     coreModule = M;
-    var fbPtr = M._emuGetSymbol(3), savPtr = M._emuGetSymbol(2);
-    coreFbView = new Uint8ClampedArray(M.HEAPU8.buffer).subarray(fbPtr, fbPtr + 240*160*4);
-    coreSavView = M.HEAPU8.subarray(savPtr, savPtr + 0x20000 + 0x2000);
     coreCtx = $("#core-canvas").getContext("2d");
-    coreImageData = new ImageData(coreFbView, 240, 160);
+    /* 强制重绑一次：核心初始化时堆可能刚扩过，这里不能沿用任何旧 view */
+    coreLastHeapBuffer = null;
+    refreshCoreMemoryViews();
     return M;
   }).catch(function(err){
     corePromise = null;
@@ -1897,17 +1970,65 @@ function loadCore(){
   return corePromise;
 }
 
+/* ── 内存视图与渲染 ────────────────────────────────────────────────────────
+   两个真问题，以前都埋着：
+   ① 视图只在 loadCore 时绑一次。wasm 一旦 grow（ALLOW_MEMORY_GROWTH、或者核心
+      内部 realloc 触发内存扩容），底层 ArrayBuffer 会换人，旧 TypedArray view
+      全部 detach —— 表现就是画面突然全黑、存档读出来全是 0，而且不报错。
+   ② 帧循环 try/catch 里只有 `return`，核心真崩了玩家只看到黑屏，一点线索没有。
+   现在每次进帧循环先核一遍 buffer 身份，换了就重绑；异常直接抬到屏幕上。 */
+var coreLastHeapBuffer = null, coreFatalError = null;
+
+/* 返回 true 表示重绑过。正常情况下只是一次指针比较，开销可以忽略。 */
+function refreshCoreMemoryViews(){
+  var M = coreModule;
+  if (!M || !M.HEAPU8) throw new Error("WASM 内存尚未初始化");
+  var buf = M.HEAPU8.buffer;
+  if (coreLastHeapBuffer === buf && coreFbView && coreSavView && coreImageData) return false;
+  var fbPtr = M._emuGetSymbol(3), savPtr = M._emuGetSymbol(2);
+  if (!fbPtr || !savPtr) throw new Error("取不到帧缓冲 / 存档区指针");
+  /* 两个 view 都直接架在新 buffer 上：帧缓冲零拷贝进 ImageData，
+     存档区仍是 Uint8Array（savWrite / savSig 那边按 Uint8Array 处理）。 */
+  coreFbView = new Uint8ClampedArray(buf, fbPtr, 240 * 160 * 4);
+  coreSavView = new Uint8Array(buf, savPtr, 0x20000 + 0x2000);
+  coreImageData = new ImageData(coreFbView, 240, 160);
+  coreLastHeapBuffer = buf;
+  try{ console.info("[core] 内存视图已重绑（wasm 内存换过）"); }catch(e){}
+  return true;
+}
+
+function renderCoreFrame(){
+  refreshCoreMemoryViews();
+  if (!coreCtx || !coreImageData) throw new Error("画面上下文未初始化");
+  coreCtx.putImageData(coreImageData, 0, 0);
+}
+
+/* 核心真出错时不再静默：把话说在屏幕上，比让玩家对着黑屏猜有用 */
+function showCoreRuntimeError(err){
+  coreFatalError = err;
+  corePaused = true;
+  try{ console.error("[core FATAL]", err); }catch(e){}
+  var veil = $("#emu-veil"), veilText = $("#emu-veil-text");
+  if (veil){ veil.hidden = false; if (veil.firstElementChild) veil.firstElementChild.textContent = "模拟器运行异常"; }
+  if (veilText) veilText.textContent = "模拟器已停止：" + String((err && err.message) || err);
+  var f = $("#emu-fps"); if (f) f.textContent = "ERR";
+  toast("模拟器异常，已暂停：见屏幕提示");
+}
+
 /* 一帧：跑核心 → 取帧缓冲画到屏幕。核心算 1 帧约 1ms，60fps 绰绰有余。 */
 function coreTick(ts){
   coreRaf = requestAnimationFrame(coreTick);
-  if (!coreModule || !coreBooted || corePaused) return;
+  if (!coreModule || !coreBooted || corePaused || coreFatalError) return;
   /* 有人在按帧推进（瞬间移动）：这里让位，免得两边同时喂帧、时间对不上 */
   if (coreManual) return;
-  /* 倍速：一帧 rAF 里多跑几帧核心。金手指台的「加速」就是改这个数，
-     不改游戏本身，也不影响存档。 */
-  try{ for (var _f = 0; _f < cheatSpeed; _f++) coreModule._emuRunFrame(coreKeys); }catch(e){ return; }
-  coreClock += cheatSpeed;
-  coreCtx.putImageData(coreImageData, 0, 0);
+  /* 倍速：一帧 rAF 里多跑几帧核心。金手指台的「加速」就是改这个数， */
+  try{
+    refreshCoreMemoryViews();
+    var n = Math.max(1, Math.min(cheatSpeed || 1, 8));
+    for (var _f = 0; _f < n; _f++) coreModule._emuRunFrame(coreKeys);
+    coreClock += n;
+    renderCoreFrame();
+  }catch(err){ showCoreRuntimeError(err); return; }
   coreFrames++;
   if (!coreFpsT) coreFpsT = ts;
   else if (ts - coreFpsT >= 500){
@@ -1920,7 +2041,7 @@ function coreStart(){ if (!coreRaf) coreRaf = requestAnimationFrame(coreTick); }
 function coreStop(){ if (coreRaf){ cancelAnimationFrame(coreRaf); coreRaf = 0; } }
 
 var GBA_CORE = {
-  name: "44vba", license: "GPL-3.0", version: "wasm", real: true,
+  name: CORE_SEL.name, license: CORE_SEL.license, version: "wasm", real: true,
   boot: function(buf, meta){
     var veil = $("#emu-veil"), veilText = $("#emu-veil-text");
     if (veil){ veil.hidden = false; veil.firstElementChild.textContent = "装载核心…"; }
@@ -1930,7 +2051,7 @@ var GBA_CORE = {
       : (meta && meta.title ? meta.title : "GBA");
     $("#emu-name").textContent = shown;
     if (meta && meta.title) $("#emu-name").title = "卡带头部：" + meta.title + (meta.code ? " / " + meta.code : "");
-    coreBooted = false; corePaused = false; coreKeys = 0;
+    coreBooted = false; corePaused = false; coreKeys = 0; coreFatalError = null;
     return loadCore().then(function(M){
       if (veilText) veilText.textContent = "正在把卡带内容交给核心（" + (buf.length/1048576).toFixed(0) + " MB）";
       var romPtr = M._emuGetSymbol(1);
@@ -1948,9 +2069,12 @@ var GBA_CORE = {
           if (typeof mapReset === "function") mapReset();
           if (typeof savWatchStart === "function") savWatchStart();
           if (veil) veil.hidden = true;
-          $("#core-state").textContent = "44vba / GPL-3.0 · 运行中";
+          $("#core-state").textContent = CORE_SEL.label + " · 运行中";
           if (restored) toast("已接上这张卡带的存档 · 游戏里选「继续」");
           if (typeof savUpdateCaption === "function") savUpdateCaption();
+          /* 换卡/重开机后把玩家存过的金手指重新挂上：_emuLoadROM 换了核心实例，
+             以前挂的钩子全没了，不重放就等于「代码还在列表里但不生效」。 */
+          if (typeof cheatReapply === "function") { try{ cheatReapply(); }catch(e){} }
           /* 告诉宿主「真的在玩了」：AI 回复完成后要不要响一声、要不要自动存档，看这个 */
           try{ parent.postMessage({ type: "moon-pocket:playing",
             code: (lastRom && lastRom.code) || "", title: (lastRom && lastRom.title) || "" }, "*"); }catch(e){}
@@ -1959,7 +2083,7 @@ var GBA_CORE = {
     }).catch(function(err){
       coreBooted = false;
       if (veil){ veil.hidden = false; veil.firstElementChild.textContent = "核心装载失败"; }
-      if (veilText) veilText.textContent = String(err && err.message || err) + "（核心文件 core/44gba.js 与 .wasm 需在同目录）";
+      if (veilText) veilText.textContent = String(err && err.message || err) + "（" + CORE_SEL.hint + "）";
       throw err;
     });
   },
@@ -1973,11 +2097,15 @@ var GBA_CORE = {
      瞬间移动要「按住方向键正好 16 帧 = 走一格」，靠毫秒计时在倍速下会飘，
      所以这里直接一帧一帧地喂。调用方负责成对地 manual(true)/manual(false)。 */
   step: function(n){
-    if (!coreModule || !coreBooted) return 0;
-    try{ for (var i = 0; i < n; i++) coreModule._emuRunFrame(coreKeys); }catch(e){ return 0; }
-    coreClock += n;
-    try{ coreCtx.putImageData(coreImageData, 0, 0); }catch(e){}
-    return n;
+    if (!coreModule || !coreBooted || coreFatalError) return 0;
+    n = Math.max(1, Math.min(Number(n) || 1, 600));
+    try{
+      refreshCoreMemoryViews();
+      for (var i = 0; i < n; i++) coreModule._emuRunFrame(coreKeys);
+      coreClock += n;
+      renderCoreFrame();
+      return n;
+    }catch(err){ showCoreRuntimeError(err); return 0; }
   },
   manual: function(on){ coreManual = !!on; },
   pause: function(v){ corePaused = !!v; },
@@ -2027,30 +2155,44 @@ $("#emu-save").addEventListener("click",function(){
   toast("已导出 "+name+"（128KB，非零 "+nz+" 字节）");
 });
 $("#rom-btn").addEventListener("click",function(){$("#rom-file").click();});
+/* 统一的插卡流程：文件、内置卡带、槽位复用都走这里 */
+function bootRomBuffer(buf,name,fromFile){
+  var out=$("#rom-result");
+  var bytes=buf.byteLength||buf.length;
+  if(out)out.textContent="读取中…（"+bytes.toLocaleString()+" 字节）";
+  var meta=parseGBAHeader(buf,name||"BT999.gba");
+  return crypto.subtle.digest("SHA-1",buf).then(function(h){
+    var hex=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+    meta.hash=hex;lastRom=meta;renderRomCard(meta,hex);renderCartSlot();
+    if(out)out.innerHTML="解析完成：<b>"+esc(meta.title)+" / "+esc(meta.code)+"</b> · "+meta.sizeMB+" MB · SHA-1 <code>"+hex.slice(0,16)+"…</code><br>"
+      +"正在交给运行核心（"+esc(GBA_CORE.name)+" / "+esc(GBA_CORE.license)+"）。"
+      +"<br>卡带内容只在本页内存里，未上传、未保存。";
+    /* 插进去就直接跑：核心异步初始化，装载期间屏幕上显示进度 */
+    if(!core||!core.real)attachCore(GBA_CORE,true);
+    showLayer("core");
+    return Promise.resolve(core.boot(new Uint8Array(buf),meta)).then(function(){
+      if(out)out.innerHTML+="<br>核心已接管画面。";
+      $("#emu-tip").textContent="方向键移动 · A 确认 · B 取消 · START 菜单 · 导出存档可拿到 .sav";
+      /* 卡带字节已经拷进 wasm 堆，JS 这边这份 32MB 副本没必要留着 */
+      if(embeddedRomBuf===buf)embeddedRomBuf=null;
+      toast("卡带已启动 · "+meta.sizeMB+" MB");
+      /* 玩家从本地选的文件：开机成功后交给宿主存起来，下次开机就不用再选了。
+         必须等核心拷完再 transfer（提前发会把 buffer 置空，HEAPU8.set 就炸了）。 */
+      if(fromFile){
+        try{parent.postMessage({type:"moon-pocket:rom-picked",buf:buf,size:bytes},"*",[buf]);}catch(e){}
+        embeddedRomCached=true;embeddedRomSize=bytes;
+        try{renderCartSlot();}catch(_){}
+      }
+    }).catch(function(err){
+      if(out)out.innerHTML+="<br>核心装载失败："+esc(err&&err.message||err);
+      toast("核心装载失败，见卡带页说明");
+    });
+  });
+}
 $("#rom-file").addEventListener("change",function(e){
   var f=e.target.files&&e.target.files[0];if(!f)return;
-  var out=$("#rom-result");out.textContent="读取中…（"+f.size.toLocaleString()+" 字节）";
-  f.arrayBuffer().then(function(buf){
-    var meta=parseGBAHeader(buf,f.name);
-    return crypto.subtle.digest("SHA-1",buf).then(function(h){
-      var hex=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
-      meta.hash=hex;lastRom=meta;renderRomCard(meta,hex);renderCartSlot();
-      out.innerHTML="解析完成：<b>"+esc(meta.title)+" / "+esc(meta.code)+"</b> · "+meta.sizeMB+" MB · SHA-1 <code>"+hex.slice(0,16)+"…</code><br>"
-        +"正在交给运行核心（"+esc(GBA_CORE.name)+" / "+esc(GBA_CORE.license)+"）。"
-        +"<br>文件只在本页内存里读取，未复制、未上传、未保存。";
-      /* 插进去就直接跑：核心异步初始化，装载期间屏幕上显示进度 */
-      if(!core||!core.real)attachCore(GBA_CORE,true);
-      showLayer("core");
-      Promise.resolve(core.boot(new Uint8Array(buf),meta)).then(function(){
-        out.innerHTML+="<br>核心已接管画面。";
-        $("#emu-tip").textContent="方向键移动 · A 确认 · B 取消 · START 菜单 · 导出存档可拿到 .sav";
-        toast("卡带已启动 · "+meta.sizeMB+" MB");
-      }).catch(function(err){
-        out.innerHTML+="<br>核心装载失败："+esc(err&&err.message||err);
-        toast("核心装载失败，见卡带页说明");
-      });
-    });
-  }).catch(function(err){out.textContent="解析失败："+err.message;});
+  f.arrayBuffer().then(function(buf){return bootRomBuffer(buf,f.name,true);})
+    .catch(function(err){var o=$("#rom-result");if(o)o.textContent="解析失败："+err.message;});
   e.target.value="";
 });
 
@@ -2335,13 +2477,28 @@ $("#cheat-no").addEventListener("click",function(){
 var CHEAT_CODES_KEY = "moon-pocket-cheat-codes-v1";
 var cheatCodes = [], cheatEngine = null, cheatMashTimer = 0, cheatHoldTimer = 0;
 var CHEAT_SPEEDS = [1, 2, 4];
-var CHEAT_PROBE_ADDR = 0x203fff0;   /* EWRAM 尾巴，一般没人用 */
+/* 探针地址：IWRAM 里 .bss 结尾（0x03006F01）到栈底之间的空档，8 字节，
+   离栈顶还有 4KB，正常调用深度碰不到；比原来落在 EWRAM 堆顶（可能被
+   malloc 分出去）要安全。 */
+var CHEAT_PROBE_ADDR = 0x3006f10;
 
 function cheatLoad(){
   try{
     var raw = LS.getItem(CHEAT_CODES_KEY);
     if(raw){ var arr = JSON.parse(raw); if(arr && arr.length) cheatCodes = arr; }
   }catch(e){}
+}
+/* 把列表整体重挂：先清空核心侧，再按顺序重发。删码/改码/换卡都走这里，
+   这样核心里的钩子和界面上看到的列表永远一致，不会出现「删了但还生效」。 */
+function cheatReapply(){
+  var M = coreModule;
+  if(!M || !coreBooted || typeof M._emuClearCheats !== "function") return;
+  try{ M._emuClearCheats(); }catch(e){}
+  for(var i = cheatCodes.length - 1; i >= 0; i--){   /* 列表是 unshift 存的，倒序重放才和加的先后一致 */
+    var r = cheatPush(cheatCodes[i].code);
+    cheatCodes[i].ret = r.ret;
+  }
+  try{ cheatRender(); }catch(e){}
 }
 function cheatSave(){
   try{ LS.setItem(CHEAT_CODES_KEY, JSON.stringify(cheatCodes.slice(0, 40))); }catch(e){}
@@ -2370,7 +2527,8 @@ function cheatSelfTest(done){
   var magic = [0xdead, 0xbeef, 0xcafe, 0xf00d], accepted = 0;
   for(var i = 0; i < magic.length; i++){
     var addr = (CHEAT_PROBE_ADDR + i * 2).toString(16).padStart(7, "0");
-    var r = cheatPush("1" + addr + " " + magic[i].toString(16).padStart(4, "0"));
+    /* 探针用 VBA 写法（地址:数据），宽度明确，不会被当成加密的 CodeBreaker */
+    var r = cheatPush("0" + addr + ":" + magic[i].toString(16).padStart(4, "0"));
     if(r.ok) accepted++;
   }
   try{ M._emuRunFrame(coreKeys); }catch(e){}
@@ -2475,14 +2633,16 @@ $("#gt-test").addEventListener("click", function(){
   cheatSelfTest(function(){ cheatRender(); });
 });
 $("#gt-clear").addEventListener("click", function(){
-  cheatCodes = []; cheatSave(); cheatRender(); toast("已清空代码列表（游戏里已生效的不会撤回）");
+  cheatCodes = []; cheatSave(); cheatReapply(); cheatRender();
+  toast("已清空代码列表 · 核心侧也一起撤了");
 });
 $("#gt-list").addEventListener("click", function(e){
   var b = e.target.closest("button"); if(!b) return;
   if(b.dataset.cheatRe){ cheatAdd(b.dataset.cheatRe); return; }
   if(b.dataset.cheatDel){
     cheatCodes = cheatCodes.filter(function(c){ return c.code !== b.dataset.cheatDel; });
-    cheatSave(); cheatRender();
+    cheatSave(); cheatReapply(); cheatRender();
+    toast("这条已撤掉 · 其余代码保持生效");
   }
 });
 $(".gt-grid").addEventListener("click", function(e){
@@ -2741,7 +2901,26 @@ window.MOON_POCKET={
     show:mapShow, hide:mapHide, toggle:mapToggle, reset:mapReset,
     newPage:function(){ mapInit().newPage(); },
     /* 调试用：直接塞一帧 240×160 RGBA（联调脚本拿真画面平移来验走位），返回状态机结果 */
-    feed:function(frame){ return mapFeed(frame); }
+    feed:function(frame){ return mapFeed(frame); },
+    /* 调试用：现在按存档读到的位置（读不到返回 null）——用来确认「读内存」这条通没通 */
+    locate:function(){ return (typeof navMemLocate === "function") ? navMemLocate() : null; },
+    atlasMode:function(){ return mapAtlasMode; },
+    /* 调试用：整图能不能画出来、卡在哪一步 */
+    probe:function(){
+      var mem = (typeof navMemLocate === "function") ? navMemLocate() : null;
+      var out = { mem: mem, atlas: !!(typeof navAtlas === "function" && navAtlas()),
+        img: null, lay: null, err: window.__mapRenderErr || null };
+      if (mem) {
+        try {
+          var a = navAtlas();
+          var l = a && a.layoutOf(mem.idx);
+          out.lay = l ? { w: l.w, h: l.h } : null;
+          var img = navRenderMapCanvas(mem.idx);
+          out.img = img ? { w: img.width, h: img.height } : null;
+        } catch (e) { out.err = String(e && e.message || e); }
+      }
+      return out;
+    }
   },
   /* 存档区快照：写盘 / 读档 / 状态。auto 由宿主在「AI 回复完成」时调 */
   save:{
@@ -2808,6 +2987,27 @@ if(EMBED){
       if(d.on&&!wbEntries.length)runConvert();
     }else if(d.type==="moon-host:wb-rebuild"){
       runConvert();
+    }else if(d.type==="moon-host:rom-none"){
+      /* 宿主手里没有卡带（普通发布版且玩家还没选过文件）：直接弹文件框 */
+      embeddedRomPending=false;
+      $("#rom-file").click();
+    }else if(d.type==="moon-host:rom-error"){
+      embeddedRomPending=false;
+      toast("卡带准备失败："+(d.message||"未知原因"));
+      var _oe=$("#rom-result");if(_oe)_oe.textContent="卡带准备失败："+(d.message||"未知原因");
+    }else if(d.type==="moon-host:rom-cached"){
+      /* 宿主已经把这个 32MB 记住了：下次打开点卡槽就能直接玩 */
+      toast(d.ok?"卡带已记住 · 下次点卡槽直接玩":"卡带能玩，但这台机器没让存（空间不足或无痕模式）");
+    }else if(d.type==="moon-host:rom-meta"){
+      /* 宿主只报来源（此时一个字节都没解）——先把卡槽文案写对 */
+      embeddedRomSize=d.size||0;
+      embeddedRomCached=!!d.cached;
+      try{renderCartSlot();}catch(_){}
+    }else if(d.type==="moon-host:rom"&&d.buf){
+      /* 玩家点了卡槽、宿主才解好推过来。存着，并立刻装机。 */
+      embeddedRomBuf=d.buf;
+      try{renderCartSlot();}catch(_){}
+      if(embeddedRomPending){embeddedRomPending=false;bootRomBuffer(embeddedRomBuf,"BT999 · 内置卡带");}
     }
   });
   var reportHeight=function(){
@@ -2819,6 +3019,30 @@ if(EMBED){
   setTimeout(reportHeight,80);setTimeout(reportHeight,600);
   post({type:"moon-pocket:ready"});
 }
+
+/* ── 屏内工具栏闲置下沉 ──────────────────────────────────────────────
+   这条 bar 常年压在游戏画面上：标题画面挡 logo，取名界面正好压住游戏
+   自己画的「移动 / 确认 / 返回」提示。不操作 4 秒就沉下去变淡，碰一下
+   或悬停立刻回来——按钮位置不变，只是别一直挡着。 */
+(function(){
+  var hud=document.querySelector("#core-stage .emu-hud");
+  if(!hud)return;
+  var idleTimer=null;
+  var wake=function(){
+    hud.classList.remove("is-idle");
+    clearTimeout(idleTimer);
+    idleTimer=setTimeout(function(){hud.classList.add("is-idle");},4000);
+  };
+  var stage=document.querySelector("#core-stage");
+  if(stage){
+    stage.addEventListener("pointermove",wake,{passive:true});
+    stage.addEventListener("pointerdown",wake,{passive:true});
+  }
+  addEventListener("keydown",wake,{passive:true});
+  /* 截图/自动化用：派发 moon-pocket:hud-wake 就能把它叫回来 */
+  addEventListener("moon-pocket:hud-wake",wake);
+  wake();
+})();
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ⑧ 小地图核心：靠画面拼地图（automap）
@@ -3096,14 +3320,47 @@ if (typeof module === "object" && module.exports) module.exports = MapCore;
    ═══════════════════════════════════════════════════════════════════════════ */
 var MAP_TILES = 44;                  /* 一页图纸 44×44 格（704×704 像素） */
 var MAP_SAMPLE_MS = 110;             /* 取帧间隔：约 9 次/秒，够用又不抢帧 */
-var MAP_VIEW_W = 192, MAP_VIEW_H = 144;   /* 小窗画布：12×9 格，1:1 像素 */
+/* 小窗画布：原来是 192×144（12×9 格），占掉屏幕近三成，玩家嫌挡视野——
+   它只是「我在图上哪儿」的角标，要看清楚点击画面会开全屏整图，
+   所以缩到窗口实际宽度的 1/4 屏上下（桌面约 128×96，面积只剩四成）。
+   尺寸不写死：窗宽由 CSS 定（跟着屏幕缩放），画布按窗宽 1:1 重设，
+   这样在任何屏幕尺寸下都是硬像素、不糊。 */
+var MAP_VIEW_W = 128, MAP_VIEW_H = 96;   /* 兜底尺寸，实际以 mapFit() 量出来的为准 */
 /* 视野往上偏 2 格：底部那条 36px 是 HUD，本来就没拼进图纸，
    把小窗往上挪一挪，既避开黑边，也正好多看点「前面」 */
 var MAP_VIEW_UP = 2;
 
 var mapTracker = null, mapOpen = false, mapAuto = true, mapFolded = false;
+var mapAtlasMode = false;   /* true = 正在用卡带直出的整图，不是手绘拼贴 */
 var mapLastSample = 0, mapBlinks = 0;
 var mapViewCv = null, mapViewCtx = null;
+
+/* 小窗默认就摆在屏幕上（不用先点一次），所以「该不该重画」看的是它可不可见，
+   不是 mapOpen——那个说的是玩家有没有手动展开过。 */
+function mapVisible(){
+  var h = $("#map-panel");
+  return !!(h && !h.hidden);
+}
+
+/* 画布尺寸跟着窗口走：窗宽由 CSS 决定（窄屏会缩），这里把画布重设成同样的像素数，
+   保持 1:1 —— 缩放会让硬像素地图变糊，也会让「你」那个方块变形。
+   高度按 4:3 走，跟 GBA 屏幕同比例。 */
+var mapFitW = 0, mapFitH = 0;
+function mapFit(){
+  var host = $("#map-panel");
+  var w = host ? Math.round(host.clientWidth) : 0;
+  if (w < 80) w = MAP_VIEW_W;                       /* 窗还没显示（clientWidth 为 0）时用兜底 */
+  if (w > 192) w = 192;
+  var h = Math.round(w * 0.75);
+  if (w !== mapFitW || h !== mapFitH){
+    mapFitW = w; mapFitH = h;
+    if (mapViewCv){
+      mapViewCv.width = w; mapViewCv.height = h;    /* 重设尺寸会清空画布，下一帧会重画 */
+      mapViewCtx = mapViewCv.getContext("2d");
+    }
+  }
+  return { w: mapFitW, h: mapFitH };
+}
 
 function mapPrefsLoad(){ mapAuto = LS.getItem(FLAG_PREFIX + "map-auto") !== "0"; }
 function mapPrefsSave(){ LS.setItem(FLAG_PREFIX + "map-auto", mapAuto ? "1" : "0"); }
@@ -3141,9 +3398,9 @@ function mapFeed(frame){
     mapSyncSheet(pg);
     mapUpdateChrome();
     /* 真的在这张图上走过一步，才自动翻开——开场白、菜单那种静止画面不该弹窗 */
-    if (!mapOpen && mapAuto && pg && pg.moves >= 1){
+    if (!mapOpen && mapAuto && ((pg && pg.moves >= 1)
+        || (typeof navMemLocate === "function" && navMemLocate()))){
       mapShow(true);
-      if (LS.getItem(FLAG_PREFIX + "map-note") !== "1") mapShowNote();
     } else if (mapOpen) mapRender();
   } else if (ev === "newpage"){
     mapUpdateChrome();
@@ -3158,7 +3415,12 @@ function mapSample(){
   var src = coreImageData.data;
   if (!mapFrameCopy) mapFrameCopy = new Uint8ClampedArray(src.length);
   mapFrameCopy.set(src);
-  return mapFeed(mapFrameCopy);
+  var ev = mapFeed(mapFrameCopy);
+  /* 全图模式的位置是从存档读的，跟「画面有没有变」无关：骑乘时玩家在走、画面被
+     坐骑盖住，走到新一格也未必触发 commit。窗开着就按采样节奏重画，
+     不然玩家标记会一直停在第一次画上去的地方。 */
+  if (mapVisible()) mapRender();
+  return ev;
 }
 
 /* ── 画：小窗里只显示玩家周围 12×9 格 ─────────────────────────────────── */
@@ -3256,10 +3518,67 @@ function mapRegion(sx, sy, w, h){
   mapRegionCtx.drawImage(mapSheetCanvas(mapTracker.page()), sx, sy, w, h, 0, 0, w, h);
   return mapRegionCv;
 }
+/* ── 卡带直出地图：整张图 + 玩家点 ──────────────────────────────────────
+   以前这扇窗是「你走到哪，它画到哪」——玩家得自己把路走一遍才有图，
+   没去过的地方永远是空的。
+
+   现在直接问卡带：坐标从存档读（见 ⑬ navMemLocate），地形从 ROM 的
+   metatile 表渲染（navRenderMapCanvas）——整张图一次画全，一格不差，
+   也不用等玩家先走过。玩家位置仍用原来那个闪烁方块表示。 */
+function mapRenderAtlas(g, vw, vh, mem) {
+  var img = navRenderMapCanvas(mem.idx);
+  var atlas = navAtlas();
+  var lay = atlas && atlas.layoutOf(mem.idx);
+  if (!img || !lay) return false;
+  var W = lay.w * 16, H = lay.h * 16;
+  if (!W || !H) return false;
+  var s = Math.min(vw / W, vh / H);
+  var ox = Math.round((vw - W * s) / 2), oy = Math.round((vh - H * s) / 2);
+  g.fillStyle = "#0b060d"; g.fillRect(0, 0, vw, vh);
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, 0, 0, W, H, ox, oy, Math.round(W * s), Math.round(H * s));
+
+  /* 你：沿用原来的闪烁方块。地图缩得越小，方块越不能跟着缩——
+     缩到 0.2 倍时 6px 只剩 1px，玩家根本找不到自己。 */
+  var cx = ox + (mem.x * 16 + 8) * s, cy = oy + (mem.y * 16 + 8) * s;
+  var on = (mapBlinks % 2) === 0;
+  g.fillStyle = "#0b060d"; g.fillRect(cx - 4, cy - 4, 8, 8);
+  g.fillStyle = on ? "#ffffff" : "#ff86c2"; g.fillRect(cx - 3, cy - 3, 6, 6);
+
+  /* 缩得太狠时给个外圈，让它在一堆地形里跳出来 */
+  if (s < 0.6) {
+    g.strokeStyle = on ? "rgba(255,255,255,.55)" : "rgba(255,134,194,.55)";
+    g.lineWidth = 1;
+    g.strokeRect(cx - 5.5, cy - 5.5, 11, 11);
+  }
+  return true;
+}
+
 function mapRender(){
   var g = mapViewCtx;
+  var D = window.__mapDbg || (window.__mapDbg = { calls: 0, mem: 0, img: 0, g: 0, open: 0 });
+  D.calls++; D.open = mapOpen ? 1 : 0;
   if (!g) return;
-  var vw = MAP_VIEW_W, vh = MAP_VIEW_H, T = MapCore.TILE;
+  D.g = 1;
+  var dims = mapFit();
+  var vw = dims.w, vh = dims.h, T = MapCore.TILE;
+
+  /* 首选：卡带直出整图。读不到存档（还没进游戏）才退回手绘 */
+  if (typeof navMemLocate === "function" && typeof navRenderMapCanvas === "function") {
+    try {
+      var mem = navMemLocate();
+      if (mem) D.mem++;
+      if (mem && mapRenderAtlas(g, vw, vh, mem)) {
+        var wasAtlas = mapAtlasMode;
+        mapAtlasMode = true;
+        D.img++;
+        /* 标题/页码按模式变，切换的那一次要跟着改，否则写着「手绘地图」却画着全图 */
+        if (!wasAtlas) mapUpdateChrome();
+        return;
+      }
+    } catch (e) { try { window.__mapRenderErr = String(e && e.message || e); } catch (e2) {} }
+  }
+  mapAtlasMode = false;
   g.fillStyle = "#0b060d"; g.fillRect(0, 0, vw, vh);
   var tr = mapTracker, page = tr && tr.page();
   if (!page){
@@ -3312,10 +3631,14 @@ function mapUpdateChrome(){
   var tr = mapTracker, t = $("#mp-title"), p = $("#mp-page"), page = tr && tr.page();
   var pages = (tr && tr.pages()) || [];
   /* 标题只写名字，页码单独占右边一格：以前「手绘地图 · 第 2 页」挤在 100px 里被截成省略号 */
-  if (t) t.textContent = "手绘地图";
-  if (p) p.textContent = Math.max(1, pages.indexOf(page) + 1) + "/" + Math.max(1, pages.length);
+  if (t) t.textContent = mapAtlasMode ? "地图 · 全图" : "手绘地图";
+  if (p) p.textContent = mapAtlasMode ? "整张" : (Math.max(1, pages.indexOf(page) + 1) + "/" + Math.max(1, pages.length));
   var host = $("#map-panel");
-  if (host) host.classList.toggle("is-empty", !page || page.pastes < 2);
+  if (host) {
+    host.classList.toggle("is-empty", !mapAtlasMode && (!page || page.pastes < 2));
+    /* 全图模式下没有「入/出」这回事（那是手绘分页的概念），别在图例里误导 */
+    host.classList.toggle("is-atlas", mapAtlasMode);
+  }
 }
 
 /* ── 交互 ─────────────────────────────────────────────────────────────── */
@@ -3325,7 +3648,9 @@ function mapShow(silent){
   host.hidden = false; mapOpen = true;
   var b = $("#emu-map"); if (b) b.setAttribute("aria-pressed", "true");
   mapRender();
-  if (!silent) toast("小地图 · 走过的地方会自己画出来");
+  if (!silent) toast(mapAtlasMode ? "小地图 · 整张图，点一下能摊开" : "小地图 · 走过的地方会自己画出来");
+  /* 便条只在玩家自己点开那一次弹，自动亮出来的这一下不打断视线 */
+  if (!silent && LS.getItem(FLAG_PREFIX + "map-note") !== "1") mapShowNote();
 }
 function mapHide(){
   var host = $("#map-panel");
@@ -3344,6 +3669,9 @@ function mapFold(){
 function mapReset(){
   if (mapTracker) mapTracker.reset();
   mapFrameCopy = null;
+  /* 换一张卡带 = 换一张地图册：上次那张 ROM 的字节和坐标表地址都不能再用，
+     否则会拿新卡带的坐标去查旧卡带的地图。 */
+  if (typeof navForgetRom === "function") navForgetRom();
   mapHide();
   mapUpdateChrome();
   mapRender();
@@ -3367,10 +3695,18 @@ if ($("#mp-auto")) $("#mp-auto").addEventListener("change", function(){
 
 mapPrefsLoad();
 mapViewCv = $("#mp-canvas");
+mapFit();
 mapViewCtx = mapViewCv ? mapViewCv.getContext("2d") : null;
 if ($("#mp-auto")) $("#mp-auto").checked = mapAuto;
 mapUpdateChrome();
 mapRender();
+
+/* 窗宽变了（换窗口大小 / 手机转屏）就重设画布，否则会糊 */
+var mapResizeTimer = 0;
+window.addEventListener("resize", function(){
+  clearTimeout(mapResizeTimer);
+  mapResizeTimer = setTimeout(function(){ mapFit(); mapRender(); }, 180);
+});
 
 /* 取帧循环：自己一条 rAF，不挤在核心帧循环里；错了也只丢一帧，不连累游戏 */
 (function mapLoop(ts){
@@ -3378,9 +3714,9 @@ mapRender();
   if (!ts || ts - mapLastSample < MAP_SAMPLE_MS) return;
   mapLastSample = ts;
   try { mapSample(); } catch (e) { /* 吞掉：地图坏一帧不该把卡带带崩 */ }
-  if (mapOpen){
+  if (mapVisible()){
     mapBlinks++;
-    if (mapBlinks % 8 === 0) mapRender();      /* 只有「你」那个点需要重画 */
+    if (mapBlinks % 8 === 0) mapRender();      /* 「你」那个点在闪，隔一会儿重画一次 */
   }
 })(0);
 
@@ -4356,6 +4692,70 @@ function navFrameLuma() {
   }
   return out;
 }
+/* ── 直接读存档定位（首选）───────────────────────────────────────────────
+   卡带里那张 gMoonSymTab 给了 &gSaveBlock1Ptr。SaveBlock1 的布局是源码写死的
+   （include/global.h）：
+     0x00 struct Coords16 pos       → 当前格 x / y
+     0x04 struct WarpData location  → mapGroup / mapNum
+   顺着读一次就有「哪张图的哪一格」，一格不差。
+
+   为什么不继续用画面比对：它只认「画面中间那块地形」，画面一旦被别的东西盖住
+   （骑乘时坐骑压在身上、对话框、菜单、黑屏过场、战斗）就认不出来，地图直接空掉。
+   读内存不看画面，这些情况全都不受影响。──────────────────────────────── */
+var navMemTab = null, navMemTabAbsent = false;
+
+/* 换卡带时清缓存：ROM 指针、地图图集、坐标表、已认出的位置都得重来 */
+function navForgetRom() {
+  navRom = null; navRomLen = 0;
+  navAtlasCache = null; navAdjCache = null; navAtlasBroken = false;
+  navMemTab = null; navMemTabAbsent = false;
+  navMapCanvasCache = {}; navMapCanvasKey = '';
+  navLumaCache = {}; navGridCache = {};
+  navHere = null; navDest = null; navPlan = null;
+}
+
+function navMemTable() {
+  if (navMemTab || navMemTabAbsent) return navMemTab;
+  var b = navRomBytes();
+  var M = coreModule;
+  /* ROM 还没装进核心时先别下结论：小窗一开机就在重绘，这里会被反复调用，
+     只有「ROM 读到了但搜不到表」才算这张卡带没带坐标表。 */
+  if (!b || !b.length || !M || !M._emuPeek32) return null;
+  /* 'S','M','T','1' 按小端拼成 0x31544D53 */
+  var MAGIC = 0x31544D53;
+  var at = -1;
+  for (var o = 0; o + 8 <= b.length; o += 4) {
+    if (((b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0) === MAGIC) { at = o; break; }
+  }
+  if (at < 0) { navMemTabAbsent = true; return null; }
+  navMemTab = {
+    at: at,
+    savPtrAddr: (b[at + 4] | (b[at + 5] << 8) | (b[at + 6] << 16) | (b[at + 7] << 24)) >>> 0,
+  };
+  return navMemTab;
+}
+
+/* 读存档 → { idx, x, y }；读不到（还没进游戏 / 卡带没这张表）返回 null */
+function navMemLocate() {
+  var tab = navMemTable();
+  var M = coreModule;
+  if (!tab || !M || !M._emuPeek32) return null;
+  var atlas = navAtlas();
+  if (!atlas) return null;
+  var sav = M._emuPeek32(tab.savPtrAddr) >>> 0;
+  /* SaveBlock1 在 EWRAM（0x02000000 起）；0 或越界说明还没建好存档 */
+  if (sav < 0x02000000 || sav >= 0x02040000) return null;
+  var p0 = M._emuPeek32(sav) >>> 0;
+  var p1 = M._emuPeek32(sav + 4) >>> 0;
+  var x = p0 & 0xFFFF, y = (p0 >>> 16) & 0xFFFF;
+  var g = p1 & 0xFF, n = (p1 >>> 8) & 0xFF;
+  var idx = atlas.indexOf(g, n);
+  if (idx < 0 || idx >= atlas.count) return null;
+  var lay = atlas.layoutOf(idx);
+  if (!lay || x >= lay.w || y >= lay.h) return null;
+  return { idx: idx, x: x, y: y, score: 999, exact: true };
+}
+
 /* 找「这张画面属于哪张图的哪一格」。
    两条硬规矩，宁可说「认不准」也不指错路：
    · 这一窗如果几乎是一块纯色（树林、墙面、水面），任何图都对得上，直接放弃；
@@ -4363,6 +4763,9 @@ function navFrameLuma() {
 function navIdentify(frameLuma) {
   var atlas = navAtlas();
   if (!atlas) return null;
+  /* 能读存档就别猜：画面比对只在没有符号表的卡带上兜底 */
+  var exact = navMemLocate();
+  if (exact) return exact;
   var fl = frameLuma || navFrameLuma();
   if (!fl || fl.length < 15 * NAV_Rows) return null;
   var rows = NAV_Rows, tiles = 15 * rows;
@@ -4667,7 +5070,7 @@ function navOpen() {
   setTimeout(function () {
     var here = navIdentify();
     if (here) { navHere = here; navHint('点图上一格 = 定目的地'); }
-    else navHint('这一帧认不出——屋里太空、菜单、对话、战斗里都认不出，走到有树有路的地方再点');
+    else navHint('读不到你的位置——还没进游戏，或者这张卡带里没有坐标表');
     navDraw();
   }, 30);
 }
