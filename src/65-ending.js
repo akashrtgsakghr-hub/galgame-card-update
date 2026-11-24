@@ -206,7 +206,7 @@
             '<div><span style="color:#94a3b8;font-size:10.5px;">WORLD TIME / 历经岁月：</span><span style="color:#7dd3fc;">' + escapeFeatureHtml(record.totalTime) + '</span></div>' +
             '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed rgba(244,114,208,0.22);display:flex;gap:6px;flex-wrap:wrap;font-family:monospace;font-size:11px;">' +
               '<span style="padding:1px 6px;background:#1f0d22;border:1px solid #f472d0;color:#ffb8eb;">好感 E:' + record.E + '</span>' +
-              '<span style="padding:1px 6px;background:#1f0d22;border:1px solid #fb7185;color:#fecdd3;">肉体 P:' + record.P + '</span>' +
+              '<span style="padding:1px 6px;background:#1f0d22;border:1px solid #fb7185;color:#fecdd3;">欲望 P:' + record.P + '</span>' +
               '<span style="padding:1px 6px;background:#0f1d2e;border:1px solid #38bdf8;color:#bae6fd;">阶段 R:' + record.R + '</span>' +
               '<span style="padding:1px 6px;background:#231230;border:1px solid #c084fc;color:#e9d5ff;">嫉妒 I:' + record.I + '</span>' +
             '</div>' +

@@ -21,6 +21,40 @@
 
   async function runMoonCalculation() {
     try {
+      /* 冷冻到点 + 排着一个强制副本 → 直接拽进去，不再问玩家（用户定的）。
+         这一轮先返回：手上这份回复是主线写的，不能拿来当副本第一回合。 */
+      if (typeof dungeonIsOn === 'function' && !dungeonIsOn()
+        && typeof dungeonTryForceStart === 'function') {
+        try {
+          const forced = dungeonTryForceStart();
+          if (forced) {
+            try { toast('主神空间把你直接塞进了「' + forced.name + '」，没得选', 'warning'); } catch (e) {}
+            return;
+          }
+        } catch (e) {}
+      }
+      /* 副本先于一切数据检查处理：副本里可能根本没有主线角色在说话（单人探索、
+         或者角色已经阵亡成幽灵），但回合和判定照样要走。放后面会被 stat_data 的早退挡掉。 */
+      const inDungeon = (typeof dungeonIsOn === 'function' && dungeonIsOn());
+      if (inDungeon) {
+        const dgLatest = getLatestAiMessage();
+        const dgText = dgLatest && dgLatest.msg ? String(dgLatest.msg.mes || '') : '';
+        const dgIdx = dgLatest ? dgLatest.idx : null;
+        try { dungeonTick(dgIdx); } catch (e) {}
+        try {
+          const dg = dungeonApplyRuled(dgText, dgIdx);
+          /* 扣血必须当场喊一声：玩家在聊天里，不会没事去开面板 */
+          if (dg && dg.hit && dg.hit !== 'none') {
+            const label = dg.hit === 'fatal' ? '严重违规' : (dg.hit === 'major' ? '中等违规' : '轻微违规');
+            if (dg.exited) {
+              toast(label + ' —— 你被拖出了副本，这一局算失败', 'error');
+            } else {
+              toast(label + '  −' + dg.dmg + (dg.down ? '　同行者倒下了' : ''), 'warning');
+            }
+          }
+        } catch (e) {}
+      }
+
       const data = readMvuLatest();
       if (!data || !data.stat_data || !data.stat_data.角色) return;
       const statData = data.stat_data;
@@ -32,27 +66,41 @@
       const activeCharNames = Object.keys(chars).filter(function(k) {
         return k !== '示例角色' && k !== 'You' && k !== '你' && chars[k] && !isCharSkeleton(chars[k]);
       });
-      // 还没有任何有效角色（开场白楼层 / 空档）时，本轮不算一回合，也不推进世界时钟：
-      // 否则玩家一句话都没说，时间已经走了 10 分钟、回合数也先跳了 1。
-      if (activeCharNames.length === 0) return;
-      ensureWorldClockFields(world);
-      const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(normalizeClockSigText(latestAiText)) : 't:' + String(world.时间 || '');
-      // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
-      if (world._lastClockSig !== clockSig) {
-        world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0)) + 1;
-        const clockInfo = advanceWorldClock(world, latestAiText);
-        world._lastClockSig = clockSig;
-        if (clockInfo.ok) {
-          statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to, 被拦下的目标: clockInfo.blockedTo || '' };
-        }
-        /* 夹回必须出声。以前这里是静默的：AI 写「次日清晨」、脚本只推 10 分钟、那行时间还被从正文删了，
-           玩家看到的是「时钟几乎不动、AI 说的话少了一句」，像坏了。现在给一句人话。 */
-        if (clockInfo.clamped) {
-          try {
-            toast('时间被脚本挡住了：AI 想推到 ' + (clockInfo.blockedTo || '很后面') + '，这轮只走了 ' + clockInfo.minutes + ' 分钟。要跨天就在你的话里写「第二天」。', 'warning');
-          } catch (e) {}
+      /* 副本期间的 tick 与判定已经在函数开头处理过（那里不依赖 stat_data）。
+         这里只保留一个标志，用来关掉事件导演。 */
+      /* 时钟推进。以前副本里整段跳过（怕 _回合 被吃），现在必须走：
+         规则怪谈的通关门槛是「存活多长时间」，而存活时间就挂在这个时钟上。
+         没角色的空档楼层仍然不推 —— 但副本里例外：队友可能全阵亡了，
+         时间照走，不然倒计时会冻在原地。 */
+      if (activeCharNames.length > 0 || inDungeon) {
+        ensureWorldClockFields(world);
+        const clockSig = latestAi ? 'f' + latestAi.idx + ':' + stableFeatureHash(normalizeClockSigText(latestAiText)) : 't:' + String(world.时间 || '');
+        // 同一楼层只推进一次时钟，避免 message_received 与 generation_ended 重复结算
+        if (world._lastClockSig !== clockSig) {
+          /* _回合 是主线的计数，副本不吃它 —— 副本自己按回合记在 run 里 */
+          if (!inDungeon) world._回合 = Math.max(0, Math.floor(Number(world._回合) || 0)) + 1;
+          const clockInfo = advanceWorldClock(world, latestAiText);
+          world._lastClockSig = clockSig;
+          if (clockInfo.ok) {
+            statData._最后推进 = { 来源: clockInfo.source, 分钟: clockInfo.minutes, 天数: clockInfo.days, 是否拦截: clockInfo.clamped, 到: clockInfo.to, 被拦下的目标: clockInfo.blockedTo || '' };
+            /* 走了多久就往存活倒计时里加多久：AI 写过夜，倒计时直接跳过去 */
+            if (inDungeon) {
+              try { dungeonAddElapsed(clockInfo.minutes); } catch (e) {}
+            }
+          }
+          /* 夹回必须出声。以前这里是静默的：AI 写「次日清晨」、脚本只推 10 分钟、那行时间还被从正文删了，
+             玩家看到的是「时钟几乎不动、AI 说的话少了一句」，像坏了。现在给一句人话。
+             副本里不弹：那句话是给主线时间跳越用的，副本里只会打断气氛。 */
+          if (clockInfo.clamped && !inDungeon) {
+            try {
+              toast('时间被脚本挡住了：AI 想推到 ' + (clockInfo.blockedTo || '很后面') + '，这轮只走了 ' + clockInfo.minutes + ' 分钟。要跨天就在你的话里写「第二天」。', 'warning');
+            } catch (e) {}
+          }
         }
       }
+      // 还没有任何有效角色（开场白楼层 / 空档）时，本轮不算一回合，也不结算好感
+      // 否则玩家一句话都没说，回合数先跳了 1、角色们还各自结算了一轮
+      if (activeCharNames.length === 0) return;
       const currentTime = world.时间 || '';
       // 时钟已经推进，先处理到期周期，再结算本轮好感度，避免跨周后仍吃旧周额度。
       const countdownActions = checkAllCountdowns(statData);
@@ -65,7 +113,21 @@
       const achievementRequests = [];
       const endingRequests = [];
       const turnSignature = latestAi ? String(latestAi.idx) + ':' + stableFeatureHash(latestAiText.replace(SYLVEINA_TAG_GLOBAL_RE, '').trim()) : stableFeatureHash(String(currentTime));
+      /* 成就闸门（以前 isMajor 一律给成就：dice>=15 就有 25%，再叠加判定间隔，频率高得离谱）。
+         现在只有三种情况能解锁：彩蛋（1d20=20）、主线节点事件、重大事件里掷到 19/20。
+         另外每个角色有冷却，同一角色 60 回合内最多解锁一次，避免「一晚上拿三个」。 */
+      const ACHV_MIN_DICE = 19;
+      const ACHV_COOLDOWN_TURNS = 60;
+      const turnNo = Math.max(0, Math.floor(Number(world && world._回合) || 0));
+
       const parsedTags = extractAllSylveinaTags(latestAiText);
+      /* 分维度标签单独收一份。以前四维里只有 E 会动，根因就在这里：
+         注入只教 AI 写 [Sylveina|…]，解析器又把维度默认成 'E'，
+         于是 P / I 永远等不到属于自己的那条标签，状态卡上两个数从建档起就没变过。 */
+      const parsedDimTags = (typeof extractAllDimTags === 'function') ? extractAllDimTags(latestAiText) : [];
+      /* 嫉妒的自然回落按「游戏日」走（读 _invidia.每日衰减基数），所以这里要一份当前游戏日。
+         和 processEventSystem 用的是同一个口径，不另立一套时间轴。 */
+      const dimGameDay = Math.max(0, Math.floor(Number(world._游戏日) || Number(world._内部流逝天数) || 0));
       const primaryTarget = pickPrimaryTarget(chars, activeCharNames);
       /* 一个 [初见|…] 标签只能被消费一次。
          本轮如果有刚建档、还没吃过初见骰的人，就先把标签留给他们中的一个；
@@ -169,6 +231,55 @@
           if (latestFloorIdx >= 0) ch._quota._lastCalcFloor = latestFloorIdx;
         }
 
+        /* ── P / I：分维度标签，走和 E 同一条 computeCharDelta ─────────
+           复用是为了共享「方向 / 负向系数 / 深渊惩罚 / 舍入」这几条规则，
+           但门槛和上限是各维自己的（写在 computeCharDelta 里）：
+
+           肉体 —— 不夹。AI 写多少就结算多少，也没有周上限。
+             用户要的是「一口气加很多，也能一口气减很多」，这里再套一个
+             单轮上限就把这个手感削平了。
+           嫉妒 —— 单轮夹 5。它是唯一一个「剧情里随口一句就能写一条」的维度，
+             不夹的话二十轮就顶到 100。
+
+           这里不用 clampBaseToEventRange：那是按「日常 0.5~2.0」给 E 定的，
+           套到肉体上会让「一场吻戏」和「递了杯水」拿到一样的增量。 */
+        try {
+          const dimTags = (typeof matchDimTagsForCharacter === 'function')
+            ? matchDimTagsForCharacter(parsedDimTags, name, activeCharNames.length, primaryTarget) : [];
+          if (dimTags.length) {
+            if (!ch._quota._dimSig || typeof ch._quota._dimSig !== 'object') ch._quota._dimSig = {};
+            for (const dt of dimTags) {
+              if (ch._quota._dimSig[dt.dimension] === turnSignature) continue;
+              const esTypeD = (ch._quota._eventState && ch._quota._eventState.事件类型) || '';
+              const resolvedD = (esTypeD === '重大' || esTypeD === '彩蛋') ? '重大' : (esTypeD || '日常');
+              const rawBase = Math.abs(Number(dt.baseValue) || 0);
+              const baseD = dt.dimension === 'I' ? Math.min(rawBase, 5) : rawBase;
+              const dimResult = computeCharDelta(ch, {
+                主维度: dt.dimension,
+                基础值: baseD,
+                方向: dt.direction || '正向',
+                事件类型: resolvedD
+              }, mode);
+              if (dimResult && dimResult.delta !== 0) {
+                ch[dimResult.fieldName] = dimResult.newValue;
+                changedChars.push({ name: name, field: dimResult.fieldName, delta: dimResult.delta, newValue: dimResult.newValue });
+              }
+              ch._quota._dimSig[dt.dimension] = turnSignature;
+            }
+          }
+          /* 嫉妒自然回落：这一轮没收到 [嫉妒] 就按「每日衰减基数」往下掉。
+             不进 changedChars —— 每回合弹一条「嫉妒 -0.5」比不弹更烦；
+             面板在函数末尾统一刷新，玩家打开就能看到。
+             有标签的那轮不降，但要把当天记下来，否则第二天会把这天补扣一次。 */
+          const gotEnvyTag = dimTags.some(function(t) { return t.dimension === 'I'; });
+          if (gotEnvyTag) {
+            try { applyEnvyDecay(ch, dimGameDay, { markOnly: true }); } catch (e) {}
+          } else {
+            const decay = applyEnvyDecay(ch, dimGameDay);
+            if (decay) { try { console.log('[Doki] 嫉妒回落：', name, decay.oldValue, '→', decay.newValue, '（' + decay.days + ' 天 × ' + decay.base + '）'); } catch (e) {} }
+          }
+        } catch (e) { try { console.warn('[Doki] 分维度结算失败：', e); } catch (e2) {} }
+
         const gateLog = processGateForChar(name, ch, currentTime, mode);
         if (gateLog) gateLogs.push(gateLog);
         syncStageWithAffection(ch);
@@ -180,12 +291,28 @@
         }
 
         try {
-          const evt = await processEventSystem(name, ch, currentTime, world, wbEntries);
+          /* 副本里不跑事件导演：主线的随机事件会跟副本的怪物撞在一起，
+             而且成就也一并跟着不走（副本的成就在结算时给分）。 */
+          const evt = inDungeon ? null : await processEventSystem(name, ch, currentTime, world, wbEntries);
           if (evt) {
             eventLogs.push({ char: name, event: evt });
-            if (evt.isMajor || evt.isEgg || evt.dice === 20) {
-              const isEggUnlock = evt.isEgg || evt.dice === 20;
-              achievementRequests.push({ charName: name, eventType: isEggUnlock ? '彩蛋事件' : '重大事件', reason: isEggUnlock ? '事件骰掷出 1d20=20' : (evt.name || '世界线重大转折'), key: turnSignature + '::' + name + (isEggUnlock ? '::egg' : '::major') });
+            /* 成就只在「够格」的时候弹：彩蛋和主线节点必给（这两类本来就稀有），
+               普通随机事件必须掷到 19/20 才算，且同一角色有冷却。 */
+            const esForAchv = (ch._quota && ch._quota._eventState) || {};
+            const isEggUnlock = !!(evt.isEgg || evt.dice === 20);
+            const isTimelineMajor = evt.type === 'world_event' && evt.isMajor === true;
+            const strongRoll = Number(evt.dice) >= ACHV_MIN_DICE;
+            const lastAchvTurn = Number(esForAchv.上次成就回合);
+            const cooledDown = !isFinite(lastAchvTurn) || (turnNo - lastAchvTurn) >= ACHV_COOLDOWN_TURNS;
+            if (isEggUnlock || isTimelineMajor || (strongRoll && cooledDown)) {
+              esForAchv.上次成就回合 = turnNo;
+              ch._quota._eventState = esForAchv;
+              achievementRequests.push({
+                charName: name,
+                eventType: isEggUnlock ? '彩蛋事件' : '重大事件',
+                reason: isEggUnlock ? '事件骰掷出 1d20=20' : (evt.name || '世界线重大转折'),
+                key: turnSignature + '::' + name + (isEggUnlock ? '::egg' : '::major')
+              });
             }
           }
         } catch (e) {}

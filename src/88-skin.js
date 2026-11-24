@@ -4414,7 +4414,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
         '</div>' +
         '<div class="tkt-gauges">' +
           '<div class="tkt-gauge"><div class="tkt-gauge-lbl"><span>EMO / 情感</span><span class="gauge-code">' + emo + '</span></div><div class="tkt-gauge-track"><div class="tkt-gauge-bar" style="width:' + emoBar + '%;"></div></div></div>' +
-          '<div class="tkt-gauge"><div class="tkt-gauge-lbl"><span>PHY / 肉体</span><span class="gauge-code">' + phy + '</span></div><div class="tkt-gauge-track"><div class="tkt-gauge-bar" style="width:' + phyBar + '%;"></div></div></div>' +
+          '<div class="tkt-gauge"><div class="tkt-gauge-lbl"><span>LUST / 欲望</span><span class="gauge-code">' + phy + '</span></div><div class="tkt-gauge-track"><div class="tkt-gauge-bar" style="width:' + phyBar + '%;"></div></div></div>' +
           '<div class="tkt-gauge"><div class="tkt-gauge-lbl"><span>REL / 关系</span><span class="gauge-code">' + rel + '</span></div><div class="tkt-gauge-track"><div class="tkt-gauge-bar" style="width:' + relBar + '%;"></div></div></div>' +
         '</div>' +
         '<div class="tkt-narrative">' +
@@ -4698,7 +4698,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
 
     /* 次段：数值与神态，写具体，别只报数字 */
     const bodyParts = [];
-    bodyParts.push('本报记者注意到，其身体状况为「' + prophetNum(c && c.肉体值) + '」');
+    bodyParts.push('本报记者注意到，其欲念为「' + prophetNum(c && c.肉体值) + '」');
     const emo = prophetText(c && c.情绪, '');
     if (emo) bodyParts.push('神情「' + emo + '」');
     bodyParts.push('相关情况仍在核实，魔法部暂未发表正式声明');
@@ -4783,7 +4783,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
         '<div class="mpp-dossier-head">人物档案<span>本报资料室</span></div>' +
         '<div class="mpp-stats">' +
           '<div class="mpp-stat"><b>好感度</b><span class="mpp-stat-num">' + prophetNum(c && c.好感度) + '</span></div>' +
-          '<div class="mpp-stat"><b>身体状况</b><span class="mpp-stat-num">' + prophetNum(c && c.肉体值) + '</span></div>' +
+          '<div class="mpp-stat"><b>欲望</b><span class="mpp-stat-num">' + prophetNum(c && c.肉体值) + '</span></div>' +
           '<div class="mpp-stat"><b>当前阶段</b><span>' + skinEsc(stage.name) + '</span></div>' +
           '<div class="mpp-stat"><b>暗涌</b><span class="mpp-stat-num">' + prophetNum(c && c.嫉妒值) + '</span></div>' +
         '</div>' +
@@ -5114,7 +5114,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
     /* 上谕次段：身体状况 / 情绪 / 阶段判语，缺项自动省 */
     const secondBits = [];
     if (c && (c.肉体值 !== undefined && c.肉体值 !== null && c.肉体值 !== '')) {
-      secondBits.push('体气录作 ' + body);
+      secondBits.push('欲念录作 ' + body);
     }
     if (mood !== '未录') secondBits.push('神色记为「' + mood + '」');
     secondBits.push('其交游等第，今定作「' + stage.name + '」');
@@ -5447,7 +5447,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
         ringHtml +
       '</div>' +
       '<div class="cl-row3">' +
-        '<div class="cl-tile"><span class="cl-k">亲密</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
+        '<div class="cl-tile"><span class="cl-k">欲念</span><span class="cl-v">' + skinEsc(clNum(lead.肉体值)) + '</span></div>' +
         '<div class="cl-tile"><span class="cl-k">关系</span><span class="cl-v">' +
           (stage.known ? (stage.num > 0 ? '+' + stage.num : String(stage.num)) : '—') + '</span></div>' +
         '<div class="cl-tile"><span class="cl-k">醋意</span><span class="cl-v">' + skinEsc(clNum(lead.嫉妒值)) + '</span></div>' +
@@ -5589,7 +5589,7 @@ var worldData = (rawVars && rawVars['世界']) || {};
             '</div>' +
             '<div class="back-metrics-grid">' +
               '<div class="metric-item"><span class="metric-tag">AFFECTION</span><span class="metric-number">' + E + '</span><span class="metric-cn">情感</span></div>' +
-              '<div class="metric-item"><span class="metric-tag">GRAVITY</span><span class="metric-number">' + P + '</span><span class="metric-cn">肉体</span></div>' +
+              '<div class="metric-item"><span class="metric-tag">LUST</span><span class="metric-number">' + P + '</span><span class="metric-cn">欲望</span></div>' +
               '<div class="metric-item"><span class="metric-tag">PHASE</span><span class="metric-number">' + (R > 0 ? '+' + R : R) + '</span><span class="metric-cn">阶段</span></div>' +
               '<div class="metric-item"><span class="metric-tag">INVIDIA</span><span class="metric-number">' + I + '</span><span class="metric-cn">暗涌</span></div>' +
             '</div>' +

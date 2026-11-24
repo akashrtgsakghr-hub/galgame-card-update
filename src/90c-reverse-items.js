@@ -8,15 +8,45 @@ function reverseItemLibKey() {
   try { const c = getCurrentCardName(); if (c && c !== '(未知卡牌)') card = c; } catch (e) {}
   return REVERSE_ITEMLIB_KEY + '::' + card;
 }
+/* 道具池版本：往内置池里加东西时必须 +1。v2 = 咒术向 7 件 + 忍者向 7 件。
+   迁移**不放在读取路径上**（getItemLibrary 只读不写），否则「空道具库」「导入还原」
+   这类场景会被偷偷塞回内置道具。真正的补齐走 reverseMigrateItemLibraryV2()，
+   由启动流程调一次，且按角色卡打标记。 */
+const REVERSE_ITEMLIB_VERSION = 2;
 function getItemLibrary() {
   try {
     const raw = getStorage() && getStorage().getItem(reverseItemLibKey());
     const o = raw ? JSON.parse(raw) : null;
     if (o && o.items && typeof o.items === 'object') return o;
   } catch (e) {}
-  const seeded = { version: 1, items: reverseBuiltinItems() };
+  const seeded = { version: REVERSE_ITEMLIB_VERSION, items: reverseBuiltinItems() };
   saveItemLibrary(seeded);
   return seeded;
+}
+
+/* 老存档补齐内置道具：只补缺、不覆盖（玩家改过的同名道具保留）。
+   每个角色卡只跑一次；空库视为玩家主动清空，不补。 */
+function reverseMigrateItemLibraryV2() {
+  try {
+    const s = getStorage();
+    if (!s) return 0;
+    const flagKey = reverseItemLibKey() + '::itemlib_v' + REVERSE_ITEMLIB_VERSION;
+    if (s.getItem(flagKey) === '1') return 0;
+    let lib = null;
+    try { const raw = s.getItem(reverseItemLibKey()); lib = raw ? JSON.parse(raw) : null; } catch (e) {}
+    if (!lib || !lib.items || typeof lib.items !== 'object') return 0;
+    if (Object.keys(lib.items).length === 0) { s.setItem(flagKey, '1'); return 0; }
+    const builtin = reverseBuiltinItems();
+    let added = 0;
+    Object.keys(builtin).forEach(function(id) {
+      if (!lib.items[id]) { lib.items[id] = builtin[id]; added++; }
+    });
+    lib.version = REVERSE_ITEMLIB_VERSION;
+    saveItemLibrary(lib);
+    s.setItem(flagKey, '1');
+    if (added > 0) { try { console.info('[Doki] 道具池已补齐 ' + added + ' 件新道具'); } catch (e) {} }
+    return added;
+  } catch (e) { return 0; }
 }
 function saveItemLibrary(lib) {
   try {
@@ -88,7 +118,27 @@ function reverseBuiltinItems() {
     make('p_rain',      '场景券·雨夜',    '把天气变成雨，把两个人困在同一个屋檐下。',     'rare',   'player_only', 'narrative', '雨忽然下起来，你们被堵在同一段屋檐下。', 1),
     make('p_roof',      '场景券·天台',    '把地点挪到天台。风大，说话得靠近一点。',       'rare',   'player_only', 'narrative', '你带她上了天台，风把话吹散一半。', 1),
     make('p_coin',      '幸运币',         '攥在手心里，图个心安。',                       'common', 'player_only', 'buff', '你把幸运币塞进她掌心，让她许个愿。', 6),
-    make('p_rewind',    '重来一次',       '把刚刚那一句收回去重说。它不改变已经发生的事，只改变你怎么面对。', 'gem', 'player_only', 'permanent', '你还有一次把话说清楚的机会。', 0)
+    make('p_rewind',    '重来一次',       '把刚刚那一句收回去重说。它不改变已经发生的事，只改变你怎么面对。', 'gem', 'player_only', 'permanent', '你还有一次把话说清楚的机会。', 0),
+
+    /* ── 联动道具 · 咒术向（不指名角色，只用设定里的物件）─────────
+       这些是「氛围道具」：不改数值公式，只往正文里塞一个具体的东西，
+       让这一轮的画面有出处。稀有度照旧走 common/rare/legendary。 */
+    make('jjk_blindfold', '黑色眼罩',     '拉下来就只露下半张脸，笑起来反而更好认。',       'common', 'role_only', 'buff', '她把眼罩拉下来一点，只露出下巴。', 12),
+    make('jjk_chalk',     '咒力粉笔',     '在地上画一圈，就算划了界。圈外的事，圈里说了算。', 'common', 'player_only', 'narrative', '你用粉笔在地上画了一个圈，圈内忽然安静下来。', 1),
+    make('jjk_glove',     '缠布拳套',     '指节处磨得发白，看得出打过很多东西。',           'common', 'player_only', 'buff', '你把拳套缠紧，指节有点发麻。', 6),
+    make('jjk_bandage',   '反转绷带',     '缠上去的时候有点烫，伤口会自己合上。',           'rare',   'role_only', 'buff', '绷带缠得很紧，皮肤底下在发热。', 8),
+    make('jjk_idcard',    '术式高专学生证','照片是她自己贴上去的，边角翘起来一块。',         'rare',   'both', 'narrative', '学生证摊在桌上，照片的边角翘起来了。', 1),
+    make('jjk_white_paper','领域用的白纸', '把这张纸摊开，这间屋子就归她说了算。',           'legendary', 'player_only', 'narrative', '白纸摊开，四周的声音像是被抽干了。', 4),
+    make('jjk_finger',    '符纸包着的手指','不知道是谁的，包在符纸里还会动。最好别一直带在身上。', 'legendary', 'role_only', 'buff', '符纸里那截手指动了一下，屋里的灯闪了闪。', 6),
+
+    /* ── 联动道具 · 忍者向 ───────────────────────────────── */
+    make('nar_kunai',     '苦无',         '刃口有细小的缺口，是常用的那把。',               'common', 'player_only', 'buff', '苦无在指间转了一圈，稳稳停住。', 6),
+    make('nar_wrap',      '护手绑带',     '一圈圈缠到手腕，握东西更稳。',                   'common', 'role_only', 'buff', '她把绑带一圈圈缠到手腕上，拉紧最后一圈。', 8),
+    make('nar_ball',      '螺旋丸练习球', '里面灌了水，转起来会响。',                       'common', 'role_only', 'buff', '球在她手心里转，水声越来越急。', 6),
+    make('nar_ramen',     '一乐拉面券',   '两张，背面写着「加蛋免费」。',                   'rare',   'both', 'buff', '两碗拉面端上来，热气糊住了眼镜。', 4),
+    make('nar_clone_note','影分身便签',   '写下的事，另一个你也会记得。',                   'rare',   'player_only', 'narrative', '便签上的字迹干了两遍，像有人替你写过。', 1),
+    make('nar_sharingan', '写轮眼镜片',   '戴上之后，别人的动作好像慢了半拍。',             'legendary', 'player_only', 'permanent', '镜片贴上眼球的一瞬，世界慢了半拍。', 0),
+    make('nar_photo',     '第七班的合照', '边角被摸得起毛，她一直放在内袋里。',             'legendary', 'role_only', 'narrative', '合照被摸得起了毛边，她把它放回内袋。', 1)
   ];
   const out = {};
   list.forEach(function(pair) { if (pair[1]) out[pair[0]] = pair[1]; });
@@ -366,6 +416,11 @@ function reverseBuy(side, itemId) {
   const who = side === 'player' ? 'player' : 'role';
   if (who === 'role') return { ok: false, reason: '她那边的东西她自己会挑，你不用替她买' };
   const st = getPlayerState();
+  /* 副本失败会把 points 扣成负数。欠费期间一律不给买 —— 不然玩家欠着钱还能花，
+     负债就只是个数，不是个约束。 */
+  if (rvNum(st.points, 0) < 0) {
+    return { ok: false, reason: '账户欠费 ' + Math.abs(rvNum(st.points, 0)) + ' 分，还清之前用不了商城' };
+  }
   const lib = getItemLibrary();
   const it = lib.items[itemId];
   if (!it) return { ok: false, reason: '找不到这件东西' };

@@ -164,7 +164,11 @@ function pushLedger(st, delta, reason) {
 function reverseAddPlayerPoints(st, n, reason) {
   const add = Math.round(rvNum(n, 0));
   if (!add) return 0;
-  st.points = Math.max(0, rvNum(st.points, 0) + add);
+  /* 加分时不再夹 0：副本失败会把余额扣成负数（见 90h 的 dungeonAddPoints），
+     这里要是还 Math.max(0, ...)，欠费玩家点个签到就直接把债抹平了。
+     扣分仍然夹 0 —— 除了副本，别的路径不该把余额扣穿。 */
+  const cur = rvNum(st.points, 0);
+  st.points = add > 0 ? (cur + add) : Math.max(0, cur + add);
   if (add > 0) {
     st.earnedTotal = rvNum(st.earnedTotal, 0) + add;
     const milestone = Math.floor(rvNum(st.earnedTotal, 0) / 50);

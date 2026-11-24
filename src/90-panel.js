@@ -132,7 +132,7 @@
     } catch (e) {}
     /* 「这轮到底跑没跑」+ 注入量：构造与渲染都在 51-settle-log.js 的 renderSettleTraceHtml 里 */
     return '<div class="mp-lcd-character-data"><div class="mp-lcd-stats">' +
-      '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>肉体 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
+      '<span>好感 <b>' + lcdEscape(ch.好感度 ?? 0) + '</b></span><span>欲望 <b>' + lcdEscape(ch.肉体值 ?? 0) + '</b></span>' +
       '<span>阶段 <b>' + lcdEscape(ch.阶段值 ?? 0) + '</b></span><span>嫉妒 <b>' + lcdEscape(ch.嫉妒值 ?? 0) + '</b></span></div>' +
       '<div class="mp-lcd-mood-row" style="gap:8px;flex-wrap:wrap;"><span style="color:' + impColor + ';font-weight:600;">' + lcdEscape(imp) + '</span>' +
       '<span style="color:' + (ch.在场 === false ? '#94a3b8' : '#6ee7b7') + ';">' + (ch.在场 === false ? '不在场' : '在场') + '</span></div>' +

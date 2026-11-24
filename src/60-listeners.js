@@ -106,6 +106,8 @@
       injectEventPrompt();
       /* 攻略模式：角色侧那份「只存在于她心里」的提示。玩家侧永远不进 prompt。 */
       try { injectReversePrompt(); } catch (e) {}
+      /* 副本：进本后顶掉常规状态段（好感冻结、世界时间冻结在这里说清楚） */
+      try { if (typeof injectDungeonPrompt === 'function') injectDungeonPrompt(); } catch (e) {}
       injectFanficEnhanceNotice();
       injectEnabledBios();
       injectUserBio();
@@ -221,20 +223,26 @@
 
      按行判断：整行只有标签（或标签 + 那个 s 占位符）→ 连行一起删；
      混在句子中间 → 只抠掉标签本身，句子保留。 */
+  /* 正文里所有「给脚本算账用」的标签，算完必须一起删。
+     Sylveina 是主维度（好感），肉体和嫉妒是后加的两个分维度标签。
+     漏剥哪一个，玩家就会在剧情里看到「[嫉妒|长谷川茗|L|+|2]」这种字样。 */
+  const CALC_TAG_LINE_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒)\s*[|｜]/i;
+  const CALC_TAG_STRIP_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒)\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
+
   function stripSylveinaTagsFromMessage() {
     try {
       const found = getLatestAiMessage();
       if (!found || !found.msg || typeof found.msg.mes !== 'string') return false;
       const src = found.msg.mes;
-      if (!/Sylveina/i.test(src)) return false;
-      const tagRe = /[\[\u3014\u3010\uff3b]\s*Sylveina\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
+      if (!CALC_TAG_LINE_RE.test(src)) return false;
+      const tagRe = new RegExp(CALC_TAG_STRIP_RE.source, 'gi');
       const lines = src.split(/\r?\n/);
       const kept = [];
       let hit = 0;
       let prevWasTag = false;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (!/Sylveina/i.test(line)) {
+        if (!CALC_TAG_LINE_RE.test(line)) {
           /* 紧跟在标签行后面那个单独的 s 是占位符，玩家不该看见，一并带走 */
           if (prevWasTag && /^\s*s\s*$/i.test(line)) { prevWasTag = false; continue; }
           kept.push(line);

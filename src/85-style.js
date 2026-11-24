@@ -862,6 +862,67 @@
   }
   .mp-ico-tick { animation: none; opacity: 1; }
 }
+
+/* ── 副本 · 主神空间 ───────────────────────────────────────── */
+.mp-dg-run{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.28);border-radius:11px;padding:10px 12px;margin-bottom:10px;}
+.mp-dg-run.is-cd{background:rgba(148,163,184,.07);border-color:rgba(148,163,184,.2);}
+.mp-dg-run b{display:block;font-size:12.5px;color:#e0f2fe;font-weight:600;}
+.mp-dg-run.is-cd b{color:#cbd5e1;}
+.mp-dg-run small{display:block;font-size:10.5px;color:#94a3b8;margin-top:3px;line-height:1.55;}
+.mp-dg-list{margin:2px 0 8px;}
+.mp-dg-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;background:rgba(15,23,42,.45);border:1px solid rgba(148,163,184,.1);margin-bottom:7px;}
+.mp-dg-row.is-bad{opacity:.6;}
+.mp-dg-check{display:flex;gap:8px;align-items:flex-start;flex:1;min-width:0;cursor:pointer;}
+.mp-dg-check input{width:15px;height:15px;margin-top:2px;accent-color:#38bdf8;flex:0 0 auto;}
+.mp-dg-check span{min-width:0;}
+.mp-dg-check b{display:block;font-size:12px;color:#e2e8f0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-dg-check small{display:block;font-size:10px;color:#94a3b8;margin-top:2px;line-height:1.5;}
+.mp-dg-why{color:#fbbf24;}
+.mp-dg-empty{background:rgba(15,23,42,.4);border:1px dashed rgba(148,163,184,.22);border-radius:11px;padding:12px;}
+.mp-dg-empty b{display:block;font-size:12.5px;color:#e2e8f0;}
+.mp-dg-empty small{display:block;font-size:10.5px;color:#94a3b8;margin-top:4px;line-height:1.6;}
+.mp-dg-code{font-size:10.5px;line-height:1.7;background:rgba(2,6,23,.62);border:1px solid rgba(148,163,184,.14);border-radius:9px;padding:9px 11px;color:#cbd5e1;white-space:pre-wrap;margin:8px 0 10px;font-family:ui-monospace,Consolas,monospace;}
+.mp-dg-history{margin-top:10px;}
+.mp-dg-hrow{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#cbd5e1;padding:5px 2px;border-bottom:1px dashed rgba(148,163,184,.12);}
+.mp-dg-hrow small{color:#94a3b8;font-size:10px;}
+#moon-phase-panel .mp-btn-sm{padding:5px 10px;font-size:11px;min-height:0;margin:0;}
+
+/* 判定块：AI 写在回复末尾，脚本读，玩家不该看见 */
+ruled, .mp-ruled{display:none !important;}
+
+/* ── 副本 · 存活倒计时 ────────────────────────────────────── */
+/* 撑满就是通关门槛：走的是游戏时间，不是回合数。所以做得像进度条而不是计时器 —— 
+   玩家看的是「还差多少」，不是「还有几轮」。 */
+.mp-dg-time{margin-top:7px;height:5px;border-radius:3px;background:rgba(15,23,42,.85);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(148,163,184,.12);}
+.mp-dg-time i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#0ea5e9,#67e8f9);transition:width .4s ease;}
+.mp-dg-time i.is-near{background:linear-gradient(90deg,#f59e0b,#fcd34d);}
+.mp-dg-time i.is-full{background:linear-gradient(90deg,#22c55e,#86efac);}
+.mp-dg-time-lab{display:block;font-size:10px;line-height:1.5;color:#7dd3fc;margin-top:4px;}
+
+/* ── 副本 · 血条 / 规则表 ────────────────────────────────── */
+.mp-dg-hp{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+.mp-dg-hp-row{display:flex;align-items:center;gap:7px;}
+.mp-dg-hp-lab{flex:0 0 48px;font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-dg-hp-bar{flex:1 1 auto;height:7px;border-radius:4px;background:rgba(15,23,42,.85);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(148,163,184,.14);}
+.mp-dg-hp-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#22c55e,#4ade80);transition:width .35s ease;}
+.mp-dg-hp-bar i.is-low{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.mp-dg-hp-bar i.is-crit{background:linear-gradient(90deg,#dc2626,#f87171);}
+.mp-dg-hp-row b{flex:0 0 auto;font-size:10.5px;color:#e2e8f0;font-variant-numeric:tabular-nums;}
+.mp-dg-hp-row b em{font-style:normal;color:#64748b;}
+.mp-dg-ghost{flex:1 1 auto;font-size:10.5px;color:#a5b4fc;letter-spacing:.03em;}
+.mp-dg-warn{font-size:10.5px;line-height:1.6;color:#fca5a5;background:rgba(220,38,38,.12);border:1px solid rgba(248,113,113,.3);border-radius:9px;padding:7px 10px;margin-top:8px;}
+.mp-dg-last{font-size:10.5px;line-height:1.6;color:#fbbf24;background:rgba(251,191,36,.08);border-radius:8px;padding:6px 9px;margin-top:8px;}
+.mp-dg-rules{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px;}
+.mp-dg-rule{display:flex;align-items:center;gap:8px;background:rgba(15,23,42,.5);border:1px solid rgba(148,163,184,.11);border-radius:9px;padding:7px 9px;}
+.mp-dg-rule-n{flex:0 0 16px;font-size:10px;color:#64748b;text-align:right;}
+.mp-dg-rule-t{flex:1 1 auto;min-width:0;font-size:11.5px;line-height:1.5;color:#e2e8f0;}
+.mp-dg-rule-b{flex:0 0 auto;display:flex;gap:4px;}
+.mp-dg-pick{font:inherit;font-size:10.5px;line-height:1;padding:5px 8px;border-radius:6px;cursor:pointer;
+  background:rgba(30,41,59,.9);border:1px solid rgba(148,163,184,.2);color:#94a3b8;transition:all .15s;}
+.mp-dg-pick:hover{border-color:rgba(148,163,184,.4);color:#cbd5e1;}
+.mp-dg-pick.is-on{background:rgba(56,189,248,.18);border-color:#38bdf8;color:#e0f2fe;font-weight:600;}
+.mp-dg-count{font-size:10px;color:#64748b;font-weight:400;}
+.mp-btn[disabled]{opacity:.45;cursor:not-allowed;}
 `;
 
   /* 最后一层：掌机 UI v2（墨樱）。放在所有历史样式之后，作为最终权威覆盖，

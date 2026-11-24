@@ -120,6 +120,54 @@
     return all[all.length - 1];
   }
 
+  /* 分维度标签：[肉体|角色名|L|+|2] / [嫉妒|M|-|3]
+
+     复用 parseSylveinaBody 解析标签体（角色名 / 等级 / 符号 / 基础值），
+     只把维度换成标签名给的那个。这样两条链路的写法完全一致，
+     AI 只要把 [Sylveina 换成 [肉体，其余照抄。
+     标签名本身不参与 charName 解析（正则在第一组就把它摘走了）。 */
+  function extractAllDimTags(mes) {
+    const out = [];
+    if (!mes) return out;
+    const text = String(mes);
+    const re = new RegExp(DIM_TAG_GLOBAL_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const label = String(m[1] || '').trim();
+      const dim = DIM_TAG_NAME_MAP[label];
+      if (!dim) continue;
+      const parsed = parseSylveinaBody(m[2], m[0]);
+      if (!parsed) continue;
+      parsed.dimension = dim;
+      parsed.dimLabel = label;
+      parsed.index = m.index;
+      parsed.end = re.lastIndex;
+      out.push(parsed);
+    }
+    return out;
+  }
+
+  /* 一个角色可能同时收到 [肉体] 和 [嫉妒]，所以这里返回数组。
+     归属规则和 E 完全一致：写名字就只给那个人；没写名字时，
+     单角色全给，多角色只给主目标（否则一条无名标签会打到全场）。 */
+  function matchDimTagsForCharacter(tags, charName, activeCharCount, primaryName) {
+    if (!Array.isArray(tags) || !tags.length) return [];
+    const cleanName = String(charName || '').trim();
+    const named = [];
+    for (let i = 0; i < tags.length; i++) {
+      const t = tags[i];
+      if (!t.charName) continue;
+      if (cleanName && (t.charName === cleanName || cleanName.indexOf(t.charName) >= 0 || t.charName.indexOf(cleanName) >= 0)) named.push(t);
+    }
+    if (named.length) return named;
+    const nameless = tags.filter(function(t) { return !t.charName; });
+    if (!nameless.length) return [];
+    if (activeCharCount <= 1) return nameless;
+    const target = primaryName || '';
+    if (!cleanName || cleanName !== target) return [];
+    return nameless;
+  }
+
   function extractBaseValueFromLatestAiMessage(eventType) {
     try {
       const found = getLatestAiMessage();

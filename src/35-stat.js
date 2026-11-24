@@ -139,6 +139,36 @@
     if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 0, 1, false);
   }
   /* ───────────────────────────────────────────────────────── */
+  /* 每一档关系「能演到什么程度、不能越到哪」。
+     
+     为什么需要这张表 —— 脚本把 E 锁在 71，但 AI 看到的是「关系很好」的
+     一整套剧情惯性：上一轮刚拥过、这一轮自然就往前推一步。数值没动，
+     演出却已经走到 79 了。玩家的体感是「明明封顶了，它又偷偷加了」。
+     
+     根因不是 AI 不听话，是我们只给了它「E=71 / R3」这两个事实，
+     没给「R3 的上限长什么样」。档位名（愿意尝试）能被无限解读，
+     所以必须把「下一档才允许的东西」逐条列出来禁掉。
+     
+     forbid 只写下一档才有、这一档还没有的表现，不写语气和风格 ——
+     那是世界书的事，脚本越界就会和玩家自己的设定打架。 */
+  const R_STAGE_BOUNDARY = {
+    '-5': '不得出现任何缓和或同框的场景。',
+    '-4': '不得接受对方的帮助，不得释放善意。',
+    '-3': '不得主动接近，不得因为对方示好而软化。',
+    '-2': '不得示弱，不得收下对方给的东西。',
+    '-1': '不得主动搭话，不得表达关心，可保持沉默或简短回应。',
+    '0': '保持礼貌距离：可以有事务性的对话，但不得有私人话题、不得主动约见、不得关心对方的私事。',
+    '1': '可以闲聊、可以答应邀约；不得有暧昧的试探，不得有肢体接触，不得暗示「有别的意思」。',
+    '2': '可以有暧昧的迟疑和试探性的靠近；不得挑明心意，不得确认关系，不得用「喜欢」这类定性的词。',
+    '3': '可以主动投入、找理由相处、容许小幅的亲近；不得谈长期承诺，不得规划共同的未来，不得出现「我认定你了」这类定调。',
+    '4': '可以有长期承诺和共同规划；不得求婚，不得用「永远」这类终局性的措辞。',
+    '5': '不设上限。'
+  };
+  function getStageBoundary(R) {
+    const key = String(Math.max(-5, Math.min(5, Math.round(Number(R) || 0))));
+    return R_STAGE_BOUNDARY[key] || '';
+  }
+
   function injectEventPrompt() {
     try {
       const data = readMvuLatest();
@@ -161,7 +191,7 @@
         const stage = getRStageFromE(E);
         const q = ch._quota || {};
         const cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
-        const used = Math.max(0, Number(q.好感度周上限已用) || 0);
+        const used = Math.min(cap, Math.max(0, Number(q.好感度周上限已用) || 0));
         const remain = Math.max(0, roundHalf(cap - used));
         const address = String(ch.对玩家称呼 || '').trim();
         lines.push('· ' + name + '｜好感 E=' + E + '（关系阶段：' + stage.name + ' / R=' + R + '）｜肉体 P=' + P + '｜嫉妒 I=' + I +
@@ -174,7 +204,11 @@
           lines.push('  关系已达到可形成专属称呼的阶段。本轮请根据角色性格、语言习惯和真实相处经历，创造一个只属于该角色的对玩家称呼，并在后台变量块追加：角色.' + name + '.对玩家称呼=<称呼>。只生成一次，不用模板化的“亲爱的”。');
         }
       });
-      lines.push('→ 以上数值与阶段只记录玩家和角色当前已确认的关系事实，是理解关系背景的资料，不是行动命令；它们不规定角色本轮必须亲近、疏远、顺从、告白或倒贴。具体言行由角色卡性格、长期边界、经历和当前剧情因果决定。高好感不等于无条件服从，低好感也不等于必须冷漠。');
+      /* 分工：脚本只出「数值 + 阶段」，表现交给世界书。
+         玩家手里往往另有感情/关系向的世界书，那边才定义「朋友怎么相处」。
+         两边都讲表现就会打架，所以这里把边界说死，并禁止 AI 自己再判一次关系。 */
+      lines.push('→ 脚本只负责两件事：好感/亲密的加减结果，以及它落在哪一档关系。它不负责「这一档关系该怎么表现」——朋友怎么相处、暧昧到什么程度、恋人间怎么说话，一律以世界书和玩家设定为准；世界书若对当前关系有定义，以世界书为准，本段不得与它竞争，也不要自己另立一套标准。');
+      lines.push('→ 关系判断已经完成，不要再自行评估或改写：不要写「我们算不算朋友」「关系好像进了一步」这类自评，不要用分数反推关系，也不要因为分高就自动加戏、因为分低就刻意冷场。需要提到关系时，直接用给定的阶段名。');
       lines.push('→ 正文与草稿里都不要写「好感度=XX」「当前关系阶段：XX（好感度XX）」这类数字，也不要输出 Phase.xxx、「关系阶段分析」这类段落；数值由状态卡统一展示，你重复只会和卡片打架。');
       lines.push('');
       activeKeys.forEach(function(name) {
@@ -214,6 +248,30 @@
           else if (days <= 9) lines.push('  ⚠️ 距主线节点还有 ' + Math.floor(days) + ' 天：请开始铺垫、埋伏笔，适时通过NPC或环境暗示危机逼近。');
         }
         if (q.R阶段门 === true) lines.push('  ⚠️ 阶段门冻结中：R 暂时不变，E 仍可正常结算；这是数值状态，不规定角色必须如何表现。');
+        /* 本轮的关系边界。这是「分数锁死了、演出还在涨」的正面解法：
+           光报一个 E=71 给它，AI 只会按剧情惯性往上推；把「这一档不许出现什么」列出来，
+           它才有东西可以对照。和上面的阶段门提示不重复——那条讲数值，
+           这条讲演出，二者一起才封得住。 */
+        {
+          /* 老存档 / 刚建好的档案可能还没有 阶段值 这个字段，缺了就按 E 现推一个 ——
+             直接用 0 的话，一个好感 80 的角色会收到「保持礼貌距离」的禁令，
+             表现和数值直接对不上。 */
+          const _Rraw = (ch.阶段值 === undefined || ch.阶段值 === null || ch.阶段值 === '')
+            ? getRStageFromE(Number(ch.好感度) || 0).r
+            : Number(ch.阶段值);
+          const _R = isFinite(_Rraw) ? _Rraw : 0;
+          const _boundary = getStageBoundary(_R);
+          if (_boundary) lines.push('  🚧 【' + name + '】表现上限（R=' + _R + '）：' + _boundary + '这一轮气氛再好也不要越过它。');
+          const _cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
+          const _used = Math.min(_cap, Math.max(0, Number(q.好感度周上限已用) || 0));
+          const _remain = roundHalf(_cap - _used);
+          if (_remain <= 0) {
+            lines.push('  🔒 【' + name + '】本周好感额度已用尽（' + _used.toFixed(1) + '/' + _cap.toFixed(1) + '）：这一轮 E 不会再涨，写标签也会被丢弃。');
+            lines.push('     → 叙事上同样停住：把这一场写「厚」（细节、气氛、心理、对白的停顿），不要写「深」（关系跃迁、新的亲密推进、升级性质的措辞）。');
+          } else if (_remain <= 1.5) {
+            lines.push('  ⚠️ 【' + name + '】本周好感额度只剩 ' + _remain.toFixed(1) + '：这一轮最多只能再往前一点点，不要写成关系大跃进。');
+          }
+        }
         const db = q._debuff || {};
         if (db.冷战期 === true) lines.push('  💣 冷战期标记仍有效：持续时间与解除条件由脚本判定；该标记只提供关系背景，不指定角色必须采取的言行。');
         const E = Number(ch.好感度) || 0; const P = Number(ch.肉体值) || 0; const I = Number(ch.嫉妒值) || 0;
@@ -224,7 +282,30 @@
       lines.push('');
       lines.push('标签格式：' + (multiCard ? '[Sylveina|角色名|L/M/H|+/-|基础值]' : '[Sylveina|L/M/H|+/-|基础值]') + '，例：' + (multiCard ? '[Sylveina|长谷川茗|M|+|3.5]' : '[Sylveina|M|+|3.5]') + '。');
       lines.push('基础值区间：L=0.5~2.0，M=3.0~5.0，H=6.0~10.0。');
-      lines.push('【重要：正则美化触发格式】正文剧情结束后，只在最后单独输出一个 Sylveina 数值标签，下一行只输出小写字母 s。两行示例：');
+      /* 分维度标签：肉体 / 嫉妒。
+         
+         以前只教了这一条 [Sylveina|…]，而它的维度默认是 E，
+         所以四维里只有好感度会动，肉体值和嫉妒值从建档起就是死的。
+         现在给出另外两条独立标签（格式照抄，只换开头那个词），
+         并写清「什么时候才写」—— 不写触发条件，模型只会每轮硬凑一条。 */
+      /* 肉体这一维的定义必须写清楚，否则模型会按「身体接触进度条」去填。
+         它不是「发生过什么」，是「此刻有多想要」——这个差别决定了两件事：
+         一、不用真的碰到也能涨（被撩到、看到、闻到、自己脑补都算）；
+         二、它和好感是两条独立的轴（讨厌也可能被撩到，深爱也可能克制）。
+         写不清这两点，四维就退化成一维加两个装饰。 */
+      lines.push('【另外两维】');
+      lines.push('  · 肉体值 = 欲望 / 色欲的强度，不是「身体关系的进度」。不需要真的发生什么，甚至不需要碰到：');
+      lines.push('    被撩到、被逼近、闻到对方身上的味道、看到不该看的、脑子里反复想——都算。');
+      lines.push('    输出一行：' + (multiCard ? '[肉体|角色名|L/M/H|+|数值]' : '[肉体|L/M/H|+|数值]'));
+      lines.push('    涨：轻微心动 1~3，明显被撩到 5~10，几乎撑不住 15 以上。这一维不设上限、也没有周额度。');
+      lines.push('    落：被泼冷水、被打断、被拒绝、尴尬到清醒、累到没那个心思 → 写负值，掉多少写多少（最低到 0）。');
+      lines.push('    ⚠️ 它和好感是两条独立的轴：可以讨厌一个人却被撩到（E 负、P 正），也可以深爱却克制（E 高、P 低）。');
+      lines.push('       不要写成「好感够了才配有的东西」，也不要用好感的高低去推它。');
+      lines.push('  · 嫉妒值 = 醋意。出现第三方、玩家和别人亲近、或角色被晾在一边时写：' + (multiCard ? '[嫉妒|角色名|L/M/H|+|数值]' : '[嫉妒|L/M/H|+|数值]'));
+      lines.push('    数值 0.5~5.0，按醋意强度给；玩家主动安抚或明确表态之后，写一条负向让它降下来（例：' + (multiCard ? '[嫉妒|角色名|L|-|1]' : '[嫉妒|L|-|1]') + '）。');
+      lines.push('  这两行都是可选的：这一轮确实有欲望、有醋意才写，没有就不写，不要硬凑。');
+      lines.push('  三个标签都可以交给脚本，正文里不要解释它们，也不要写它们算出了多少分。');
+      lines.push('【重要：正则美化触发格式】正文剧情结束后，最后单独输出一个 Sylveina 数值标签（如果这一轮还写了 [肉体] / [嫉妒]，放在它前面），下一行只输出小写字母 s。示例：');
       lines.push('[Sylveina|L|+|1.2]');
       lines.push('s');
       lines.push('【后台变量块 · 每一轮都必须重写一遍】不是建档写一次就完事；这一轮漏写，脚本就收不到这一轮的情绪与心声，状态卡会停在上一轮。放在 s 之后、正文之外，脚本会自动收走，玩家看不到：');
@@ -278,7 +359,12 @@
       lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
       lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
       lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
-      lines.push('这行由系统收走，不会出现在玩家看到的正文里；不要写解释、不要写在上面的正文中间。');
+      lines.push('这行会被系统收走，玩家看不到；不要写解释、不要夹在正文中间。');
+      /* 分维度标签也放在这一条里提醒一次。
+         上面那一大段里其实写清了「什么时候写肉体、什么时候写嫉妒」，
+         但和历史遗留的「只输出一个 Sylveina 标签」放在同一屏，模型很容易记住后者、忘掉前者。
+         这里只给最少的信息（有就写、没有别写），不重复讲触发条件——讲长了这一段就没人读了。 */
+      lines.push('有欲望补 [肉体|角色名|L|+|3]，有醋意补 [嫉妒|角色名|L|+|2]，都没有就不写。');
       _voiceTailNote = lines.join('\n');
       callSetPrompt(PROMPT_KEY + '_voice', _voiceTailNote, 0, 0, false);
     } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
@@ -362,10 +448,11 @@
         return;
       }
       const lines = [
-        '【当前关系资料 · 仅为事实背景，不是行为脚本】',
-        '以下为脚本保存的当前关系记录。请把它当作玩家与角色目前关系的背景资料，不要把数值转换成必须执行的行为命令。',
+        '【当前关系资料 · 只声明关系，不规定表现】',
+        '以下为脚本保存的当前关系记录。本段只回答「你们现在是什么关系」，不回答「这种关系该怎么演」。',
+        '剧本里谁更亲近、谁先低头、能开什么玩笑、要不要告白，按世界书（含玩家自带的感情/关系设定）和角色卡来写；世界书与本节冲突时，世界书优先。',
         '它不要求角色变得倒贴、冷漠、顺从、占有、告白或拒绝；不得仅凭分数推断角色会做出某种具体行为。',
-        '角色具体怎么回应，仍由角色卡性格、既有经历、个人边界、对话事实和当前场景决定。小抄或旧对话中的态度描述不能擅自覆盖这份当前关系记录，也不能凭空升级关系。'
+        '关系已由脚本判定完成，你不需要再判断、也不要在正文里讨论「我们算什么关系」。小抄或旧对话中的态度描述不能擅自覆盖这份记录，也不能凭空升级关系。'
       ];
       Object.keys(chars).forEach(function(name) {
         const ch = chars[name];
@@ -378,7 +465,9 @@
         const address = String(ch.对玩家称呼 || '').trim();
         const q = ch._quota || {};
         const cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
-        const used = Math.max(0, Number(q.好感度周上限已用) || 0);
+        /* 和注入里那份口径一致：超额记录（老存档 / 手改过）不能再往上飘，
+           否则这里会出现「12.0/7.0（剩余 0.0）」这种自相矛盾的读数。 */
+        const used = Math.min(cap, Math.max(0, Number(q.好感度周上限已用) || 0));
         const remain = Math.max(0, roundHalf(cap - used));
         lines.push('角色「' + name + '」：E=' + E + '；关系阶段=' + stage.name + '；脚本阶段值 R=' + R + '；P=' + P + '；I=' + I + '；本周正向 E 额度=' + used.toFixed(1) + '/' + cap.toFixed(1) + '（剩余 ' + remain.toFixed(1) + '）。');
         if (address) lines.push('角色「' + name + '」已保存的对玩家专属称呼：「' + address + '」。这是持久资料，合适的直接称呼场景自然使用，不要自行改名。');
@@ -463,7 +552,10 @@
     const abCoeff = (MOON_FORMULA_PARAMS.abyssCoeff[mode] || MOON_FORMULA_PARAMS.abyssCoeff.normal);
     const abyssMult = isAbyss ? (direction === '负向' ? abCoeff.neg : abCoeff.pos) : 1.0;
     let delta = base;
-    if (dim !== 'R') delta *= getDimCoeff(oldValue);
+    /* getDimCoeff 是给 E 用的 S 曲线（<30 时 ×0.5），目的是让「刚认识」涨得慢。
+       但 P / I 都从 0 起步，套同一条曲线等于永远爬不出 0（0.5 的 0.5 还是 0.5）。
+       而且「肉体」「嫉妒」本来就不该按好感度的同一套节奏走，所以这两维固定 ×1.0。 */
+    if (dim !== 'R' && dim !== 'P' && dim !== 'I') delta *= getDimCoeff(oldValue);
     // direction 是方向，不是倍率：负向必须先带负号，否则 '-' 标签也会给 E 加分。
     if (direction === '负向') delta *= -getNegCoeff(mode, dim);
     delta *= abyssMult;
@@ -475,7 +567,26 @@
       if (passed) delta += getEmotionBonus(mode, eventType, direction);
       emotionResult = { dice: dice, threshold: threshold, passed: passed };
     }
-    if (Math.abs(delta) > MOON_FORMULA_PARAMS.singleCap) delta = Math.sign(delta) * MOON_FORMULA_PARAMS.singleCap;
+    /* ── P / I 的专属约束 ──────────────────────────────────────────
+       P 是**欲望（色欲）**，不是「身体关系的进度条」。
+       这个定义差一点就把整套规则带歪，所以写清楚它意味着什么：
+
+         · 欲望可以凭空产生。不用真的碰到，甚至不用对方在场——
+           闻到味道、看到不该看的、被撩了一句、自己脑补，都算。
+         · 欲望和好感是两条独立的轴。讨厌一个人也可能被撩到（E 负、P 正），
+           深爱一个人也可能克制（E 高、P 低）。如果按「好感够了才许有欲望」
+           去卡，这一维就退化成好感的影子，四维也没必要存在了。
+           ——所以这里**没有 R 门槛**（之前那版有，是按「身体接触程度」理解的，
+           定义纠正后必须删掉）。
+
+         不设单轮上限、不设周额度、不封顶：用户要的是「一口气加很多、
+         也能一口气减很多」。只保住下限 0（欲望不会变成负数）。
+
+       I（嫉妒）相反：谁都能吃醋，但它是最容易失控的一维（剧情里
+       「有人搭话」就能写一条），所以单轮上限压到 5，并由 50-calc
+       每回合做一次自然回落（见 applyEnvyDecay）。 */
+    if (dim === 'I' && Math.abs(delta) > 5) delta = Math.sign(delta) * 5;
+    if (dim !== 'P' && Math.abs(delta) > MOON_FORMULA_PARAMS.singleCap) delta = Math.sign(delta) * MOON_FORMULA_PARAMS.singleCap;
     delta = roundHalf(delta);
     let weeklyBlocked = false;
     if (dim === 'E' && delta > 0) {
@@ -490,8 +601,63 @@
       if (delta > 0) q.好感度周上限已用 = roundHalf(used + delta);
     }
     if (dim === 'R') delta = 0;
-    const newValue = roundHalf(oldValue + delta);
+    let newValue = roundHalf(oldValue + delta);
+    /* 下限一律 0（负数没意义）；上限只有嫉妒有。
+       肉体不封顶 —— 用户要的是「可以一口气加很多」，
+       硬塞一个 100 的天花板，剧情里真要连着写几场亲密戏就会卡住不动，
+       状态卡上看着像脚本坏了。
+       夹完要把 delta 重算一遍，否则「嫉妒 99 再 +5」会记成 +5、newValue=100，
+       结算提示和正文徽章都在报一个没发生过的涨幅。 */
+    if (dim === 'P' || dim === 'I') {
+      const floor = Math.max(0, newValue);
+      const bounded = (dim === 'I') ? Math.min(100, floor) : floor;
+      if (bounded !== newValue) { newValue = bounded; delta = roundHalf(newValue - oldValue); }
+    }
     return { delta: delta, oldValue: oldValue, newValue: newValue, fieldName: fieldName, dimension: dim, emotionResult: emotionResult, isAbyss: isAbyss, weeklyBlocked: weeklyBlocked };
+  }
+
+  /* 嫉妒的自然回落。
+
+     这里**不另定规则**，而是接回角色档案里本来就有的那个字段：
+       `_invidia.每日衰减基数`
+     它从 v4.6 起就写在每个角色档案的模板里（同组还有 重力等级 / 骰子判定阈值 /
+     大失败反噬值 / 主动互动阈值），只是从来没有代码去读它 —— 嫉妒一直是「只按事件变、
+     不会自己消」的状态。现在把这一条接上，用的是既有设计，不是我新发明的数值：
+
+       每日衰减基数 > 0  → 每跨过一个**游戏日**，嫉妒减这么多
+       每日衰减基数 = 0  → 不自动衰减（默认值；所有老存档都是 0，行为与旧版完全一致）
+
+     为什么按「日」不按「回合」：醋是过一夜会淡的东西。
+     按回合算的话，玩家一晚上聊四十轮，天都没亮嫉妒就自己清零了，那不合理。
+     走 `_内部流逝天数`，和「好感周额度按游戏日重置」是同一个时间轴。
+
+     收到 [嫉妒] 标签的那一轮不衰减 —— 那轮本来就有由头，
+     降不降由玩家做了什么决定（写负值才是「被哄好了」）。 */
+  function applyEnvyDecay(charData, gameDay, opts) {
+    if (!charData) return null;
+    const cfg = charData._invidia || {};
+    const base = Number(cfg.每日衰减基数) || 0;
+    if (!(base > 0)) return null;
+    const q = charData._quota || (charData._quota = {});
+    const day = Math.max(0, Math.floor(Number(gameDay) || 0));
+    const lastRaw = Number(q._envyDecayDay);
+    const hasLast = isFinite(lastRaw);
+    if (hasLast && day <= lastRaw) return null;
+    /* markOnly：这一轮收到了 [嫉妒]，按设计不降，但「这一天」照样要记下来。
+       不记的话，下一次衰减会从更早那天算起，把今天连本带利补扣掉 ——
+       玩家看到的是「明明安抚了她，第二天反而掉得更多」。 */
+    const markOnly = !!(opts && opts.markOnly);
+    q._envyDecayDay = day;
+    if (markOnly) return null;
+    const cur = Number(charData.嫉妒值) || 0;
+    if (cur <= 0) return null;
+    /* 一次跨了好几天就按天数乘。上界 7 天，避免玩家跳一年直接把嫉妒清零之后
+       又觉得「怎么一觉醒来全没了」—— 超过一周的部分不再累乘。 */
+    const days = hasLast ? Math.max(1, Math.min(7, day - lastRaw)) : 1;
+    const next = Math.max(0, roundHalf(cur - base * days));
+    if (next === cur) return null;
+    charData.嫉妒值 = next;
+    return { oldValue: cur, newValue: next, delta: roundHalf(next - cur), fieldName: '嫉妒值', dimension: 'I', days: days, base: base };
   }
 
   function syncStageWithAffection(ch) {

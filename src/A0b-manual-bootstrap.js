@@ -138,7 +138,7 @@
         + '<div style="font-size:10px;color:#64748b;">来源：' + c.sources.join(' / ') + '</div></div>'
         + '<select class="moon-mb-mode" data-idx="' + i + '" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;"><option value="ai">让 AI 判</option><option value="manual">自己填</option></select>'
         + '<input class="moon-mb-e" data-idx="' + i + '" type="number" step="0.5" value="0" placeholder="好感" style="width:56px;padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;">'
-        + '<input class="moon-mb-p" data-idx="' + i + '" type="number" step="0.5" value="0" placeholder="肉体" style="width:56px;padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;">'
+        + '<input class="moon-mb-p" data-idx="' + i + '" type="number" step="0.5" value="0" placeholder="欲望" style="width:56px;padding:4px 6px;border-radius:6px;border:1px solid rgba(148,163,184,.3);background:#171a22;color:#e2e8f0;font-size:11px;">'
         + '<span class="moon-mb-r" data-idx="' + i + '" style="font-size:10px;color:#94a3b8;min-width:56px;">' + manualStageLabel(0) + '</span>'
         + '</div>';
     });

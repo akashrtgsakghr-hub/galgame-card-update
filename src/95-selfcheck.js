@@ -291,6 +291,7 @@
       '<button class="mp-menu-card" data-menu-open="timeline"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>世界编年史</b><small>查看与编辑世界事件、日期和未来节点</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统诊断室</b><small>检查数据、标签解析与插件冲突</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>游戏设置</b><small>调整界面、记忆、图像与运行参数</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="dungeon"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>主神空间</b><small>把副本世界书勾上，进本、撑时间、结算、冷却</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">' + uiIco('gamepad') + '</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
       '</div><div class="mp-menu-controls"><span>不知道点哪，回最上面看那条粉色提示</span></div>' +
       '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
@@ -320,13 +321,17 @@
       /* 掌机按键条：保留实体手感，但压成一行、放到内容之后 —— 它本来就是装饰性的，
          以前挡在菜单前面，手机上要先滑过半屏才看到能点的东西。 */
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
-      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'adventure' ? '0' : '-1') + '" data-menu-open="adventure">▶ 开始</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'characters' ? '0' : '-1') + '" data-menu-open="characters">角色</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'timeline' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'timeline' ? '0' : '-1') + '" data-menu-open="timeline">日志</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'system' ? '0' : '-1') + '" data-menu-open="system">检修</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'settings' ? '0' : '-1') + '" data-menu-open="settings">选项</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'dungeon' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'dungeon' ? '0' : '-1') + '" data-menu-open="dungeon">副本</button>' +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="dungeon" style="display:' + (activeMenuKey === 'dungeon' ? 'block' : 'none') + '"><div class="mp-sub-label">主神空间</div>' +
+      (typeof dungeonPanelBody === 'function' ? dungeonPanelBody() : '<div class="mp-dg-empty">副本模块没加载</div>') +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
@@ -695,6 +700,8 @@ bindClick('#moon-phase-update', function() {
       try { refreshPanel(); } catch (e) {}
     });
     bindClick('#moon-phase-tl-gen', function() { openTimelineGeneratorDialog(panel); });
+    /* 副本：扫描 / 勾选 / 进本 / 结算 全在这一片里绑 */
+    try { if (typeof bindDungeonPanel === 'function') bindDungeonPanel(panel); } catch (e) {}
     if (panel.querySelector('#moon-phase-tl-list')) bindClick('#moon-phase-tl-list', function() { openTimelineManagerDialog(panel); });
     bindClick('#moon-phase-manual-tl', function() { openManualTimelineInputDialog(panel); });
     bindClick('#moon-phase-tl-tag', function() { openTimelineTagDialog(panel); });
@@ -1318,7 +1325,7 @@ const stateKey = getChatStateKey();
         '<div style="margin-bottom:6px;">这一轮没找到 AI 的判定 → 你自己定一个：</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
         '<select id="moon-reroll-dir" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="正向">正向</option><option value="负向">负向</option></select>' +
-        '<select id="moon-reroll-dim" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="E">好感 E</option><option value="P">肉体 P</option><option value="I">嫉妒 I</option></select>' +
+        '<select id="moon-reroll-dim" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"><option value="E">好感 E</option><option value="P">欲望 P</option><option value="I">嫉妒 I</option></select>' +
         '<input id="moon-reroll-base" type="number" step="0.5" min="0" max="10" style="width:74px;padding:6px;border-radius:6px;border:1px solid rgba(251,191,36,0.35);background:#171a22;color:#e2e8f0;font-size:11px;font-family:inherit;"></div>' +
         '<div style="margin-top:6px;color:#a16207;line-height:1.6;">这只用于这次重摇，不会改掉剧情里已经发生的事。</div>' +
       '</div>' +
