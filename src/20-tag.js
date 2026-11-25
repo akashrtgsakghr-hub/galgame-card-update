@@ -168,6 +168,73 @@
     return nameless;
   }
 
+  /* ── 转折标签：把「这一轮算不算重大」的判断权交给 AI ──────────
+     背景：脚本原来只认事件导演的档位，AI 标签里的 L/M/H 一律不参与，
+     于是玩家真演了一场「记忆恢复」，脚本按日常档结算，只加 3 分。
+     但完全放开又不行：模型填一个 H 就能绕过事件导演去触发成就。
+
+     折中方案 —— 单独一族标签，只影响数值，不碰成就：
+       [转折|角色名|+18|他想起她跪在雪里]
+     · 数值由 AI 按情节给，脚本夹在 ±TURN_TAG_MAX 之内
+     · 必须带理由，理由太短或没有就整条丢弃（宁可少给，不能让模型随口填）
+     · 不占好感周额度：转折是剧情节点，不该把玩家下周的额度也吃掉
+     · 不参与事件导演的成就判定：成就仍然只认事件导演 + [Sylveina|H|…]
+     · 同一轮同一角色只认一条，多的丢掉 */
+  const TURN_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(（]\s*转折\s*[|｜]([^\]\u3015\u3011\uff3d)）\r\n]+)[\]\u3015\u3011\uff3d)）]?/gi;
+  const TURN_TAG_MAX = 30;
+  const TURN_TAG_COOLDOWN = 3;   // 同一角色 3 层内只吃一次转折
+
+  function extractAllTurnTags(mes) {
+    const out = [];
+    if (!mes) return out;
+    const text = String(mes);
+    const re = new RegExp(TURN_TAG_GLOBAL_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const parts = String(m[1] || '').split(/[|｜]/).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (parts.length < 2) continue;
+      let charName = '';
+      let hasValue = false;
+      let value = 0;
+      let why = '';
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        if (!hasValue && /^[+\-＋－−—]?\s*\d+(?:\.\d+)?$/.test(p)) {
+          value = parseFloat(p.replace(/[＋－−—]/g, function (c) { return (c === '＋') ? '+' : '-'; }));
+          hasValue = true;
+          continue;
+        }
+        if (!hasValue) { if (!charName) charName = p; else if (!why) why = p; }
+        else if (!why) why = p;
+      }
+      if (!hasValue || !isFinite(value) || value === 0) continue;
+      why = String(why || '').replace(/\s+/g, ' ').trim();
+      if (why.length < 2) continue;                       // 没理由就不给分
+      out.push({
+        charName: charName, value: value, why: why.slice(0, 40),
+        index: m.index, end: re.lastIndex, fullMatch: m[0]
+      });
+    }
+    return out;
+  }
+
+  /* 转折标签只取一条：同一角色同一轮写两条，后面那条大概率是模型凑数 */
+  function pickTurnTagForCharacter(tags, charName, activeCharCount, primaryName) {
+    if (!Array.isArray(tags) || !tags.length) return null;
+    const cleanName = String(charName || '').trim();
+    for (let i = 0; i < tags.length; i++) {
+      const t = tags[i];
+      if (!t.charName) continue;
+      if (cleanName && (t.charName === cleanName || cleanName.indexOf(t.charName) >= 0 || t.charName.indexOf(cleanName) >= 0)) return t;
+    }
+    const nameless = tags.filter(function (t) { return !t.charName; });
+    if (!nameless.length) return null;
+    if (activeCharCount <= 1) return nameless[0];
+    const target = primaryName || '';
+    if (!cleanName || cleanName !== target) return null;
+    return nameless[0];
+  }
+
   function extractBaseValueFromLatestAiMessage(eventType) {
     try {
       const found = getLatestAiMessage();

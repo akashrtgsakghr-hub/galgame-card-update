@@ -668,6 +668,16 @@ async function applyAdaptiveOpening(charName, values) {
         if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
         if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
         if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
+        /* 重建 / 重新认人时把关系底子一起刷新：先验是「当前这段关系怎么来的」，
+           留着上一轮的旧值会让演出比人设还旧。 */
+        if (item.已有关系 === true || item.共处时长 || item.关系) {
+          ch._关系先验 = {
+            关系: String(item.关系 || '').slice(0, 12),
+            共处时长: String(item.共处时长 || '').slice(0, 30),
+            来源: '建档判定',
+            记于: now
+          };
+        }
       } else {
         statData.角色[name] = {
           语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '', 对玩家称呼: '',
@@ -679,13 +689,28 @@ async function applyAdaptiveOpening(charName, values) {
             好感度周上限已用: 0, 周上限起始: now, R阶段门: false, 下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
             表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '', 表白期已通过: false, 表白期冷却至: '', 自适应开局已完成: true,
             _playerConfession: false,
-            _firstMeetDone: (Number(item.好感度) || 0) !== 0,
-            _初见待结算: (Number(item.好感度) || 0) === 0,
+            /* 设定里已经写明的关系（亲属 / 青梅 / 相处 N 年）不走初见骰。
+               初见是给真·陌生人用的：拿 1d20 决定「十几年兄妹」的起始值没有意义，
+               而且同一段关系建两次会给出两个完全不同的数（实测 18 和 75）。
+               判定给了 0 分也不补骰 —— 0 分是「这个人对他没感觉」，不是「还没见过」。 */
+            _firstMeetDone: item.已有关系 === true || (Number(item.好感度) || 0) !== 0,
+            _初见待结算: item.已有关系 !== true && (Number(item.好感度) || 0) === 0,
             _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
             _timelineCompleted: [],
             _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
           }
         };
+        /* 关系底子：建档时从人设/世界书里认定的既有关系。
+           之后的注入会带一行「你和他相处三年了」，避免 AI 按 E 的数值
+           把老熟人演成刚认识（投喂被嫌弃就是这么来的）。 */
+        if (item.已有关系 === true || item.共处时长 || item.关系) {
+          statData.角色[name]._关系先验 = {
+            关系: String(item.关系 || '').slice(0, 12),
+            共处时长: String(item.共处时长 || '').slice(0, 30),
+            来源: '建档判定',
+            记于: now
+          };
+        }
       }
     });
     const ok = await writeMvuLatest(statData);

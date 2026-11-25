@@ -226,8 +226,8 @@
   /* 正文里所有「给脚本算账用」的标签，算完必须一起删。
      Sylveina 是主维度（好感），肉体和嫉妒是后加的两个分维度标签。
      漏剥哪一个，玩家就会在剧情里看到「[嫉妒|长谷川茗|L|+|2]」这种字样。 */
-  const CALC_TAG_LINE_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒)\s*[|｜]/i;
-  const CALC_TAG_STRIP_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒)\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
+  const CALC_TAG_LINE_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒|转折)\s*[|｜]/i;
+  const CALC_TAG_STRIP_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒|转折)\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
 
   function stripSylveinaTagsFromMessage() {
     try {

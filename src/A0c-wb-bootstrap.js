@@ -203,30 +203,105 @@
     return { dice: [a, b], sum: sum, E: E, text: '🎲 ' + a + '+' + b + '=' + sum };
   }
 
-  /* ── 分批 AI 判定 ───────────────────────────────────────────── */
-  async function moonJudgeCharsBatch(items) {
+  /* ── 玩家侧资料：一次读全 ─────────────────────────────────────
+     一键建档最容易出错的地方是「只看开场白」：玩家往往把旧情写在人设里
+     （ST 的 persona，或者本插件自己的玩家档案），开场白里一个字没有。
+     所以这里两处人设都读，合起来按「人设 > 世界书 > 开场白」的优先级用。 */
+  function moonPlayerDossier() {
     const ctx = getSTCtx() || {};
-    let opening = '';
-    let cardName = '';
+    let cardName = '', cardDesc = '', cardPersonality = '', scenario = '', opening = '';
     try {
       const ch = ctx.characters && ctx.characterId != null ? ctx.characters[ctx.characterId] : null;
-      if (ch) { opening = String(ch.first_mes || '').slice(0, 1500); cardName = String(ch.name || ''); }
+      if (ch) {
+        cardName = String(ch.name || '');
+        cardDesc = String(ch.description || '').slice(0, 1500);
+        cardPersonality = String(ch.personality || '').slice(0, 600);
+        scenario = String(ch.scenario || '').slice(0, 800);
+        opening = String(ch.first_mes || '').slice(0, 1500);
+      }
     } catch (e) {}
-    let persona = '';
-    try { persona = String(collectCurrentPlayerPersona().persona || '').slice(0, 800); } catch (e) {}
-    let playerName = '';
-    try { playerName = String(collectCurrentPlayerPersona().name || '').slice(0, 24); } catch (e) {}
+    let stPersona = '', playerName = '';
+    try {
+      const p = collectCurrentPlayerPersona();
+      stPersona = String(p.persona || '');
+      playerName = String(p.name || '');
+    } catch (e) {}
+    let bio = '';
+    try {
+      const b = (typeof getEnabledUserBio === 'function') ? getEnabledUserBio() : null;
+      if (b && b.versions && b.versions.current) bio = String(b.versions.current.content || '');
+    } catch (e) {}
+    /* 两份人设接在一起给。人设是主要证据，长度给足——截得太短，
+       「相处三年」这种关键句就正好被切掉。 */
+    const personaMerged = [bio, stPersona].filter(Boolean).join('\n---\n').slice(0, 2600);
+    return {
+      cardName: cardName, cardDesc: cardDesc, cardPersonality: cardPersonality,
+      scenario: scenario, opening: opening, personaMerged: personaMerged, playerName: playerName
+    };
+  }
+
+  /* ── 第一步：把资料读成一份「谁是谁、跟谁有什么旧情」的摘要 ─────
+     一步到位直接要分数，模型会只在开场白里找证据，写完才发现人设里的
+     「相处三年」被整段忽略（玩家的实测就是这样：兄妹十几年被判成十几分）。
+     所以先摘要、再定档：摘要这一步只做抽取，不碰数值。 */
+  async function moonSummarizeRelations(dossier) {
+    const d = dossier || moonPlayerDossier();
+    if (!d.personaMerged && !d.opening) return '';
+    const SYS = '你是剧情资料整理员。只做抽取和归纳，不评价、不给数值、不编造没写的东西。'
+      + '【用户人设是最高优先级】：人设里写过的旧情、共处时长、共同经历，一律以人设为准，开场白只作补充。';
+    const USER = '【玩家人设】（最高优先级）\n' + (d.personaMerged || '(无)')
+      + '\n\n【角色卡】' + (d.cardName || '(无)') + '\n' + (d.cardDesc || '')
+      + (d.cardPersonality ? '\n【性格】' + d.cardPersonality : '')
+      + (d.scenario ? '\n【场景】' + d.scenario : '')
+      + '\n\n【开场白】\n' + (d.opening || '(无)')
+      + '\n\n输出 JSON（不要任何别的文字）：\n'
+      + '{"玩家":{"身份":"","处境":"","性格":""},'
+      + '"旧情":[{"对象":"","关系":"亲属/青梅竹马/恋人/旧识/同僚/仇敌/陌生",'
+      + '"共处时长":"照抄原文，如「相处三年」「从小一起长大」「十年没见」；没写就留空",'
+      + '"关键经历":"原文写过的共同经历，一句；没写留空","证据":"引用原文那一句"}],'
+      + '"关系总则":"这个玩家和这世界里其他人普遍是什么立场，一句"}';
+    let raw = '';
+    try {
+      const r = await callOpeningModel('main', SYS, USER);
+      raw = (typeof r === 'string') ? r : String((r && (r.content || r.text)) || '');
+    } catch (e) { raw = ''; }
+    return String(raw || '').trim().slice(0, 2400);
+  }
+
+  /* ── 分批 AI 判定 ───────────────────────────────────────────── */
+  async function moonJudgeCharsBatch(items, brief) {
+    const d = moonPlayerDossier();
+    const opening = d.opening;
+    const cardName = d.cardName;
+    const persona = d.personaMerged;
+    const playerName = d.playerName;
 
     const blocks = items.map(function (it, i) {
       const lore = wbLoreForName(it.name, it.keys);
       return '◆角色 ' + (i + 1) + '：' + it.name + '\n' + (lore ? '设定：' + lore : '设定：（世界书里没有这个人的条目，只能从开场白判断）');
     }).join('\n\n');
 
-    const SYS = '你是剧情关系裁判。先判断每个角色与玩家（' + (playerName || '玩家') + '）当前是什么关系，再给数值。只输出 JSON 数组，不要解释。';
-    const USER = '【角色卡】' + (cardName || '(无)') + '\n【开场白】\n' + (opening || '(无开场白)') + '\n【玩家人设】\n' + (persona || '(无)') + '\n\n' + blocks
-      + '\n\n请逐个判断，输出：\n[{"名字":"","关系":"陌生/旧识/亲属/同僚/仇敌…用四个字以内","好感度":0,"肉体值":0,"理由":"一句事实依据"}]\n'
-      + '【尺度】没有相处事实就是陌生人，好感度 0~10；只有开场白里明确写出的亲密/敌意才可超出 ±20；'
-      + '肉体值只按已经发生的身体关系给，陌生人一律 0。理由必须引用设定或开场白里的具体事实，不足就写「证据不足」。';
+    const SYS = '你是剧情关系裁判。证据优先级：玩家人设 > 世界书设定 > 开场白。'
+      + '先判断每个角色和玩家的【既有关系】，再按关系深度给数值。只输出 JSON 数组，不要解释。';
+    const USER = '【玩家】' + (playerName || '玩家')
+      + '\n【关系摘要】（已从人设/世界书里抽好，直接采信，不要自己另判一遍）\n' + (String(brief || '').trim() || '(无摘要)')
+      + '\n\n【玩家人设原文】（摘要漏掉的，回原文补）\n' + (persona || '(无)')
+      + '\n\n【角色卡】' + (cardName || '(无)')
+      + '\n【开场白】\n' + (opening || '(无开场白)')
+      + '\n\n' + blocks
+      + '\n\n请逐个判断，输出：\n'
+      + '[{"名字":"","关系":"亲属/青梅竹马/恋人/旧识/同僚/仇敌/陌生","共处时长":"照抄证据里写的时长，没写留空","好感度":0,"肉体值":0,"理由":"引用原文那一句"}]\n'
+      + '【尺度·按证据定档，不要按「第一次见面」给】\n'
+      + '· 人设或设定里写了旧情，按共处深度先定档，再在档内按相处好坏浮动 ±10：\n'
+      + '  亲属 / 从小一起长大 / 十年以上 → 65~85\n'
+      + '  相处三年以上（含青梅竹马、长期同僚、旧情人）→ 50~70\n'
+      + '  相处几个月到三年 → 25~45\n'
+      + '  只是认识 / 同事 / 同学 / 邻居 / 上下级 → 10~30\n'
+      + '· 上面哪一条都对不上、也没写相处事实 → 0~10（真·陌生人）\n'
+      + '· 明确写了仇、背叛、血债、决裂 → -60~-30\n'
+      + '· 同一段关系只该有一个结论：先定档，档内浮动，不要这次给 18 下次给 75。\n'
+      + '· 理由必须引用原文；引不出原文的，共处时长留空、按陌生人算。\n'
+      + '· 肉体值只按已经发生过的身体关系给：写了夫妻/恋人可给 20~50，其余一律 0。';
 
     let raw = '';
     try {
@@ -242,10 +317,17 @@
     (Array.isArray(arr) ? arr : []).forEach(function (it) {
       const nm = String(it && (it.名字 || it.name) || '').trim();
       if (!nm) return;
+      const rel = String(it.关系 || '').slice(0, 8);
+      const past = String(it.共处时长 || it.相处时长 || '').slice(0, 30);
       map[nm] = {
         E: Math.max(-100, Math.min(100, Math.round(Number(it.好感度) || 0))),
         B: Math.max(0, Math.min(100, Math.round(Number(it.肉体值) || 0))),
-        rel: String(it.关系 || '').slice(0, 8),
+        rel: rel,
+        past: past,
+        /* 有共处时长，或者关系本身就不是「陌生」→ 这个人早就在玩家的生活里了，
+           不该再走「初见」那一套（初见骰是给真·陌生人用的，
+           拿它决定「相处三年的兄妹」的起始值，等于让骰子决定记忆）。 */
+        known: !!(past || /亲属|兄|妹|姐|弟|青梅|恋人|夫妻|旧识|旧情|发小|同僚|同学|同事|仇/.test(rel)),
         why: String(it.理由 || '').slice(0, 40)
       };
     });
@@ -391,11 +473,20 @@
         /* AI 分批 */
         const aiList = picked.filter(function (p) { return p.mode === 'ai'; });
         const map = {};
+        /* 先做一次关系摘要：把玩家人设里的旧情、共处时长抽出来，
+          再拿去逐个人定档。少了这一步，模型只会盯着开场白，
+           人设里写的「相处三年」相当于没写。 */
+        let brief = '';
+        if (aiList.length) {
+          try { showLoadingDialog('先读一遍你的人设和旧情…'); } catch (e) {}
+          try { brief = await moonSummarizeRelations(); } catch (e) { brief = ''; }
+          try { closeLoadingDialog(); } catch (e) {}
+        }
         for (let i = 0; i < aiList.length; i += WB_BATCH_SIZE) {
           const batch = aiList.slice(i, i + WB_BATCH_SIZE);
           try { showLoadingDialog('正在建档 ' + (i + 1) + '–' + Math.min(i + batch.length, aiList.length) + ' / ' + aiList.length + '…'); } catch (e) {}
           let part = {};
-          try { part = await moonJudgeCharsBatch(batch); } catch (e) { part = {}; }
+          try { part = await moonJudgeCharsBatch(batch, brief); } catch (e) { part = {}; }
           Object.keys(part).forEach(function (k) { map[k] = part[k]; });
           /* AI 漏掉的人：这一批里没返回的，退成 0 值 + 提示，不留空 */
           batch.forEach(function (b) { if (!map[b.name]) map[b.name] = { E: b.E, B: b.B, rel: '', why: 'AI 没返回，按手填值写入' }; });
@@ -409,6 +500,9 @@
           const st = getRStageFromE(E);
           return {
             名字: p.name, 重要度: '主要', 好感度: E, 肉体值: B, 阶段值: st.r, 嫉妒值: 0,
+            已有关系: !!(ai && ai.known),
+            共处时长: (ai && ai.past) || '',
+            关系: (ai && ai.rel) || '',
             情绪: '😐', 心声: (ai && ai.why) ? String(ai.why).slice(0, 30) : (p._dice ? '开局掷骰 ' + p._dice.sum : '……')
           };
         });

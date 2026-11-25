@@ -24,20 +24,13 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.18.0';
-  const MOON_FORMULA_CHANGELOG = "📢【v5.18.0 主神空间（副本）+ 四维结算，两个大件】\n" +
-    "【主神空间 · 副本】\n" +
-    "- **副本从世界书来**：条目名写「副本·XXX」就行，脚本只做引擎，本子随时加、随时改，不用等更新。\n" +
-    "- **规则怪谈**：每条规则分真假，假规则是上个死者留的陷阱——遵守了才会出事。AI 看得到标记，你看不到，最后自己在面板上勾，按正确率给分。\n" +
-    "- **血条**：你 80、同行者 80。小怪扛五下、精英扛三下、BOSS 一击带走。\n" +
-    "- **同行者阵亡变幽灵**：还能说话、能出主意（也可能是错的），碰不了东西，也挡不了刀。\n" +
-    "- **存活倒计时**：通关看「撑了多久」，不数回合。条目里写「存活：一夜 / 3 小时 20 分 / 2 天」。\n" +
-    "- **积分经济**：失败按等级扣分，余额不够就扣成负数、负分锁商城；通关要等 7 天、失败 3 天（都是游戏里的时间）。\n" +
-    "【四维结算】\n" +
-    "- **肉体和嫉妒终于会动了**：以前只有好感度收得到标签，另外两维从建档起就是死的。现在多了 [肉体|…] / [嫉妒|…] 两条，AI 会自己判断什么时候该写。\n" +
-    "- **肉体值正名「欲望」**：它说的是此刻有多想要，不是身体关系进行到哪一步。不用真的碰到——被撩到、被逼近、自己忍不住想都算；和好感是两条独立的轴。\n" +
-    "- **嫉妒会自己淡**：角色档案里「每日衰减基数」大于 0 时，每过一个游戏日降这么多（默认 0，等于和以前完全一样）。\n" +
-    "- **每个关系阶段都有表现上限**：数值封顶了、演出还在往前冲，是以前最出戏的地方。现在 R3 不许谈长期承诺、R4 不许求婚、额度用尽的这一轮要求「写厚不写深」——话都写在注入里。";
+  const MOON_FORMULA_VERSION = '5.18.1';
+  const MOON_FORMULA_CHANGELOG = "📢【v5.18.1 建档先读你的人设，重大转折交给你和 AI】\n" +
+    "- **一键建档不再只看开场白**：以前它只在开场白里找证据，你写在人设里的「相处三年」「我们是兄妹」被整段忽略，判定只能给 15~25 分。现在先做一次关系摘要（人设两处都读：酒馆的 persona 和本系统的玩家档案），再按证据定档。\n" +
+    "- **按相处深度给分，不再让骰子决定**：亲属 / 从小一起长大 / 十年以上 65~85；三年以上 50~70；几个月到三年 25~45；只是同事 10~30；真陌生人才 0~10，才走初见骰。同一段关系不会这次给 18、下次给 75。\n" +
+    "- **关系底子会带进每一轮**：建档认定「从小一起长大」之后，注入里会一直有一行「你和他相处十几年」，并且演出上限至少给到 R3 —— 不会再出现「数值不高就把老熟人演成刚认识、喂个东西都被嫌弃」。\n" +
+    "- **重大转折由 AI 给数值**：新增 `[转折|角色名|±数值|理由]`。AI 判断这一轮真翻了页（记忆恢复、关系挑明、生死关头），可以自己给分，±30 以内、必须带理由、不占每周好感额度、也不吃事件导演的档位限制。理由会显示在结算提示里。\n" +
+    "- 日常的你来我往仍然走原来的脚本档位——只有 AI 明确判定为转折的那一轮，才动用这条新通道。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -1089,6 +1082,73 @@
     return nameless;
   }
 
+  /* ── 转折标签：把「这一轮算不算重大」的判断权交给 AI ──────────
+     背景：脚本原来只认事件导演的档位，AI 标签里的 L/M/H 一律不参与，
+     于是玩家真演了一场「记忆恢复」，脚本按日常档结算，只加 3 分。
+     但完全放开又不行：模型填一个 H 就能绕过事件导演去触发成就。
+
+     折中方案 —— 单独一族标签，只影响数值，不碰成就：
+       [转折|角色名|+18|他想起她跪在雪里]
+     · 数值由 AI 按情节给，脚本夹在 ±TURN_TAG_MAX 之内
+     · 必须带理由，理由太短或没有就整条丢弃（宁可少给，不能让模型随口填）
+     · 不占好感周额度：转折是剧情节点，不该把玩家下周的额度也吃掉
+     · 不参与事件导演的成就判定：成就仍然只认事件导演 + [Sylveina|H|…]
+     · 同一轮同一角色只认一条，多的丢掉 */
+  const TURN_TAG_GLOBAL_RE = /[\[\u3014\u3010\uff3b(（]\s*转折\s*[|｜]([^\]\u3015\u3011\uff3d)）\r\n]+)[\]\u3015\u3011\uff3d)）]?/gi;
+  const TURN_TAG_MAX = 30;
+  const TURN_TAG_COOLDOWN = 3;   // 同一角色 3 层内只吃一次转折
+
+  function extractAllTurnTags(mes) {
+    const out = [];
+    if (!mes) return out;
+    const text = String(mes);
+    const re = new RegExp(TURN_TAG_GLOBAL_RE.source, 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const parts = String(m[1] || '').split(/[|｜]/).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (parts.length < 2) continue;
+      let charName = '';
+      let hasValue = false;
+      let value = 0;
+      let why = '';
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        if (!hasValue && /^[+\-＋－−—]?\s*\d+(?:\.\d+)?$/.test(p)) {
+          value = parseFloat(p.replace(/[＋－−—]/g, function (c) { return (c === '＋') ? '+' : '-'; }));
+          hasValue = true;
+          continue;
+        }
+        if (!hasValue) { if (!charName) charName = p; else if (!why) why = p; }
+        else if (!why) why = p;
+      }
+      if (!hasValue || !isFinite(value) || value === 0) continue;
+      why = String(why || '').replace(/\s+/g, ' ').trim();
+      if (why.length < 2) continue;                       // 没理由就不给分
+      out.push({
+        charName: charName, value: value, why: why.slice(0, 40),
+        index: m.index, end: re.lastIndex, fullMatch: m[0]
+      });
+    }
+    return out;
+  }
+
+  /* 转折标签只取一条：同一角色同一轮写两条，后面那条大概率是模型凑数 */
+  function pickTurnTagForCharacter(tags, charName, activeCharCount, primaryName) {
+    if (!Array.isArray(tags) || !tags.length) return null;
+    const cleanName = String(charName || '').trim();
+    for (let i = 0; i < tags.length; i++) {
+      const t = tags[i];
+      if (!t.charName) continue;
+      if (cleanName && (t.charName === cleanName || cleanName.indexOf(t.charName) >= 0 || t.charName.indexOf(cleanName) >= 0)) return t;
+    }
+    const nameless = tags.filter(function (t) { return !t.charName; });
+    if (!nameless.length) return null;
+    if (activeCharCount <= 1) return nameless[0];
+    const target = primaryName || '';
+    if (!cleanName || cleanName !== target) return null;
+    return nameless[0];
+  }
+
   function extractBaseValueFromLatestAiMessage(eventType) {
     try {
       const found = getLatestAiMessage();
@@ -1772,6 +1832,30 @@ async function _collectAllWorldbooks(includeDisabled) {
     return R_STAGE_BOUNDARY[key] || '';
   }
 
+  /* 关系底子能给到的「最低演出档」。
+     为什么需要它：建档认出来「从小一起长大的兄妹」，但数值可能因为
+     权重设得低（或者玩家手动压过）而停在 18，R 就落到 1——
+     于是注入告诉 AI「不得有肢体接触、不得暗示有别的意思」，
+     三年相处的日常亲昵被当成越界。这不是数值问题，是「底子」没被用上。
+     这里只抬不压，且只影响演出边界，不改任何数值。 */
+  function stageFloorFromPrior(prior) {
+    if (!prior) return 0;
+    const rel = String(prior.关系 || '');
+    const past = String(prior.共处时长 || '');
+    if (/亲属|兄|妹|姐|弟|夫|妻|恋人|青梅|发小/.test(rel)) return 3;
+    if (/一起长大|从小|自幼/.test(past)) return 3;
+    const m = past.match(/([一二三四五六七八九十\d]+)\s*(?:多)?\s*年/);
+    if (m) {
+      const cn = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+      const n = cn[m[1]] !== undefined ? cn[m[1]] : Number(m[1]) || 0;
+      if (n >= 10) return 3;
+      if (n >= 3) return 2;
+      if (n >= 1) return 1;
+    }
+    if (/旧识|旧情|同僚|同学|同事|邻居/.test(rel)) return 1;
+    return 0;
+  }
+
   function injectEventPrompt() {
     try {
       const data = readMvuLatest();
@@ -1863,8 +1947,21 @@ async function _collectAllWorldbooks(includeDisabled) {
             ? getRStageFromE(Number(ch.好感度) || 0).r
             : Number(ch.阶段值);
           const _R = isFinite(_Rraw) ? _Rraw : 0;
-          const _boundary = getStageBoundary(_R);
-          if (_boundary) lines.push('  🚧 【' + name + '】表现上限（R=' + _R + '）：' + _boundary + '这一轮气氛再好也不要越过它。');
+          /* 关系底子：建档时从人设/世界书里认定的既有关系。
+             只抬不压 —— 写得出来「十几年兄妹」，演出就不该被数值压成刚认识。 */
+          const _prior = ch._关系先验;
+          if (_prior && (_prior.关系 || _prior.共处时长)) {
+            const _pRel = String(_prior.关系 || '').trim();
+            const _past = String(_prior.共处时长 || '').trim();
+            if (_pRel || _past) {
+              lines.push('  🧷 【' + name + '】关系底子：' + (_pRel || '已认识') + (_past ? '（' + _past + '）' : '')
+                + '。这是建档时从人设和设定里认定的既有关系，演出手法要匹配它——'
+                + '不要因为当前数值不高，就把老熟人演成刚认识。');
+            }
+          }
+          const _effR = Math.max(_R, stageFloorFromPrior(_prior));
+          const _boundary = getStageBoundary(_effR);
+          if (_boundary) lines.push('  🚧 【' + name + '】表现上限（R=' + _effR + '）：' + _boundary + '这一轮气氛再好也不要越过它。');
           const _cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
           const _used = Math.min(_cap, Math.max(0, Number(q.好感度周上限已用) || 0));
           const _remain = roundHalf(_cap - _used);
@@ -1907,8 +2004,18 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('  · 嫉妒值 = 醋意。出现第三方、玩家和别人亲近、或角色被晾在一边时写：' + (multiCard ? '[嫉妒|角色名|L/M/H|+|数值]' : '[嫉妒|L/M/H|+|数值]'));
       lines.push('    数值 0.5~5.0，按醋意强度给；玩家主动安抚或明确表态之后，写一条负向让它降下来（例：' + (multiCard ? '[嫉妒|角色名|L|-|1]' : '[嫉妒|L|-|1]') + '）。');
       lines.push('  这两行都是可选的：这一轮确实有欲望、有醋意才写，没有就不写，不要硬凑。');
+      /* 转折标签：把「这一轮算不算大事」的判断权真正交给模型。
+         脚本不再替它拿主意 —— 但要给出写法和量级，否则它会每轮都写一条。 */
+      lines.push('【重大转折 · 这一档的判断权在你手上】');
+      lines.push('  当这一轮发生了真正「翻页」的事——记忆恢复、生死关头、关系挑明、背叛、诀别、');
+      lines.push('  多年的心结被一句话解开——就写一行：');
+      lines.push('    ' + (multiCard ? '[转折|角色名|+18|他想起她跪在雪里]' : '[转折|+18|他想起她跪在雪里]'));
+      lines.push('  数值按情节给：±5 有触动但没跨过线 / ±10 明显偏转 / ±20 整段关系的走向变了 / ±30 是这种级别的上限。');
+      lines.push('  第三段必须是理由（一句话），没理由脚本直接丢掉这一行；这一行不受每周好感额度限制。');
+      lines.push('  写了 [转折] 的这一轮就不要再写 [Sylveina] 了——两个都写只认转折。');
+      lines.push('  但别每轮都用：日常的你来我往、吃饱了、递杯水，那不叫转折，用 [Sylveina|…] 就够。');
       lines.push('  三个标签都可以交给脚本，正文里不要解释它们，也不要写它们算出了多少分。');
-      lines.push('【重要：正则美化触发格式】正文剧情结束后，最后单独输出一个 Sylveina 数值标签（如果这一轮还写了 [肉体] / [嫉妒]，放在它前面），下一行只输出小写字母 s。示例：');
+      lines.push('【重要：正则美化触发格式】正文剧情结束后，最后单独输出一个 Sylveina 数值标签（如果这一轮还写了 [肉体] / [嫉妒] / [转折]，放在它前面），下一行只输出小写字母 s。示例：');
       lines.push('[Sylveina|L|+|1.2]');
       lines.push('s');
       lines.push('【后台变量块 · 每一轮都必须重写一遍】不是建档写一次就完事；这一轮漏写，脚本就收不到这一轮的情绪与心声，状态卡会停在上一轮。放在 s 之后、正文之外，脚本会自动收走，玩家看不到：');
@@ -1962,12 +2069,13 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
       lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
       lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
-      lines.push('这行会被系统收走，玩家看不到；不要写解释、不要夹在正文中间。');
+      lines.push('这行玩家看不到；不要写解释、别夹在正文中间。');
       /* 分维度标签也放在这一条里提醒一次。
          上面那一大段里其实写清了「什么时候写肉体、什么时候写嫉妒」，
          但和历史遗留的「只输出一个 Sylveina 标签」放在同一屏，模型很容易记住后者、忘掉前者。
          这里只给最少的信息（有就写、没有别写），不重复讲触发条件——讲长了这一段就没人读了。 */
       lines.push('有欲望补 [肉体|角色名|L|+|3]，有醋意补 [嫉妒|角色名|L|+|2]，都没有就不写。');
+      lines.push('真翻页就用 [转折|角色名|数值|理由]，不写 Sylveina。');
       _voiceTailNote = lines.join('\n');
       callSetPrompt(PROMPT_KEY + '_voice', _voiceTailNote, 0, 0, false);
     } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
@@ -3028,6 +3136,9 @@ async function _collectAllWorldbooks(includeDisabled) {
          注入只教 AI 写 [Sylveina|…]，解析器又把维度默认成 'E'，
          于是 P / I 永远等不到属于自己的那条标签，状态卡上两个数从建档起就没变过。 */
       const parsedDimTags = (typeof extractAllDimTags === 'function') ? extractAllDimTags(latestAiText) : [];
+      /* 转折标签单独收一份。它和分维度标签是两件事：维度标签说「哪一维动了」，
+         转折标签说「这一轮是剧情节点，数值由 AI 按情节定」。 */
+      const parsedTurnTags = (typeof extractAllTurnTags === 'function') ? extractAllTurnTags(latestAiText) : [];
       /* 嫉妒的自然回落按「游戏日」走（读 _invidia.每日衰减基数），所以这里要一份当前游戏日。
          和 processEventSystem 用的是同一个口径，不另立一套时间轴。 */
       const dimGameDay = Math.max(0, Math.floor(Number(world._游戏日) || Number(world._内部流逝天数) || 0));
@@ -3070,8 +3181,42 @@ async function _collectAllWorldbooks(includeDisabled) {
           if (dbResult) gateLogs.push({ type: 'event_update', char: name, event: { type: 'debuff', result: dbResult } });
         } catch (e) {}
 
+        /* 转折标签优先：AI 明确判定「这一轮是重大转折」时，数值直接用它给的，
+           不走事件导演的档位、不占好感周额度、也不参与成就判定。
+           和普通标签互斥 —— 同一角色同一轮两个都写，只认转折
+           （能写出带理由的转折，说明它真的判断过；那条普通标签多半是惯性凑的）。 */
+        let turnApplied = null;
+        if (typeof pickTurnTagForCharacter === 'function') {
+          const turnTag = pickTurnTagForCharacter(parsedTurnTags, name, activeCharNames.length, primaryTarget);
+          const turnFloor = latestAi ? Number(latestAi.idx) : -1;
+          const lastTurnFloor = Number(ch._quota._lastTurnFloor);
+          /* 冷却：同一个角色 3 层内只吃一次转折。
+             不加这道闸，模型会把它当常规加分手短——每轮都写一条「他明白了」，
+             E 三天就满。转折之所以叫转折，是因为它不是每轮都有。 */
+          const turnCd = (typeof TURN_TAG_COOLDOWN === 'number') ? TURN_TAG_COOLDOWN : 3;
+          const turnTooSoon = isFinite(lastTurnFloor) && turnFloor >= 0
+            && (turnFloor - lastTurnFloor) < turnCd;
+          if (turnTag && !turnTooSoon && ch._quota._turnSig !== turnSignature) {
+            ch._quota._turnSig = turnSignature;
+            const rawV = Number(turnTag.value) || 0;
+            const capMax = (typeof TURN_TAG_MAX === 'number') ? TURN_TAG_MAX : 30;
+            const capped = Math.max(-capMax, Math.min(capMax, rawV));
+            const beforeE = Number(ch.好感度) || 0;
+            const afterE = Math.max(-100, Math.min(100, roundHalf(beforeE + capped)));
+            if (afterE !== beforeE) {
+              ch.好感度 = afterE;
+              const turnDelta = roundHalf(afterE - beforeE);
+              ch._quota._lastTurnFloor = turnFloor;
+              changedChars.push({ name: name, field: '好感度', delta: turnDelta, newValue: afterE, reason: turnTag.why });
+              turnApplied = ch._lastTurn = {
+                delta: turnDelta, why: turnTag.why, asked: rawV,
+                capped: rawV !== capped, sig: turnSignature
+              };
+            }
+          }
+        }
         // 若本楼层检测到 Sylveina 标签且尚未对该角色结算，则自动写入 ch._lastRoll
-        const matchedTag = matchTagForCharacter(parsedTags, name, activeCharNames.length, primaryTarget);
+        const matchedTag = turnApplied ? null : matchTagForCharacter(parsedTags, name, activeCharNames.length, primaryTarget);
         const latestFloorIdx = latestAi ? Number(latestAi.idx) : -1;
         const floorNotRewound = (ch._quota._lastCalcFloor === undefined) || (latestFloorIdx >= Number(ch._quota._lastCalcFloor));
         if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature && floorNotRewound) {
@@ -3245,7 +3390,12 @@ async function _collectAllWorldbooks(includeDisabled) {
       if (eventLogs.length) { try { injectGateNotice(eventLogs.map(function(x) { return { type: 'event_update', char: x.char, event: x.event }; })); } catch (e) {} }
       if (changedChars.length) {
         try {
-          const msg = changedChars.map(function(c) { return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('；');
+          /* 转折那一条带上 AI 给的理由 —— 玩家得看得见「这 18 分是为什么加的」，
+             否则跟以前一样像黑箱。 */
+          const msg = changedChars.map(function(c) {
+            return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue
+              + (c.reason ? '（' + c.reason + '）' : '');
+          }).join('；');
           console.log('[Doki] 数值更新：', msg);
           toast('数值更新：' + msg, 'info');
         } catch (e) {}
@@ -3847,8 +3997,8 @@ function renderSettleTraceHtml(ch) {
   /* 正文里所有「给脚本算账用」的标签，算完必须一起删。
      Sylveina 是主维度（好感），肉体和嫉妒是后加的两个分维度标签。
      漏剥哪一个，玩家就会在剧情里看到「[嫉妒|长谷川茗|L|+|2]」这种字样。 */
-  const CALC_TAG_LINE_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒)\s*[|｜]/i;
-  const CALC_TAG_STRIP_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒)\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
+  const CALC_TAG_LINE_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒|转折)\s*[|｜]/i;
+  const CALC_TAG_STRIP_RE = /[\[\u3014\u3010\uff3b]\s*(?:Sylveina|肉体|嫉妒|转折)\s*[|｜][^\]\u3015\u3011\uff3d]*[\]\u3015\u3011\uff3d]/gi;
 
   function stripSylveinaTagsFromMessage() {
     try {
@@ -29950,6 +30100,16 @@ async function applyAdaptiveOpening(charName, values) {
         if (!ch._quota._eventState) ch._quota._eventState = { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 };
         if (!Array.isArray(ch._quota._timelineCompleted)) ch._quota._timelineCompleted = [];
         if (!ch._quota._debuff) ch._quota._debuff = { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' };
+        /* 重建 / 重新认人时把关系底子一起刷新：先验是「当前这段关系怎么来的」，
+           留着上一轮的旧值会让演出比人设还旧。 */
+        if (item.已有关系 === true || item.共处时长 || item.关系) {
+          ch._关系先验 = {
+            关系: String(item.关系 || '').slice(0, 12),
+            共处时长: String(item.共处时长 || '').slice(0, 30),
+            来源: '建档判定',
+            记于: now
+          };
+        }
       } else {
         statData.角色[name] = {
           语言: '日语', 英文名: '', 签名: '', 性别: '男', user爱称: '', 对玩家称呼: '',
@@ -29961,13 +30121,28 @@ async function applyAdaptiveOpening(charName, values) {
             好感度周上限已用: 0, 周上限起始: now, R阶段门: false, 下次暗掷: now, 玩家本周已掷: false, 玩家冷却至: now,
             表白期排除: false, 表白期排除理由: '', 对用户特殊状态: '', 表白期已通过: false, 表白期冷却至: '', 自适应开局已完成: true,
             _playerConfession: false,
-            _firstMeetDone: (Number(item.好感度) || 0) !== 0,
-            _初见待结算: (Number(item.好感度) || 0) === 0,
+            /* 设定里已经写明的关系（亲属 / 青梅 / 相处 N 年）不走初见骰。
+               初见是给真·陌生人用的：拿 1d20 决定「十几年兄妹」的起始值没有意义，
+               而且同一段关系建两次会给出两个完全不同的数（实测 18 和 75）。
+               判定给了 0 分也不补骰 —— 0 分是「这个人对他没感觉」，不是「还没见过」。 */
+            _firstMeetDone: item.已有关系 === true || (Number(item.好感度) || 0) !== 0,
+            _初见待结算: item.已有关系 !== true && (Number(item.好感度) || 0) === 0,
             _eventState: { 当前事件: '', 事件类型: '', 剩余回合: 0, 冷却回合: 0, 强制日常期: 0, 上次投掷内部天数: 0, 上次大事件内部天数: 0, 上次投掷回合: 0, 上次大事件游戏日: 0 },
             _timelineCompleted: [],
             _debuff: { 冷战期: false, 冷却结束时间: '', 剩余掷骰次数: 3, 冷战期严重度: '' }
           }
         };
+        /* 关系底子：建档时从人设/世界书里认定的既有关系。
+           之后的注入会带一行「你和他相处三年了」，避免 AI 按 E 的数值
+           把老熟人演成刚认识（投喂被嫌弃就是这么来的）。 */
+        if (item.已有关系 === true || item.共处时长 || item.关系) {
+          statData.角色[name]._关系先验 = {
+            关系: String(item.关系 || '').slice(0, 12),
+            共处时长: String(item.共处时长 || '').slice(0, 30),
+            来源: '建档判定',
+            记于: now
+          };
+        }
       }
     });
     const ok = await writeMvuLatest(statData);
@@ -30375,30 +30550,105 @@ async function applyAdaptiveOpening(charName, values) {
     return { dice: [a, b], sum: sum, E: E, text: '🎲 ' + a + '+' + b + '=' + sum };
   }
 
-  /* ── 分批 AI 判定 ───────────────────────────────────────────── */
-  async function moonJudgeCharsBatch(items) {
+  /* ── 玩家侧资料：一次读全 ─────────────────────────────────────
+     一键建档最容易出错的地方是「只看开场白」：玩家往往把旧情写在人设里
+     （ST 的 persona，或者本插件自己的玩家档案），开场白里一个字没有。
+     所以这里两处人设都读，合起来按「人设 > 世界书 > 开场白」的优先级用。 */
+  function moonPlayerDossier() {
     const ctx = getSTCtx() || {};
-    let opening = '';
-    let cardName = '';
+    let cardName = '', cardDesc = '', cardPersonality = '', scenario = '', opening = '';
     try {
       const ch = ctx.characters && ctx.characterId != null ? ctx.characters[ctx.characterId] : null;
-      if (ch) { opening = String(ch.first_mes || '').slice(0, 1500); cardName = String(ch.name || ''); }
+      if (ch) {
+        cardName = String(ch.name || '');
+        cardDesc = String(ch.description || '').slice(0, 1500);
+        cardPersonality = String(ch.personality || '').slice(0, 600);
+        scenario = String(ch.scenario || '').slice(0, 800);
+        opening = String(ch.first_mes || '').slice(0, 1500);
+      }
     } catch (e) {}
-    let persona = '';
-    try { persona = String(collectCurrentPlayerPersona().persona || '').slice(0, 800); } catch (e) {}
-    let playerName = '';
-    try { playerName = String(collectCurrentPlayerPersona().name || '').slice(0, 24); } catch (e) {}
+    let stPersona = '', playerName = '';
+    try {
+      const p = collectCurrentPlayerPersona();
+      stPersona = String(p.persona || '');
+      playerName = String(p.name || '');
+    } catch (e) {}
+    let bio = '';
+    try {
+      const b = (typeof getEnabledUserBio === 'function') ? getEnabledUserBio() : null;
+      if (b && b.versions && b.versions.current) bio = String(b.versions.current.content || '');
+    } catch (e) {}
+    /* 两份人设接在一起给。人设是主要证据，长度给足——截得太短，
+       「相处三年」这种关键句就正好被切掉。 */
+    const personaMerged = [bio, stPersona].filter(Boolean).join('\n---\n').slice(0, 2600);
+    return {
+      cardName: cardName, cardDesc: cardDesc, cardPersonality: cardPersonality,
+      scenario: scenario, opening: opening, personaMerged: personaMerged, playerName: playerName
+    };
+  }
+
+  /* ── 第一步：把资料读成一份「谁是谁、跟谁有什么旧情」的摘要 ─────
+     一步到位直接要分数，模型会只在开场白里找证据，写完才发现人设里的
+     「相处三年」被整段忽略（玩家的实测就是这样：兄妹十几年被判成十几分）。
+     所以先摘要、再定档：摘要这一步只做抽取，不碰数值。 */
+  async function moonSummarizeRelations(dossier) {
+    const d = dossier || moonPlayerDossier();
+    if (!d.personaMerged && !d.opening) return '';
+    const SYS = '你是剧情资料整理员。只做抽取和归纳，不评价、不给数值、不编造没写的东西。'
+      + '【用户人设是最高优先级】：人设里写过的旧情、共处时长、共同经历，一律以人设为准，开场白只作补充。';
+    const USER = '【玩家人设】（最高优先级）\n' + (d.personaMerged || '(无)')
+      + '\n\n【角色卡】' + (d.cardName || '(无)') + '\n' + (d.cardDesc || '')
+      + (d.cardPersonality ? '\n【性格】' + d.cardPersonality : '')
+      + (d.scenario ? '\n【场景】' + d.scenario : '')
+      + '\n\n【开场白】\n' + (d.opening || '(无)')
+      + '\n\n输出 JSON（不要任何别的文字）：\n'
+      + '{"玩家":{"身份":"","处境":"","性格":""},'
+      + '"旧情":[{"对象":"","关系":"亲属/青梅竹马/恋人/旧识/同僚/仇敌/陌生",'
+      + '"共处时长":"照抄原文，如「相处三年」「从小一起长大」「十年没见」；没写就留空",'
+      + '"关键经历":"原文写过的共同经历，一句；没写留空","证据":"引用原文那一句"}],'
+      + '"关系总则":"这个玩家和这世界里其他人普遍是什么立场，一句"}';
+    let raw = '';
+    try {
+      const r = await callOpeningModel('main', SYS, USER);
+      raw = (typeof r === 'string') ? r : String((r && (r.content || r.text)) || '');
+    } catch (e) { raw = ''; }
+    return String(raw || '').trim().slice(0, 2400);
+  }
+
+  /* ── 分批 AI 判定 ───────────────────────────────────────────── */
+  async function moonJudgeCharsBatch(items, brief) {
+    const d = moonPlayerDossier();
+    const opening = d.opening;
+    const cardName = d.cardName;
+    const persona = d.personaMerged;
+    const playerName = d.playerName;
 
     const blocks = items.map(function (it, i) {
       const lore = wbLoreForName(it.name, it.keys);
       return '◆角色 ' + (i + 1) + '：' + it.name + '\n' + (lore ? '设定：' + lore : '设定：（世界书里没有这个人的条目，只能从开场白判断）');
     }).join('\n\n');
 
-    const SYS = '你是剧情关系裁判。先判断每个角色与玩家（' + (playerName || '玩家') + '）当前是什么关系，再给数值。只输出 JSON 数组，不要解释。';
-    const USER = '【角色卡】' + (cardName || '(无)') + '\n【开场白】\n' + (opening || '(无开场白)') + '\n【玩家人设】\n' + (persona || '(无)') + '\n\n' + blocks
-      + '\n\n请逐个判断，输出：\n[{"名字":"","关系":"陌生/旧识/亲属/同僚/仇敌…用四个字以内","好感度":0,"肉体值":0,"理由":"一句事实依据"}]\n'
-      + '【尺度】没有相处事实就是陌生人，好感度 0~10；只有开场白里明确写出的亲密/敌意才可超出 ±20；'
-      + '肉体值只按已经发生的身体关系给，陌生人一律 0。理由必须引用设定或开场白里的具体事实，不足就写「证据不足」。';
+    const SYS = '你是剧情关系裁判。证据优先级：玩家人设 > 世界书设定 > 开场白。'
+      + '先判断每个角色和玩家的【既有关系】，再按关系深度给数值。只输出 JSON 数组，不要解释。';
+    const USER = '【玩家】' + (playerName || '玩家')
+      + '\n【关系摘要】（已从人设/世界书里抽好，直接采信，不要自己另判一遍）\n' + (String(brief || '').trim() || '(无摘要)')
+      + '\n\n【玩家人设原文】（摘要漏掉的，回原文补）\n' + (persona || '(无)')
+      + '\n\n【角色卡】' + (cardName || '(无)')
+      + '\n【开场白】\n' + (opening || '(无开场白)')
+      + '\n\n' + blocks
+      + '\n\n请逐个判断，输出：\n'
+      + '[{"名字":"","关系":"亲属/青梅竹马/恋人/旧识/同僚/仇敌/陌生","共处时长":"照抄证据里写的时长，没写留空","好感度":0,"肉体值":0,"理由":"引用原文那一句"}]\n'
+      + '【尺度·按证据定档，不要按「第一次见面」给】\n'
+      + '· 人设或设定里写了旧情，按共处深度先定档，再在档内按相处好坏浮动 ±10：\n'
+      + '  亲属 / 从小一起长大 / 十年以上 → 65~85\n'
+      + '  相处三年以上（含青梅竹马、长期同僚、旧情人）→ 50~70\n'
+      + '  相处几个月到三年 → 25~45\n'
+      + '  只是认识 / 同事 / 同学 / 邻居 / 上下级 → 10~30\n'
+      + '· 上面哪一条都对不上、也没写相处事实 → 0~10（真·陌生人）\n'
+      + '· 明确写了仇、背叛、血债、决裂 → -60~-30\n'
+      + '· 同一段关系只该有一个结论：先定档，档内浮动，不要这次给 18 下次给 75。\n'
+      + '· 理由必须引用原文；引不出原文的，共处时长留空、按陌生人算。\n'
+      + '· 肉体值只按已经发生过的身体关系给：写了夫妻/恋人可给 20~50，其余一律 0。';
 
     let raw = '';
     try {
@@ -30414,10 +30664,17 @@ async function applyAdaptiveOpening(charName, values) {
     (Array.isArray(arr) ? arr : []).forEach(function (it) {
       const nm = String(it && (it.名字 || it.name) || '').trim();
       if (!nm) return;
+      const rel = String(it.关系 || '').slice(0, 8);
+      const past = String(it.共处时长 || it.相处时长 || '').slice(0, 30);
       map[nm] = {
         E: Math.max(-100, Math.min(100, Math.round(Number(it.好感度) || 0))),
         B: Math.max(0, Math.min(100, Math.round(Number(it.肉体值) || 0))),
-        rel: String(it.关系 || '').slice(0, 8),
+        rel: rel,
+        past: past,
+        /* 有共处时长，或者关系本身就不是「陌生」→ 这个人早就在玩家的生活里了，
+           不该再走「初见」那一套（初见骰是给真·陌生人用的，
+           拿它决定「相处三年的兄妹」的起始值，等于让骰子决定记忆）。 */
+        known: !!(past || /亲属|兄|妹|姐|弟|青梅|恋人|夫妻|旧识|旧情|发小|同僚|同学|同事|仇/.test(rel)),
         why: String(it.理由 || '').slice(0, 40)
       };
     });
@@ -30563,11 +30820,20 @@ async function applyAdaptiveOpening(charName, values) {
         /* AI 分批 */
         const aiList = picked.filter(function (p) { return p.mode === 'ai'; });
         const map = {};
+        /* 先做一次关系摘要：把玩家人设里的旧情、共处时长抽出来，
+          再拿去逐个人定档。少了这一步，模型只会盯着开场白，
+           人设里写的「相处三年」相当于没写。 */
+        let brief = '';
+        if (aiList.length) {
+          try { showLoadingDialog('先读一遍你的人设和旧情…'); } catch (e) {}
+          try { brief = await moonSummarizeRelations(); } catch (e) { brief = ''; }
+          try { closeLoadingDialog(); } catch (e) {}
+        }
         for (let i = 0; i < aiList.length; i += WB_BATCH_SIZE) {
           const batch = aiList.slice(i, i + WB_BATCH_SIZE);
           try { showLoadingDialog('正在建档 ' + (i + 1) + '–' + Math.min(i + batch.length, aiList.length) + ' / ' + aiList.length + '…'); } catch (e) {}
           let part = {};
-          try { part = await moonJudgeCharsBatch(batch); } catch (e) { part = {}; }
+          try { part = await moonJudgeCharsBatch(batch, brief); } catch (e) { part = {}; }
           Object.keys(part).forEach(function (k) { map[k] = part[k]; });
           /* AI 漏掉的人：这一批里没返回的，退成 0 值 + 提示，不留空 */
           batch.forEach(function (b) { if (!map[b.name]) map[b.name] = { E: b.E, B: b.B, rel: '', why: 'AI 没返回，按手填值写入' }; });
@@ -30581,6 +30847,9 @@ async function applyAdaptiveOpening(charName, values) {
           const st = getRStageFromE(E);
           return {
             名字: p.name, 重要度: '主要', 好感度: E, 肉体值: B, 阶段值: st.r, 嫉妒值: 0,
+            已有关系: !!(ai && ai.known),
+            共处时长: (ai && ai.past) || '',
+            关系: (ai && ai.rel) || '',
             情绪: '😐', 心声: (ai && ai.why) ? String(ai.why).slice(0, 30) : (p._dice ? '开局掷骰 ' + p._dice.sum : '……')
           };
         });

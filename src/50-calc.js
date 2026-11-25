@@ -125,6 +125,9 @@
          注入只教 AI 写 [Sylveina|…]，解析器又把维度默认成 'E'，
          于是 P / I 永远等不到属于自己的那条标签，状态卡上两个数从建档起就没变过。 */
       const parsedDimTags = (typeof extractAllDimTags === 'function') ? extractAllDimTags(latestAiText) : [];
+      /* 转折标签单独收一份。它和分维度标签是两件事：维度标签说「哪一维动了」，
+         转折标签说「这一轮是剧情节点，数值由 AI 按情节定」。 */
+      const parsedTurnTags = (typeof extractAllTurnTags === 'function') ? extractAllTurnTags(latestAiText) : [];
       /* 嫉妒的自然回落按「游戏日」走（读 _invidia.每日衰减基数），所以这里要一份当前游戏日。
          和 processEventSystem 用的是同一个口径，不另立一套时间轴。 */
       const dimGameDay = Math.max(0, Math.floor(Number(world._游戏日) || Number(world._内部流逝天数) || 0));
@@ -167,8 +170,42 @@
           if (dbResult) gateLogs.push({ type: 'event_update', char: name, event: { type: 'debuff', result: dbResult } });
         } catch (e) {}
 
+        /* 转折标签优先：AI 明确判定「这一轮是重大转折」时，数值直接用它给的，
+           不走事件导演的档位、不占好感周额度、也不参与成就判定。
+           和普通标签互斥 —— 同一角色同一轮两个都写，只认转折
+           （能写出带理由的转折，说明它真的判断过；那条普通标签多半是惯性凑的）。 */
+        let turnApplied = null;
+        if (typeof pickTurnTagForCharacter === 'function') {
+          const turnTag = pickTurnTagForCharacter(parsedTurnTags, name, activeCharNames.length, primaryTarget);
+          const turnFloor = latestAi ? Number(latestAi.idx) : -1;
+          const lastTurnFloor = Number(ch._quota._lastTurnFloor);
+          /* 冷却：同一个角色 3 层内只吃一次转折。
+             不加这道闸，模型会把它当常规加分手短——每轮都写一条「他明白了」，
+             E 三天就满。转折之所以叫转折，是因为它不是每轮都有。 */
+          const turnCd = (typeof TURN_TAG_COOLDOWN === 'number') ? TURN_TAG_COOLDOWN : 3;
+          const turnTooSoon = isFinite(lastTurnFloor) && turnFloor >= 0
+            && (turnFloor - lastTurnFloor) < turnCd;
+          if (turnTag && !turnTooSoon && ch._quota._turnSig !== turnSignature) {
+            ch._quota._turnSig = turnSignature;
+            const rawV = Number(turnTag.value) || 0;
+            const capMax = (typeof TURN_TAG_MAX === 'number') ? TURN_TAG_MAX : 30;
+            const capped = Math.max(-capMax, Math.min(capMax, rawV));
+            const beforeE = Number(ch.好感度) || 0;
+            const afterE = Math.max(-100, Math.min(100, roundHalf(beforeE + capped)));
+            if (afterE !== beforeE) {
+              ch.好感度 = afterE;
+              const turnDelta = roundHalf(afterE - beforeE);
+              ch._quota._lastTurnFloor = turnFloor;
+              changedChars.push({ name: name, field: '好感度', delta: turnDelta, newValue: afterE, reason: turnTag.why });
+              turnApplied = ch._lastTurn = {
+                delta: turnDelta, why: turnTag.why, asked: rawV,
+                capped: rawV !== capped, sig: turnSignature
+              };
+            }
+          }
+        }
         // 若本楼层检测到 Sylveina 标签且尚未对该角色结算，则自动写入 ch._lastRoll
-        const matchedTag = matchTagForCharacter(parsedTags, name, activeCharNames.length, primaryTarget);
+        const matchedTag = turnApplied ? null : matchTagForCharacter(parsedTags, name, activeCharNames.length, primaryTarget);
         const latestFloorIdx = latestAi ? Number(latestAi.idx) : -1;
         const floorNotRewound = (ch._quota._lastCalcFloor === undefined) || (latestFloorIdx >= Number(ch._quota._lastCalcFloor));
         if (matchedTag && ch._quota._lastCalculatedTurnSig !== turnSignature && floorNotRewound) {
@@ -342,7 +379,12 @@
       if (eventLogs.length) { try { injectGateNotice(eventLogs.map(function(x) { return { type: 'event_update', char: x.char, event: x.event }; })); } catch (e) {} }
       if (changedChars.length) {
         try {
-          const msg = changedChars.map(function(c) { return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue; }).join('；');
+          /* 转折那一条带上 AI 给的理由 —— 玩家得看得见「这 18 分是为什么加的」，
+             否则跟以前一样像黑箱。 */
+          const msg = changedChars.map(function(c) {
+            return c.name + ' ' + c.field + ' ' + (c.delta >= 0 ? '+' : '') + c.delta + ' → ' + c.newValue
+              + (c.reason ? '（' + c.reason + '）' : '');
+          }).join('；');
           console.log('[Doki] 数值更新：', msg);
           toast('数值更新：' + msg, 'info');
         } catch (e) {}

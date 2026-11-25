@@ -169,6 +169,30 @@
     return R_STAGE_BOUNDARY[key] || '';
   }
 
+  /* 关系底子能给到的「最低演出档」。
+     为什么需要它：建档认出来「从小一起长大的兄妹」，但数值可能因为
+     权重设得低（或者玩家手动压过）而停在 18，R 就落到 1——
+     于是注入告诉 AI「不得有肢体接触、不得暗示有别的意思」，
+     三年相处的日常亲昵被当成越界。这不是数值问题，是「底子」没被用上。
+     这里只抬不压，且只影响演出边界，不改任何数值。 */
+  function stageFloorFromPrior(prior) {
+    if (!prior) return 0;
+    const rel = String(prior.关系 || '');
+    const past = String(prior.共处时长 || '');
+    if (/亲属|兄|妹|姐|弟|夫|妻|恋人|青梅|发小/.test(rel)) return 3;
+    if (/一起长大|从小|自幼/.test(past)) return 3;
+    const m = past.match(/([一二三四五六七八九十\d]+)\s*(?:多)?\s*年/);
+    if (m) {
+      const cn = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+      const n = cn[m[1]] !== undefined ? cn[m[1]] : Number(m[1]) || 0;
+      if (n >= 10) return 3;
+      if (n >= 3) return 2;
+      if (n >= 1) return 1;
+    }
+    if (/旧识|旧情|同僚|同学|同事|邻居/.test(rel)) return 1;
+    return 0;
+  }
+
   function injectEventPrompt() {
     try {
       const data = readMvuLatest();
@@ -260,8 +284,21 @@
             ? getRStageFromE(Number(ch.好感度) || 0).r
             : Number(ch.阶段值);
           const _R = isFinite(_Rraw) ? _Rraw : 0;
-          const _boundary = getStageBoundary(_R);
-          if (_boundary) lines.push('  🚧 【' + name + '】表现上限（R=' + _R + '）：' + _boundary + '这一轮气氛再好也不要越过它。');
+          /* 关系底子：建档时从人设/世界书里认定的既有关系。
+             只抬不压 —— 写得出来「十几年兄妹」，演出就不该被数值压成刚认识。 */
+          const _prior = ch._关系先验;
+          if (_prior && (_prior.关系 || _prior.共处时长)) {
+            const _pRel = String(_prior.关系 || '').trim();
+            const _past = String(_prior.共处时长 || '').trim();
+            if (_pRel || _past) {
+              lines.push('  🧷 【' + name + '】关系底子：' + (_pRel || '已认识') + (_past ? '（' + _past + '）' : '')
+                + '。这是建档时从人设和设定里认定的既有关系，演出手法要匹配它——'
+                + '不要因为当前数值不高，就把老熟人演成刚认识。');
+            }
+          }
+          const _effR = Math.max(_R, stageFloorFromPrior(_prior));
+          const _boundary = getStageBoundary(_effR);
+          if (_boundary) lines.push('  🚧 【' + name + '】表现上限（R=' + _effR + '）：' + _boundary + '这一轮气氛再好也不要越过它。');
           const _cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
           const _used = Math.min(_cap, Math.max(0, Number(q.好感度周上限已用) || 0));
           const _remain = roundHalf(_cap - _used);
@@ -304,8 +341,18 @@
       lines.push('  · 嫉妒值 = 醋意。出现第三方、玩家和别人亲近、或角色被晾在一边时写：' + (multiCard ? '[嫉妒|角色名|L/M/H|+|数值]' : '[嫉妒|L/M/H|+|数值]'));
       lines.push('    数值 0.5~5.0，按醋意强度给；玩家主动安抚或明确表态之后，写一条负向让它降下来（例：' + (multiCard ? '[嫉妒|角色名|L|-|1]' : '[嫉妒|L|-|1]') + '）。');
       lines.push('  这两行都是可选的：这一轮确实有欲望、有醋意才写，没有就不写，不要硬凑。');
+      /* 转折标签：把「这一轮算不算大事」的判断权真正交给模型。
+         脚本不再替它拿主意 —— 但要给出写法和量级，否则它会每轮都写一条。 */
+      lines.push('【重大转折 · 这一档的判断权在你手上】');
+      lines.push('  当这一轮发生了真正「翻页」的事——记忆恢复、生死关头、关系挑明、背叛、诀别、');
+      lines.push('  多年的心结被一句话解开——就写一行：');
+      lines.push('    ' + (multiCard ? '[转折|角色名|+18|他想起她跪在雪里]' : '[转折|+18|他想起她跪在雪里]'));
+      lines.push('  数值按情节给：±5 有触动但没跨过线 / ±10 明显偏转 / ±20 整段关系的走向变了 / ±30 是这种级别的上限。');
+      lines.push('  第三段必须是理由（一句话），没理由脚本直接丢掉这一行；这一行不受每周好感额度限制。');
+      lines.push('  写了 [转折] 的这一轮就不要再写 [Sylveina] 了——两个都写只认转折。');
+      lines.push('  但别每轮都用：日常的你来我往、吃饱了、递杯水，那不叫转折，用 [Sylveina|…] 就够。');
       lines.push('  三个标签都可以交给脚本，正文里不要解释它们，也不要写它们算出了多少分。');
-      lines.push('【重要：正则美化触发格式】正文剧情结束后，最后单独输出一个 Sylveina 数值标签（如果这一轮还写了 [肉体] / [嫉妒]，放在它前面），下一行只输出小写字母 s。示例：');
+      lines.push('【重要：正则美化触发格式】正文剧情结束后，最后单独输出一个 Sylveina 数值标签（如果这一轮还写了 [肉体] / [嫉妒] / [转折]，放在它前面），下一行只输出小写字母 s。示例：');
       lines.push('[Sylveina|L|+|1.2]');
       lines.push('s');
       lines.push('【后台变量块 · 每一轮都必须重写一遍】不是建档写一次就完事；这一轮漏写，脚本就收不到这一轮的情绪与心声，状态卡会停在上一轮。放在 s 之后、正文之外，脚本会自动收走，玩家看不到：');
@@ -359,12 +406,13 @@
       lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
       lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
       lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
-      lines.push('这行会被系统收走，玩家看不到；不要写解释、不要夹在正文中间。');
+      lines.push('这行玩家看不到；不要写解释、别夹在正文中间。');
       /* 分维度标签也放在这一条里提醒一次。
          上面那一大段里其实写清了「什么时候写肉体、什么时候写嫉妒」，
          但和历史遗留的「只输出一个 Sylveina 标签」放在同一屏，模型很容易记住后者、忘掉前者。
          这里只给最少的信息（有就写、没有别写），不重复讲触发条件——讲长了这一段就没人读了。 */
       lines.push('有欲望补 [肉体|角色名|L|+|3]，有醋意补 [嫉妒|角色名|L|+|2]，都没有就不写。');
+      lines.push('真翻页就用 [转折|角色名|数值|理由]，不写 Sylveina。');
       _voiceTailNote = lines.join('\n');
       callSetPrompt(PROMPT_KEY + '_voice', _voiceTailNote, 0, 0, false);
     } catch (e) { console.warn('[Doki] 心声提醒注入失败：', e); }
