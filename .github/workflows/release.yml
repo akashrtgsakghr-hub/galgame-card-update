@@ -103,28 +103,15 @@ jobs:
               if [ -f "$work/$a" ]; then assets="$assets $work/$a"; fi
             done
 
-            if gh release view "$tag" >/dev/null 2>&1; then
-              gh release edit "$tag" --title "$title" --notes-file "/tmp/rel/$ver.md"
-              gh release upload "$tag" $assets --clobber
-              echo "✅ 已更新 $tag"
-            else
-              # 这里有一次自动重试：GitHub 的 Release 接口偶尔返回 5xx /
-              # "target_commitish is invalid"（刚 push 的 commit 还没在 API 侧就绪），
-              # 重试一次基本都能过。第一次的报错照常打到日志里，别被吞掉。
-              # 失败原因要能被看见：GitHub 的 job 日志要登录才能读，但 ::error:: 会进
-              # annotations，未登录用 API 也能拿到 —— 出问题时不用让玩家去贴日志。
-              if ! out=$(gh release create "$tag" $target_args --title "$title" --notes-file "/tmp/rel/$ver.md" $assets 2>&1); then
-                echo "$out"
-                echo "::error::gh release create 第一次失败（$tag）：$(printf '%s' "$out" | head -3 | tr '\n' ' ')"
-                sleep 10
-                if ! out2=$(gh release create "$tag" $target_args --title "$title" --notes-file "/tmp/rel/$ver.md" $assets 2>&1); then
-                  echo "$out2"
-                  echo "::error::gh release create 重试仍失败（$tag）：$(printf '%s' "$out2" | head -3 | tr '\n' ' ')"
-                  exit 1
-                fi
-              fi
-              echo "✅ 已发布 $tag"
-            fi
+            # 发布走 scripts/publish-release.mjs（直接打 REST API），不用 gh。
+            # 原因：gh 失败只给「HTTP 422」，看不出 GitHub 嫌什么；这个脚本会把
+            # status 和响应体原样打出来，而且拆成「建 Release / 传附件」两步。
+            node scripts/publish-release.mjs \
+              --tag "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "$title" \
+              --notes-file "/tmp/rel/$ver.md" \
+              --assets-dir "$work"
 
             git worktree remove "$work" --force >/dev/null
           done
