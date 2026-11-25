@@ -115,29 +115,55 @@ if (assetsDir) {
   const byName = {};
   (Array.isArray(current) ? current : []).forEach(function (a) { byName[a.name] = a; });
 
+  /* 单个附件失败不整体退出：先把它记下来，剩下的继续传，
+     全部走完再决定成败。GitHub 的资产存储偶尔 502（Error updating policy），
+     一个传挂了就把整次发布废掉，下次还得从第一个重来。 */
+  const failed = [];
+
   for (const [file, uploadName] of ASSETS) {
     const full = path.join(assetsDir, file);
     if (!fs.existsSync(full)) { console.log('  · 跳过（不存在）' + file); continue; }
-    if (byName[uploadName]) {
-      await call('DELETE', api + '/releases/assets/' + byName[uploadName].id);
+
+    const size = fs.statSync(full).size;
+    const exist = byName[uploadName];
+    /* 已经传过且大小一致：跳过。重跑时不用把 3MB 再传一遍。 */
+    if (exist && exist.size === size) {
+      console.log('  · 已存在且大小一致，跳过 ' + uploadName);
+      continue;
+    }
+    if (exist) {
+      await call('DELETE', api + '/releases/assets/' + exist.id);
       console.log('  · 删掉旧附件 ' + uploadName);
     }
+
     const uploadUrl = String(release.upload_url).replace(/\{.*$/, '') +
       '?name=' + encodeURIComponent(uploadName);
-    const res = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/octet-stream' },
-      body: fs.readFileSync(full),
-    });
-    if (!res.ok) {
+    const buf = fs.readFileSync(full);
+    let ok = false;
+    for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/octet-stream' },
+        body: buf,
+      });
+      if (res.ok) { ok = true; break; }
       const data = await readBody(res);
       const detail = typeof data === 'string' ? data : JSON.stringify(data);
-      console.error('✖ 上传失败 ' + file + ' status=' + res.status);
+      console.error('✖ 上传失败 ' + uploadName + ' status=' + res.status + ' 第 ' + attempt + ' 次');
       console.error('  响应: ' + detail);
-      fail('上传附件 ' + uploadName + ' → ' + res.status + ' ' + detail);
+      if (attempt < 3) {
+        const wait = attempt * 5;
+        console.log('  · ' + wait + ' 秒后重试 ' + uploadName + '（' + res.status + '）');
+        await new Promise(function (r) { setTimeout(r, wait * 1000); });
+      } else {
+        failed.push(uploadName + ' ' + res.status);
+      }
     }
-    const size = fs.statSync(full).size;
-    console.log('  · 已上传 ' + uploadName + '（' + (size / 1024 / 1024).toFixed(2) + ' MB）');
+    if (ok) console.log('  · 已上传 ' + uploadName + '（' + (size / 1024 / 1024).toFixed(2) + ' MB）');
+  }
+
+  if (failed.length) {
+    fail('有附件没传上去：' + failed.join(' | ') + '（Release 正文已更新，重跑 workflow 会补齐已存在的）');
   }
 }
 
