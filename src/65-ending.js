@@ -156,7 +156,7 @@
     // 但不再主动询问「要不要看后日谈」。
     const canEpilogue = hasPlayerInitiatedEnding();
     const epilogueBtnHtml = canEpilogue
-      ? '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 查看后日谈 (5000~8000字番外)</button>'
+      ? '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 后台写后日谈（不占聊天）</button>'
       : '';
     const playerInfo = collectCurrentPlayerPersona();
     const playerName = (playerInfo && playerInfo.name && playerInfo.name !== '(未命名玩家)') ? playerInfo.name : 'PLAYER / 观测者';
@@ -237,7 +237,7 @@
           '<div style="font-weight:600;color:#7dd3fc;letter-spacing:0.8px;">📖 AFTER STORY · 是否查看《' + escapeFeatureHtml(record.charName) + '》视角后日谈番外？</div>' +
           '<div style="font-size:10.5px;color:#cbd5e1;">点下方按钮将自动填充提示词至聊天输入框并发送，让 AI 在当前对话内以《' + escapeFeatureHtml(record.charName) + '》视角继续创作一篇 <b>5000～8000字</b> 的结局后完整番外</div>' +
         '</div>' +
-        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:8px 14px;border:1px solid #7dd3fc;background:linear-gradient(180deg,#163c5e,#0c2136);color:#f0f9ff;font:600 11.5px monospace;cursor:pointer;box-shadow:2px 2px 0 #060d17;white-space:nowrap;">✨ 查看后日谈（自动填入发送）</button>' +
+        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:8px 14px;border:1px solid #7dd3fc;background:linear-gradient(180deg,#163c5e,#0c2136);color:#f0f9ff;font:600 11.5px monospace;cursor:pointer;box-shadow:2px 2px 0 #060d17;white-space:nowrap;">✨ 后台写后日谈（不占聊天）</button>' +
       '</div>'
         : '<div style="margin:0 16px 12px;padding:10px 14px;border:1px solid rgba(125,211,252,.25);background:rgba(12,22,34,.6);font-size:10.5px;line-height:1.7;color:#9fb6c8;">📖 AFTER STORY · 后日谈尚未解锁。请先在系统面板发起「周目结算」，完成终幕报幕后再查看番外。</div>') +
       '<!-- 报幕互动操作台（显影结局CG / 查看后日谈 / 导出结算卡 / 回忆画廊） -->' +
@@ -298,6 +298,11 @@
         developCGItem(galItem);
       } else if (action === 'epilogue') {
         // 旧楼层里已经渲染好的卡片仍可能被点到，这里再兜一道闸门。
+        if (!hasPlayerInitiatedEnding()) { toast('请先在系统面板发起「周目结算」，再查看后日谈', 'warning'); return; }
+        /* 默认走后台生成：不占公屏、不往聊天里塞几千字，生成完直接进阅读器 + 档案柜。
+           想让 AI 写在对话里的，用阅读器里的「写进当前对话」。 */
+        startEpilogueGenerationEngine(record.charName, record);
+      } else if (action === 'epilogue_chat') {
         if (!hasPlayerInitiatedEnding()) { toast('请先在系统面板发起「周目结算」，再查看后日谈', 'warning'); return; }
         injectAndSendEpiloguePromptToChatbox(record);
       } else if (action === 'epilogue_modal') {

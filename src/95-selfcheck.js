@@ -292,6 +292,7 @@
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统诊断室</b><small>检查数据、标签解析与插件冲突</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>游戏设置</b><small>调整界面、记忆、图像与运行参数</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="dungeon"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>主神空间</b><small>把副本世界书勾上，进本、撑时间、结算、冷却</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="archive"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>脚本档案</b><small>副本战绩与后日谈，存在脚本里，换聊天也还在</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">' + uiIco('gamepad') + '</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
       '</div><div class="mp-menu-controls"><span>不知道点哪，回最上面看那条粉色提示</span></div>' +
       '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
@@ -321,7 +322,7 @@
       /* 掌机按键条：保留实体手感，但压成一行、放到内容之后 —— 它本来就是装饰性的，
          以前挡在菜单前面，手机上要先滑过半屏才看到能点的东西。 */
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
-      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间', archive: '脚本档案' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'adventure' ? '0' : '-1') + '" data-menu-open="adventure">▶ 开始</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'characters' ? '0' : '-1') + '" data-menu-open="characters">角色</button>' +
@@ -329,9 +330,13 @@
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'system' ? '0' : '-1') + '" data-menu-open="system">检修</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'settings' ? '0' : '-1') + '" data-menu-open="settings">选项</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'dungeon' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'dungeon' ? '0' : '-1') + '" data-menu-open="dungeon">副本</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'archive' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'archive' ? '0' : '-1') + '" data-menu-open="archive">档案</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="dungeon" style="display:' + (activeMenuKey === 'dungeon' ? 'block' : 'none') + '"><div class="mp-sub-label">主神空间</div>' +
       (typeof dungeonPanelBody === 'function' ? dungeonPanelBody() : '<div class="mp-dg-empty">副本模块没加载</div>') +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="archive" style="display:' + (activeMenuKey === 'archive' ? 'block' : 'none') + '"><div class="mp-sub-label">脚本档案 · 跨对话</div>' +
+      (typeof archiveRenderHtml === 'function' ? archiveRenderHtml('') : '<div class="mp-dg-empty">档案模块没加载</div>') +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
@@ -516,7 +521,7 @@
     }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');
-    const menuTitles = { adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' };
+    const menuTitles = { adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间', archive: '脚本档案' };
     panel.querySelectorAll('[data-menu-open]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         const key = btn.getAttribute('data-menu-open');
@@ -565,6 +570,7 @@
       }
       if (ok !== false) { try { closePanel(); } catch (e) {} }
     });
+    if (typeof archiveBind === 'function') archiveBind(panel);
     if (panel.dataset.menuKeysBound !== '1') {
       panel.dataset.menuKeysBound = '1';
       panel.addEventListener('keydown', function(event) {

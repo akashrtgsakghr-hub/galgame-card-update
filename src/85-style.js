@@ -223,7 +223,7 @@
       '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--k-fg-3, #a94d8b);border-radius:999px;background:linear-gradient(180deg,var(--k-sur-2, #2a1126),var(--k-sur-0, #150916));color:var(--k-accent-2, #ffc4e9);font:600 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 var(--k-sur-3, #35152f);letter-spacing:0.4px;}' +
       '#moon-phase-panel .mp-select-start-btn:hover{border-color:var(--k-accent, #f472d0);background:var(--k-sur-3, #3b1535);color:#f4f1ea;transform:translate(-1px,-1px);}' +
       '#moon-phase-panel .mp-select-start-btn.unconfigured{border-color:#fbbf24;color:#fde047;}' +
-      '#moon-phase-panel .mp-subpage-switch{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;}' +
+      '#moon-phase-panel .mp-subpage-switch{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:4px;margin-bottom:10px;}' +
       '#moon-phase-panel .mp-subpage-tab{padding:6px 2px;border:1px solid var(--k-frame, #643052);background:var(--k-sur-0, #140b16);color:var(--k-fg-2, #bc8eaf);font:600 10px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;text-align:center;box-shadow:1px 1px 0 var(--k-sur-3, #35152f);}' +
       '#moon-phase-panel .mp-subpage-tab.active{border-color:var(--k-accent, #f472d0);background:var(--k-sur-2, #32112b);color:var(--k-accent-2, #ffe1f5);}' +
       '#moon-phase-panel .mp-btn{flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 6px !important;min-height:48px;}' +
@@ -923,6 +923,25 @@ ruled, .mp-ruled{display:none !important;}
 .mp-dg-pick.is-on{background:rgba(56,189,248,.18);border-color:#38bdf8;color:#e0f2fe;font-weight:600;}
 .mp-dg-count{font-size:10px;color:#64748b;font-weight:400;}
 .mp-btn[disabled]{opacity:.45;cursor:not-allowed;}
+
+/* ── 脚本档案柜（跨对话）：副本战绩 / 后日谈 ───────────────── */
+.mp-arc{margin-top:14px;padding-top:10px;border-top:1px dashed rgba(148,163,184,.18);}
+.mp-arc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.mp-arc-head b{font-size:11.5px;color:#e2e8f0;letter-spacing:.4px;}
+.mp-arc-sw{display:flex;align-items:center;gap:5px;font-size:10.5px;color:#94a3b8;cursor:pointer;user-select:none;}
+.mp-arc-sw input{width:13px;height:13px;accent-color:#38bdf8;cursor:pointer;}
+.mp-arc-tip{display:block;font-size:10px;line-height:1.6;color:#64748b;margin-bottom:7px;}
+.mp-arc-empty{font-size:10.5px;line-height:1.7;color:#64748b;background:rgba(15,23,42,.45);border-radius:9px;padding:9px 11px;}
+.mp-arc-list{display:flex;flex-direction:column;gap:6px;}
+.mp-arc-row{display:flex;align-items:center;gap:8px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.11);border-radius:10px;padding:8px 10px;}
+.mp-arc-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.mp-arc-main b{font-size:11.5px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mp-arc-main small{font-size:10px;line-height:1.5;color:#94a3b8;}
+.mp-arc-main small.mp-arc-from{color:#64748b;}
+.mp-arc-ops{flex:0 0 auto;display:flex;gap:4px;}
+.mp-arc-ops .mp-btn{padding:4px 8px;min-height:0;}
+.mp-arc-foot{margin-top:8px;text-align:right;}
+.mp-dg-hrow small .mp-btn{margin-left:4px;padding:2px 7px;font-size:10px;min-height:0;}
 `;
 
   /* 最后一层：掌机 UI v2（墨樱）。放在所有历史样式之后，作为最终权威覆盖，

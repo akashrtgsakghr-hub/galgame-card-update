@@ -24,13 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.18.1';
-  const MOON_FORMULA_CHANGELOG = "📢【v5.18.1 建档先读你的人设，重大转折交给你和 AI】\n" +
-    "- **一键建档不再只看开场白**：以前它只在开场白里找证据，你写在人设里的「相处三年」「我们是兄妹」被整段忽略，判定只能给 15~25 分。现在先做一次关系摘要（人设两处都读：酒馆的 persona 和本系统的玩家档案），再按证据定档。\n" +
-    "- **按相处深度给分，不再让骰子决定**：亲属 / 从小一起长大 / 十年以上 65~85；三年以上 50~70；几个月到三年 25~45；只是同事 10~30；真陌生人才 0~10，才走初见骰。同一段关系不会这次给 18、下次给 75。\n" +
-    "- **关系底子会带进每一轮**：建档认定「从小一起长大」之后，注入里会一直有一行「你和他相处十几年」，并且演出上限至少给到 R3 —— 不会再出现「数值不高就把老熟人演成刚认识、喂个东西都被嫌弃」。\n" +
-    "- **重大转折由 AI 给数值**：新增 `[转折|角色名|±数值|理由]`。AI 判断这一轮真翻了页（记忆恢复、关系挑明、生死关头），可以自己给分，±30 以内、必须带理由、不占每周好感额度、也不吃事件导演的档位限制。理由会显示在结算提示里。\n" +
-    "- 日常的你来我往仍然走原来的脚本档位——只有 AI 明确判定为转折的那一轮，才动用这条新通道。";
+  const MOON_FORMULA_VERSION = '5.18.2';
+  const MOON_FORMULA_CHANGELOG = "📢【v5.18.2 结算和后日谈走后台，战绩存进脚本】\n" +
+    "- **副本结算不再等你多聊一轮**：点「提交判断，结算」，分数当场算完，结算旁白由脚本在后台写（180~260 字，末尾一句「主神：」评语）。不占公屏、不打断剧情，晚几秒自己长出来，在「最近几局」里点「看结算」回看。\n" +
+    "- **后日谈也改成后台**：点「后台写后日谈」就分三章写完，不往聊天里塞几千字。想让它演在对话里，阅读器里有「写进当前对话」。\n" +
+    "- **新增「脚本档案」**：副本战绩、结算旁白、后日谈都存在脚本本体里，不跟对话走 —— 换聊天、换角色卡、换玩家设定，打开面板还能看到，也能导出 TXT。面板主菜单 → 脚本档案，或者副本页底部直接看。\n" +
+    "- **可以选存哪**：「存进脚本」开着就跨对话可见（默认开）；关掉就只留在当前对话。\n" +
+    "- **建档先读你的人设**：以前只在开场白里找证据，你写的「相处三年」「我们是兄妹」被整段忽略。现在两处人设都读，先做关系摘要再定档；亲属 / 一起长大 / 十年以上 65~85，三年以上 50~70，真陌生人才 0~10 并走初见骰。\n" +
+    "- **关系底子带进每一轮**：认定「一起长大」之后，注入里一直有一行底子，演出上限至少 R3 —— 不会再把老熟人演成刚认识、喂个东西都被嫌弃。\n" +
+    "- **重大转折由 AI 给数值**：`[转折|角色名|±数值|理由]`，±30 以内、必须带理由、不占每周额度。日常仍走脚本档位。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
   // 官方直连排在它后面：挂了梯子的机器走 raw 更可信，但国内不挂梯子时它基本不通。
@@ -105,7 +107,12 @@
                         存着的条目还在，随时可以再打开。
        timelineAutoScan 建档完成时自动扫一次世界书、把疑似时间线摆给玩家挑；
                         挑不挑由玩家决定，扫完就记一次，不会反复弹。 */
-    timelineEnabled: true, timelineAutoScan: true
+    timelineEnabled: true, timelineAutoScan: true,
+    /* 档案柜：结算旁白 / 后日谈存哪。
+       true  → 存进脚本本体（全局 localStorage），换聊天、换角色卡、换玩家设定都还能看到；
+       false → 只留当前对话（chatMetadata），跟对话一起消失。
+       默认开 —— 玩家要的就是「打开脚本还能看到」。 */
+    archiveToScript: true
   };
   // 每轮默认推进分钟数（玩家没有明说时间时使用）
   const DEFAULT_TURN_MINUTES = 10;
@@ -625,6 +632,46 @@
     if (showArcade) showLoadingDialog('API 模型正在处理任务…', true);
     try { return await _callOpeningModel(provider, sysPrompt, userPrompt); }
     finally { if (showArcade) closeLoadingDialog(); }
+  }
+
+  /* 后台静默调用（不弹任何窗、不占用公屏生成）。
+     用途：副本结算旁白、后日谈这类「有更好、没有也能玩」的润色。
+     优先级：玩家在脚本里填的独立 API > 酒馆主模型的静默接口 > 空串。
+     为什么先试独立 API：这类活是脚本自己发起的，不该悄悄吃掉主模型的额度；
+     没填独立 API 的时候才退到酒馆的 generateRaw，再没有就静默跳过。 */
+  async function callQuietModel(sysPrompt, userPrompt) {
+    const guard = String(sysPrompt || '') +
+      '\n【只输出任务要求的内容本身。不要继续角色扮演正文，不要解释你在做什么，不要写「好的」「以下是」。】';
+    const pick = function (r) {
+      if (typeof r === 'string') return r;
+      return String((r && (r.content || r.text || r.message)) || '');
+    };
+    const ctx = getSTCtx();
+    try {
+      if (typeof callCustomAIConfig === 'function' && hasValidCustomAIConfig()) {
+        const out = pick(await callCustomAIConfig(guard, userPrompt));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    try {
+      if (ctx && typeof ctx.generateRaw === 'function') {
+        const out = pick(await ctx.generateRaw({ systemPrompt: guard, prompt: userPrompt }));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    try {
+      if (typeof mainWin.generateQuietPrompt === 'function') {
+        const out = pick(await mainWin.generateQuietPrompt({ quiet_prompt: userPrompt, system_prompt: guard, streaming: false }));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    try {
+      if (ctx && typeof ctx.generateQuietPrompt === 'function') {
+        const out = pick(await ctx.generateQuietPrompt({ quiet_prompt: userPrompt, system_prompt: guard, streaming: false }));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    return '';
   }
 
   // 回填提示：老存档如果检测到没有本系统变量，给一次弹窗
@@ -4219,7 +4266,7 @@ function renderSettleTraceHtml(ch) {
     // 但不再主动询问「要不要看后日谈」。
     const canEpilogue = hasPlayerInitiatedEnding();
     const epilogueBtnHtml = canEpilogue
-      ? '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 查看后日谈 (5000~8000字番外)</button>'
+      ? '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="flex:1;min-width:120px;padding:7px 8px;border:1px solid #7dd3fc;background:#102338;color:#e0f2fe;font:600 11px monospace;cursor:pointer;box-shadow:2px 2px 0 #09050c;">📖 后台写后日谈（不占聊天）</button>'
       : '';
     const playerInfo = collectCurrentPlayerPersona();
     const playerName = (playerInfo && playerInfo.name && playerInfo.name !== '(未命名玩家)') ? playerInfo.name : 'PLAYER / 观测者';
@@ -4300,7 +4347,7 @@ function renderSettleTraceHtml(ch) {
           '<div style="font-weight:600;color:#7dd3fc;letter-spacing:0.8px;">📖 AFTER STORY · 是否查看《' + escapeFeatureHtml(record.charName) + '》视角后日谈番外？</div>' +
           '<div style="font-size:10.5px;color:#cbd5e1;">点下方按钮将自动填充提示词至聊天输入框并发送，让 AI 在当前对话内以《' + escapeFeatureHtml(record.charName) + '》视角继续创作一篇 <b>5000～8000字</b> 的结局后完整番外</div>' +
         '</div>' +
-        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:8px 14px;border:1px solid #7dd3fc;background:linear-gradient(180deg,#163c5e,#0c2136);color:#f0f9ff;font:600 11.5px monospace;cursor:pointer;box-shadow:2px 2px 0 #060d17;white-space:nowrap;">✨ 查看后日谈（自动填入发送）</button>' +
+        '<button type="button" data-mp-ending-action="epilogue" data-mp-ending-id="' + escapeFeatureHtml(record.id) + '" style="padding:8px 14px;border:1px solid #7dd3fc;background:linear-gradient(180deg,#163c5e,#0c2136);color:#f0f9ff;font:600 11.5px monospace;cursor:pointer;box-shadow:2px 2px 0 #060d17;white-space:nowrap;">✨ 后台写后日谈（不占聊天）</button>' +
       '</div>'
         : '<div style="margin:0 16px 12px;padding:10px 14px;border:1px solid rgba(125,211,252,.25);background:rgba(12,22,34,.6);font-size:10.5px;line-height:1.7;color:#9fb6c8;">📖 AFTER STORY · 后日谈尚未解锁。请先在系统面板发起「周目结算」，完成终幕报幕后再查看番外。</div>') +
       '<!-- 报幕互动操作台（显影结局CG / 查看后日谈 / 导出结算卡 / 回忆画廊） -->' +
@@ -4361,6 +4408,11 @@ function renderSettleTraceHtml(ch) {
         developCGItem(galItem);
       } else if (action === 'epilogue') {
         // 旧楼层里已经渲染好的卡片仍可能被点到，这里再兜一道闸门。
+        if (!hasPlayerInitiatedEnding()) { toast('请先在系统面板发起「周目结算」，再查看后日谈', 'warning'); return; }
+        /* 默认走后台生成：不占公屏、不往聊天里塞几千字，生成完直接进阅读器 + 档案柜。
+           想让 AI 写在对话里的，用阅读器里的「写进当前对话」。 */
+        startEpilogueGenerationEngine(record.charName, record);
+      } else if (action === 'epilogue_chat') {
         if (!hasPlayerInitiatedEnding()) { toast('请先在系统面板发起「周目结算」，再查看后日谈', 'warning'); return; }
         injectAndSendEpiloguePromptToChatbox(record);
       } else if (action === 'epilogue_modal') {
@@ -6855,7 +6907,7 @@ function openUpdateConfigDialog(panel) {
       '#moon-phase-panel .mp-select-start-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--k-fg-3, #a94d8b);border-radius:999px;background:linear-gradient(180deg,var(--k-sur-2, #2a1126),var(--k-sur-0, #150916));color:var(--k-accent-2, #ffc4e9);font:600 10.5px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;box-shadow:2px 2px 0 var(--k-sur-3, #35152f);letter-spacing:0.4px;}' +
       '#moon-phase-panel .mp-select-start-btn:hover{border-color:var(--k-accent, #f472d0);background:var(--k-sur-3, #3b1535);color:#f4f1ea;transform:translate(-1px,-1px);}' +
       '#moon-phase-panel .mp-select-start-btn.unconfigured{border-color:#fbbf24;color:#fde047;}' +
-      '#moon-phase-panel .mp-subpage-switch{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px;}' +
+      '#moon-phase-panel .mp-subpage-switch{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,1fr));gap:4px;margin-bottom:10px;}' +
       '#moon-phase-panel .mp-subpage-tab{padding:6px 2px;border:1px solid var(--k-frame, #643052);background:var(--k-sur-0, #140b16);color:var(--k-fg-2, #bc8eaf);font:600 10px "MP Fusion Pixel","Courier New",monospace;cursor:pointer;text-align:center;box-shadow:1px 1px 0 var(--k-sur-3, #35152f);}' +
       '#moon-phase-panel .mp-subpage-tab.active{border-color:var(--k-accent, #f472d0);background:var(--k-sur-2, #32112b);color:var(--k-accent-2, #ffe1f5);}' +
       '#moon-phase-panel .mp-btn{flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 6px !important;min-height:48px;}' +
@@ -7555,6 +7607,25 @@ ruled, .mp-ruled{display:none !important;}
 .mp-dg-pick.is-on{background:rgba(56,189,248,.18);border-color:#38bdf8;color:#e0f2fe;font-weight:600;}
 .mp-dg-count{font-size:10px;color:#64748b;font-weight:400;}
 .mp-btn[disabled]{opacity:.45;cursor:not-allowed;}
+
+/* ── 脚本档案柜（跨对话）：副本战绩 / 后日谈 ───────────────── */
+.mp-arc{margin-top:14px;padding-top:10px;border-top:1px dashed rgba(148,163,184,.18);}
+.mp-arc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.mp-arc-head b{font-size:11.5px;color:#e2e8f0;letter-spacing:.4px;}
+.mp-arc-sw{display:flex;align-items:center;gap:5px;font-size:10.5px;color:#94a3b8;cursor:pointer;user-select:none;}
+.mp-arc-sw input{width:13px;height:13px;accent-color:#38bdf8;cursor:pointer;}
+.mp-arc-tip{display:block;font-size:10px;line-height:1.6;color:#64748b;margin-bottom:7px;}
+.mp-arc-empty{font-size:10.5px;line-height:1.7;color:#64748b;background:rgba(15,23,42,.45);border-radius:9px;padding:9px 11px;}
+.mp-arc-list{display:flex;flex-direction:column;gap:6px;}
+.mp-arc-row{display:flex;align-items:center;gap:8px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.11);border-radius:10px;padding:8px 10px;}
+.mp-arc-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.mp-arc-main b{font-size:11.5px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mp-arc-main small{font-size:10px;line-height:1.5;color:#94a3b8;}
+.mp-arc-main small.mp-arc-from{color:#64748b;}
+.mp-arc-ops{flex:0 0 auto;display:flex;gap:4px;}
+.mp-arc-ops .mp-btn{padding:4px 8px;min-height:0;}
+.mp-arc-foot{margin-top:8px;text-align:right;}
+.mp-dg-hrow small .mp-btn{margin-left:4px;padding:2px 7px;font-size:10px;min-height:0;}
 `;
 
   /* 最后一层：掌机 UI v2（墨樱）。放在所有历史样式之后，作为最终权威覆盖，
@@ -19277,36 +19348,83 @@ var worldData = (rawVars && rawVars['世界']) || {};
     } catch (e) { toast('结算卡导出失败：' + String(e && e.message || e), 'warning'); }
   }
   async function startEpilogueGenerationEngine(charName, record) {
+    record = record || {};
     const settings = getSettings(), targetWords = Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000));
     const chapters = [
       { title: '第一幕 · 离去之日', focus: '结局之后最初的数月，角色如何面对离别、失常与生活留下的痕迹。' },
       { title: '第二幕 · 岁月风蚀', focus: '数年流逝，角色如何带着两人共同经历的记忆继续生活。' },
       { title: '第三幕 · 终局回响', focus: '多年后的回望、最终的释怀，以及角色如何理解这段关系。' }
     ];
-    let novel = '# 《' + record.title + ' · 后日谈》\n\n> 结局：' + record.endingType + ' · 角色：' + charName + '\n\n';
-    showLoadingDialog('正在生成后日谈（目标约 ' + targetWords + ' 字）…');
+    let novel = '# 《' + (record.title || '终局') + ' · 后日谈》\n\n> 结局：' + (record.endingType || '') + ' · 角色：' + charName + '\n\n';
+    showLoadingDialog('正在后台写后日谈（目标约 ' + targetWords + ' 字）…');
+    let failed = 0;
     try {
       for (let i = 0; i < chapters.length; i++) {
         const chapter = chapters[i]; updateLoadingDialogText('正在撰写 ' + chapter.title + '（' + (i + 1) + '/' + chapters.length + '）…');
         const systemPrompt = '你是擅长克制抒情的日系视觉小说作者。写一段约 ' + Math.ceil(targetWords / 3) + ' 字的后日谈正文。只写角色与世界，不代替玩家发言或行动。';
-        const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局：' + String(record.title).slice(0, 80) + '\n核心转折：' + String(record.keyMoment || '').slice(0, 200) + '\n角色心声：' + String(record.monologue || '').slice(0, 200) + '\n本章：' + chapter.title + '\n重点：' + chapter.focus;
-        let body = await callOpeningModel('main', systemPrompt, userPrompt);
+        const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局：' + String(record.title || '').slice(0, 80) + '\n核心转折：' + String(record.keyMoment || '').slice(0, 200) + '\n角色心声：' + String(record.monologue || '').slice(0, 200) + '\n本章：' + chapter.title + '\n重点：' + chapter.focus;
+        let body = '';
+        /* 后台口径：优先玩家自己填的 API，其次酒馆静默接口，全都没有就返回空 —— 不弹配置窗 */
+        try {
+          body = (typeof callQuietModel === 'function')
+            ? await callQuietModel(systemPrompt, userPrompt)
+            : await callOpeningModel('main', systemPrompt, userPrompt);
+        } catch (e) { body = ''; }
         if (typeof body !== 'string') body = body && body.content ? body.content : String(body || '');
-        if (!body.trim()) throw new Error(chapter.title + '没有生成正文');
+        if (!body.trim()) {
+          /* 单独一章失败不该把整篇扔掉：跳过它，剩下的照写 */
+          failed += 1;
+          novel += '\n\n## ' + chapter.title + '\n\n（这一章没生成出来）\n';
+          continue;
+        }
         novel += '\n\n## ' + chapter.title + '\n\n' + body.trim();
       }
-      closeLoadingDialog(); openEpilogueReaderDialog(record.title, novel);
-    } catch (e) { closeLoadingDialog(); toast('后日谈生成中断：' + String(e && e.message || e).slice(0, 180), 'warning'); }
+      closeLoadingDialog();
+      if (failed === chapters.length) {
+        toast('后日谈没写出来：后台调用没有返回内容。先试着配一个独立 API（设置里），或检查酒馆的静默生成接口。', 'warning');
+        return;
+      }
+      /* 存进档案柜：开关开着就跨对话，关着就只留本对话（archiveAdd 自己分流） */
+      let saved = null;
+      try {
+        saved = archiveAdd({
+          kind: 'epilogue',
+          title: '《' + (record.title || '终局') + '》后日谈',
+          charName: charName,
+          result: 'epilogue',
+          text: novel,
+          meta: { endingType: record.endingType || '', endingId: record.id || '' }
+        });
+      } catch (e) {}
+      if (saved) toast(saved.scope === 'chat' ? '后日谈写完了，存在本对话的档案里' : '后日谈写完了，已经存进脚本档案（换对话也能看到）', 'success');
+      openEpilogueReaderDialog(record.title, novel, record, !!saved);
+    } catch (e) {
+      closeLoadingDialog();
+      toast('后日谈生成中断：' + String(e && e.message || e).slice(0, 180), 'warning');
+    }
   }
-  function openEpilogueReaderDialog(title, text) {
+
+  function openEpilogueReaderDialog(title, text, record, archived) {
     const safeTitle = escapeFeatureHtml(title);
-    const html = '<div id="moon-epilogue-text" style="max-height:55vh;overflow:auto;padding:12px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253);font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div><div style="margin-top:9px;text-align:right"><button id="moon-export-epilogue">导出 TXT</button></div>';
+    const canChat = !!(record && record.charName);
+    const html = '<div id="moon-epilogue-text" style="max-height:52vh;overflow:auto;padding:12px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253);font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div>' +
+      (archived
+        ? '<div style="margin-top:8px;font-size:10.5px;color:#86efac;">已存进档案柜，可在「🗄 脚本档案」里回看（' + (archiveToScript() ? '跨对话可见' : '仅本对话') + '）。</div>'
+        : '') +
+      '<div style="margin-top:9px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
+      (canChat ? '<button id="moon-epilogue-to-chat" style="padding:6px 12px;border:1px solid #a78bfa;background:#1e1b3a;color:#e9d5ff;font:600 11px monospace;cursor:pointer;">写进当前对话</button>' : '') +
+      '<button id="moon-export-epilogue" style="padding:6px 12px;border:1px solid #7dd3fc;background:#10263c;color:#e0f2fe;font:600 11px monospace;cursor:pointer;">导出 TXT</button></div>';
     showModalDialog('后日谈 · 《' + safeTitle + '》', html, null, { confirmText: '阅读完毕', onOpen: function(mask) {
-      mask.querySelector('#moon-export-epilogue').addEventListener('click', function() {
+      const exp = mask.querySelector('#moon-export-epilogue');
+      if (exp) exp.addEventListener('click', function() {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = (mainWin.URL || URL).createObjectURL(blob);
         downloadFileViaBrowser(url, '后日谈_' + String(title || '结局').replace(/[\\/:*?"<>|]/g, '_') + '.txt');
         setTimeout(function() { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
+      });
+      const toChat = mask.querySelector('#moon-epilogue-to-chat');
+      if (toChat) toChat.addEventListener('click', function() {
+        try { injectAndSendEpiloguePromptToChatbox(record); } catch (e) {}
       });
     } });
   }
@@ -22935,7 +23053,19 @@ function reverseFmtTokens(n) {
       survivedMin: pg ? pg.survivedMin : 0, needMin: pg ? pg.needMin : 0,
       delta: pay.delta, pointsAfter: pay.after,
       right: js.right, judgeTotal: js.total,
-      why: (extra && extra.reason) ? extra.reason : '', at: Date.now()
+      why: (extra && extra.reason) ? extra.reason : '', at: Date.now(),
+      /* 结算旁白要用的现场：规则真伪、玩家勾了什么、违规痕迹。
+         规则正文截到 40 字 —— history 是跟着聊天走的，别让它无限长。 */
+      genre: r.genre || '',
+      winCond: r.win || '', loseCond: r.lose || '',
+      rules: (r.rules || []).map(function (x) {
+        return { n: x.n, text: String(x.text || '').slice(0, 40), real: !!x.real };
+      }),
+      picks: Object.assign({}, r.judge || {}),
+      hits: (r.hits || []).slice(-10).map(function (x) {
+        return { hit: x.hit, who: x.who, rule: x.rule, why: String(x.why || '').slice(0, 40) };
+      }),
+      settleText: ''
     });
     if (st.history.length > 20) st.history.length = 20;
     st.run = null;
@@ -22954,6 +23084,75 @@ function reverseFmtTokens(n) {
       forcedNext: !isWin,
       cooldownDays: cdDays, cooldownMs: cdDays * DUNGEON_DAY_MS
     };
+  }
+
+  /* ── 结算旁白（后台调模型，不占公屏） ───────────────────────
+     分数永远由脚本算，AI 只写「这一局到底怎么了」的那段话。
+     接口不可用 / 超时 / 空串 → 静默跳过，绝不让它挡住结算。 */
+  async function dungeonSettleNarration(h) {
+    if (!h || typeof callQuietModel !== 'function') return '';
+    const ruleLines = (h.rules || []).map(function (x) {
+      const pick = (h.picks || {})[x.n] || '';
+      const my = pick ? (pick === 'real' ? '真' : '假') : '没勾';
+      const truth = x.real ? '真' : '假';
+      const ok = pick ? ((pick === 'real') === !!x.real) : null;
+      return '  第 ' + x.n + ' 条「' + x.text + '」—— 实际是' + truth +
+        '，玩家勾了' + my + (ok === null ? '' : (ok ? '（对）' : '（错）'));
+    }).join('\n');
+    const hitLines = (h.hits || []).map(function (x) {
+      return '  ' + (x.who === 'char' ? '同行者' : '玩家') + ' · ' +
+        (x.hit === 'fatal' ? '严重' : (x.hit === 'major' ? '中等' : '轻微')) + '违规' +
+        (x.rule ? '（第 ' + x.rule + ' 条）' : '') + (x.why ? '：' + x.why : '');
+    }).join('\n');
+    const tag = h.result === 'win' ? '通关' : (h.result === 'lose' ? '失败' : '放弃');
+
+    const sys = '你是无限流「主神空间」的结算旁白作者。用第二人称（你/你们）写一段结算旁白，' +
+      '冷峻、克制、有画面，不煽情。只写这一局发生过什么、代价是什么，不要新增设定，不要替玩家做决定，' +
+      '不要写标题或 Markdown。输出 180~260 字，最后单独一行用「主神：」开头写一句不超过 30 字的评语。';
+
+    const user = [
+      '副本：' + h.name + '（' + h.level + ' 级' + (h.genre ? ' · ' + h.genre : '') + '）',
+      h.winCond ? '通关条件：' + h.winCond : '',
+      h.loseCond ? '失败条件：' + h.loseCond : '',
+      '结果：' + tag + '，存活 ' + dungeonFormatMin(h.survivedMin || 0) + ' / ' + dungeonFormatMin(h.needMin || 0),
+      '规则判断：' + (h.right || 0) + '/' + (h.judgeTotal || 0) + ' 条正确',
+      '积分：' + (h.delta > 0 ? '+' : '') + h.delta + '，结算后余额 ' + (h.pointsAfter == null ? '未知' : h.pointsAfter),
+      ruleLines ? '规则真相与玩家判断：\n' + ruleLines : '',
+      hitLines ? '违规痕迹：\n' + hitLines : '',
+      '\n写这段结算旁白。'
+    ].filter(Boolean).join('\n');
+
+    try {
+      const out = await callQuietModel(sys, user);
+      return String(out || '').trim().slice(0, 1200);
+    } catch (e) { return ''; }
+  }
+
+  /* 结算完的收尾：后台补旁白 → 写回 history → 落档案柜。
+     不 await —— 玩家点完结算就能继续聊，旁白晚几秒自己长出来。 */
+  async function dungeonAfterSettle() {
+    const st = dungeonState();
+    const h = st.history[0];
+    if (!h) return;
+    let text = '';
+    try { text = await dungeonSettleNarration(h); } catch (e) { text = ''; }
+    if (text) {
+      const st2 = dungeonState();
+      if (st2.history[0] && st2.history[0].runId === h.runId) {
+        st2.history[0].settleText = text;
+        dungeonSave(st2);
+      }
+      try { toast('主神写完了这一局的结算', 'info'); } catch (e) {}
+    }
+    try {
+      archiveAdd({
+        kind: 'dungeon', title: h.name, result: h.result, level: h.level,
+        delta: h.delta, survivedMin: h.survivedMin || 0, needMin: h.needMin || 0,
+        rulesRight: h.right, rulesTotal: h.judgeTotal, pointsAfter: h.pointsAfter,
+        text: text, meta: { runId: h.runId, genre: h.genre || '' }
+      });
+    } catch (e) {}
+    if (typeof refreshPanel === 'function') refreshPanel();
   }
 
   /* ── 注入 ─────────────────────────────────────────────────── */
@@ -23199,7 +23398,8 @@ function reverseFmtTokens(n) {
         '<div class="mp-dg-empty"><b>还没认到副本</b>' +
         '<small>把带「副本·」标题的世界书条目导入酒馆，再点下面的扫描。正文这样写：</small>' +
         '<pre class="mp-dg-code">副本·深夜便利店\n等级：E\n最少回合：20\n类型：怪谈\n胜利：撑到六点并交出正确的规则表\n失败：血量归零\n\n【规则】\n1. [真] 不要给没有影子的人结账\n2. [假] 凌晨三点必须关灯</pre>' +
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" data-dg-act="scan"><span>扫描世界书</span><small>认一遍「副本·」开头的条目</small></button></div></div>';
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" data-dg-act="scan"><span>扫描世界书</span><small>认一遍「副本·」开头的条目</small></button></div></div>' +
+        archiveRenderHtml('dungeon');
     }
 
     let rows = '';
@@ -23240,9 +23440,13 @@ function reverseFmtTokens(n) {
               (h.delta ? ' · ' + (h.delta > 0 ? '+' : '') + h.delta + ' 分' : '') +
               (typeof h.pointsAfter === 'number'
                 ? (h.pointsAfter < 0 ? (' · 欠 ' + Math.abs(h.pointsAfter)) : (' · 余 ' + h.pointsAfter)) : '') +
+              (h.settleText
+                ? ' · <button class="mp-btn mp-btn-sm" data-dg-narr="' + escapeFeatureHtml(h.runId) + '">看结算</button>'
+                : '') +
               '</small></div>';
           }).join('') + '</div>'
-        : '');
+        : '') +
+      archiveRenderHtml('dungeon');
   }
 
   function bindDungeonPanel(panel) {
@@ -23269,6 +23473,8 @@ function reverseFmtTokens(n) {
             } catch (e) {}
           }
           refreshPanel();
+          /* 分数已经落袋，旁白后台补：晚几秒自己长出来，不耽误继续聊 */
+          dungeonAfterSettle();
           return;
         }
         if (act === 'abort') {
@@ -23279,6 +23485,7 @@ function reverseFmtTokens(n) {
             } catch (e) {}
           }
           refreshPanel();
+          dungeonAfterSettle();
         }
       });
     });
@@ -23326,6 +23533,23 @@ function reverseFmtTokens(n) {
         if (lab) lab.textContent = '（' + js.done + '/' + js.total + '）';
       });
     });
+
+    /* 「看结算」：把后台写好的那段旁白调出来 */
+    panel.addEventListener('click', function (ev) {
+      const btn = ev.target && ev.target.closest ? ev.target.closest('[data-dg-narr]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      const rid = btn.getAttribute('data-dg-narr');
+      const h = (dungeonState().history || []).filter(function (x) { return x.runId === rid; })[0];
+      if (!h || !h.settleText) return;
+      showModalDialog(escapeFeatureHtml(h.name) + ' · 结算',
+        '<div style="max-height:50vh;overflow:auto;padding:12px;background:var(--k-sur-0,#100a13);border:1px solid var(--k-frame,#693253);font-size:12px;line-height:1.95;white-space:pre-wrap">' +
+        escapeFeatureHtml(h.settleText) + '</div>',
+        null, { confirmText: '关闭' });
+    });
+
+    /* 档案柜（跨对话）：点击 / 开关都用委托，面板重绘也不会重复绑 */
+    archiveBind(panel);
   }
   function renderArcadeGameScreen() {
     return '<div class="mp-arcade-box"><div class="mp-arcade-brand">MOON POCKET ARCADE </div><div class="mp-arcade-title">像素跳跃 · 避开障碍，挑战本聊天最高纪录</div><div class="mp-arcade-hud"><span>SCORE <b id="moon-arcade-score">00000</b></span><span>HI <b id="moon-arcade-hi-score">' + String(getArcadeHighScore()).padStart(5, '0') + '</b></span></div><div class="mp-arcade-record-time" id="moon-arcade-record-time">RECORD TIME · ' + lcdEscape(formatArcadeRecordTime(getArcadeRecord().achievedAt, getArcadeHighScore())) + '</div><iframe id="moon-arcade-frame" class="mp-arcade-frame" title="离线像素小游戏" sandbox="allow-scripts"></iframe><div class="mp-arcade-session-stats" id="moon-arcade-session-stats"></div><div class="mp-arcade-state" id="moon-arcade-state">空格 / ↑ / 点击游戏画面跳跃</div><div class="mp-arcade-foot">本地离线运行 · 成绩按当前聊天保存</div></div>';
@@ -23621,6 +23845,7 @@ function reverseFmtTokens(n) {
       '<button class="mp-menu-card" data-menu-open="system"><span class="mp-menu-icon">' + uiIco('wrench') + '</span><span><b>系统诊断室</b><small>检查数据、标签解析与插件冲突</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="settings"><span class="mp-menu-icon">' + uiIco('sliders') + '</span><span><b>游戏设置</b><small>调整界面、记忆、图像与运行参数</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-menu-open="dungeon"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>主神空间</b><small>把副本世界书勾上，进本、撑时间、结算、冷却</small></span><i>›</i></button>' +
+      '<button class="mp-menu-card" data-menu-open="archive"><span class="mp-menu-icon">' + uiIco('journal') + '</span><span><b>脚本档案</b><small>副本战绩与后日谈，存在脚本里，换聊天也还在</small></span><i>›</i></button>' +
       '<button class="mp-menu-card" data-gal-open="1"><span class="mp-menu-icon">' + uiIco('gamepad') + '</span><span><b>沉浸模式</b><small>全屏读剧情，像玩 Galgame 一样点着往下走</small></span><i>›</i></button>' +
       '</div><div class="mp-menu-controls"><span>不知道点哪，回最上面看那条粉色提示</span></div>' +
       '<div class="mp-console-cluster" role="group" aria-label="掌机按键">' +
@@ -23650,7 +23875,7 @@ function reverseFmtTokens(n) {
       /* 掌机按键条：保留实体手感，但压成一行、放到内容之后 —— 它本来就是装饰性的，
          以前挡在菜单前面，手机上要先滑过半屏才看到能点的东西。 */
       '<section class="mp-menu-page" id="moon-menu-page" style="' + (activeMenuKey ? 'display:block' : 'display:none') + '">' +
-      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
+      '<div class="mp-menu-page-head"><button class="mp-menu-back" id="moon-menu-back">◀ 返回</button><div><small>你在这里</small><b id="moon-menu-page-title">' + ({ adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间', archive: '脚本档案' }[activeMenuKey] || '功能') + '</b></div><span class="mp-page-led"></span></div>' +
       '<div class="mp-subpage-switch" role="tablist" aria-label="切换功能">' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'adventure' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'adventure' ? '0' : '-1') + '" data-menu-open="adventure">▶ 开始</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'characters' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'characters' ? '0' : '-1') + '" data-menu-open="characters">角色</button>' +
@@ -23658,9 +23883,13 @@ function reverseFmtTokens(n) {
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'system' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'system' ? '0' : '-1') + '" data-menu-open="system">检修</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'settings' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'settings' ? '0' : '-1') + '" data-menu-open="settings">选项</button>' +
         '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'dungeon' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'dungeon' ? '0' : '-1') + '" data-menu-open="dungeon">副本</button>' +
+        '<button type="button" role="tab" class="mp-subpage-tab' + (activeMenuKey === 'archive' ? ' active' : '') + '" tabindex="' + (activeMenuKey === 'archive' ? '0' : '-1') + '" data-menu-open="archive">档案</button>' +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="dungeon" style="display:' + (activeMenuKey === 'dungeon' ? 'block' : 'none') + '"><div class="mp-sub-label">主神空间</div>' +
       (typeof dungeonPanelBody === 'function' ? dungeonPanelBody() : '<div class="mp-dg-empty">副本模块没加载</div>') +
+      '</div>' +
+      '<div class="mp-menu-subpage" data-menu-page="archive" style="display:' + (activeMenuKey === 'archive' ? 'block' : 'none') + '"><div class="mp-sub-label">脚本档案 · 跨对话</div>' +
+      (typeof archiveRenderHtml === 'function' ? archiveRenderHtml('') : '<div class="mp-dg-empty">档案模块没加载</div>') +
       '</div>' +
       '<div class="mp-menu-subpage" data-menu-page="adventure" style="display:' + (activeMenuKey === 'adventure' ? 'block' : 'none') + '"><div class="mp-sub-label">开始游戏</div>' +
       pocketFold('adv-build', '建档案 / 搬存档', '第一次玩，或者换了新聊天还想接着玩',
@@ -23845,7 +24074,7 @@ function reverseFmtTokens(n) {
     }
     const menuHome = panel.querySelector('#moon-menu-home');
     const menuPage = panel.querySelector('#moon-menu-page');
-    const menuTitles = { adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项' };
+    const menuTitles = { adventure: '开始游戏', characters: '角色与存档', timeline: '冒险日志', system: '系统检修', settings: '系统选项', dungeon: '主神空间', archive: '脚本档案' };
     panel.querySelectorAll('[data-menu-open]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         const key = btn.getAttribute('data-menu-open');
@@ -23894,6 +24123,7 @@ function reverseFmtTokens(n) {
       }
       if (ok !== false) { try { closePanel(); } catch (e) {} }
     });
+    if (typeof archiveBind === 'function') archiveBind(panel);
     if (panel.dataset.menuKeysBound !== '1') {
       panel.dataset.menuKeysBound = '1';
       panel.addEventListener('keydown', function(event) {
@@ -25186,6 +25416,337 @@ const stateKey = getChatStateKey();
     const maxLeft = vw - cardW - 8;
     st.card.style.left = Math.round(Math.max(8, Math.min(baseLeft, maxLeft))) + 'px';
   }
+/* 95d-archive.js —— 脚本档案柜：副本战绩、结算旁白、后日谈，存在脚本自己身上（全局 localStorage），
+   不进 chat 变量。所以换聊天 / 换角色卡 / 换玩家档案，打开面板还能看到。
+
+   和 readChatFeatureValue 的区别：
+     - readChatFeatureValue → localStorage 键里带 chatStateKey，一个对话一份，换对话就看不见；
+     - 这里 → 键固定，全局一份，跨对话共享。
+   代价是 localStorage 只有 5MB 左右，所以有硬上限：每类最多 60 条、单条正文最多 12000 字。 */
+
+const ARCHIVE_KEY = 'moon_phase_archive_v1';
+const ARCHIVE_VERSION = 1;
+const ARCHIVE_MAX_PER_KIND = 60;
+const ARCHIVE_TEXT_MAX = 12000;
+
+function archiveEmpty() { return { version: ARCHIVE_VERSION, records: [] }; }
+
+/* 两条通道：
+     global —— 脚本本体（localStorage，键固定）→ 跨对话可见
+     chat   —— 当前对话（chatMetadata）→ 跟对话一起走
+   读的时候合并，写的时候只写目标那条 —— 免得「只留本对话」把别处的记录复制进来。 */
+function archiveReadGlobal() {
+  try {
+    const store = getStorage();
+    if (!store) return archiveEmpty();
+    const raw = store.getItem(ARCHIVE_KEY);
+    if (!raw) return archiveEmpty();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return archiveEmpty();
+    const records = Array.isArray(parsed.records) ? parsed.records : [];
+    return {
+      version: ARCHIVE_VERSION,
+      records: records.filter(function (x) { return x && typeof x === 'object' && x.id; })
+    };
+  } catch (e) { return archiveEmpty(); }
+}
+
+function archiveReadChat() {
+  try {
+    const raw = readChatFeatureValue(ARCHIVE_KEY, null);
+    if (!raw || typeof raw !== 'object') return archiveEmpty();
+    const records = Array.isArray(raw.records) ? raw.records : [];
+    return {
+      version: ARCHIVE_VERSION,
+      records: records.filter(function (x) { return x && typeof x === 'object' && x.id; })
+    };
+  } catch (e) { return archiveEmpty(); }
+}
+
+function archiveRead() {
+  const seen = {};
+  const all = [];
+  archiveReadGlobal().records.concat(archiveReadChat().records).forEach(function (x) {
+    if (seen[x.id]) return;
+    seen[x.id] = 1;
+    all.push(x);
+  });
+  all.sort(function (a, b) { return (Number(b.at) || 0) - (Number(a.at) || 0); });
+  return { version: ARCHIVE_VERSION, records: all };
+}
+
+function archiveWriteGlobal(data) {
+  try {
+    const store = getStorage();
+    if (!store) return false;
+    store.setItem(ARCHIVE_KEY, JSON.stringify(data));
+    return true;
+  } catch (e) {
+    /* 写满了（QuotaExceeded）：砍掉一半再试一次，还失败就认了 */
+    try {
+      const store = getStorage();
+      const keep = archiveReadGlobal().records.slice(0, Math.floor(ARCHIVE_MAX_PER_KIND / 2));
+      store.setItem(ARCHIVE_KEY, JSON.stringify({ version: ARCHIVE_VERSION, records: keep }));
+      return true;
+    } catch (e2) { return false; }
+  }
+}
+
+function archiveWriteChat(data) {
+  try { return writeChatFeatureValue(ARCHIVE_KEY, data); } catch (e) { return false; }
+}
+
+/* 按类分开截断：后日谈很长，别让它把副本战绩挤掉 */
+function archiveTrim(list) {
+  const byKind = {};
+  const kept = [];
+  list.forEach(function (x) {
+    const k = x.kind || 'other';
+    byKind[k] = (byKind[k] || 0) + 1;
+    if (byKind[k] <= ARCHIVE_MAX_PER_KIND) kept.push(x);
+  });
+  return kept;
+}
+
+/* 存档开关：默认开（用户要的就是「换聊天也能看到」） */
+function archiveToScript() {
+  try { return getSettings().archiveToScript !== false; } catch (e) { return true; }
+}
+function setArchiveToScript(on) {
+  try { const s = getSettings(); s.archiveToScript = !!on; saveSettings(s); } catch (e) {}
+}
+
+function archiveChatLabel() {
+  let name = '';
+  try {
+    const ctx = getSTCtx();
+    const ch = ctx && ctx.characters && ctx.characterId != null ? ctx.characters[ctx.characterId] : null;
+    name = (ch && ch.name) || '';
+  } catch (e) {}
+  let cid = '';
+  try { const info = getCurrentChatInfo(); cid = String((info && info.chatId) || ''); } catch (e) {}
+  const tail = cid ? cid.slice(-6) : '未命名';
+  return (name ? name + ' · ' : '') + '对话 ' + tail;
+}
+
+function archiveClip(text) {
+  const s = String(text == null ? '' : text);
+  return s.length > ARCHIVE_TEXT_MAX
+    ? (s.slice(0, ARCHIVE_TEXT_MAX) + '\n\n……（超出 ' + ARCHIVE_TEXT_MAX + ' 字的部分没有存进档案，导出请用生成时的原文）')
+    : s;
+}
+
+/* rec: { kind:'dungeon'|'epilogue', title, charName, result, level, delta, survivedMin, needMin,
+          rulesRight, rulesTotal, pointsAfter, text, meta } */
+/* 同一毫秒内可能连写好几条（批量结算 / 测试），只用时间戳会撞 id ——
+   撞了之后 archiveRead 按 id 去重，会「写进去却少一条」。加个自增序号。 */
+let _archiveSeq = 0;
+
+function archiveAdd(rec) {
+  if (!rec || !rec.kind) return null;
+  const item = {
+    id: 'arc_' + Date.now() + '_' + (++_archiveSeq) + '_' + Math.floor(Math.random() * 1000),
+    kind: String(rec.kind),
+    title: String(rec.title || '无题').slice(0, 120),
+    charName: String(rec.charName || '').slice(0, 60),
+    result: String(rec.result || '').slice(0, 20),
+    level: String(rec.level || '').slice(0, 8),
+    delta: Number(rec.delta) || 0,
+    survivedMin: Number(rec.survivedMin) || 0,
+    needMin: Number(rec.needMin) || 0,
+    rulesRight: (rec.rulesRight == null ? null : Number(rec.rulesRight) || 0),
+    rulesTotal: (rec.rulesTotal == null ? null : Number(rec.rulesTotal) || 0),
+    pointsAfter: (rec.pointsAfter == null ? null : Number(rec.pointsAfter)),
+    text: archiveClip(rec.text || ''),
+    meta: (rec.meta && typeof rec.meta === 'object') ? rec.meta : {},
+    from: archiveChatLabel(),
+    scope: archiveToScript() ? 'script' : 'chat',
+    at: Date.now()
+  };
+  if (item.scope === 'script') {
+    const data = archiveReadGlobal();
+    data.records.unshift(item);
+    data.records = archiveTrim(data.records);
+    archiveWriteGlobal(data);
+  } else {
+    const data = archiveReadChat();
+    data.records.unshift(item);
+    data.records = archiveTrim(data.records);
+    archiveWriteChat(data);
+  }
+  return item;
+}
+
+function archiveDel(id) {
+  let hit = false;
+  [archiveReadGlobal, archiveReadChat].forEach(function (reader) {
+    const data = reader();
+    const before = data.records.length;
+    data.records = data.records.filter(function (x) { return x.id !== id; });
+    if (data.records.length !== before) {
+      hit = true;
+      if (reader === archiveReadGlobal) archiveWriteGlobal(data); else archiveWriteChat(data);
+    }
+  });
+  return hit;
+}
+
+function archiveClear(kind) {
+  [archiveReadGlobal, archiveReadChat].forEach(function (reader) {
+    const data = reader();
+    data.records = kind ? data.records.filter(function (x) { return x.kind !== kind; }) : [];
+    if (reader === archiveReadGlobal) archiveWriteGlobal(data); else archiveWriteChat(data);
+  });
+  return true;
+}
+
+function archiveFind(id) {
+  const list = archiveRead().records;
+  for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+  return null;
+}
+
+function archiveCount(kind) {
+  const list = archiveRead().records;
+  if (!kind) return list.length;
+  return list.filter(function (x) { return x.kind === kind; }).length;
+}
+
+function archiveTimeText(ts) {
+  const n = Number(ts) || 0;
+  if (!n) return '';
+  const d = new Date(n);
+  const p = function (v) { return v < 10 ? '0' + v : String(v); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function archiveSummaryLine(x) {
+  if (!x) return '';
+  if (x.kind === 'dungeon') {
+    const tag = x.result === 'win' ? '通关' : (x.result === 'lose' ? '失败' : '放弃');
+    let s = tag;
+    if (x.level) s += ' · ' + x.level + ' 级';
+    if (x.needMin) s += ' · 存活 ' + dungeonFormatMin(x.survivedMin) + '/' + dungeonFormatMin(x.needMin);
+    if (x.rulesTotal) s += ' · 规则 ' + (x.rulesRight || 0) + '/' + x.rulesTotal;
+    if (x.delta) s += ' · ' + (x.delta > 0 ? '+' : '') + x.delta + ' 分';
+    return s;
+  }
+  if (x.kind === 'epilogue') {
+    return '后日谈' + (x.charName ? ' · ' + x.charName + ' 视角' : '') + (x.text ? ' · ' + x.text.length + ' 字' : '');
+  }
+  return x.result || '';
+}
+
+function archiveRenderHtml(kind) {
+  const on = archiveToScript();
+  const all = archiveRead().records.filter(function (x) { return !kind || x.kind === kind; });
+  const titleMap = { dungeon: '副本档案', epilogue: '后日谈档案' };
+  let html = '<div class="mp-arc">' +
+    '<div class="mp-arc-head"><b>🗄 ' + (titleMap[kind] || '脚本档案') + ' · 跨对话</b>' +
+    '<label class="mp-arc-sw"><input type="checkbox" data-arc-mode="1"' + (on ? ' checked' : '') + '><span>存进脚本</span></label></div>' +
+    '<small class="mp-arc-tip">' +
+    (on
+      ? '存在脚本本体里，不跟对话走：换聊天、换角色卡、换玩家设定，打开还能看到。'
+      : '现在存进本对话：换聊天就看不到了。打开「存进脚本」之后的新记录才会跨对话可见。') +
+    '</small>';
+
+  if (!all.length) {
+    html += '<div class="mp-arc-empty">' + (on ? '还没有记录。打完一局副本、生成一次后日谈，就会落在这里。' : '还没有记录，而且「存进脚本」是关着的。') + '</div></div>';
+    return html;
+  }
+
+  html += '<div class="mp-arc-list">';
+  all.slice(0, 12).forEach(function (x) {
+    html += '<div class="mp-arc-row">' +
+      '<div class="mp-arc-main"><b>' + escapeFeatureHtml(x.title) + '</b>' +
+      '<small>' + escapeFeatureHtml(archiveSummaryLine(x)) + '</small>' +
+        '<small class="mp-arc-from">' + escapeFeatureHtml(archiveTimeText(x.at)) +
+        (x.from ? ' · 来自 ' + escapeFeatureHtml(x.from) : '') +
+        ' · ' + (x.scope === 'chat' ? '本对话' : '脚本') + '</small></div>' +
+      '<div class="mp-arc-ops">' +
+      '<button class="mp-btn mp-btn-sm" data-arc-view="' + escapeFeatureHtml(x.id) + '">看</button>' +
+      '<button class="mp-btn mp-btn-sm" data-arc-del="' + escapeFeatureHtml(x.id) + '">删</button>' +
+      '</div></div>';
+  });
+  html += '</div>';
+  if (all.length > 12) html += '<small class="mp-arc-tip">还有 ' + (all.length - 12) + ' 条更早的，已折起。</small>';
+  html += '<div class="mp-arc-foot"><button class="mp-btn mp-btn-sm" data-arc-clear="' + escapeFeatureHtml(kind || '') + '">清空这一类</button></div>';
+  html += '</div>';
+  return html;
+}
+
+function archiveExportText(x) {
+  if (!x) return;
+  const head = '# ' + (x.title || '档案') + '\n' +
+    '> ' + archiveSummaryLine(x) + '\n' +
+    '> ' + archiveTimeText(x.at) + (x.from ? ' · ' + x.from : '') + '\n\n';
+  const blob = new Blob([head + String(x.text || '')], { type: 'text/plain;charset=utf-8' });
+  const url = (mainWin.URL || URL).createObjectURL(blob);
+  downloadFileViaBrowser(url, (x.kind === 'epilogue' ? '后日谈_' : '副本结算_') +
+    String(x.title || '档案').replace(/[\\/:*?"<>|]/g, '_') + '.txt');
+  setTimeout(function () { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
+}
+
+function archiveOpen(id) {
+  const x = archiveFind(id);
+  if (!x) { try { toast('这条档案已经不在了', 'warning'); } catch (e) {} return; }
+  const body = x.text
+    ? escapeFeatureHtml(x.text)
+    : '<span style="color:#94a3b8">这条只有战绩，没有正文（当时没生成旁白，或者生成失败）。</span>';
+  const html = '<div style="max-height:54vh;overflow:auto;padding:12px;background:var(--k-sur-0,#100a13);border:1px solid var(--k-frame,#693253);font-size:12px;line-height:1.95;white-space:pre-wrap">' + body + '</div>' +
+    '<div style="margin-top:9px;text-align:right"><button id="moon-arc-export" style="padding:6px 12px;border:1px solid #7dd3fc;background:#10263c;color:#e0f2fe;font:600 11px monospace;cursor:pointer;">💾 导出 TXT</button></div>';
+  showModalDialog(escapeFeatureHtml(x.title) + ' · 档案', html, null, {
+    confirmText: '关闭',
+    onOpen: function (mask) {
+      const btn = mask.querySelector('#moon-arc-export');
+      if (btn) btn.addEventListener('click', function () { archiveExportText(x); });
+    }
+  });
+}
+
+/* 事件委托：一个面板只绑一次 */
+function archiveBind(root) {
+  if (!root || root.dataset.arcBound === '1') return;
+  root.dataset.arcBound = '1';
+
+  root.addEventListener('click', function (ev) {
+    const t = ev.target;
+    if (!t || !t.closest) return;
+    const view = t.closest('[data-arc-view]');
+    if (view) { ev.preventDefault(); archiveOpen(view.getAttribute('data-arc-view')); return; }
+    const del = t.closest('[data-arc-del]');
+    if (del) {
+      ev.preventDefault();
+      archiveDel(del.getAttribute('data-arc-del'));
+      try { toast('已从档案里删掉', 'info'); } catch (e) {}
+      if (typeof refreshPanel === 'function') refreshPanel();
+      return;
+    }
+    const clr = t.closest('[data-arc-clear]');
+    if (clr) {
+      ev.preventDefault();
+      const kind = clr.getAttribute('data-arc-clear') || '';
+      showModalDialogCancelable('清空档案',
+        '这会删掉' + (kind === 'dungeon' ? '全部副本战绩' : (kind === 'epilogue' ? '全部后日谈' : '全部档案')) +
+        '，删了就找不回来。<br><br>想留个底就先点「看 → 导出 TXT」。',
+        function () {
+          archiveClear(kind || null);
+          try { toast('已清空', 'info'); } catch (e) {}
+          if (typeof refreshPanel === 'function') refreshPanel();
+        }, null, { confirmText: '删掉', cancelText: '算了' });
+    }
+  });
+
+  root.addEventListener('change', function (ev) {
+    const t = ev.target;
+    if (!t || !t.getAttribute) return;
+    if (t.getAttribute('data-arc-mode')) {
+      setArchiveToScript(!!t.checked);
+      try { toast(t.checked ? '之后的记录会存进脚本，换对话也能看到' : '之后的记录只留在本对话', 'info'); } catch (e) {}
+      if (typeof refreshPanel === 'function') refreshPanel();
+    }
+  });
+}
   /* 96-core.js —— 内置核心规则：把原来世界书里的 7 条 [Mode-Common] 搬进脚本。
      玩家只装脚本就能玩；已经装了旧世界书的会自动让位，不会重复注入。 */
 

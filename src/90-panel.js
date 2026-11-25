@@ -1313,36 +1313,83 @@
     } catch (e) { toast('结算卡导出失败：' + String(e && e.message || e), 'warning'); }
   }
   async function startEpilogueGenerationEngine(charName, record) {
+    record = record || {};
     const settings = getSettings(), targetWords = Math.max(1500, Math.min(8000, Number(settings.epilogueTargetWords) || 8000));
     const chapters = [
       { title: '第一幕 · 离去之日', focus: '结局之后最初的数月，角色如何面对离别、失常与生活留下的痕迹。' },
       { title: '第二幕 · 岁月风蚀', focus: '数年流逝，角色如何带着两人共同经历的记忆继续生活。' },
       { title: '第三幕 · 终局回响', focus: '多年后的回望、最终的释怀，以及角色如何理解这段关系。' }
     ];
-    let novel = '# 《' + record.title + ' · 后日谈》\n\n> 结局：' + record.endingType + ' · 角色：' + charName + '\n\n';
-    showLoadingDialog('正在生成后日谈（目标约 ' + targetWords + ' 字）…');
+    let novel = '# 《' + (record.title || '终局') + ' · 后日谈》\n\n> 结局：' + (record.endingType || '') + ' · 角色：' + charName + '\n\n';
+    showLoadingDialog('正在后台写后日谈（目标约 ' + targetWords + ' 字）…');
+    let failed = 0;
     try {
       for (let i = 0; i < chapters.length; i++) {
         const chapter = chapters[i]; updateLoadingDialogText('正在撰写 ' + chapter.title + '（' + (i + 1) + '/' + chapters.length + '）…');
         const systemPrompt = '你是擅长克制抒情的日系视觉小说作者。写一段约 ' + Math.ceil(targetWords / 3) + ' 字的后日谈正文。只写角色与世界，不代替玩家发言或行动。';
-        const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局：' + String(record.title).slice(0, 80) + '\n核心转折：' + String(record.keyMoment || '').slice(0, 200) + '\n角色心声：' + String(record.monologue || '').slice(0, 200) + '\n本章：' + chapter.title + '\n重点：' + chapter.focus;
-        let body = await callOpeningModel('main', systemPrompt, userPrompt);
+        const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局：' + String(record.title || '').slice(0, 80) + '\n核心转折：' + String(record.keyMoment || '').slice(0, 200) + '\n角色心声：' + String(record.monologue || '').slice(0, 200) + '\n本章：' + chapter.title + '\n重点：' + chapter.focus;
+        let body = '';
+        /* 后台口径：优先玩家自己填的 API，其次酒馆静默接口，全都没有就返回空 —— 不弹配置窗 */
+        try {
+          body = (typeof callQuietModel === 'function')
+            ? await callQuietModel(systemPrompt, userPrompt)
+            : await callOpeningModel('main', systemPrompt, userPrompt);
+        } catch (e) { body = ''; }
         if (typeof body !== 'string') body = body && body.content ? body.content : String(body || '');
-        if (!body.trim()) throw new Error(chapter.title + '没有生成正文');
+        if (!body.trim()) {
+          /* 单独一章失败不该把整篇扔掉：跳过它，剩下的照写 */
+          failed += 1;
+          novel += '\n\n## ' + chapter.title + '\n\n（这一章没生成出来）\n';
+          continue;
+        }
         novel += '\n\n## ' + chapter.title + '\n\n' + body.trim();
       }
-      closeLoadingDialog(); openEpilogueReaderDialog(record.title, novel);
-    } catch (e) { closeLoadingDialog(); toast('后日谈生成中断：' + String(e && e.message || e).slice(0, 180), 'warning'); }
+      closeLoadingDialog();
+      if (failed === chapters.length) {
+        toast('后日谈没写出来：后台调用没有返回内容。先试着配一个独立 API（设置里），或检查酒馆的静默生成接口。', 'warning');
+        return;
+      }
+      /* 存进档案柜：开关开着就跨对话，关着就只留本对话（archiveAdd 自己分流） */
+      let saved = null;
+      try {
+        saved = archiveAdd({
+          kind: 'epilogue',
+          title: '《' + (record.title || '终局') + '》后日谈',
+          charName: charName,
+          result: 'epilogue',
+          text: novel,
+          meta: { endingType: record.endingType || '', endingId: record.id || '' }
+        });
+      } catch (e) {}
+      if (saved) toast(saved.scope === 'chat' ? '后日谈写完了，存在本对话的档案里' : '后日谈写完了，已经存进脚本档案（换对话也能看到）', 'success');
+      openEpilogueReaderDialog(record.title, novel, record, !!saved);
+    } catch (e) {
+      closeLoadingDialog();
+      toast('后日谈生成中断：' + String(e && e.message || e).slice(0, 180), 'warning');
+    }
   }
-  function openEpilogueReaderDialog(title, text) {
+
+  function openEpilogueReaderDialog(title, text, record, archived) {
     const safeTitle = escapeFeatureHtml(title);
-    const html = '<div id="moon-epilogue-text" style="max-height:55vh;overflow:auto;padding:12px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253);font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div><div style="margin-top:9px;text-align:right"><button id="moon-export-epilogue">导出 TXT</button></div>';
+    const canChat = !!(record && record.charName);
+    const html = '<div id="moon-epilogue-text" style="max-height:52vh;overflow:auto;padding:12px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-frame, #693253);font-size:12px;line-height:1.9;white-space:pre-wrap">' + escapeFeatureHtml(text) + '</div>' +
+      (archived
+        ? '<div style="margin-top:8px;font-size:10.5px;color:#86efac;">已存进档案柜，可在「🗄 脚本档案」里回看（' + (archiveToScript() ? '跨对话可见' : '仅本对话') + '）。</div>'
+        : '') +
+      '<div style="margin-top:9px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
+      (canChat ? '<button id="moon-epilogue-to-chat" style="padding:6px 12px;border:1px solid #a78bfa;background:#1e1b3a;color:#e9d5ff;font:600 11px monospace;cursor:pointer;">写进当前对话</button>' : '') +
+      '<button id="moon-export-epilogue" style="padding:6px 12px;border:1px solid #7dd3fc;background:#10263c;color:#e0f2fe;font:600 11px monospace;cursor:pointer;">导出 TXT</button></div>';
     showModalDialog('后日谈 · 《' + safeTitle + '》', html, null, { confirmText: '阅读完毕', onOpen: function(mask) {
-      mask.querySelector('#moon-export-epilogue').addEventListener('click', function() {
+      const exp = mask.querySelector('#moon-export-epilogue');
+      if (exp) exp.addEventListener('click', function() {
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = (mainWin.URL || URL).createObjectURL(blob);
         downloadFileViaBrowser(url, '后日谈_' + String(title || '结局').replace(/[\\/:*?"<>|]/g, '_') + '.txt');
         setTimeout(function() { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
+      });
+      const toChat = mask.querySelector('#moon-epilogue-to-chat');
+      if (toChat) toChat.addEventListener('click', function() {
+        try { injectAndSendEpiloguePromptToChatbox(record); } catch (e) {}
       });
     } });
   }

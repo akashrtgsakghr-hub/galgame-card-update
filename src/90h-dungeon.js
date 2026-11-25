@@ -717,7 +717,19 @@
       survivedMin: pg ? pg.survivedMin : 0, needMin: pg ? pg.needMin : 0,
       delta: pay.delta, pointsAfter: pay.after,
       right: js.right, judgeTotal: js.total,
-      why: (extra && extra.reason) ? extra.reason : '', at: Date.now()
+      why: (extra && extra.reason) ? extra.reason : '', at: Date.now(),
+      /* 结算旁白要用的现场：规则真伪、玩家勾了什么、违规痕迹。
+         规则正文截到 40 字 —— history 是跟着聊天走的，别让它无限长。 */
+      genre: r.genre || '',
+      winCond: r.win || '', loseCond: r.lose || '',
+      rules: (r.rules || []).map(function (x) {
+        return { n: x.n, text: String(x.text || '').slice(0, 40), real: !!x.real };
+      }),
+      picks: Object.assign({}, r.judge || {}),
+      hits: (r.hits || []).slice(-10).map(function (x) {
+        return { hit: x.hit, who: x.who, rule: x.rule, why: String(x.why || '').slice(0, 40) };
+      }),
+      settleText: ''
     });
     if (st.history.length > 20) st.history.length = 20;
     st.run = null;
@@ -736,6 +748,75 @@
       forcedNext: !isWin,
       cooldownDays: cdDays, cooldownMs: cdDays * DUNGEON_DAY_MS
     };
+  }
+
+  /* ── 结算旁白（后台调模型，不占公屏） ───────────────────────
+     分数永远由脚本算，AI 只写「这一局到底怎么了」的那段话。
+     接口不可用 / 超时 / 空串 → 静默跳过，绝不让它挡住结算。 */
+  async function dungeonSettleNarration(h) {
+    if (!h || typeof callQuietModel !== 'function') return '';
+    const ruleLines = (h.rules || []).map(function (x) {
+      const pick = (h.picks || {})[x.n] || '';
+      const my = pick ? (pick === 'real' ? '真' : '假') : '没勾';
+      const truth = x.real ? '真' : '假';
+      const ok = pick ? ((pick === 'real') === !!x.real) : null;
+      return '  第 ' + x.n + ' 条「' + x.text + '」—— 实际是' + truth +
+        '，玩家勾了' + my + (ok === null ? '' : (ok ? '（对）' : '（错）'));
+    }).join('\n');
+    const hitLines = (h.hits || []).map(function (x) {
+      return '  ' + (x.who === 'char' ? '同行者' : '玩家') + ' · ' +
+        (x.hit === 'fatal' ? '严重' : (x.hit === 'major' ? '中等' : '轻微')) + '违规' +
+        (x.rule ? '（第 ' + x.rule + ' 条）' : '') + (x.why ? '：' + x.why : '');
+    }).join('\n');
+    const tag = h.result === 'win' ? '通关' : (h.result === 'lose' ? '失败' : '放弃');
+
+    const sys = '你是无限流「主神空间」的结算旁白作者。用第二人称（你/你们）写一段结算旁白，' +
+      '冷峻、克制、有画面，不煽情。只写这一局发生过什么、代价是什么，不要新增设定，不要替玩家做决定，' +
+      '不要写标题或 Markdown。输出 180~260 字，最后单独一行用「主神：」开头写一句不超过 30 字的评语。';
+
+    const user = [
+      '副本：' + h.name + '（' + h.level + ' 级' + (h.genre ? ' · ' + h.genre : '') + '）',
+      h.winCond ? '通关条件：' + h.winCond : '',
+      h.loseCond ? '失败条件：' + h.loseCond : '',
+      '结果：' + tag + '，存活 ' + dungeonFormatMin(h.survivedMin || 0) + ' / ' + dungeonFormatMin(h.needMin || 0),
+      '规则判断：' + (h.right || 0) + '/' + (h.judgeTotal || 0) + ' 条正确',
+      '积分：' + (h.delta > 0 ? '+' : '') + h.delta + '，结算后余额 ' + (h.pointsAfter == null ? '未知' : h.pointsAfter),
+      ruleLines ? '规则真相与玩家判断：\n' + ruleLines : '',
+      hitLines ? '违规痕迹：\n' + hitLines : '',
+      '\n写这段结算旁白。'
+    ].filter(Boolean).join('\n');
+
+    try {
+      const out = await callQuietModel(sys, user);
+      return String(out || '').trim().slice(0, 1200);
+    } catch (e) { return ''; }
+  }
+
+  /* 结算完的收尾：后台补旁白 → 写回 history → 落档案柜。
+     不 await —— 玩家点完结算就能继续聊，旁白晚几秒自己长出来。 */
+  async function dungeonAfterSettle() {
+    const st = dungeonState();
+    const h = st.history[0];
+    if (!h) return;
+    let text = '';
+    try { text = await dungeonSettleNarration(h); } catch (e) { text = ''; }
+    if (text) {
+      const st2 = dungeonState();
+      if (st2.history[0] && st2.history[0].runId === h.runId) {
+        st2.history[0].settleText = text;
+        dungeonSave(st2);
+      }
+      try { toast('主神写完了这一局的结算', 'info'); } catch (e) {}
+    }
+    try {
+      archiveAdd({
+        kind: 'dungeon', title: h.name, result: h.result, level: h.level,
+        delta: h.delta, survivedMin: h.survivedMin || 0, needMin: h.needMin || 0,
+        rulesRight: h.right, rulesTotal: h.judgeTotal, pointsAfter: h.pointsAfter,
+        text: text, meta: { runId: h.runId, genre: h.genre || '' }
+      });
+    } catch (e) {}
+    if (typeof refreshPanel === 'function') refreshPanel();
   }
 
   /* ── 注入 ─────────────────────────────────────────────────── */
@@ -981,7 +1062,8 @@
         '<div class="mp-dg-empty"><b>还没认到副本</b>' +
         '<small>把带「副本·」标题的世界书条目导入酒馆，再点下面的扫描。正文这样写：</small>' +
         '<pre class="mp-dg-code">副本·深夜便利店\n等级：E\n最少回合：20\n类型：怪谈\n胜利：撑到六点并交出正确的规则表\n失败：血量归零\n\n【规则】\n1. [真] 不要给没有影子的人结账\n2. [假] 凌晨三点必须关灯</pre>' +
-        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" data-dg-act="scan"><span>扫描世界书</span><small>认一遍「副本·」开头的条目</small></button></div></div>';
+        '<div class="mp-grid"><button class="mp-btn mp-btn-highlight" data-dg-act="scan"><span>扫描世界书</span><small>认一遍「副本·」开头的条目</small></button></div></div>' +
+        archiveRenderHtml('dungeon');
     }
 
     let rows = '';
@@ -1022,9 +1104,13 @@
               (h.delta ? ' · ' + (h.delta > 0 ? '+' : '') + h.delta + ' 分' : '') +
               (typeof h.pointsAfter === 'number'
                 ? (h.pointsAfter < 0 ? (' · 欠 ' + Math.abs(h.pointsAfter)) : (' · 余 ' + h.pointsAfter)) : '') +
+              (h.settleText
+                ? ' · <button class="mp-btn mp-btn-sm" data-dg-narr="' + escapeFeatureHtml(h.runId) + '">看结算</button>'
+                : '') +
               '</small></div>';
           }).join('') + '</div>'
-        : '');
+        : '') +
+      archiveRenderHtml('dungeon');
   }
 
   function bindDungeonPanel(panel) {
@@ -1051,6 +1137,8 @@
             } catch (e) {}
           }
           refreshPanel();
+          /* 分数已经落袋，旁白后台补：晚几秒自己长出来，不耽误继续聊 */
+          dungeonAfterSettle();
           return;
         }
         if (act === 'abort') {
@@ -1061,6 +1149,7 @@
             } catch (e) {}
           }
           refreshPanel();
+          dungeonAfterSettle();
         }
       });
     });
@@ -1108,4 +1197,21 @@
         if (lab) lab.textContent = '（' + js.done + '/' + js.total + '）';
       });
     });
+
+    /* 「看结算」：把后台写好的那段旁白调出来 */
+    panel.addEventListener('click', function (ev) {
+      const btn = ev.target && ev.target.closest ? ev.target.closest('[data-dg-narr]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      const rid = btn.getAttribute('data-dg-narr');
+      const h = (dungeonState().history || []).filter(function (x) { return x.runId === rid; })[0];
+      if (!h || !h.settleText) return;
+      showModalDialog(escapeFeatureHtml(h.name) + ' · 结算',
+        '<div style="max-height:50vh;overflow:auto;padding:12px;background:var(--k-sur-0,#100a13);border:1px solid var(--k-frame,#693253);font-size:12px;line-height:1.95;white-space:pre-wrap">' +
+        escapeFeatureHtml(h.settleText) + '</div>',
+        null, { confirmText: '关闭' });
+    });
+
+    /* 档案柜（跨对话）：点击 / 开关都用委托，面板重绘也不会重复绑 */
+    archiveBind(panel);
   }

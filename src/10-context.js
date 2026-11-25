@@ -135,6 +135,46 @@
     finally { if (showArcade) closeLoadingDialog(); }
   }
 
+  /* 后台静默调用（不弹任何窗、不占用公屏生成）。
+     用途：副本结算旁白、后日谈这类「有更好、没有也能玩」的润色。
+     优先级：玩家在脚本里填的独立 API > 酒馆主模型的静默接口 > 空串。
+     为什么先试独立 API：这类活是脚本自己发起的，不该悄悄吃掉主模型的额度；
+     没填独立 API 的时候才退到酒馆的 generateRaw，再没有就静默跳过。 */
+  async function callQuietModel(sysPrompt, userPrompt) {
+    const guard = String(sysPrompt || '') +
+      '\n【只输出任务要求的内容本身。不要继续角色扮演正文，不要解释你在做什么，不要写「好的」「以下是」。】';
+    const pick = function (r) {
+      if (typeof r === 'string') return r;
+      return String((r && (r.content || r.text || r.message)) || '');
+    };
+    const ctx = getSTCtx();
+    try {
+      if (typeof callCustomAIConfig === 'function' && hasValidCustomAIConfig()) {
+        const out = pick(await callCustomAIConfig(guard, userPrompt));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    try {
+      if (ctx && typeof ctx.generateRaw === 'function') {
+        const out = pick(await ctx.generateRaw({ systemPrompt: guard, prompt: userPrompt }));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    try {
+      if (typeof mainWin.generateQuietPrompt === 'function') {
+        const out = pick(await mainWin.generateQuietPrompt({ quiet_prompt: userPrompt, system_prompt: guard, streaming: false }));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    try {
+      if (ctx && typeof ctx.generateQuietPrompt === 'function') {
+        const out = pick(await ctx.generateQuietPrompt({ quiet_prompt: userPrompt, system_prompt: guard, streaming: false }));
+        if (out.trim()) return out.trim();
+      }
+    } catch (e) {}
+    return '';
+  }
+
   // 回填提示：老存档如果检测到没有本系统变量，给一次弹窗
   function checkAndPromptBackfill() {
     try {
