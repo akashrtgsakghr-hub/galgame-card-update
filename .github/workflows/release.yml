@@ -106,15 +106,52 @@ jobs:
               if [ -f "$work/$a" ]; then assets="$assets $work/$a"; fi
             done
 
-            # 发布走 scripts/publish-release.mjs（直接打 REST API），不用 gh。
-            # 原因：gh 失败只给「HTTP 422」，看不出 GitHub 嫌什么；这个脚本会把
-            # status 和响应体原样打出来，而且拆成「建 Release / 传附件」两步。
+            # Release 本身走 scripts/publish-release.mjs（直接打 REST API）：
+            # gh 失败只给「HTTP 422」，而中文附件名会让 REST 接口直接 500。
+            # 附件则交给 gh：它的上传客户端自带指数退避，比我们手写的重试更能扛
+            # GitHub 资产存储偶发的 502（Error updating policy）。
             node scripts/publish-release.mjs \
               --tag "$tag" \
               --target "$GITHUB_SHA" \
               --title "$title" \
               --notes-file "/tmp/rel/$ver.md" \
-              --assets-dir "$work"
+              --no-assets
+
+            # 附件名必须是纯 ASCII（中文名 REST 上传必 500，gh 会转义成 .-. 这种乱码名）
+            mkdir -p /tmp/rel/up
+            cp "$work/moon-phase.js" "/tmp/rel/up/moon-phase.js"
+            cp "$work/moon-phase.base.js" "/tmp/rel/up/moon-phase.base.js"
+            cp "$work/Galgame攻略系统-酒馆助手导入.json" "/tmp/rel/up/Galgame-Assistant-Import.json"
+            cp "$work/DokiDoki-原版-酒馆助手导入.json" "/tmp/rel/up/DokiDoki-Base-Import.json"
+
+            # 只传缺的：已经传上去的别再删了重传（2.7MB × 4，传挂了还占带宽）
+            existing=$(gh release view "$tag" --json assets -q '.assets[].name' 2>/dev/null || true)
+            missing=""
+            for f in /tmp/rel/up/*; do
+              n=$(basename "$f")
+              if printf '%s\n' "$existing" | grep -Fxq "$n"; then
+                echo "  · 已存在，跳过 $n"
+              else
+                missing="$missing $f"
+              fi
+            done
+
+            if [ -z "$missing" ]; then
+              echo "✅ 四个附件齐全"
+            else
+              for attempt in 1 2 3 4; do
+                if gh release upload "$tag" $missing --clobber; then
+                  echo "✅ 附件已上传"
+                  break
+                fi
+                if [ "$attempt" = "4" ]; then
+                  echo "::error::$tag 附件上传 4 次都失败（正文已更新，重跑 workflow 会补齐）"
+                  exit 1
+                fi
+                echo "::warning::$tag 附件上传失败，$((attempt * 20)) 秒后重试"
+                sleep $((attempt * 20))
+              done
+            fi
 
             git worktree remove "$work" --force >/dev/null
           done

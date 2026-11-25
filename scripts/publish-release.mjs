@@ -39,6 +39,7 @@ const target = arg('target');
 const title = arg('title');
 const notesFile = arg('notes-file');
 const assetsDir = arg('assets-dir');
+const noAssets = process.argv.includes('--no-assets');   // workflow 里交给 gh 传
 
 if (!token) die('缺少 GH_TOKEN / GITHUB_TOKEN');
 if (!repo.includes('/')) die('缺少 GITHUB_REPOSITORY');
@@ -110,7 +111,7 @@ if (existing.ok) {
 console.log('  → ' + release.html_url);
 
 /* 2) 附件：同名先删再传（clobber） */
-if (assetsDir) {
+if (assetsDir && !noAssets) {
   const current = await call('GET', api + '/releases/' + release.id + '/assets?per_page=100');
   const byName = {};
   (Array.isArray(current) ? current : []).forEach(function (a) { byName[a.name] = a; });
