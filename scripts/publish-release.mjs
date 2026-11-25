@@ -16,11 +16,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/* [本地文件名, 上传名]
+   上传名必须是纯 ASCII：GitHub 的附件接口收到中文名会 500（v5.18.4 卡在这）。
+   以前 gh 把中文名转义成 Galgame.-.json 才勉强能传，玩家看到的名字也就成了乱码。 */
 const ASSETS = [
-  'Galgame攻略系统-酒馆助手导入.json',
-  'moon-phase.js',
-  'DokiDoki-原版-酒馆助手导入.json',
-  'moon-phase.base.js',
+  ['Galgame攻略系统-酒馆助手导入.json', 'Galgame-Assistant-Import.json'],
+  ['moon-phase.js', 'moon-phase.js'],
+  ['DokiDoki-原版-酒馆助手导入.json', 'DokiDoki-Base-Import.json'],
+  ['moon-phase.base.js', 'moon-phase.base.js'],
 ];
 
 function arg(name, fallback = '') {
@@ -112,15 +115,15 @@ if (assetsDir) {
   const byName = {};
   (Array.isArray(current) ? current : []).forEach(function (a) { byName[a.name] = a; });
 
-  for (const file of ASSETS) {
+  for (const [file, uploadName] of ASSETS) {
     const full = path.join(assetsDir, file);
     if (!fs.existsSync(full)) { console.log('  · 跳过（不存在）' + file); continue; }
-    if (byName[file]) {
-      await call('DELETE', api + '/releases/assets/' + byName[file].id);
-      console.log('  · 删掉旧附件 ' + file);
+    if (byName[uploadName]) {
+      await call('DELETE', api + '/releases/assets/' + byName[uploadName].id);
+      console.log('  · 删掉旧附件 ' + uploadName);
     }
     const uploadUrl = String(release.upload_url).replace(/\{.*$/, '') +
-      '?name=' + encodeURIComponent(file);
+      '?name=' + encodeURIComponent(uploadName);
     const res = await fetch(uploadUrl, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/octet-stream' },
@@ -131,10 +134,10 @@ if (assetsDir) {
       const detail = typeof data === 'string' ? data : JSON.stringify(data);
       console.error('✖ 上传失败 ' + file + ' status=' + res.status);
       console.error('  响应: ' + detail);
-      fail('上传附件 ' + file + ' → ' + res.status + ' ' + detail);
+      fail('上传附件 ' + uploadName + ' → ' + res.status + ' ' + detail);
     }
     const size = fs.statSync(full).size;
-    console.log('  · 已上传 ' + file + '（' + (size / 1024 / 1024).toFixed(2) + ' MB）');
+    console.log('  · 已上传 ' + uploadName + '（' + (size / 1024 / 1024).toFixed(2) + ' MB）');
   }
 }
 

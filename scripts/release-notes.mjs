@@ -31,11 +31,14 @@ const NOTES_DIR = path.join(ROOT, 'docs', 'releases');
 const UPDATE_MD = path.join(ROOT, 'update.md');
 
 /* Release 里挂的四个附件：改版 / 原版各一对（导入 JSON + 单文件脚本） */
+/* [本地文件名, 上传到 Release 后的名字, 说明]
+   上传名必须是纯 ASCII：GitHub 的附件接口收到中文名会直接 500
+   （v5.18.4 就是卡在这里；以前 gh 把名字转义成 Galgame.-.json 才勉强过）。 */
 const ASSETS = [
-  ['Galgame攻略系统-酒馆助手导入.json', '**改版全量**：脚本 + 掌机（卡带机 / 金手指 / 小地图 / 导航）+ 主题包 + 美化文档。新装下这个。'],
-  ['moon-phase.js', '改版的单文件脚本。已经装好的，只替换这一个文件就行。'],
-  ['DokiDoki-原版-酒馆助手导入.json', '原版：不含掌机、主题包、美化文档，只有攻略与状态卡那一套本体。'],
-  ['moon-phase.base.js', '原版的单文件脚本。'],
+  ['Galgame攻略系统-酒馆助手导入.json', 'Galgame-Assistant-Import.json', '**改版全量**：脚本 + 掌机（卡带机 / 金手指 / 小地图 / 导航）+ 主题包 + 美化文档。新装下这个。'],
+  ['moon-phase.js', 'moon-phase.js', '改版的单文件脚本。已经装好的，只替换这一个文件就行。'],
+  ['DokiDoki-原版-酒馆助手导入.json', 'DokiDoki-Base-Import.json', '原版：不含掌机、主题包、美化文档，只有攻略与状态卡那一套本体。'],
+  ['moon-phase.base.js', 'moon-phase.base.js', '原版的单文件脚本。'],
 ];
 
 const argv = process.argv.slice(2);
@@ -125,15 +128,15 @@ const sha = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest
 
 const rows = [];
 const sums = [];
-for (const [file, desc] of ASSETS) {
+for (const [file, name, desc] of ASSETS) {
   const p = path.join(ASSET_ROOT, file);
   if (!fs.existsSync(p)) {
-    rows.push(`| \`${file}\` | — | ${desc} |`);
+    rows.push(`| \`${name}\` | — | ${desc} |`);
     continue;
   }
   const buf = fs.statSync(p).size;
-  rows.push(`| \`${file}\` | ${mb(buf)} | ${desc} |`);
-  sums.push(`| \`${file}\` | \`${sha(p)}\` |`);
+  rows.push(`| \`${name}\` | ${mb(buf)} | ${desc} |`);
+  sums.push(`| \`${name}\` | \`${sha(p)}\` |`);
 }
 
 let footer = '';

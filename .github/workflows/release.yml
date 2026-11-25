@@ -13,6 +13,9 @@ on:
     paths:
       - 'docs/releases/**'
       - '.github/workflows/release.yml'
+      # 改发布脚本也要能重发：附件命名、正文模板都在这里
+      - 'scripts/publish-release.mjs'
+      - 'scripts/release-notes.mjs'
   workflow_dispatch:
 
 permissions:
