@@ -98,7 +98,14 @@ jobs:
               gh release upload "$tag" $assets --clobber
               echo "✅ 已更新 $tag"
             else
-              gh release create "$tag" $target_args --title "$title" --notes-file "/tmp/rel/$ver.md" $assets
+              # 这里有一次自动重试：GitHub 的 Release 接口偶尔返回 5xx /
+              # "target_commitish is invalid"（刚 push 的 commit 还没在 API 侧就绪），
+              # 重试一次基本都能过。第一次的报错照常打到日志里，别被吞掉。
+              if ! gh release create "$tag" $target_args --title "$title" --notes-file "/tmp/rel/$ver.md" $assets; then
+                echo "::warning::gh release create 第一次失败（$tag），10 秒后重试一次"
+                sleep 10
+                gh release create "$tag" $target_args --title "$title" --notes-file "/tmp/rel/$ver.md" $assets
+              fi
               echo "✅ 已发布 $tag"
             fi
 
