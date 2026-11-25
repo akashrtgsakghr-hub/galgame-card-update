@@ -24,8 +24,9 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.18.3';
-  const MOON_FORMULA_CHANGELOG = "📢【v5.18.3 终幕结算走后台；阶段锚定去掉；人终于会离场了】\n" +
+  const MOON_FORMULA_VERSION = '5.18.4';
+  const MOON_FORMULA_CHANGELOG = "📢【v5.18.4 掌机滚动不漂了；终幕结算走后台；阶段锚定去掉】\n" +
+    "- **掌机面板上下滑不再「漂」**：显示屏的点阵背景和内阴影以前是跟文字一起重绘的，滚动时慢半拍，看起来像屏在自己游动。现在屏是独立绘制区，点阵挪到背景层，面板也不再跟着地址栏伸缩。顺手去了按钮的 300ms 点击延迟。\n" +
     "- **终幕结算不用再往聊天框里塞提示词**：点「后台写终幕」，脚本自己调模型——先出结算卡（结局名 / 复盘 / 独白 / CG 提示词），再写 600~1000 字终幕正文，直接弹成报幕卡。想让它演在公屏上，还有「写进聊天」。\n" +
     "- **后日谈也走后台**：点一下就分三章写完，不往聊天里塞几千字；阅读器里可以再选择「写进当前对话」。\n" +
     "- **新增「脚本档案」**：终幕结算、副本战绩、结算旁白、后日谈都存在脚本本体里，不跟对话走——换聊天、换角色卡、换玩家设定，打开面板还能看到，也能导出 TXT。主菜单 → 脚本档案。「存进脚本」可以关，关掉就只留在当前对话。\n" +
@@ -7016,8 +7017,8 @@ function openUpdateConfigDialog(panel) {
   -webkit-font-smoothing: none !important;
   font-smooth: never !important;
   image-rendering: pixelated !important;
-  background-image: radial-gradient(rgba(18, 20, 26, 0.06) 1px, transparent 1px) !important;
-  background-size: 3px 3px !important;
+  /* 点阵背景改由 ::before 画（见 85b-ui.js 末尾「滚动稳定」）：
+     直接铺在屏上的话，滚动时背景和文字会抢同一次重绘，视觉上像屏在漂。 */
 }
 #moon-phase-panel .mp-lcd-screen-head {
   display: flex !important;
@@ -7957,8 +7958,6 @@ ruled, .mp-ruled{display:none !important;}
   color: var(--k-lcd-ink) !important;
   font: 13px/1.6 var(--k-font-pixel) !important;
   box-shadow: inset 0 0 0 2px rgba(28, 37, 29, .08), inset 0 8px 18px rgba(28, 37, 29, .13) !important;
-  background-image: radial-gradient(rgba(28, 37, 29, .05) 1px, transparent 1px) !important;
-  background-size: 3px 3px !important;
 }
 #moon-phase-panel .mp-lcd-screen :is(div, span, b, nav, section, header, small, strong) { border-color: var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-screen :is(button, select) {
@@ -8694,6 +8693,55 @@ ruled, .mp-ruled{display:none !important;}
   .mp-tour-spot,
   #moon-phase-panel .mp-menu-card,
   #moon-phase-panel .mp-btn { transition: none !important; }
+}
+
+/* ══ 滚动稳定：手机上下滑的时候，显示屏不能「漂」 ══════════════════════
+   症状：面板在滚，LCD 屏里的点阵背景 / 内阴影重绘比文字慢半拍，
+   看起来像屏自己在上下游动；有时整块面板还会跟着地址栏一起跳。
+
+   三件事一起做，少一件都还会抖：
+   ① 滚动链截断 —— 面板滚到底时不要把滚动传给页面（body 一滚，
+      移动端地址栏收缩，dvh 变化，整块面板高度跟着变，那才叫真的漂）；
+   ② 面板高度改用 svh —— svh 是「地址栏可见时」的高度，滚动过程中恒定；
+   ③ LCD 屏独立绘制 —— contain:paint + isolation 让屏变成自己的绘制区，
+      滚外层时它整块平移，不会逐行重绘；点阵挪到 ::before，不再和文字抢绘制。
+   注：不要给屏加 transform/will-change 做「层提升」——实测会让它在 iOS 上
+   脱离父层单独定位，反而更漂。 */
+#moon-phase-panel {
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
+}
+@supports (max-height: 92svh) {
+  #moon-phase-panel { max-height: 92svh !important; }
+}
+#moon-phase-panel .mp-lcd-screen {
+  contain: paint !important;
+  isolation: isolate !important;
+}
+/* 这里刻意不加 -webkit-mask-image 修圆角：它会把屏变成离屏合成层，
+   在部分安卓 WebView 上反而拖慢滚动 —— 用户报的是「漂」，不是「圆角溢出」。 */
+#moon-phase-panel .mp-lcd-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(28, 37, 29, .055) 1px, transparent 1px);
+  background-size: 3px 3px;
+  border-radius: inherit;
+}
+/* 屏里的内容统一压在点阵之上；滚动时它们是一个整体 */
+#moon-phase-panel .mp-lcd-screen > * { position: relative; z-index: 1; }
+
+/* 操控手感：去 300ms 延迟与点击高亮，滑到一半误触也不会先闪一下白块 */
+#moon-phase-panel .mp-dpad-btn,
+#moon-phase-panel .mp-round-btn,
+#moon-phase-panel .mp-select-key,
+#moon-phase-panel .mp-start-key,
+#moon-phase-panel .mp-lcd-quick-tab,
+#moon-phase-panel .mp-subpage-tab {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 `;
   }

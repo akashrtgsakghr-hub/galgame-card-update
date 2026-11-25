@@ -363,8 +363,6 @@
   color: var(--k-lcd-ink) !important;
   font: 13px/1.6 var(--k-font-pixel) !important;
   box-shadow: inset 0 0 0 2px rgba(28, 37, 29, .08), inset 0 8px 18px rgba(28, 37, 29, .13) !important;
-  background-image: radial-gradient(rgba(28, 37, 29, .05) 1px, transparent 1px) !important;
-  background-size: 3px 3px !important;
 }
 #moon-phase-panel .mp-lcd-screen :is(div, span, b, nav, section, header, small, strong) { border-color: var(--k-lcd-line) !important; }
 #moon-phase-panel .mp-lcd-screen :is(button, select) {
@@ -1100,6 +1098,55 @@
   .mp-tour-spot,
   #moon-phase-panel .mp-menu-card,
   #moon-phase-panel .mp-btn { transition: none !important; }
+}
+
+/* ══ 滚动稳定：手机上下滑的时候，显示屏不能「漂」 ══════════════════════
+   症状：面板在滚，LCD 屏里的点阵背景 / 内阴影重绘比文字慢半拍，
+   看起来像屏自己在上下游动；有时整块面板还会跟着地址栏一起跳。
+
+   三件事一起做，少一件都还会抖：
+   ① 滚动链截断 —— 面板滚到底时不要把滚动传给页面（body 一滚，
+      移动端地址栏收缩，dvh 变化，整块面板高度跟着变，那才叫真的漂）；
+   ② 面板高度改用 svh —— svh 是「地址栏可见时」的高度，滚动过程中恒定；
+   ③ LCD 屏独立绘制 —— contain:paint + isolation 让屏变成自己的绘制区，
+      滚外层时它整块平移，不会逐行重绘；点阵挪到 ::before，不再和文字抢绘制。
+   注：不要给屏加 transform/will-change 做「层提升」——实测会让它在 iOS 上
+   脱离父层单独定位，反而更漂。 */
+#moon-phase-panel {
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
+}
+@supports (max-height: 92svh) {
+  #moon-phase-panel { max-height: 92svh !important; }
+}
+#moon-phase-panel .mp-lcd-screen {
+  contain: paint !important;
+  isolation: isolate !important;
+}
+/* 这里刻意不加 -webkit-mask-image 修圆角：它会把屏变成离屏合成层，
+   在部分安卓 WebView 上反而拖慢滚动 —— 用户报的是「漂」，不是「圆角溢出」。 */
+#moon-phase-panel .mp-lcd-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(28, 37, 29, .055) 1px, transparent 1px);
+  background-size: 3px 3px;
+  border-radius: inherit;
+}
+/* 屏里的内容统一压在点阵之上；滚动时它们是一个整体 */
+#moon-phase-panel .mp-lcd-screen > * { position: relative; z-index: 1; }
+
+/* 操控手感：去 300ms 延迟与点击高亮，滑到一半误触也不会先闪一下白块 */
+#moon-phase-panel .mp-dpad-btn,
+#moon-phase-panel .mp-round-btn,
+#moon-phase-panel .mp-select-key,
+#moon-phase-panel .mp-start-key,
+#moon-phase-panel .mp-lcd-quick-tab,
+#moon-phase-panel .mp-subpage-tab {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 `;
   }

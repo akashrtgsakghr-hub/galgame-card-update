@@ -372,8 +372,8 @@
   -webkit-font-smoothing: none !important;
   font-smooth: never !important;
   image-rendering: pixelated !important;
-  background-image: radial-gradient(rgba(18, 20, 26, 0.06) 1px, transparent 1px) !important;
-  background-size: 3px 3px !important;
+  /* 点阵背景改由 ::before 画（见 85b-ui.js 末尾「滚动稳定」）：
+     直接铺在屏上的话，滚动时背景和文字会抢同一次重绘，视觉上像屏在漂。 */
 }
 #moon-phase-panel .mp-lcd-screen-head {
   display: flex !important;
