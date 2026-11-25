@@ -23,7 +23,7 @@ const ASSETS = [
   ['Galgame攻略系统-酒馆助手导入.json', 'Galgame-Assistant-Import.json'],
   ['moon-phase.js', 'moon-phase.js'],
   ['DokiDoki-原版-酒馆助手导入.json', 'DokiDoki-Base-Import.json'],
-  ['moon-phase.base.js', 'moon-phase.base.js'],
+  ['moon-phase.base.js', 'moon-phase-base.js'],
 ];
 
 function arg(name, fallback = '') {

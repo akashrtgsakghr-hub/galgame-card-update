@@ -120,7 +120,7 @@ jobs:
             # 附件名必须是纯 ASCII（中文名 REST 上传必 500，gh 会转义成 .-. 这种乱码名）
             mkdir -p /tmp/rel/up
             cp "$work/moon-phase.js" "/tmp/rel/up/moon-phase.js"
-            cp "$work/moon-phase.base.js" "/tmp/rel/up/moon-phase.base.js"
+            cp "$work/moon-phase.base.js" "/tmp/rel/up/moon-phase-base.js"
             cp "$work/Galgame攻略系统-酒馆助手导入.json" "/tmp/rel/up/Galgame-Assistant-Import.json"
             cp "$work/DokiDoki-原版-酒馆助手导入.json" "/tmp/rel/up/DokiDoki-Base-Import.json"
 
@@ -139,17 +139,21 @@ jobs:
             if [ -z "$missing" ]; then
               echo "✅ 四个附件齐全"
             else
-              for attempt in 1 2 3 4; do
-                if gh release upload "$tag" $missing --clobber; then
+              # GitHub 的资产存储会成片地返回 502（Error updating policy），
+              # 隔十几秒重试往往还在同一个故障窗口里 —— 退避拉长到分钟级。
+              for attempt in 1 2 3 4 5 6; do
+                if gh release upload "$tag" $missing; then
                   echo "✅ 附件已上传"
                   break
                 fi
-                if [ "$attempt" = "4" ]; then
-                  echo "::error::$tag 附件上传 4 次都失败（正文已更新，重跑 workflow 会补齐）"
+                if [ "$attempt" = "6" ]; then
+                  echo "::error::$tag 附件上传 6 次都失败（正文已更新，重跑 workflow 会补齐）"
                   exit 1
                 fi
-                echo "::warning::$tag 附件上传失败，$((attempt * 20)) 秒后重试"
-                sleep $((attempt * 20))
+                wait=$((attempt * 20))
+                [ "$wait" -gt 120 ] && wait=120
+                echo "::warning::$tag 附件上传失败，$wait 秒后重试（第 $attempt 次）"
+                sleep "$wait"
               done
             fi
 

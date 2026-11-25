@@ -38,7 +38,7 @@ const ASSETS = [
   ['Galgame攻略系统-酒馆助手导入.json', 'Galgame-Assistant-Import.json', '**改版全量**：脚本 + 掌机（卡带机 / 金手指 / 小地图 / 导航）+ 主题包 + 美化文档。新装下这个。'],
   ['moon-phase.js', 'moon-phase.js', '改版的单文件脚本。已经装好的，只替换这一个文件就行。'],
   ['DokiDoki-原版-酒馆助手导入.json', 'DokiDoki-Base-Import.json', '原版：不含掌机、主题包、美化文档，只有攻略与状态卡那一套本体。'],
-  ['moon-phase.base.js', 'moon-phase.base.js', '原版的单文件脚本。'],
+  ['moon-phase.base.js', 'moon-phase-base.js', '原版的单文件脚本。'],
 ];
 
 const argv = process.argv.slice(2);
