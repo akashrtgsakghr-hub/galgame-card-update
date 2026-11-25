@@ -230,6 +230,13 @@
           '「 ' + escapeFeatureHtml(record.monologue) + ' 」<span style="color:' + meta.accent + ';margin-left:6px;font-style:normal;">▼</span>' +
         '</div>' +
       '</div>' +
+      /* 终幕正文：后台写的那一段。默认折起来——报幕卡已经够长，
+         想读的人自己点开，不想读的人不必滚三屏。 */
+      (record.finale ?
+        '<details style="margin:0 16px 12px;padding:9px 13px;border:1px solid rgba(244,114,208,.35);background:rgba(10,6,14,.72);">' +
+          '<summary style="cursor:pointer;font-size:11px;color:#f9a8d4;font-weight:600;letter-spacing:.6px;">📜 终幕正文 · ' + String(record.finale).length + ' 字（点开阅读）</summary>' +
+          '<div style="margin-top:8px;font-size:12.5px;line-height:1.95;color:#f1e6f5;white-space:pre-wrap;max-height:48vh;overflow:auto;letter-spacing:.3px;">' + escapeFeatureHtml(record.finale) + '</div>' +
+        '</details>' : '') +
       (canEpilogue ?
       '<!-- 终幕后日谈互动询问栏（内置正则交互：是否查看后日谈，点击自动填入聊天框并发送） -->' +
       '<div style="margin:0 16px 12px;padding:11px 14px;background:linear-gradient(90deg,rgba(14,32,52,0.94),rgba(34,13,40,0.94));border:1px dashed #7dd3fc;border-left:3px solid #7dd3fc;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:inset 0 0 14px rgba(125,211,252,0.14);">' +

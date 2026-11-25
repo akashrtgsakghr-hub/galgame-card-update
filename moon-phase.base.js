@@ -24,14 +24,15 @@
   const AI_MIGRATE_MODEL_PREF_KEY = 'moon_phase_ai_migrate_model_pref';
   const MIGRATED_FLAG = '_migrated_v3';
   const MOON_PLACEHOLDER = 's';
-  const MOON_FORMULA_VERSION = '5.18.2';
-  const MOON_FORMULA_CHANGELOG = "📢【v5.18.2 结算和后日谈走后台，战绩存进脚本】\n" +
-    "- **副本结算不再等你多聊一轮**：点「提交判断，结算」，分数当场算完，结算旁白由脚本在后台写（180~260 字，末尾一句「主神：」评语）。不占公屏、不打断剧情，晚几秒自己长出来，在「最近几局」里点「看结算」回看。\n" +
-    "- **后日谈也改成后台**：点「后台写后日谈」就分三章写完，不往聊天里塞几千字。想让它演在对话里，阅读器里有「写进当前对话」。\n" +
-    "- **新增「脚本档案」**：副本战绩、结算旁白、后日谈都存在脚本本体里，不跟对话走 —— 换聊天、换角色卡、换玩家设定，打开面板还能看到，也能导出 TXT。面板主菜单 → 脚本档案，或者副本页底部直接看。\n" +
-    "- **可以选存哪**：「存进脚本」开着就跨对话可见（默认开）；关掉就只留在当前对话。\n" +
+  const MOON_FORMULA_VERSION = '5.18.3';
+  const MOON_FORMULA_CHANGELOG = "📢【v5.18.3 终幕结算走后台；阶段锚定去掉；人终于会离场了】\n" +
+    "- **终幕结算不用再往聊天框里塞提示词**：点「后台写终幕」，脚本自己调模型——先出结算卡（结局名 / 复盘 / 独白 / CG 提示词），再写 600~1000 字终幕正文，直接弹成报幕卡。想让它演在公屏上，还有「写进聊天」。\n" +
+    "- **后日谈也走后台**：点一下就分三章写完，不往聊天里塞几千字；阅读器里可以再选择「写进当前对话」。\n" +
+    "- **新增「脚本档案」**：终幕结算、副本战绩、结算旁白、后日谈都存在脚本本体里，不跟对话走——换聊天、换角色卡、换玩家设定，打开面板还能看到，也能导出 TXT。主菜单 → 脚本档案。「存进脚本」可以关，关掉就只留在当前对话。\n" +
+    "- **阶段锚定去掉了**：以前每个关系档都会下发一条「不得有肢体接触」「不得谈长期承诺」，把「相处三年的兄妹」压成刚认识。现在只给数值和阶段名，怎么演以你的设定和世界书为准。\n" +
+    "- **「在场」回归成事实**：以前判了 false 的角色，下一轮提醒里就没他了，状态卡停在离场那一刻；主要角色也容易被硬拉回来。现在离场角色仍会被提醒刷新状态，而且明确允许连续多轮不在场——他要回来得有由头。\n" +
+    "- **副本结算也走后台**：分数当场算完，结算旁白后台写（180~260 字 + 一句「主神：」评语），不占公屏，在「最近几局」里点「看结算」回看。\n" +
     "- **建档先读你的人设**：以前只在开场白里找证据，你写的「相处三年」「我们是兄妹」被整段忽略。现在两处人设都读，先做关系摘要再定档；亲属 / 一起长大 / 十年以上 65~85，三年以上 50~70，真陌生人才 0~10 并走初见骰。\n" +
-    "- **关系底子带进每一轮**：认定「一起长大」之后，注入里一直有一行底子，演出上限至少 R3 —— 不会再把老熟人演成刚认识、喂个东西都被嫌弃。\n" +
     "- **重大转折由 AI 给数值**：`[转折|角色名|±数值|理由]`，±30 以内、必须带理由、不占每周额度。日常仍走脚本档位。";
 
   // 默认更新源走国内反代：不挂梯子也能连上，缓存只有秒级——推完立刻能查到（实测 93ms）。
@@ -1849,59 +1850,12 @@ async function _collectAllWorldbooks(includeDisabled) {
     if (lines.length > 2) callSetPrompt(PROMPT_KEY + '_gate', lines.join('\n'), 0, 1, false);
   }
   /* ───────────────────────────────────────────────────────── */
-  /* 每一档关系「能演到什么程度、不能越到哪」。
-     
-     为什么需要这张表 —— 脚本把 E 锁在 71，但 AI 看到的是「关系很好」的
-     一整套剧情惯性：上一轮刚拥过、这一轮自然就往前推一步。数值没动，
-     演出却已经走到 79 了。玩家的体感是「明明封顶了，它又偷偷加了」。
-     
-     根因不是 AI 不听话，是我们只给了它「E=71 / R3」这两个事实，
-     没给「R3 的上限长什么样」。档位名（愿意尝试）能被无限解读，
-     所以必须把「下一档才允许的东西」逐条列出来禁掉。
-     
-     forbid 只写下一档才有、这一档还没有的表现，不写语气和风格 ——
-     那是世界书的事，脚本越界就会和玩家自己的设定打架。 */
-  const R_STAGE_BOUNDARY = {
-    '-5': '不得出现任何缓和或同框的场景。',
-    '-4': '不得接受对方的帮助，不得释放善意。',
-    '-3': '不得主动接近，不得因为对方示好而软化。',
-    '-2': '不得示弱，不得收下对方给的东西。',
-    '-1': '不得主动搭话，不得表达关心，可保持沉默或简短回应。',
-    '0': '保持礼貌距离：可以有事务性的对话，但不得有私人话题、不得主动约见、不得关心对方的私事。',
-    '1': '可以闲聊、可以答应邀约；不得有暧昧的试探，不得有肢体接触，不得暗示「有别的意思」。',
-    '2': '可以有暧昧的迟疑和试探性的靠近；不得挑明心意，不得确认关系，不得用「喜欢」这类定性的词。',
-    '3': '可以主动投入、找理由相处、容许小幅的亲近；不得谈长期承诺，不得规划共同的未来，不得出现「我认定你了」这类定调。',
-    '4': '可以有长期承诺和共同规划；不得求婚，不得用「永远」这类终局性的措辞。',
-    '5': '不设上限。'
-  };
-  function getStageBoundary(R) {
-    const key = String(Math.max(-5, Math.min(5, Math.round(Number(R) || 0))));
-    return R_STAGE_BOUNDARY[key] || '';
-  }
-
-  /* 关系底子能给到的「最低演出档」。
-     为什么需要它：建档认出来「从小一起长大的兄妹」，但数值可能因为
-     权重设得低（或者玩家手动压过）而停在 18，R 就落到 1——
-     于是注入告诉 AI「不得有肢体接触、不得暗示有别的意思」，
-     三年相处的日常亲昵被当成越界。这不是数值问题，是「底子」没被用上。
-     这里只抬不压，且只影响演出边界，不改任何数值。 */
-  function stageFloorFromPrior(prior) {
-    if (!prior) return 0;
-    const rel = String(prior.关系 || '');
-    const past = String(prior.共处时长 || '');
-    if (/亲属|兄|妹|姐|弟|夫|妻|恋人|青梅|发小/.test(rel)) return 3;
-    if (/一起长大|从小|自幼/.test(past)) return 3;
-    const m = past.match(/([一二三四五六七八九十\d]+)\s*(?:多)?\s*年/);
-    if (m) {
-      const cn = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
-      const n = cn[m[1]] !== undefined ? cn[m[1]] : Number(m[1]) || 0;
-      if (n >= 10) return 3;
-      if (n >= 3) return 2;
-      if (n >= 1) return 1;
-    }
-    if (/旧识|旧情|同僚|同学|同事|邻居/.test(rel)) return 1;
-    return 0;
-  }
+  /* 关于「阶段锚定」（已下线，v5.18.3）：
+     以前这里有一张 R_STAGE_BOUNDARY 表，按 R 档下发「不得有肢体接触」
+     「不得谈长期承诺」这类禁令。做法本身能防住「数值封顶了、演出还在往前冲」，
+     但它假设关系是从零长起来的——遇到「设定里就是相处三年的兄妹」，
+     这套禁令会把老熟人判成越界，而且和玩家自己的世界书正文打架。
+     现在只给数值和阶段名，演到什么程度交给世界书与玩家设定。 */
 
   function injectEventPrompt() {
     try {
@@ -1964,7 +1918,7 @@ async function _collectAllWorldbooks(includeDisabled) {
           }
         }
         const importance = String(ch.重要度 || '主要').trim();
-        if (importance === '主要') lines.push('  ★ 角色定位：主要互动对象 —— 本轮叙事可优先关注Ta，但这不代表Ta已经喜欢玩家或必须主动亲近；态度仍由当前关系事实、人设与剧情决定。');
+        if (importance === '主要') lines.push('  ★ 角色定位：主要互动对象 —— 本轮叙事可优先关注Ta，但这不代表Ta已经喜欢玩家或必须主动亲近；态度仍由当前关系事实、人设与剧情决定。Ta 不在场时，不要为了「优先关注」把Ta写进场。');
         else if (importance === '次要') lines.push('  · 角色定位：次要角色 —— 可以互动，但不要抢主线攻略对象的戏份。');
         else lines.push('  · 角色定位：NPC —— 只做功能性出场，不展开情感线。');
         const _es = (ch._quota || {})._eventState || {};
@@ -1987,13 +1941,6 @@ async function _collectAllWorldbooks(includeDisabled) {
            它才有东西可以对照。和上面的阶段门提示不重复——那条讲数值，
            这条讲演出，二者一起才封得住。 */
         {
-          /* 老存档 / 刚建好的档案可能还没有 阶段值 这个字段，缺了就按 E 现推一个 ——
-             直接用 0 的话，一个好感 80 的角色会收到「保持礼貌距离」的禁令，
-             表现和数值直接对不上。 */
-          const _Rraw = (ch.阶段值 === undefined || ch.阶段值 === null || ch.阶段值 === '')
-            ? getRStageFromE(Number(ch.好感度) || 0).r
-            : Number(ch.阶段值);
-          const _R = isFinite(_Rraw) ? _Rraw : 0;
           /* 关系底子：建档时从人设/世界书里认定的既有关系。
              只抬不压 —— 写得出来「十几年兄妹」，演出就不该被数值压成刚认识。 */
           const _prior = ch._关系先验;
@@ -2006,9 +1953,6 @@ async function _collectAllWorldbooks(includeDisabled) {
                 + '不要因为当前数值不高，就把老熟人演成刚认识。');
             }
           }
-          const _effR = Math.max(_R, stageFloorFromPrior(_prior));
-          const _boundary = getStageBoundary(_effR);
-          if (_boundary) lines.push('  🚧 【' + name + '】表现上限（R=' + _effR + '）：' + _boundary + '这一轮气氛再好也不要越过它。');
           const _cap = Number(MOON_FORMULA_PARAMS.weeklyCap[getCurrentMode()] || MOON_FORMULA_PARAMS.weeklyCap.normal);
           const _used = Math.min(_cap, Math.max(0, Number(q.好感度周上限已用) || 0));
           const _remain = roundHalf(_cap - _used);
@@ -2071,7 +2015,12 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('接着给本轮出场的每个角色各写三行（角色名照抄档案里的正名，一个字都别改）：');
       lines.push('角色.<角色名>.情绪=<单个 emoji，写Ta这一轮结束时的情绪>');
       lines.push('角色.<角色名>.心声=<15~40字第一人称内心话，写Ta这一轮真正没说出口的那一句>');
-      lines.push('角色.<角色名>.在场=true 或 false');
+      lines.push('角色.<角色名>.在场=true / false　← 这一行是事实，不是名单：');
+      lines.push('    true = 人就在这个场景里（看得见、能对话）；false = 不在（走了、被带走、在别处、还没到）。');
+      lines.push('    只是「这一轮没说话」不算不在场，仍然写 true。');
+      lines.push('    写了 false 的角色，本轮正文里不能有他的台词、动作、心理；也不要下一轮又让他凭空出现——');
+      lines.push('    他要回来得有具体由头（被叫来、自己找来、事件推进），并在正文里交代一句。');
+      lines.push('    允许一个人连续多轮不在场（独处、分头行动、异地、时间跳跃），不要为了让对话有来有回就把他拉回来。');
       lines.push('只有当该角色 E≥58 或 R≥3，且档案中尚无对玩家专属称呼时，才额外输出一行：角色.<角色名>.对玩家称呼=<根据角色性格创造的独特称呼>。已有称呼时不要再输出或修改。');
       lines.push('→ 心声与情绪是「每轮刷新的即时状态」，不是档案字段：每一轮都要按本轮剧情重写，哪怕和上一轮很像也要换一句新的。直接复制上一轮的心声，等同于这一轮没写。');
       /* 这里再写一遍 [心声|…] 的短格式：后面那条 depth 0 的独立提醒是最显眼的一条，
@@ -2107,6 +2056,9 @@ async function _collectAllWorldbooks(includeDisabled) {
     try {
       const data = loadLocalState();
       const chars = (data && data.stat_data && data.stat_data.角色) || {};
+      /* 只在场的点名写心声 —— 这一段在 prompt 最下面，点名越多越挤正文。
+         但离场这件事仍要留一句口子：不加的话，AI 判了 false 之后
+         下一轮提醒里就没这个人了，状态卡会一直停在「离场」。 */
       const names = Object.keys(chars).filter(function(n) {
         const ch = chars[n];
         return ch && !isCharSkeleton(ch) && ch.在场 !== false;
@@ -2116,7 +2068,8 @@ async function _collectAllWorldbooks(includeDisabled) {
       lines.push('【最后一步·正文之后】给 ' + names.join('、') + ' 各写一行心声标签，缺一行算本轮没写完：');
       lines.push('[心声|角色名|一句此刻的内心话（20 字以内）]');
       lines.push('例：[心声|' + names[0] + '|他居然记得礼堂的事。]');
-      lines.push('这行玩家看不到；不要写解释、别夹在正文中间。');
+      lines.push('有人离场就补 角色.<名字>.在场=false，不用写心声。');
+      lines.push('玩家看不到，别夹在正文中间。');
       /* 分维度标签也放在这一条里提醒一次。
          上面那一大段里其实写清了「什么时候写肉体、什么时候写嫉妒」，
          但和历史遗留的「只输出一个 Sylveina 标签」放在同一屏，模型很容易记住后者、忘掉前者。
@@ -4340,6 +4293,13 @@ function renderSettleTraceHtml(ch) {
           '「 ' + escapeFeatureHtml(record.monologue) + ' 」<span style="color:' + meta.accent + ';margin-left:6px;font-style:normal;">▼</span>' +
         '</div>' +
       '</div>' +
+      /* 终幕正文：后台写的那一段。默认折起来——报幕卡已经够长，
+         想读的人自己点开，不想读的人不必滚三屏。 */
+      (record.finale ?
+        '<details style="margin:0 16px 12px;padding:9px 13px;border:1px solid rgba(244,114,208,.35);background:rgba(10,6,14,.72);">' +
+          '<summary style="cursor:pointer;font-size:11px;color:#f9a8d4;font-weight:600;letter-spacing:.6px;">📜 终幕正文 · ' + String(record.finale).length + ' 字（点开阅读）</summary>' +
+          '<div style="margin-top:8px;font-size:12.5px;line-height:1.95;color:#f1e6f5;white-space:pre-wrap;max-height:48vh;overflow:auto;letter-spacing:.3px;">' + escapeFeatureHtml(record.finale) + '</div>' +
+        '</details>' : '') +
       (canEpilogue ?
       '<!-- 终幕后日谈互动询问栏（内置正则交互：是否查看后日谈，点击自动填入聊天框并发送） -->' +
       '<div style="margin:0 16px 12px;padding:11px 14px;background:linear-gradient(90deg,rgba(14,32,52,0.94),rgba(34,13,40,0.94));border:1px dashed #7dd3fc;border-left:3px solid #7dd3fc;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:inset 0 0 14px rgba(125,211,252,0.14);">' +
@@ -19239,30 +19199,31 @@ var worldData = (rawVars && rawVars['世界']) || {};
         (isManual ? '即将为角色《<b>' + escapeFeatureHtml(charName) + '</b>》发起本周目的终局结算。' : '《<b>' + escapeFeatureHtml(charName) + '</b>》达成了终局条件：<b style="color:' + routeMeta.accent + ';">' + escapeFeatureHtml(routeMeta.badge) + '</b>（' + escapeFeatureHtml(eReason) + '）。') +
       '</div>' +
       '<div style="margin-top:10px;padding:9px 11px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-accent);text-align:left;font-size:11px;line-height:1.7;color:var(--k-accent-2, #f9a8d4);">' +
-        '<b>公屏结局报幕流程（内置正则美化）：</b><br>' +
-        '1. 点击下方<b>「注入聊天框并自动发送」</b>，系统会将周目结算提示词自动填入酒馆聊天框并发送。<br>' +
-        '2. AI 撰写终幕剧情并输出 <code>[GalgameEnding|...]</code> 标签后，<b>脚本内置正则会自动将其替换为日系经典 Galgame 结局报幕（Staff Roll / Fin 演出卡）</b>！<br>' +
-        '3. 报幕卡内自带<b>「查看后日谈」</b>交互按钮（点击自动填入输入框并发送，让 AI 在当前对话内以角色视角创作 <b>5000～8000字</b> 结局后完整番外），以及<b>显影横构图结局 CG、导出结算卡</b>。' +
+        '<b>后台结算（推荐）：</b>不用发消息，也不用你在聊天框里按发送。<br>' +
+        '1. 点下面<b>「后台写终幕」</b>：脚本自己调模型，先出结算卡（结局名 / 复盘 / 独白 / CG 提示词），再写一段 <b>600～1000 字</b>的终幕正文。<br>' +
+        '2. 结果直接弹成报幕卡，同时进「脚本档案」——换聊天、换角色卡、换玩家设定，打开还能翻到这一场是怎么结束的。<br>' +
+        '3. 报幕卡里可以<b>显影结局 CG、导出结算卡、后台写后日谈</b>。<br>' +
+        '<span style="opacity:.8;">想让 AI 把终幕演在公屏上，用下面的「写进聊天」。</span>' +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-top:10px;">' +
-        '<button type="button" id="moon-ending-silent-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">不发消息·直接弹窗生成报幕</button>' +
+        '<button type="button" id="moon-ending-chat-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">写进聊天（公屏演出）</button>' +
       '</div>' +
     '</div>';
 
     showModalDialogCancelable('终局报幕确认', html,
       function() {
-        injectAndSendEndingPromptToChatbox(charName, ch, eType, eReason);
+        runEndingSettlement(charName, ch, eType);
       },
       null,
       {
-        confirmText: '注入聊天框并自动发送',
+        confirmText: '后台写终幕',
         cancelText: '继续游玩',
         onOpen: function(mask) {
-          const silentBtn = mask.querySelector('#moon-ending-silent-btn');
-          if (silentBtn) {
-            silentBtn.addEventListener('click', function() {
+          const chatBtn = mask.querySelector('#moon-ending-chat-btn');
+          if (chatBtn) {
+            chatBtn.addEventListener('click', function() {
               closeFeatureModal(mask);
-              setTimeout(function() { runEndingSettlement(charName, ch, eType); }, 160);
+              setTimeout(function() { injectAndSendEndingPromptToChatbox(charName, ch, eType, eReason); }, 160);
             });
           }
         }
@@ -19305,10 +19266,20 @@ var worldData = (rawVars && rawVars['世界']) || {};
   async function runEndingSettlement(charName, ch, endingType) {
     showLoadingDialog('正在整理本周目历程…');
     const history = collectChatHistoryContext(6000);
+    const chatTail = String(history && history.chat || '').slice(-6000);
     const systemPrompt = '你是日系视觉小说的剧本监督。请根据提供的当前角色和聊天脉络，写一张简洁、尊重玩家设定的周目结算卡。只输出 JSON：title（结局名，最多40字）、summary（复盘，最多160字）、monologue（角色第一人称独白，最多100字）、cgPrompt（根据当前画面生成的横构图图片提示词，默认横构图：包含 horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel CG，最多800字）、keyMoment（核心转折，最多120字）。不要替玩家补写行动或台词。';
-    const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局类型：' + String(endingType).slice(0, 40) + '\n四维：好感 ' + (Number(ch.好感度) || 0) + '，肉体 ' + (Number(ch.肉体值) || 0) + '，阶段 ' + (Number(ch.阶段值) || 0) + '，嫉妒 ' + (Number(ch.嫉妒值) || 0) + '\n游戏时间：' + String(readVar('世界.时间', '未记录')) + '\n\n聊天脉络：\n' + String(history && history.chat || '').slice(-6000);
+    const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局类型：' + String(endingType).slice(0, 40) + '\n四维：好感 ' + (Number(ch.好感度) || 0) + '，肉体 ' + (Number(ch.肉体值) || 0) + '，阶段 ' + (Number(ch.阶段值) || 0) + '，嫉妒 ' + (Number(ch.嫉妒值) || 0) + '\n游戏时间：' + String(readVar('世界.时间', '未记录')) + '\n\n聊天脉络：\n' + chatTail;
+    /* 后台静默调用：优先玩家自己填的 API，其次酒馆静默接口。
+       玩家点「结算」就是要把这个对话收尾，不该再往聊天框里塞一段提示词、
+       让他自己去按发送、然后盯着主模型演一遍。 */
+    const quiet = (typeof callQuietModel === 'function');
     let result = null;
-    try { result = extractJson(await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', systemPrompt, userPrompt)); } catch (e) {}
+    try {
+      const raw = quiet
+        ? await callQuietModel(systemPrompt, userPrompt)
+        : await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', systemPrompt, userPrompt);
+      result = extractJson(raw);
+    } catch (e) {}
     result = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
     const title = String(result.title || charName + '之篇 · 终末之约').slice(0, 80);
     const summary = String(result.summary || '漫长的相遇与抉择，在此刻成为这一周目的最终注脚。').slice(0, 500);
@@ -19316,12 +19287,52 @@ var worldData = (rawVars && rawVars['世界']) || {};
     let prompt = String(result.cgPrompt || ('horizontal composition, 16:9 aspect ratio, widescreen, anime visual novel ending, ' + charName + ', emotional cinematic horizontal scene')).slice(0, 2500);
     if (!/horizontal composition|16:9/i.test(prompt)) prompt = 'horizontal composition, 16:9 aspect ratio, widescreen, ' + prompt;
     const keyMoment = String(result.keyMoment || '命运交叉点上的最终抉择').slice(0, 300);
+
+    /* 终幕正文：单独一次调用写纯文本，不和 JSON 挤在一起。
+       JSON 里塞一千字正文，模型会为了转义把句子写短、把换行吃掉。 */
+    updateLoadingDialogText('正在写终幕…');
+    let finale = '';
+    try {
+      const finSys = '你是日系视觉小说的演出作者。写这个周目结束的那一刻：从最后一幕收束到落幕，600～1000 字。'
+        + '第二人称或第三人称，克制、有画面、留白，允许不解释。'
+        + '不要标题、不要小标题、不要总结陈词、不要替玩家说话或做决定、不要新增设定。';
+      const finUser = '角色：' + String(charName).slice(0, 100)
+        + '\n结局：' + title + '（' + String(endingType || 'TE') + '）'
+        + '\n核心转折：' + keyMoment
+        + '\n终幕复盘：' + summary
+        + '\n角色独白：' + monologue
+        + '\n游戏时间：' + String(readVar('世界.时间', '未记录'))
+        + '\n\n最近发生的事（按时间顺序，最后一段是此刻）：\n' + chatTail.slice(-3000);
+      finale = quiet
+        ? await callQuietModel(finSys, finUser)
+        : await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', finSys, finUser);
+      if (typeof finale !== 'string') finale = String((finale && (finale.content || finale.text)) || '');
+      finale = String(finale || '').trim().slice(0, 6000);
+    } catch (e) { finale = ''; }
+
     const id = newFeatureId('ending');
-    const record = { id: id, title: title, endingType: String(endingType || 'TE'), charName: charName, totalTime: String(readVar('世界.时间', '未记录')), E: Number(ch.好感度) || 0, P: Number(ch.肉体值) || 0, R: Number(ch.阶段值) || 0, I: Number(ch.嫉妒值) || 0, summary: summary, monologue: monologue, keyMoment: keyMoment, cgPrompt: prompt, createdAt: Date.now() };
+    const record = { id: id, title: title, endingType: String(endingType || 'TE'), charName: charName, totalTime: String(readVar('世界.时间', '未记录')), E: Number(ch.好感度) || 0, P: Number(ch.肉体值) || 0, R: Number(ch.阶段值) || 0, I: Number(ch.嫉妒值) || 0, summary: summary, monologue: monologue, keyMoment: keyMoment, cgPrompt: prompt, finale: finale, createdAt: Date.now() };
     const archive = getEndingArchive(); archive.records.unshift(record); saveEndingArchive(archive);
     const item = { id: id, char: charName, title: title, desc: summary, prompt: prompt, uc: getImageGenConfig().imageNegativePrompt, imageKey: '', imageUrl: '', createdAt: record.createdAt, isEnding: true, endingType: record.endingType };
     const gallery = getGalleryList(); gallery.unshift(item); saveGalleryList(gallery);
+
+    /* 同时进「脚本档案」：换聊天 / 换卡 / 换玩家设定还能翻到这一场是怎么结束的。
+       周目结算本身是 chat 变量，跟着对话走；这里存的是给玩家回看的那一份。 */
+    try {
+      if (typeof archiveAdd === 'function') {
+        archiveAdd({
+          kind: 'ending', title: '《' + title + '》' + String(endingType || 'TE') + ' · 终幕',
+          charName: charName, result: String(endingType || 'TE'),
+          text: (finale ? finale + '\n\n' : '') + '── 终幕复盘 ──\n' + summary + '\n\n── 角色独白 ──\n「' + monologue + '」',
+          meta: { keyMoment: keyMoment, endingId: id, totalTime: record.totalTime, E: record.E, P: record.P, R: record.R, I: record.I }
+        });
+      }
+    } catch (e) {}
+
     closeLoadingDialog();
+    if (!result.title && !finale) {
+      try { toast('后台没拿到模型输出（报幕用了默认文案）。到设置里配一个独立 API，下次就能写出来。', 'warning'); } catch (e) {}
+    }
     openGalgameEndingClearDialog(record, item);
   }
   function openGalgameEndingClearDialog(record, galleryItem) {
@@ -25634,13 +25645,19 @@ function archiveSummaryLine(x) {
   if (x.kind === 'epilogue') {
     return '后日谈' + (x.charName ? ' · ' + x.charName + ' 视角' : '') + (x.text ? ' · ' + x.text.length + ' 字' : '');
   }
+  if (x.kind === 'ending') {
+    let s = '终幕' + (x.result ? ' · ' + x.result : '');
+    if (x.meta && x.meta.totalTime) s += ' · ' + x.meta.totalTime;
+    if (x.text) s += ' · ' + x.text.length + ' 字';
+    return s;
+  }
   return x.result || '';
 }
 
 function archiveRenderHtml(kind) {
   const on = archiveToScript();
   const all = archiveRead().records.filter(function (x) { return !kind || x.kind === kind; });
-  const titleMap = { dungeon: '副本档案', epilogue: '后日谈档案' };
+  const titleMap = { dungeon: '副本档案', epilogue: '后日谈档案', ending: '终幕结算' };
   let html = '<div class="mp-arc">' +
     '<div class="mp-arc-head"><b>🗄 ' + (titleMap[kind] || '脚本档案') + ' · 跨对话</b>' +
     '<label class="mp-arc-sw"><input type="checkbox" data-arc-mode="1"' + (on ? ' checked' : '') + '><span>存进脚本</span></label></div>' +
@@ -25682,7 +25699,7 @@ function archiveExportText(x) {
     '> ' + archiveTimeText(x.at) + (x.from ? ' · ' + x.from : '') + '\n\n';
   const blob = new Blob([head + String(x.text || '')], { type: 'text/plain;charset=utf-8' });
   const url = (mainWin.URL || URL).createObjectURL(blob);
-  downloadFileViaBrowser(url, (x.kind === 'epilogue' ? '后日谈_' : '副本结算_') +
+  downloadFileViaBrowser(url, (x.kind === 'epilogue' ? '后日谈_' : (x.kind === 'ending' ? '终幕_' : '副本结算_')) +
     String(x.title || '档案').replace(/[\\/:*?"<>|]/g, '_') + '.txt');
   setTimeout(function () { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
 }
@@ -25727,7 +25744,7 @@ function archiveBind(root) {
       ev.preventDefault();
       const kind = clr.getAttribute('data-arc-clear') || '';
       showModalDialogCancelable('清空档案',
-        '这会删掉' + (kind === 'dungeon' ? '全部副本战绩' : (kind === 'epilogue' ? '全部后日谈' : '全部档案')) +
+        '这会删掉' + (kind === 'dungeon' ? '全部副本战绩' : (kind === 'epilogue' ? '全部后日谈' : (kind === 'ending' ? '全部终幕结算' : '全部档案'))) +
         '，删了就找不回来。<br><br>想留个底就先点「看 → 导出 TXT」。',
         function () {
           archiveClear(kind || null);

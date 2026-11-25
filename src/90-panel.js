@@ -1204,30 +1204,31 @@
         (isManual ? '即将为角色《<b>' + escapeFeatureHtml(charName) + '</b>》发起本周目的终局结算。' : '《<b>' + escapeFeatureHtml(charName) + '</b>》达成了终局条件：<b style="color:' + routeMeta.accent + ';">' + escapeFeatureHtml(routeMeta.badge) + '</b>（' + escapeFeatureHtml(eReason) + '）。') +
       '</div>' +
       '<div style="margin-top:10px;padding:9px 11px;background:var(--k-sur-0, #100a13);border:1px solid var(--k-accent);text-align:left;font-size:11px;line-height:1.7;color:var(--k-accent-2, #f9a8d4);">' +
-        '<b>公屏结局报幕流程（内置正则美化）：</b><br>' +
-        '1. 点击下方<b>「注入聊天框并自动发送」</b>，系统会将周目结算提示词自动填入酒馆聊天框并发送。<br>' +
-        '2. AI 撰写终幕剧情并输出 <code>[GalgameEnding|...]</code> 标签后，<b>脚本内置正则会自动将其替换为日系经典 Galgame 结局报幕（Staff Roll / Fin 演出卡）</b>！<br>' +
-        '3. 报幕卡内自带<b>「查看后日谈」</b>交互按钮（点击自动填入输入框并发送，让 AI 在当前对话内以角色视角创作 <b>5000～8000字</b> 结局后完整番外），以及<b>显影横构图结局 CG、导出结算卡</b>。' +
+        '<b>后台结算（推荐）：</b>不用发消息，也不用你在聊天框里按发送。<br>' +
+        '1. 点下面<b>「后台写终幕」</b>：脚本自己调模型，先出结算卡（结局名 / 复盘 / 独白 / CG 提示词），再写一段 <b>600～1000 字</b>的终幕正文。<br>' +
+        '2. 结果直接弹成报幕卡，同时进「脚本档案」——换聊天、换角色卡、换玩家设定，打开还能翻到这一场是怎么结束的。<br>' +
+        '3. 报幕卡里可以<b>显影结局 CG、导出结算卡、后台写后日谈</b>。<br>' +
+        '<span style="opacity:.8;">想让 AI 把终幕演在公屏上，用下面的「写进聊天」。</span>' +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-top:10px;">' +
-        '<button type="button" id="moon-ending-silent-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">不发消息·直接弹窗生成报幕</button>' +
+        '<button type="button" id="moon-ending-chat-btn" style="flex:1;padding:7px;font-size:11px;cursor:pointer;">写进聊天（公屏演出）</button>' +
       '</div>' +
     '</div>';
 
     showModalDialogCancelable('终局报幕确认', html,
       function() {
-        injectAndSendEndingPromptToChatbox(charName, ch, eType, eReason);
+        runEndingSettlement(charName, ch, eType);
       },
       null,
       {
-        confirmText: '注入聊天框并自动发送',
+        confirmText: '后台写终幕',
         cancelText: '继续游玩',
         onOpen: function(mask) {
-          const silentBtn = mask.querySelector('#moon-ending-silent-btn');
-          if (silentBtn) {
-            silentBtn.addEventListener('click', function() {
+          const chatBtn = mask.querySelector('#moon-ending-chat-btn');
+          if (chatBtn) {
+            chatBtn.addEventListener('click', function() {
               closeFeatureModal(mask);
-              setTimeout(function() { runEndingSettlement(charName, ch, eType); }, 160);
+              setTimeout(function() { injectAndSendEndingPromptToChatbox(charName, ch, eType, eReason); }, 160);
             });
           }
         }
@@ -1270,10 +1271,20 @@
   async function runEndingSettlement(charName, ch, endingType) {
     showLoadingDialog('正在整理本周目历程…');
     const history = collectChatHistoryContext(6000);
+    const chatTail = String(history && history.chat || '').slice(-6000);
     const systemPrompt = '你是日系视觉小说的剧本监督。请根据提供的当前角色和聊天脉络，写一张简洁、尊重玩家设定的周目结算卡。只输出 JSON：title（结局名，最多40字）、summary（复盘，最多160字）、monologue（角色第一人称独白，最多100字）、cgPrompt（根据当前画面生成的横构图图片提示词，默认横构图：包含 horizontal composition, 16:9 aspect ratio, widescreen, cinematic anime visual novel CG，最多800字）、keyMoment（核心转折，最多120字）。不要替玩家补写行动或台词。';
-    const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局类型：' + String(endingType).slice(0, 40) + '\n四维：好感 ' + (Number(ch.好感度) || 0) + '，肉体 ' + (Number(ch.肉体值) || 0) + '，阶段 ' + (Number(ch.阶段值) || 0) + '，嫉妒 ' + (Number(ch.嫉妒值) || 0) + '\n游戏时间：' + String(readVar('世界.时间', '未记录')) + '\n\n聊天脉络：\n' + String(history && history.chat || '').slice(-6000);
+    const userPrompt = '角色：' + String(charName).slice(0, 100) + '\n结局类型：' + String(endingType).slice(0, 40) + '\n四维：好感 ' + (Number(ch.好感度) || 0) + '，肉体 ' + (Number(ch.肉体值) || 0) + '，阶段 ' + (Number(ch.阶段值) || 0) + '，嫉妒 ' + (Number(ch.嫉妒值) || 0) + '\n游戏时间：' + String(readVar('世界.时间', '未记录')) + '\n\n聊天脉络：\n' + chatTail;
+    /* 后台静默调用：优先玩家自己填的 API，其次酒馆静默接口。
+       玩家点「结算」就是要把这个对话收尾，不该再往聊天框里塞一段提示词、
+       让他自己去按发送、然后盯着主模型演一遍。 */
+    const quiet = (typeof callQuietModel === 'function');
     let result = null;
-    try { result = extractJson(await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', systemPrompt, userPrompt)); } catch (e) {}
+    try {
+      const raw = quiet
+        ? await callQuietModel(systemPrompt, userPrompt)
+        : await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', systemPrompt, userPrompt);
+      result = extractJson(raw);
+    } catch (e) {}
     result = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
     const title = String(result.title || charName + '之篇 · 终末之约').slice(0, 80);
     const summary = String(result.summary || '漫长的相遇与抉择，在此刻成为这一周目的最终注脚。').slice(0, 500);
@@ -1281,12 +1292,52 @@
     let prompt = String(result.cgPrompt || ('horizontal composition, 16:9 aspect ratio, widescreen, anime visual novel ending, ' + charName + ', emotional cinematic horizontal scene')).slice(0, 2500);
     if (!/horizontal composition|16:9/i.test(prompt)) prompt = 'horizontal composition, 16:9 aspect ratio, widescreen, ' + prompt;
     const keyMoment = String(result.keyMoment || '命运交叉点上的最终抉择').slice(0, 300);
+
+    /* 终幕正文：单独一次调用写纯文本，不和 JSON 挤在一起。
+       JSON 里塞一千字正文，模型会为了转义把句子写短、把换行吃掉。 */
+    updateLoadingDialogText('正在写终幕…');
+    let finale = '';
+    try {
+      const finSys = '你是日系视觉小说的演出作者。写这个周目结束的那一刻：从最后一幕收束到落幕，600～1000 字。'
+        + '第二人称或第三人称，克制、有画面、留白，允许不解释。'
+        + '不要标题、不要小标题、不要总结陈词、不要替玩家说话或做决定、不要新增设定。';
+      const finUser = '角色：' + String(charName).slice(0, 100)
+        + '\n结局：' + title + '（' + String(endingType || 'TE') + '）'
+        + '\n核心转折：' + keyMoment
+        + '\n终幕复盘：' + summary
+        + '\n角色独白：' + monologue
+        + '\n游戏时间：' + String(readVar('世界.时间', '未记录'))
+        + '\n\n最近发生的事（按时间顺序，最后一段是此刻）：\n' + chatTail.slice(-3000);
+      finale = quiet
+        ? await callQuietModel(finSys, finUser)
+        : await callOpeningModel(hasValidCustomAIConfig() ? 'custom' : 'main', finSys, finUser);
+      if (typeof finale !== 'string') finale = String((finale && (finale.content || finale.text)) || '');
+      finale = String(finale || '').trim().slice(0, 6000);
+    } catch (e) { finale = ''; }
+
     const id = newFeatureId('ending');
-    const record = { id: id, title: title, endingType: String(endingType || 'TE'), charName: charName, totalTime: String(readVar('世界.时间', '未记录')), E: Number(ch.好感度) || 0, P: Number(ch.肉体值) || 0, R: Number(ch.阶段值) || 0, I: Number(ch.嫉妒值) || 0, summary: summary, monologue: monologue, keyMoment: keyMoment, cgPrompt: prompt, createdAt: Date.now() };
+    const record = { id: id, title: title, endingType: String(endingType || 'TE'), charName: charName, totalTime: String(readVar('世界.时间', '未记录')), E: Number(ch.好感度) || 0, P: Number(ch.肉体值) || 0, R: Number(ch.阶段值) || 0, I: Number(ch.嫉妒值) || 0, summary: summary, monologue: monologue, keyMoment: keyMoment, cgPrompt: prompt, finale: finale, createdAt: Date.now() };
     const archive = getEndingArchive(); archive.records.unshift(record); saveEndingArchive(archive);
     const item = { id: id, char: charName, title: title, desc: summary, prompt: prompt, uc: getImageGenConfig().imageNegativePrompt, imageKey: '', imageUrl: '', createdAt: record.createdAt, isEnding: true, endingType: record.endingType };
     const gallery = getGalleryList(); gallery.unshift(item); saveGalleryList(gallery);
+
+    /* 同时进「脚本档案」：换聊天 / 换卡 / 换玩家设定还能翻到这一场是怎么结束的。
+       周目结算本身是 chat 变量，跟着对话走；这里存的是给玩家回看的那一份。 */
+    try {
+      if (typeof archiveAdd === 'function') {
+        archiveAdd({
+          kind: 'ending', title: '《' + title + '》' + String(endingType || 'TE') + ' · 终幕',
+          charName: charName, result: String(endingType || 'TE'),
+          text: (finale ? finale + '\n\n' : '') + '── 终幕复盘 ──\n' + summary + '\n\n── 角色独白 ──\n「' + monologue + '」',
+          meta: { keyMoment: keyMoment, endingId: id, totalTime: record.totalTime, E: record.E, P: record.P, R: record.R, I: record.I }
+        });
+      }
+    } catch (e) {}
+
     closeLoadingDialog();
+    if (!result.title && !finale) {
+      try { toast('后台没拿到模型输出（报幕用了默认文案）。到设置里配一个独立 API，下次就能写出来。', 'warning'); } catch (e) {}
+    }
     openGalgameEndingClearDialog(record, item);
   }
   function openGalgameEndingClearDialog(record, galleryItem) {

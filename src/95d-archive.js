@@ -216,13 +216,19 @@ function archiveSummaryLine(x) {
   if (x.kind === 'epilogue') {
     return '后日谈' + (x.charName ? ' · ' + x.charName + ' 视角' : '') + (x.text ? ' · ' + x.text.length + ' 字' : '');
   }
+  if (x.kind === 'ending') {
+    let s = '终幕' + (x.result ? ' · ' + x.result : '');
+    if (x.meta && x.meta.totalTime) s += ' · ' + x.meta.totalTime;
+    if (x.text) s += ' · ' + x.text.length + ' 字';
+    return s;
+  }
   return x.result || '';
 }
 
 function archiveRenderHtml(kind) {
   const on = archiveToScript();
   const all = archiveRead().records.filter(function (x) { return !kind || x.kind === kind; });
-  const titleMap = { dungeon: '副本档案', epilogue: '后日谈档案' };
+  const titleMap = { dungeon: '副本档案', epilogue: '后日谈档案', ending: '终幕结算' };
   let html = '<div class="mp-arc">' +
     '<div class="mp-arc-head"><b>🗄 ' + (titleMap[kind] || '脚本档案') + ' · 跨对话</b>' +
     '<label class="mp-arc-sw"><input type="checkbox" data-arc-mode="1"' + (on ? ' checked' : '') + '><span>存进脚本</span></label></div>' +
@@ -264,7 +270,7 @@ function archiveExportText(x) {
     '> ' + archiveTimeText(x.at) + (x.from ? ' · ' + x.from : '') + '\n\n';
   const blob = new Blob([head + String(x.text || '')], { type: 'text/plain;charset=utf-8' });
   const url = (mainWin.URL || URL).createObjectURL(blob);
-  downloadFileViaBrowser(url, (x.kind === 'epilogue' ? '后日谈_' : '副本结算_') +
+  downloadFileViaBrowser(url, (x.kind === 'epilogue' ? '后日谈_' : (x.kind === 'ending' ? '终幕_' : '副本结算_')) +
     String(x.title || '档案').replace(/[\\/:*?"<>|]/g, '_') + '.txt');
   setTimeout(function () { try { (mainWin.URL || URL).revokeObjectURL(url); } catch (e) {} }, 5000);
 }
@@ -309,7 +315,7 @@ function archiveBind(root) {
       ev.preventDefault();
       const kind = clr.getAttribute('data-arc-clear') || '';
       showModalDialogCancelable('清空档案',
-        '这会删掉' + (kind === 'dungeon' ? '全部副本战绩' : (kind === 'epilogue' ? '全部后日谈' : '全部档案')) +
+        '这会删掉' + (kind === 'dungeon' ? '全部副本战绩' : (kind === 'epilogue' ? '全部后日谈' : (kind === 'ending' ? '全部终幕结算' : '全部档案'))) +
         '，删了就找不回来。<br><br>想留个底就先点「看 → 导出 TXT」。',
         function () {
           archiveClear(kind || null);
